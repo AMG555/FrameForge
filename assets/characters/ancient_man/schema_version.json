@@ -1,0 +1,15 @@
+{
+  "character_id": "ancient_man",
+  "schema_version": "1.0.0",
+  "description": "Prehistoric caveman character with wild hair and animal skin clothing",
+  "style_parameters": {
+    "ink_style": "clean_line",
+    "color_palette": ["#000000", "#FFFFFF", "#8B4513", "#D2691E"],
+    "line_weight": 3,
+    "resolution": "1920x1080"
+  },
+  "available_poses": ["standing", "running", "sitting", "jumping"],
+  "available_emotions": ["neutral", "happy", "angry", "sad", "surprised", "determined"],
+  "created_date": "2026-09-09T19:45:00Z",
+  "last_modified": "2026-09-09T19:45:00Z"
+}

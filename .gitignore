@@ -1,0 +1,79 @@
+# ── Secrets & credentials ────────────────────────────────────────────────────
+.env
+.env.*
+!.env.template
+*.env
+!*.env.template
+.kiro/config/production-secrets.env
+secrets/
+
+# ── Node.js ──────────────────────────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# ── Python ───────────────────────────────────────────────────────────────────
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# ── Build / dist ─────────────────────────────────────────────────────────────
+dist/
+build/
+out/
+
+# ── Video / media artefacts (large binary outputs) ───────────────────────────
+*.mp4
+*.mp3
+*.m4a
+*.wav
+*.webm
+*.mkv
+*.avi
+*.mov
+# Allow committed example/template music assets
+!assets/music/*.mp3
+!assets/music/*.m4a
+
+# ── Playwright / render runtime ───────────────────────────────────────────────
+out/chunks/
+tmp/
+source/
+
+# ── n8n local runtime ────────────────────────────────────────────────────────
+.n8n/
+.n8n-files/
+video_tmp/
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+logs/
+*.log
+*.ndjson
+!src/**/*.ndjson
+
+# ── OS / editor ──────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/settings.json
+*.suo
+*.user
+
+# ── Temporary / scratch ──────────────────────────────────────────────────────
+temp/
+scratch/
+*.bak
+*.backup
+audit_output*.txt
+
+# ── Skill project outputs (per-project render artefacts) ─────────────────────
+*/out/
+*/tmp/
+*/source/

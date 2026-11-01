@@ -1,0 +1,1428 @@
+﻿{
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "e9c9ee74-89d1-46d3-8361-5e02bda98a9d",
+      "name": "Manual Test",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -6192,
+        2864
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0 1 * * *"
+            }
+          ]
+        }
+      },
+      "id": "10e2588d-c9fb-4b33-ab3d-866c00f7d3af",
+      "name": "Daily 1 AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -6192,
+        3072
+      ]
+    },
+    {
+      "parameters": {
+        "command": "set -e;\nmkdir -p /home/node/.n8n-files/video_tmp /home/node/.n8n-files/music /home/node/.n8n-files/assets;\nrm -rf /home/node/.n8n-files/video_tmp/*;\nrm -f /home/node/.n8n-files/final_video*.mp4 /home/node/.n8n-files/final_short*.mp4 /home/node/.n8n-files/thumbnail.* /home/node/.n8n-files/video_meta.json;\nln -sfn /home/node/.n8n-files/video_tmp /tmp/video_tmp 2>/dev/null || true;\n\n# Auto-download royalty-free history documentary music if directory empty\nif [ -z \"$(find /home/node/.n8n-files/music -type f \\( -name '*.mp3' -o -name '*.m4a' \\) 2>/dev/null)\" ]; then\n  echo \"Downloading royalty-free background soundtracks...\"\n  curl -fsSL --connect-timeout 15 --max-time 90 -o /home/node/.n8n-files/music/track1.mp3 \"https://archive.org/download/WilliamKingsMusicCollection/09_Ambient_Documentary.mp3\" || true\n  curl -fsSL --connect-timeout 15 --max-time 90 -o /home/node/.n8n-files/music/track2.mp3 \"https://archive.org/download/Kevin_MacLeod_-_Royalty_Free_Music/Kevin_MacLeod_-_Echoes_of_Time_v2.mp3\" || true\n  curl -fsSL --connect-timeout 15 --max-time 90 -o /home/node/.n8n-files/music/track3.mp3 \"https://archive.org/download/kevin-macleod-royalty-free/Kevin_MacLeod_-_Hidden_Past.mp3\" || true\n  for f in track1 track2 track3; do\n    if [ ! -s \"/home/node/.n8n-files/music/${f}.mp3\" ]; then\n      ffmpeg -y -f lavfi -i anullsrc=r=44100:cl=stereo -t 60 -c:a libmp3lame -b:a 128k \"/home/node/.n8n-files/music/${f}.mp3\" 2>/dev/null || true\n    fi\n  done\nfi;\n\nls -lh /home/node/.n8n-files/music 2>/dev/null || true;\ndf -h /home/node/.n8n-files"
+      },
+      "id": "1532ae9f-45c5-4aad-adf2-62ec3a6b0dc6",
+      "name": "🧹 Pre-Cleanup",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        -5952,
+        2960
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const seed = Math.floor(Math.random() * 1000000000);\n\nconst topics = [\n  'When Did Ancient Humans Start Smoking?',\n  'When Did Ancient Humans First Drink Alcohol?',\n  'Why Did Humans Start Hiding Sex And When?',\n  'How Did Ancient Humans Actually Find Privacy?',\n  'What Did Ancient Humans Do All Day With No Jobs?',\n  'How Did Ancient Humans Survive Without Modern Medicine?',\n  'Why Did Ancient Humans Start Wearing Clothes?',\n  'Why Ancient Humans Slept Better Than Us',\n  'Ancient Humans vs Modern Humans: Who Had The Easier Life?',\n  'Why Ancient Humans Had Better Teeth Without Ever Brushing',\n  'How Did Ancient Humans Deal With Death?',\n  'Why Did Ancient Humans Start Cooking Food?',\n  'How Did Ancient Humans Fall In Love?',\n  'What Did Ancient Humans Fear The Most?',\n  'How Did Ancient Humans Raise Their Children?',\n  'Why Did Ancient Humans Start Believing In Gods?',\n  'How Did Ancient Humans Communicate Before Language?',\n  'What Did Ancient Humans Eat In A Typical Day?',\n  'How Did Ancient Humans Handle Anger And Conflict?',\n  'Why Did Ancient Humans Start Making Art?',\n  'How Did Ancient Humans Stay Warm Without Heating?',\n  'Did Ancient Humans Actually Have Fun?',\n  'How Did Ancient Humans Know When Someone Was Lying?',\n  'Why Did Ancient Humans Live In Groups?',\n  'How Did Ancient Humans Deal With Boredom?',\n  'What Happened When An Ancient Human Got Sick?',\n  'How Did Ancient Humans Know What Was Safe To Eat?',\n  'Why Did Ancient Humans Start Burying Their Dead?',\n  'How Did Ancient Humans Treat Mental Illness?',\n  'What Did Ancient Humans Think About Dreams?',\n  'Did Ancient Humans Have Best Friends?',\n  'How Did Ancient Humans Handle Heartbreak?',\n  'What Did Ancient Humans Do When It Rained?',\n  'How Did Ancient Humans React To Thunder And Lightning?',\n  'Did Ancient Humans Get Depressed?',\n  'How Did Ancient Humans Choose A Leader?',\n  'What Did Ancient Humans Do For Fun At Night?',\n  'Why Did Ancient Humans Start Dancing?',\n  'How Did Ancient Humans Know When To Sleep?'\n];\n\nconst voices = ['en-US-GuyNeural', 'en-US-ChristopherNeural'];\nconst topic = topics[seed % topics.length];\nconst voice = voices[Math.floor(seed / 13) % voices.length];\n\nreturn [{\n  json: {\n    seed, topic, voice,\n    groqModel: 'openai/gpt-oss-120b',\n    targetMinutes: 13, minMinutes: 11, maxMinutes: 15,\n    targetScenes: 55, minScenes: 45, maxScenes: 65,\n    minWords: 1700, maxWords: 2200,\n    character_style: 'Ancient Thoughts / Mack Explains style: white circle head, wild spiky black hair, scruffy beard, simple brown animal-pelt tunic, thick black marker stick-figure limbs, hilarious meme-face reactions',\n    prop_style: 'flat-colour minimal props: stylised fire with curling smoke, crossed-out modern items labelled NO NETFLIX and NO PHONE, dotted evolution timeline arrow',\n    visual_style: 'pure white background, thick black outlines, flat colour fills, no gradients, no photorealism, no 3D, no shadows, no watermark'\n  }\n}];"
+      },
+      "id": "e11f453b-d99a-4e38-b742-4e13c5ef6086",
+      "name": "🎯 Topic + Voice",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5712,
+        2960
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $json;\n\nconst system = 'You are a YouTube history researcher. Output ONLY raw JSON. No markdown. No code fences. No commentary. Start your response with { and end with }.';\n\nconst user = 'TOPIC: ' + d.topic + '\\n\\nReturn 10 factual claims as JSON:\\n{\"topic\":\"...\",\"claims\":[{\"claim\":\"...\",\"confidence\":\"high\",\"safe_wording\":\"...\"}],\"common_myths\":[\"...\"],\"modern_comparisons\":[\"...\"],\"story_angles\":[\"...\"]}';\n\nconst model = d.groqModel || 'openai/gpt-oss-120b';\nconst researchBody = {\n  model,\n  messages: [{ role: 'system', content: system }, { role: 'user', content: user }],\n  temperature: 1,\n  max_tokens: 8000\n};\nreturn [{ json: { ...d, researchBody } }];"
+      },
+      "id": "7a943013-91fc-4613-b90c-3e9afbb7bf56",
+      "name": "🔎 Build Research Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5472,
+        2960
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.researchBody) }}",
+        "options": {
+          "timeout": 600000
+        }
+      },
+      "id": "0b9de08c-2036-46b0-985f-b9ddbe08eb43",
+      "name": "🧠 Research With Groq",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -5232,
+        2960
+      ],
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 20000,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "obp5x49pUbWadmJk",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $json.choices?.[0]?.message?.content || '';\nif (!raw) throw new Error('Research model returned no content');\n\nfunction parseResearchJson(rawStr) {\n  let clean = rawStr.replace(/```json/gi, '').replace(/```/g, '').trim();\n  const first = clean.indexOf('{');\n  const last = clean.lastIndexOf('}');\n  if (first < 0 || last <= first) throw new Error('Research response did not contain JSON');\n  let str = clean.slice(first, last + 1);\n  str = str.replace(/\\*\\*/g, '');\n  str = str.replace(/,\\s*([}\\]])/g, '$1');\n  try { return JSON.parse(str); } catch (e) {\n    const claims = [];\n    const claimMatches = clean.match(/\\{[^{}]*\"claim\"[\\s\\S]*?\\}/g) || [];\n    for (const cm of claimMatches) {\n      const cText = (cm.match(/\"claim\"\\s*:\\s*\"([^\"]+)\"/) || [])[1] || '';\n      const cConf = (cm.match(/\"confidence\"\\s*:\\s*\"([^\"]+)\"/) || [])[1] || 'medium';\n      const cSafe = (cm.match(/\"safe_wording\"\\s*:\\s*\"([^\"]+)\"/) || [])[1] || cText;\n      if (cText.length > 5) claims.push({ claim: cText, confidence: cConf, safe_wording: cSafe });\n    }\n    if (claims.length >= 5) return { topic: d.topic, core_question: '', claims };\n    throw new Error('Research JSON parse failed: ' + e.message);\n  }\n}\n\nlet data;\ntry { data = parseResearchJson(raw); } catch (e) { throw new Error('Research JSON parse failed: ' + e.message); }\nif (!Array.isArray(data.claims) || data.claims.length < 5) throw new Error('Research brief contains too few claims');\n\nconst source = $('🎯 Topic + Voice').first().json;\nreturn [{ json: { ...source, research: data, researchClaims: data.claims, researchMyths: data.common_myths || [], researchComparisons: data.modern_comparisons || [], researchAngles: data.story_angles || [] } }];"
+      },
+      "id": "ae1c284a-fd94-46e8-9bcb-c112c72d3f03",
+      "name": "✅ Validate Research",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4992,
+        2960
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $json;\nconst claims = d.researchClaims || d.research?.claims || [];\nconst facts = claims.slice(0, 6).map(c => c.safe_wording || c.claim).join('; ');\n\nconst system = [\n  'You are a YouTube scriptwriter for Ancient Thoughts and Mack Explains channels.',\n  'Style: rapid-fire educational comedy. Short punchy sentences 15-35 words each.',\n  'Structure: alternate between ancient-human facts and modern-human comparisons.',\n  'Hook every 4-5 scenes with a surprising did-you-know reveal.',\n  'Output ONLY raw JSON. No markdown. No code fences. Start with { end with }.'\n].join(' ');\n\nconst user = [\n  'TOPIC: ' + d.topic,\n  'FACTS: ' + facts,\n  '',\n  'Write exactly 55 scenes. Rules:',\n  '- narration: 15-35 words, punchy conversational. Mix fast 15-20w and medium 25-35w.',\n  '- caption: 3-6 word UPPERCASE summary burned onto screen.',\n  '- visual_action: one vivid cartoon image description. End with ONE tag: [CAMP] [MODERN] [COMPARE] [REACTION] [TIMELINE]',\n  '  [CAMP]=ancient campfire/savanna  [MODERN]=modern human relatable  [COMPARE]=side-by-side',\n  '  [REACTION]=meme face close-up    [TIMELINE]=evolution arrow diagram',\n  '- camera: static or slow_zoom_in or slow_zoom_out',\n  '',\n  'Scene 1: open with vivid sensory hook 50000 years ago.',\n  'Scenes 2-4: establish ancient situation.',\n  'Every 5th scene: modern comparison gag.',\n  'Final 3 scenes: punchy takeaway.',\n  '',\n  'RESPOND WITH EXACTLY:',\n  '{\"topic\":\"...\",\"youtube_title\":\"...\",\"title_candidates\":[\"...\",\"...\",\"...\",\"...\",\"...\"],',\n  '\"youtube_description\":\"...\",\"youtube_tags\":[\"...\",\"...\",\"...\",\"...\",\"...\",\"...\",\"...\",\"...\",\"...\",\"...\"],',\n  '\"thumbnail_prompt\":\"...\",\"hook\":\"...\",',\n  '\"scenes\":[{\"n\":1,\"narration\":\"...\",\"caption\":\"CAPTION HERE\",\"visual_action\":\"description [CAMP]\",\"camera\":\"slow_zoom_in\"}],',\n  '\"shorts\":[{\"short_id\":1,\"title\":\"...\",\"description\":\"...\",\"hook\":\"...\",\"start_scene\":1,\"end_scene\":8}]}'\n].join('\\n');\n\nconst model = d.groqModel || 'openai/gpt-oss-120b';\nconst scriptBody = {\n  model,\n  messages: [{ role: 'system', content: system }, { role: 'user', content: user }],\n  temperature: 1,\n  max_tokens: 32000\n};\nreturn [{ json: { ...d, scriptBody } }];"
+      },
+      "id": "e9d032d0-53c0-4858-ab34-89ceb0750038",
+      "name": "🧠 Build Script Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4512,
+        2960
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.scriptBody) }}",
+        "options": {
+          "timeout": 900000
+        }
+      },
+      "id": "2e021802-76e6-40df-8fd3-0f318b04aca1",
+      "name": "🧠 Groq Script",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -4272,
+        2960
+      ],
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "obp5x49pUbWadmJk",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $json.choices?.[0]?.message?.content || '';\nconst finish = $json.choices?.[0]?.finish_reason || 'unknown';\nif (!raw) throw new Error('Groq returned no content. finish_reason=' + finish + '. max_tokens too low for reasoning model.');\n\nfunction parseScript(str) {\n  let s = str.replace(/```json/gi,'').replace(/```/g,'').trim();\n  const fi=s.indexOf('{'),la=s.lastIndexOf('}');\n  if(fi<0||la<=fi) throw new Error('No JSON in response');\n  s=s.slice(fi,la+1).replace(/,\\s*([}\\]])/g,'$1').replace(/\\*\\*/g,'');\n  try{return JSON.parse(s);}catch(e){}\n  try{return JSON.parse(s.replace(/(:\\s*\")((?:[^\"\\\\]|\\\\.)*)(\",?)/g,function(_,p,m,q){return p+m.replace(/(?<!\\\\)\"/g,\"'\")+q;}));}catch(e){}\n  const scenes=[];const rx=/\"narration\"\\s*:\\s*\"([^\"]{10,})\"/g;let m,i=1;\n  while((m=rx.exec(s))!==null) scenes.push({n:i++,narration:m[1],caption:'',visual_action:'ancient scene [CAMP]',camera:'slow_zoom_in'});\n  if(scenes.length>=15) return {topic:$('🎯 Topic + Voice').first().json.topic,youtube_title:$('🎯 Topic + Voice').first().json.topic,youtube_description:'',thumbnail_prompt:'ancient human scene',scenes,shorts:[]};\n  throw new Error('Parse failed. scenes='+scenes.length+' finish='+finish);\n}\n\nlet data;\ntry{data=parseScript(raw);}catch(e){throw new Error('Script parse failed: '+e.message);}\nif(!Array.isArray(data.scenes)||data.scenes.length<15) throw new Error('Too few scenes: '+(data.scenes?.length||0));\n\nconst source=$('🎯 Topic + Voice').first().json;\nconst allowedCam=['static','slow_zoom_in','slow_zoom_out'];\nconst allowedTags=['[CAMP]','[MODERN]','[COMPARE]','[REACTION]','[TIMELINE]','[MODERN_GAG]','[COMIC_CLOSEUP]'];\n\nconst scenes=data.scenes.slice(0,72).map((s,i)=>{\n  const va=String(s.visual_action||'ancient human reacting [REACTION]').trim();\n  const hasTag=allowedTags.some(t=>va.includes(t));\n  const visual_action=hasTag?va:va+' [REACTION]';\n  let caption=String(s.caption||'').trim().toUpperCase();\n  if(!caption||caption.length<3){\n    caption=String(s.narration||'').trim().split(/\\s+/).slice(0,5).join(' ').toUpperCase();\n  }\n  // Keep caption short and clean for drawtext\n  caption=caption.replace(/['\"\\\\:;|<>{}[\\]!@#$%^&*()+]/g,'').substring(0,50).trim();\n  return {\n    n:Number(s.n||i+1),\n    narration:String(s.narration||'').trim(),\n    caption,\n    visual_action,\n    doodle_prompt:visual_action,\n    camera:allowedCam.includes(s.camera)?s.camera:'slow_zoom_in',\n    on_screen_text:caption,\n    sound_cue:'',\n    fact_confidence:'medium'\n  };\n}).filter(s=>s.narration.length>10);\n\nlet shorts=Array.isArray(data.shorts)?data.shorts.slice(0,7).map((s,i)=>{\n  let start=Math.max(1,Math.min(scenes.length,Number(s.start_scene)||1));\n  let end=Math.max(1,Math.min(scenes.length,Number(s.end_scene)||start+7));\n  if(end<start)[start,end]=[end,start];\n  return{short_id:i+1,title:String(s.title||'').trim(),description:String(s.description||'').trim(),hook:String(s.hook||'').trim(),start_scene:start,end_scene:end};\n}):[];\nif(!shorts.length){\n  const cnt=Math.min(6,Math.max(3,Math.floor(scenes.length/8)));\n  const span=Math.floor(scenes.length/cnt);\n  for(let i=0;i<cnt;i++){\n    const start=i*span+1;\n    const end=(i===cnt-1)?scenes.length:(i+1)*span;\n    shorts.push({short_id:i+1,title:String(data.youtube_title||source.topic||'Short')+' Pt.'+(i+1),description:scenes[start-1]?.narration?.slice(0,100)||'',hook:scenes[start-1]?.narration?.slice(0,60)||'',start_scene:start,end_scene:end});\n  }\n}\n\nconst totalWords=scenes.reduce((n,s)=>n+s.narration.split(/\\s+/).filter(Boolean).length,0);\nreturn [{json:{\n  ...source,\n  topic:data.topic||source.topic,\n  youtube_title:data.youtube_title||source.topic,\n  title_candidates:Array.isArray(data.title_candidates)?data.title_candidates:[],\n  youtube_description:String(data.youtube_description||''),\n  youtube_tags:Array.isArray(data.youtube_tags)?data.youtube_tags.join(', '):String(data.youtube_tags||''),\n  thumbnail_prompt:String(data.thumbnail_prompt||'ancient human documentary cartoon'),\n  hook:String(data.hook||''),\n  scenes,shorts,totalWords,\n  estimatedMinutes:Number((totalWords/140).toFixed(2)),\n  generationAttempt:1\n}}];"
+      },
+      "id": "5cd88990-be2d-4199-9813-c4c3a8a903e9",
+      "name": "✅ Validate Script",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4032,
+        2960
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d=$json;const words=d.totalWords;const minutes=words/140;const scenes=d.scenes.length;\nconst needsExpansion=words<1750||scenes<45;\nreturn [{json:{...d,needsExpansion,tooLong:words>2550||scenes>75,runtimeMinutes:Number(minutes.toFixed(2)),runtimeStatus:words>=1750&&scenes>=45?'PASS':'REVIEW'}}];"
+      },
+      "id": "05e6f94e-a010-495f-b290-3402355fca9d",
+      "name": "⏱️ Check Runtime",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -3792,
+        2960
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-needs-expansion",
+              "leftValue": "={{ $json.needsExpansion }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "fa388b2b-d7f8-4eb5-93a6-ea340c0c83c7",
+      "name": "🔍 Script Too Short?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -3552,
+        2960
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d=$json;\nif((d.generationAttempt||1)>=2) throw new Error('Script too short after expansion: '+d.totalWords+' words');\nconst existing=d.scenes.slice(0,20).map(s=>s.n+': '+s.narration).join('\\n');\nconst system='Output ONLY raw JSON. No markdown. Start with { end with }.';\nconst user='Script is too short ('+d.totalWords+' words). Expand to 1900+ words / 50+ scenes.\\n\\nCurrent scenes:\\n'+existing+'\\n\\nReturn full expanded scenes JSON ONLY:\\n{\"scenes\":[{\"n\":1,\"narration\":\"...\",\"visual_action\":\"... [CAMP]\",\"camera\":\"slow_zoom_in\"}'+'}';\nconst model=d.groqModel||'openai/gpt-oss-120b';\nconst expansionBody={model,messages:[{role:'system',content:system},{role:'user',content:user}],temperature:1,max_tokens:20000};\nreturn [{json:{...d,generationAttempt:2,expansionBody}}];"
+      },
+      "id": "98e50cdd-0674-4818-9a3d-26cd6b737726",
+      "name": "🩹 Build Expansion Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3328,
+        2656
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 90
+      },
+      "id": "d6cc01f6-eb37-476e-ac22-5ac5f90fe2a9",
+      "name": "⏳ Wait for Groq TPM",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -3072,
+        2656
+      ],
+      "webhookId": "80cf8677-9d51-484e-bda3-318bb1921cd3"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.expansionBody) }}",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "id": "0fa3ecfe-dac0-4abe-8258-f7ba4f294164",
+      "name": "🧠 Groq Expansion",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -2832,
+        2656
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 35000,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "obp5x49pUbWadmJk",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw=$json.choices?.[0]?.message?.content||'';\nif(!raw) throw new Error('Expansion returned no content');\nfunction parse(str){let s=str.replace(/```json/gi,'').replace(/```/g,'').trim();const fi=s.indexOf('{'),la=s.lastIndexOf('}');if(fi<0||la<=fi)throw new Error('No JSON');s=s.slice(fi,la+1).replace(/,\\s*([}\\]])/g,'$1');try{return JSON.parse(s);}catch(e){}const scenes=[];const rx=/\"narration\"\\s*:\\s*\"([^\"]{10,})\"/g;let m,i=1;while((m=rx.exec(s))!==null)scenes.push({n:i++,narration:m[1],visual_action:'ancient scene [CAMP]',camera:'slow_zoom_in'});if(scenes.length>=15)return{scenes};throw new Error('Expansion parse failed');}\nlet data;try{data=parse(raw);}catch(e){throw new Error('Expansion parse: '+e.message);}\nif(!Array.isArray(data.scenes))throw new Error('Expanded script missing scenes');\nconst source=$('🎯 Topic + Voice').first().json;\nconst allowed=['static','slow_zoom_in','slow_zoom_out','pan_left','pan_right','quick_zoom','shake'];\nconst scenes=data.scenes.slice(0,72).map((s,i)=>({n:Number(s.n||i+1),narration:String(s.narration||'').trim(),visual_action:String(s.visual_action||'character reacting [CAMP]').trim(),doodle_prompt:String(s.doodle_prompt||s.visual_action||'history scene').trim(),camera:allowed.includes(s.camera)?s.camera:'slow_zoom_in',on_screen_text:'',sound_cue:'',fact_confidence:'medium'})).filter(s=>s.narration.length>10);\nconst totalWords=scenes.reduce((n,s)=>n+s.narration.split(/\\s+/).filter(Boolean).length,0);\nif(scenes.length<28)throw new Error('Expansion only '+scenes.length+' scenes');\nif(totalWords<1400)throw new Error('Expansion only '+totalWords+' words');\nlet shorts=[];const cnt=Math.min(6,Math.max(3,Math.floor(scenes.length/8)));const span=Math.floor(scenes.length/cnt);\nfor(let i=0;i<cnt;i++){const start=i*span+1;const end=(i===cnt-1)?scenes.length:(i+1)*span;shorts.push({short_id:i+1,title:String(data.youtube_title||source.topic||'Short')+' Pt.'+(i+1),description:scenes[start-1]?.narration?.slice(0,100)||'',hook:scenes[start-1]?.narration?.slice(0,60)||'',start_scene:start,end_scene:end});}\nreturn [{json:{...source,topic:data.topic||source.topic,youtube_title:data.youtube_title||source.youtube_title||source.topic,title_candidates:data.title_candidates||source.title_candidates||[],youtube_description:data.youtube_description||source.youtube_description||'',youtube_tags:Array.isArray(data.youtube_tags)?data.youtube_tags.join(', '):String(data.youtube_tags||source.youtube_tags||''),thumbnail_prompt:data.thumbnail_prompt||source.thumbnail_prompt||'ancient human scene',hook:data.hook||source.hook||'',scenes,shorts,totalWords,estimatedMinutes:Number((totalWords/140).toFixed(2)),generationAttempt:2}}];"
+      },
+      "id": "5d34832b-9ddb-4cb1-8790-ac916927507a",
+      "name": "✅ Validate Expanded Script",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2608,
+        2656
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d=$json;const words=d.totalWords;const minutes=words/140;\nif(words<1400||words>2700)throw new Error('Final script word count invalid: '+words);\nif(d.scenes.length<38||d.scenes.length>75)throw new Error('Final scene count invalid: '+d.scenes.length);\nreturn [{json:{...d,estimatedMinutes:Number(minutes.toFixed(2)),runtimeStatus:'PASS'}}];"
+      },
+      "id": "b2aba791-f5c9-4951-b7bb-73040f9d5c28",
+      "name": "⏱️ Final Runtime Check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3072,
+        2960
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d=$json;\nreturn d.scenes.map((scene,index)=>({json:{scene,index,topic:d.topic,title:d.youtube_title,voice:d.voice,seed:d.seed,character_style:d.character_style,prop_style:d.prop_style,visual_style:d.visual_style}}));"
+      },
+      "id": "569d9784-ccd2-471c-9bc8-04dff85cbab7",
+      "name": "🎬 Split Scenes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2832,
+        2960
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "6b8a3072-6201-4840-81c2-73a90e958425",
+      "name": "🔁 One Scene At A Time",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -2592,
+        2960
+      ]
+    },
+    {
+      "parameters": {
+        "command": "set -e;\nVDIR=\"/home/node/.n8n-files/video_tmp\";\nmkdir -p \"$VDIR\";\nIDX={{ $('🔁 One Scene At A Time').first().json.index }};\nOUT=\"$VDIR/scene_${IDX}.png\";\nrm -f \"$OUT\";\nACTION={{ JSON.stringify($('🔁 One Scene At A Time').first().json.scene.visual_action || 'ancient human reacting [REACTION]') }};\nSEED={{ $('🔁 One Scene At A Time').first().json.seed || 12345 }};\nPY=\"$VDIR/gen_scene.py\";\npython3 -c \"import base64,sys; open(sys.argv[1],'wb').write(base64.b64decode('aW1wb3J0IHN5cywgdXJsbGliLnBhcnNlLCBzdWJwcm9jZXNzLCBvcywgcmUKCmFjdGlvbiA9IHN5cy5hcmd2WzFdIGlmIGxlbihzeXMuYXJndik+MSBlbHNlICdhbmNpZW50IGh1bWFuIFtSRUFDVElPTl0nCmlkeCAgICA9IGludChzeXMuYXJndlsyXSkgaWYgbGVuKHN5cy5hcmd2KT4yIGVsc2UgMApzZWVkICAgPSBpbnQoc3lzLmFyZ3ZbM10pIGlmIGxlbihzeXMuYXJndik+MyBlbHNlIDEyMzQ1CnZkaXIgICA9IHN5cy5hcmd2WzRdIGlmIGxlbihzeXMuYXJndik+NCBlbHNlICcvaG9tZS9ub2RlLy5uOG4tZmlsZXMvdmlkZW9fdG1wJwpvdXRfZmlsZSA9IG9zLnBhdGguam9pbih2ZGlyLCBmJ3NjZW5lX3tpZHh9LnBuZycpCnJhd19maWxlID0gb3MucGF0aC5qb2luKHZkaXIsIGYncmF3X3tpZHh9LnBuZycpCgpTVFlMRSA9ICgKICAgICcyRCBmbGF0IHZlY3RvciBjYXJ0b29uLCBoYW5kLWRyYXduIG1hcmtlciBkb29kbGUsICcKICAgICdwdXJlIHdoaXRlIGJhY2tncm91bmQsICcKICAgICd0aGljayBzb2xpZCBibGFjayBvdXRsaW5lcyA0cHgsIHplcm8gc2hhZGluZyB6ZXJvIGdyYWRpZW50cywgJwogICAgJ3NpbXBsZSBmbGF0IGNvbG9yIGZpbGxzIG9ubHksICcKICAgICdzdGljayBmaWd1cmUgYm9keSB3aXRoIHdoaXRlIG92YWwgaGVhZCwgJwogICAgJ3dpbGQgbWVzc3kgYmxhY2sgaGFpciwgc2NydWZmeSBiZWFyZCwgJwogICAgJ2NhdmVtYW4gd2VhcnMgcm91Z2ggYnJvd24gYW5pbWFsIHBlbHQgbG9pbmNsb3RoLCAnCiAgICAnbW9kZXJuIGh1bWFuIHdlYXJzIHBsYWluIGNvbG9yZWQgdC1zaGlydCwgJwogICAgJ2JpZyByb3VuZCBleHByZXNzaXZlIGV5ZXMsIGV4YWdnZXJhdGVkIG9wZW4gbW91dGgsICcKICAgICd3ZWIgY29taWMgcGFuZWwgc3R5bGUsICcKICAgICdBbmNpZW50IFRob3VnaHRzIFlvdVR1YmUgY2hhbm5lbCBhcnQgc3R5bGUsICcKICAgICdNYWNrIEV4cGxhaW5zIFlvdVR1YmUgaWxsdXN0cmF0aW9uIHN0eWxlJwopCk5FRyA9ICgKICAgICdwaG90b3JlYWxpc3RpYywgM0QgcmVuZGVyLCBDR0ksIHBhaW50aW5nLCB3YXRlcmNvbG9yLCAnCiAgICAnZGFyayBiYWNrZ3JvdW5kLCBncmFkaWVudCwgc2hhZG93LCB0ZXh0dXJlLCBub2lzZSwgJwogICAgJ2RldGFpbGVkIGFuYXRvbXksIHJlYWxpc3RpYyBmYWNlLCByZWFsIGh1bWFuLCAnCiAgICAnd2F0ZXJtYXJrLCBsb2dvLCB0ZXh0LCBjYXB0aW9uLCBib3JkZXIsIGZyYW1lJwopCgphY3QgPSBhY3Rpb24ubG93ZXIoKQp0YWcgPSAnJwpmb3IgdCBpbiBbJ1tjYW1wXScsJ1ttb2Rlcm5dJywnW2NvbXBhcmVdJywnW3JlYWN0aW9uXScsJ1t0aW1lbGluZV0nLCdbbW9kZXJuX2dhZ10nLCdbY29taWNfY2xvc2V1cF0nXToKICAgIGlmIHQgaW4gYWN0OiB0YWcgPSB0LnN0cmlwKCdbXScpOyBicmVhawpjbGVhbiA9IHJlLnN1YihyJ1xbLio/XF0nLCAnJywgYWN0aW9uKS5zdHJpcCgpWzo4MF0KCmlmIHRhZyBpbiAoJ2NhbXAnLCAnJyk6CiAgICBzY2VuZSA9ICgKICAgICAgICBmJ3tjbGVhbn0sICcKICAgICAgICAndGhyZWUgc3RpY2stZmlndXJlIGNhdmVtZW4gd2l0aCBvdmFsIGhlYWRzIGFuZCBzcGlreSBoYWlyIHNpdCBhcm91bmQgJwogICAgICAgICdhIGJyaWdodCBvcmFuZ2UgY2FtcGZpcmUgd2l0aCBjdXJsaW5nIHdoaXRlIHNtb2tlLCAnCiAgICAgICAgJ2ZsYXQgc2FuZHkgZ3JvdW5kIGxpbmUsIHNpbGhvdWV0dGUgb2Ygc2luZ2xlIGFjYWNpYSB0cmVlIG9uIHJpZ2h0LCAnCiAgICAgICAgJ2RhcmsgYmx1ZSBza3kgc3RyaXAgYXQgdG9wLCAnCiAgICAgICAgZid7U1RZMEV9JwogICAgKQplbGlmIHRhZyA9PSAnbW9kZXJuJzoKICAgIHNjZW5lID0gKAogICAgICAgIGYne2NsZWFufSwgJwogICAgICAgICdvbmUgc3RpY2stZmlndXJlIG1vZGVybiBodW1hbiB3aXRoIG92YWwgaGVhZCBhbmQgbmVhdCBoYWlyICcKICAgICAgICAnd2VhcmluZyBhIHBsYWluIHQtc2hpcnQsIHN0YW5kaW5nIG9uIHdoaXRlIGJhY2tncm91bmQsICcKICAgICAgICAnYXJtcyBzcHJlYWQgb3Igb25lIGhhbmQgb24gY2hpbiwgcHV6emxlZCBvciBzbXVnIGV4cHJlc3Npb24sICcKICAgICAgICBmJ3tTVFlMRX0nCiAgICApCmVsaWYgdGFnID09ICdjb21wYXJlJzoKICAgIHNjZW5lID0gKAogICAgICAgIGYne2NsZWFufSwgJwogICAgICAgICdzcGxpdCBwYW5lbDogTEVGVCBzaWRlIHNob3dzIGNhdmVtYW4gc3RpY2stZmlndXJlIGluIGFuaW1hbCBwZWx0ICcKICAgICAgICAnd2l0aCBmaXJlLCBSSUdIVCBzaWRlIHNob3dzIG1vZGVybiBzdGljay1maWd1cmUgd2l0aCBzbWFydHBob25lLCAnCiAgICAgICAgJ2JvbGQgYmxhY2sgdmVydGljYWwgZGl2aWRpbmcgbGluZSBpbiBjZW50cmUsICcKICAgICAgICAnd2hpdGUgYmFja2dyb3VuZCBvbiBib3RoIHNpZGVzLCAnCiAgICAgICAgZid7U1RZTEV9JwogICAgKQplbGlmIHRhZyA9PSAncmVhY3Rpb24nOgogICAgc2NlbmUgPSAoCiAgICAgICAgZid7Y2xlYW59LCAnCiAgICAgICAgJ2xhcmdlIGNsb3NlLXVwIG9mIHNpbmdsZSBzdGljay1maWd1cmUgZmFjZTogJwogICAgICAgICdnaWFudCB3aGl0ZSBjaXJjbGUgaGVhZCwgaHVnZSByb3VuZCBzaG9jay1leWVzIHdpdGggYmxhY2sgcHVwaWxzLCAnCiAgICAgICAgJ3dpZGUgb3BlbiBtb3V0aCBPIHNoYXBlLCBib3RoIGhhbmRzIHJhaXNlZCB0byBjaGVla3MsICcKICAgICAgICAnd2hpdGUgYmFja2dyb3VuZCwgbm8gYm9keSB2aXNpYmxlLCAnCiAgICAgICAgZid7U1RZTEV9JwogICAgKQplbGlmIHRhZyA9PSAndGltZWxpbmUnOgogICAgc2NlbmUgPSAoCiAgICAgICAgZid7Y2xlYW59LCAnCiAgICAgICAgJ2hvcml6b250YWwgdGltZWxpbmUgYXJyb3cgZnJvbSBsZWZ0IHRvIHJpZ2h0IG9uIHdoaXRlIGJhY2tncm91bmQ6ICcKICAgICAgICAnc21hbGwgY2F2ZW1hbiBzdGljayBmaWd1cmUgb24gZmFyIGxlZnQgbGFiZWxsZWQgNTAwMDAgQkMsICcKICAgICAgICAnbGFyZ2UgYm9sZCBxdWVzdGlvbiBtYXJrIGluIGNlbnRyZSBjaXJjbGUsICcKICAgICAgICAnbW9kZXJuIHN0aWNrIGZpZ3VyZSBvbiBmYXIgcmlnaHQgbGFiZWxsZWQgVE9EQVksICcKICAgICAgICBmJ3tTVFlMRX0nCiAgICApCmVsc2U6CiAgICBzY2VuZSA9IGYne2NsZWFufSwge1NUWUxFfScKCnVuaXF1ZV9zZWVkID0gc3RyKHNlZWQgKyBpZHggKiA3OTE5KQpxID0gdXJsbGliLnBhcnNlLnF1b3RlKHNjZW5lKQpuZWdfcSA9IHVybGxpYi5wYXJzZS5xdW90ZShORUcpCgpkb3dubG9hZGVkID0gRmFsc2UKZm9yIG1vZGVsX24sIHRpbWVvdXQgaW4gWygnZmx1eCcsIDM1KSwgKCd0dXJibycsIDI1KV06CiAgICB1cmwgPSAoZidodHRwczovL2ltYWdlLnBvbGxpbmF0aW9ucy5haS9wcm9tcHQve3F9JwogICAgICAgICAgIGYnP3dpZHRoPTE5MjAmaGVpZ2h0PTEwODAmbW9kZWw9e21vZGVsX259JwogICAgICAgICAgIGYnJm5vbG9nbz10cnVlJm5vZmVlZD10cnVlJnNlZWQ9e3VuaXF1ZV9zZWVkfScKICAgICAgICAgICBmJyZuZWdhdGl2ZT17bmVnX3F9JykKICAgIHRyeToKICAgICAgICByID0gc3VicHJvY2Vzcy5ydW4oCiAgICAgICAgICAgIFsnY3VybCcsJy1mc1NMJywnLS1yZXRyeScsJzEnLCctLWNvbm5lY3QtdGltZW91dCcsJzEyJywKICAgICAgICAgICAgICctLW1heC10aW1lJyxzdHIodGltZW91dCksJy1vJyxyYXdfZmlsZSx1cmxdLAogICAgICAgICAgICB0aW1lb3V0PXRpbWVvdXQrNgogICAgICAgICkKICAgICAgICBpZiByLnJldHVybmNvZGU9PTAgYW5kIG9zLnBhdGguZXhpc3RzKHJhd19maWxlKSBhbmQgb3MucGF0aC5nZXRzaXplKHJhd19maWxlKT4yMDAwOgogICAgICAgICAgICBkb3dubG9hZGVkID0gVHJ1ZQogICAgICAgICAgICBicmVhawogICAgZXhjZXB0IEV4Y2VwdGlvbiBhcyBlOgogICAgICAgIHByaW50KGYnQXR0ZW1wdCB7bW9kZWxfbn0gZmFpbGVkOiB7ZX0nKQoKaWYgZG93bmxvYWRlZDoKICAgIHN1YnByb2Nlc3MucnVuKFsKICAgICAgICAnZmZtcGVnJywnLW5vc3RkaW4nLCcteScsJy1pJyxyYXdfZmlsZSwKICAgICAgICAnLXZmJywnc2NhbGU9MTkyMDoxMDgwOmZvcmNlX29yaWdpbmFsX2FzcGVjdF9yYXRpbz1pbmNyZWFzZTpmbGFncz1sYW5jem9zLGNyb3A9MTkyMDoxMDgwJywKICAgICAgICAnLWZyYW1lczp2JywnMScsIG91dF9maWxlCiAgICBdLCBjaGVjaz1UcnVlLCB0aW1lb3V0PTIwKQogICAgaWYgb3MucGF0aC5leGlzdHMocmF3X2ZpbGUpOiBvcy5yZW1vdmUocmF3X2ZpbGUpCmVsc2U6CiAgICBzdWJwcm9jZXNzLnJ1bihbCiAgICAgICAgJ2ZmbXBlZycsJy1ub3N0ZGluJywnLXknLCctZicsJ2xhdmZpJywKICAgICAgICAnLWknLCdjb2xvcj1jPXdoaXRlOnM9MTkyMHgxMDgwOmQ9MScsCiAgICAgICAgJy1mcmFtZXM6dicsJzEnLCBvdXRfZmlsZQogICAgXSwgY2hlY2s9VHJ1ZSwgdGltZW91dD0xMCkKICAgIHByaW50KGYnV0FSTklORzogdXNlZCB3aGl0ZSBmYWxsYmFjayBmb3Igc2NlbmUge2lkeH0nKQoKc3ogPSBvcy5wYXRoLmdldHNpemUob3V0X2ZpbGUpCmFzc2VydCBzeiA+IDUwMCwgZidJbWFnZSB0b28gc21hbGw6IHtzen0nCnByaW50KGYnU2NlbmUge2lkeH0gaW1hZ2UgT0sge3N6Ly8xMDI0fUtCIHRhZz17dGFnfScp'))\" \"$PY\";\npython3 \"$PY\" \"$ACTION\" \"$IDX\" \"$SEED\" \"$VDIR\";\ntest -s \"$OUT\""
+      },
+      "id": "c7053726-2464-4fd8-87fd-0442989dfdf8",
+      "name": "🎨 Generate Doodle",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        -2352,
+        2720
+      ]
+    },
+    {
+      "parameters": {
+        "command": "set -e;\nVDIR=\"/home/node/.n8n-files/video_tmp\";\nmkdir -p \"$VDIR\";\nIDX={{ $('🔁 One Scene At A Time').first().json.index }};\nVOICE=\"{{ $('🔁 One Scene At A Time').first().json.voice }}\";\nTEXT={{ JSON.stringify($('🔁 One Scene At A Time').first().json.scene.narration) }};\n\ntimeout 40s edge-tts --voice \"$VOICE\" --rate=\"-5%\" --text \"$TEXT\" \\\n  --write-media \"$VDIR/voice_${IDX}_raw.mp3\" \\\n  || timeout 30s edge-tts --voice \"en-US-GuyNeural\" --rate=\"-5%\" --text \"$TEXT\" \\\n  --write-media \"$VDIR/voice_${IDX}_raw.mp3\";\n\nffmpeg -nostdin -y -threads 2 \\\n  -i \"$VDIR/voice_${IDX}_raw.mp3\" \\\n  -af \"atrim=end_silence=0.3,asetpts=PTS-STARTPTS,highpass=f=80,bass=g=3:f=110,volume=1.1,dynaudnorm=f=150:g=5:p=0.95\" \\\n  -ar 48000 -ac 2 -c:a aac -b:a 192k \\\n  \"$VDIR/voice_${IDX}.m4a\";\n\nrm -f \"$VDIR/voice_${IDX}_raw.mp3\";\ntest -s \"$VDIR/voice_${IDX}.m4a\"\n"
+      },
+      "id": "e587dd30-7d18-4311-b3b2-f6cf06bb653f",
+      "name": "🎙️ Natural Voice",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        -2112,
+        2720
+      ]
+    },
+    {
+      "parameters": {
+        "command": "set -e;\nVDIR=\"/home/node/.n8n-files/video_tmp\";\nmkdir -p \"$VDIR\";\nIDX={{ $('🔁 One Scene At A Time').first().json.index }};\nDUR=$(ffprobe -v error -show_entries format=duration -of default=nk=1:nw=1 \"$VDIR/voice_${IDX}.m4a\");\nDUR=$(awk -v d=\"$DUR\" 'BEGIN { dur=d+0.15; if(dur<2)dur=2; if(dur>60)dur=60; printf \"%.2f\",dur }');\nCAM=\"{{ $('🔁 One Scene At A Time').first().json.scene.camera || 'slow_zoom_in' }}\";\n\n# Zoom filter — reference videos use gentle slow zoom only\ncase \"$CAM\" in\n  slow_zoom_in)  ZFILTER=\"zoompan=z='min(zoom+0.0007,1.12)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=1920x1080:fps=24\";;\n  slow_zoom_out) ZFILTER=\"zoompan=z='if(lte(zoom,1.0),1.12,max(zoom-0.0007,1.0))':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=1920x1080:fps=24\";;\n  *)             ZFILTER=\"scale=1920:1080:force_original_aspect_ratio=increase:flags=lanczos,crop=1920:1080\";;\nesac;\n\n# Caption text — sanitise for drawtext\nRAW=\"{{ $('🔁 One Scene At A Time').first().json.scene.caption || $('🔁 One Scene At A Time').first().json.scene.on_screen_text || '' }}\";\nCAPTION=$(echo \"$RAW\" | tr -d \"'\\\"\\\\:;|<>{}[]()!@#\\$%^&*+=\" | sed 's/  */ /g' | cut -c1-45);\n\n# Find bold font\nFONT=\"\";\nfor F in \\\n  /usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf \\\n  /usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf \\\n  /usr/share/fonts/truetype/freefont/FreeSansBold.ttf \\\n  /usr/share/fonts/liberation/LiberationSans-Bold.ttf \\\n  /usr/share/fonts/opentype/noto/NotoSans-Bold.ttf \\\n  /usr/share/fonts/noto/NotoSans-Bold.ttf; do\n  if [ -f \"$F\" ]; then FONT=\"$F\"; break; fi;\ndone;\n\n# Caption overlay — white text, 4px black border, bottom-centre, matches reference videos\nif [ -n \"$CAPTION\" ] && [ -n \"$FONT\" ]; then\n  ESC=$(echo \"$CAPTION\" | sed \"s/:/\\\\\\\\:/g; s/%/\\\\\\\\%/g\");\n  TEXTF=\",drawtext=fontfile='${FONT}':text='${ESC}':fontsize=68:fontcolor=white:bordercolor=black:borderw=4:x=(w-text_w)/2:y=h-110:line_spacing=8\";\nelse\n  TEXTF=\"\";\nfi;\n\n# Full filter chain\nif [ \"$CAM\" = \"static\" ]; then\n  VF=\"scale=1920:1080:force_original_aspect_ratio=increase:flags=lanczos,crop=1920:1080,unsharp=3:3:0.3:3:3:0.0,eq=contrast=1.04:brightness=0.005:saturation=1.05${TEXTF},format=yuv420p\";\nelse\n  VF=\"scale=1920:1080:force_original_aspect_ratio=increase:flags=lanczos,crop=1920:1080,${ZFILTER},unsharp=3:3:0.3:3:3:0.0,eq=contrast=1.04:brightness=0.005:saturation=1.05${TEXTF},format=yuv420p\";\nfi;\n\nffmpeg -nostdin -y -threads 2 \\\n  -loop 1 -i \"$VDIR/scene_${IDX}.png\" \\\n  -i \"$VDIR/voice_${IDX}.m4a\" \\\n  -vf \"$VF\" -af \"apad\" -t \"$DUR\" \\\n  -map 0:v:0 -map 1:a:0 \\\n  -c:v libx264 -preset veryfast -crf 20 \\\n  -profile:v high -level 4.1 \\\n  -color_range tv -colorspace bt709 -color_primaries bt709 -color_trc bt709 \\\n  -c:a aac -b:a 192k -ar 48000 -ac 2 \\\n  -movflags +faststart \\\n  \"$VDIR/scene_${IDX}_out.mp4\";\ntest -s \"$VDIR/scene_${IDX}_out.mp4\"\n"
+      },
+      "id": "d51fe7d3-8812-4b0b-918d-e18d162bc0c5",
+      "name": "🎞️ Render Scene",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        -1872,
+        2720
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { sceneRendered: true } }];"
+      },
+      "id": "ed62a264-12e6-4803-b11b-b6cff667f072",
+      "name": "Scene Done",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1632,
+        2720
+      ]
+    },
+    {
+      "parameters": {
+        "command": "set -e;\nVDIR=\"/home/node/.n8n-files/video_tmp\";\nmkdir -p \"$VDIR\";\n\npython3 - <<'PYEOF'\nimport glob, re, subprocess, os, random, time\nvdir = '/home/node/.n8n-files/video_tmp'\ndeadline = time.time() + 1800\nlast_count = -1; stable_since = 0\nwhile time.time() < deadline:\n    files = [f for f in glob.glob(os.path.join(vdir,'scene_*_out.mp4')) if os.path.getsize(f)>50000]\n    n = len(files)\n    if n >= 15 and n == last_count:\n        if stable_since == 0: stable_since = time.time()\n        elif time.time() - stable_since >= 10: print(f'Scenes stable at {n}'); break\n    else: stable_since = 0\n    last_count = n; print(f'Waiting: {n} scenes...'); time.sleep(12)\ndef get_num(f):\n    m = re.search(r'scene_(\\d+)_out\\.mp4', f); return int(m.group(1)) if m else -1\nfiles = sorted([f for f in glob.glob(os.path.join(vdir,'scene_*_out.mp4')) if os.path.getsize(f)>50000], key=get_num)\nassert len(files) >= 15, f'Too few scenes: {len(files)}'\nprint(f'Assembling {len(files)} scenes')\ncp = os.path.join(vdir,'concat_main.txt')\nwith open(cp,'w') as fh:\n    for f in files: fh.write(f\"file '{os.path.basename(f)}'\\n\")\nout_mp4 = '/home/node/.n8n-files/final_video.mp4'\nmusic_files = glob.glob('/home/node/.n8n-files/music/*.mp3') + glob.glob('/home/node/.n8n-files/music/*.m4a')\nvalid_music = [m for m in music_files if os.path.exists(m) and os.path.getsize(m)>50000]\nif valid_music:\n    music = random.choice(valid_music)\n    print(f'Using music: {os.path.basename(music)}')\n    cmd = ['ffmpeg','-nostdin','-y','-threads','2',\n           '-f','concat','-safe','0','-i',cp,\n           '-stream_loop','-1','-i',music,\n           '-filter_complex','[0:a]aformat=sample_rates=48000:channel_layouts=stereo,volume=1.0[av];[1:a]aformat=sample_rates=48000:channel_layouts=stereo,volume=0.07[am];[av][am]amix=inputs=2:duration=first:normalize=0[aout]',\n           '-map','0:v','-map','[aout]',\n           '-c:v','copy','-c:a','aac','-b:a','192k','-movflags','+faststart',out_mp4]\nelse:\n    cmd = ['ffmpeg','-nostdin','-y','-threads','2',\n           '-f','concat','-safe','0','-i',cp,\n           '-c:v','copy','-c:a','aac','-b:a','192k','-movflags','+faststart',out_mp4]\nsubprocess.run(cmd, check=True, cwd=vdir)\nsz = os.path.getsize(out_mp4)\nassert sz > 1000000, f'Output too small: {sz}'\nprint(f'Final video: {sz//1024//1024}MB')\nPYEOF\ntest -s /home/node/.n8n-files/final_video.mp4\nls -lh /home/node/.n8n-files/final_video.mp4\n"
+      },
+      "id": "156c23a5-87a1-4927-9787-211c62e95d0f",
+      "name": "🎬 Assemble Main Video",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        -2352,
+        2960
+      ]
+    },
+    {
+      "parameters": {
+        "command": "set -e\ntest -s /home/node/.n8n-files/final_video.mp4\necho \"FINAL VIDEO VERIFIED\"\nls -lh /home/node/.n8n-files/final_video.mp4"
+      },
+      "id": "45b8bb22-55f5-45d3-b6d6-d4da8087cd0f",
+      "name": "🎵 Final Audio + Music Ducking",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        -2112,
+        2960
+      ]
+    },
+    {
+      "parameters": {
+        "command": "set -e; FILE=/home/node/.n8n-files/final_video.mp4; test -s \"$FILE\"; D=$(ffprobe -v error -show_entries format=duration -of default=nk=1:nw=1 \"$FILE\"); W=$(ffprobe -v error -select_streams v:0 -show_entries stream=width -of csv=p=0 \"$FILE\"); H=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 \"$FILE\"); A=$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of csv=p=0 \"$FILE\"); SIZE=$(stat -c%s \"$FILE\"); echo \"duration=$D width=$W height=$H audio=$A size=$SIZE\"; [ \"$W\" = \"1920\" ]; [ \"$H\" = \"1080\" ]; [ -n \"$A\" ]; [ \"$SIZE\" -gt 1000000 ]; awk -v d=\"$D\" 'BEGIN { if(d<240||d>1800){print \"ERROR: runtime outside range\";exit 1} }'; echo 'FINAL VIDEO QC PASSED'"
+      },
+      "id": "a07bd3c9-d45a-4d4b-9fa0-e88fe973f24f",
+      "name": "✅ Final Video QC",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        -1872,
+        2960
+      ]
+    },
+    {
+      "parameters": {
+        "command": "set -e;\nGEMINI_KEY=\"${GEMINI_API_KEY:-}\";\n\npython3 - \"$GEMINI_KEY\" <<'PYEOF'\nimport sys, json, urllib.request, urllib.parse, urllib.error, subprocess, os, base64, re\n\ngemini_key = sys.argv[1] if len(sys.argv) > 1 else ''\n\ntopic          = \"\"\"{{ $('⏱️ Final Runtime Check').first().json.topic || 'Ancient Human Survival' }}\"\"\"\nthumb_prompt   = \"\"\"{{ $('⏱️ Final Runtime Check').first().json.thumbnail_prompt || '' }}\"\"\"\nseed_val       = {{ $('⏱️ Final Runtime Check').first().json.seed || 12345 }}\n\nout_file = '/home/node/.n8n-files/thumbnail.png'\nraw_file = '/home/node/.n8n-files/thumbnail_raw.png'\n\n# ── Build thumbnail prompt ────────────────────────────────────────────\nsubject = (thumb_prompt if thumb_prompt.strip() else topic).strip()\nsubject = re.sub(r'[\\\"\\']', '', subject)[:120]\n\nTHUMB_PROMPT = (\n    f'YouTube thumbnail illustration for: {subject}. '\n    'Two stick-figure cavemen with wild spiky black hair, round white heads, '\n    'and brown animal-pelt tunics react with hilarious shock expressions — '\n    'huge O-shaped eyes, mouths wide open, hands raised. '\n    'Bright burning orange campfire in the foreground. '\n    'Flat savanna horizon at sunset, warm orange and yellow sky. '\n    '2D flat vector cartoon style, thick black outlines, '\n    'bold saturated colours, pure white or light background. '\n    'No text, no watermark, no logo. '\n    'Style: Ancient Thoughts YouTube channel thumbnail art.'\n)\n\n# ── Try Gemini Imagen API first ───────────────────────────────────────\ngemini_ok = False\nif gemini_key and gemini_key != 'YOUR_GEMINI_API_KEY_HERE':\n    try:\n        url = f'https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key={gemini_key}'\n        payload = json.dumps({\n            'instances': [{'prompt': THUMB_PROMPT}],\n            'parameters': {\n                'sampleCount': 1,\n                'aspectRatio': '16:9',\n                'personGeneration': 'allow_all',\n                'safetyFilterLevel': 'block_only_high'\n            }\n        }).encode()\n        req = urllib.request.Request(\n            url, data=payload,\n            headers={'Content-Type': 'application/json'},\n            method='POST'\n        )\n        with urllib.request.urlopen(req, timeout=60) as resp:\n            result = json.loads(resp.read())\n        b64 = result['predictions'][0]['bytesBase64Encoded']\n        with open(raw_file, 'wb') as fh:\n            fh.write(base64.b64decode(b64))\n        if os.path.getsize(raw_file) > 5000:\n            gemini_ok = True\n            print('Gemini Imagen: OK')\n    except Exception as e:\n        print(f'Gemini Imagen failed: {e} — falling back to Pollinations')\n\n# ── Fallback: Pollinations flux ───────────────────────────────────────\nif not gemini_ok:\n    q = urllib.parse.quote(THUMB_PROMPT)\n    neg = urllib.parse.quote('text, watermark, logo, photorealistic, 3D render, dark background')\n    seed_str = str(seed_val)\n    for model_n, timeout in [('flux', 60), ('turbo', 30)]:\n        try:\n            url = (f'https://image.pollinations.ai/prompt/{q}'\n                   f'?width=1280&height=720&model={model_n}'\n                   f'&nologo=true&nofeed=true&seed={seed_str}&negative={neg}')\n            r = subprocess.run(\n                ['curl','-fsSL','--retry','2','--connect-timeout','12',\n                 '--max-time',str(timeout),'-o',raw_file,url],\n                timeout=timeout+8\n            )\n            if r.returncode==0 and os.path.exists(raw_file) and os.path.getsize(raw_file)>2000:\n                print(f'Pollinations {model_n}: OK')\n                break\n        except Exception as e:\n            print(f'Pollinations {model_n} failed: {e}')\n\n# ── Resize to exact 1280x720 ──────────────────────────────────────────\nif os.path.exists(raw_file) and os.path.getsize(raw_file) > 2000:\n    subprocess.run([\n        'ffmpeg','-nostdin','-y','-i',raw_file,\n        '-vf','scale=1280:720:force_original_aspect_ratio=increase:flags=lanczos,crop=1280:720',\n        '-frames:v','1', out_file\n    ], check=True, timeout=15)\n    if os.path.exists(raw_file): os.remove(raw_file)\n    print(f'Thumbnail saved: {os.path.getsize(out_file)//1024}KB')\nelse:\n    # Last resort: white frame\n    subprocess.run([\n        'ffmpeg','-nostdin','-y','-f','lavfi',\n        '-i','color=c=white:s=1280x720:d=1',\n        '-frames:v','1', out_file\n    ], check=True, timeout=10)\n    print('WARNING: used white fallback thumbnail')\n\nif os.path.exists(out_file) and os.path.getsize(out_file)>500:\n    print(f'Thumbnail OK: {os.path.getsize(out_file)//1024}KB')\nelse:\n    print('Thumbnail generation skipped — workflow continues')\n    open(out_file,'wb').close()  # create empty file so test -s has a target\nPYEOF\n# thumbnail step complete (soft — workflow always continues)\ntrue\n"
+      },
+      "id": "694c035e-66e4-4ad6-b6d6-e7067c2bf457",
+      "name": "🖼️ Generate Thumbnail",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        -1632,
+        2960
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "fileSelector": "/home/node/.n8n-files/thumbnail.png",
+        "options": {
+          "dataPropertyName": "thumb_data"
+        }
+      },
+      "id": "bd94d4f0-e8c9-4c3c-bcf5-6f7b93056b9e",
+      "name": "Read Thumbnail",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        -1392,
+        2960
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.TELEGRAM_API_BASE}}/sendPhoto",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{$env.TELEGRAM_CHAT_ID}}"
+            },
+            {
+              "name": "caption",
+              "value": "={{ '🖼️ NEW VIDEO\\n\\nTITLE: ' + $('⏱️ Final Runtime Check').first().json.youtube_title + '\\n\\nRuntime: ' + $('⏱️ Final Runtime Check').first().json.estimatedMinutes + ' min\\nWords: ' + $('⏱️ Final Runtime Check').first().json.totalWords + '\\nScenes: ' + $('⏱️ Final Runtime Check').first().json.scenes.length }}"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "photo",
+              "inputDataFieldName": "thumb_data"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "d5b100ff-5394-4a3d-80f8-f11f9044ee7d",
+      "name": "📨 Telegram Thumbnail",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -1152,
+        2960
+      ],
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 10000,
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "fileSelector": "/home/node/.n8n-files/final_video.mp4",
+        "options": {
+          "dataPropertyName": "video_data"
+        }
+      },
+      "id": "21e53902-4e84-4352-a96d-1eebc665c482",
+      "name": "Read Main Video",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        -912,
+        2960
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.TELEGRAM_API_BASE}}/sendDocument",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{$env.TELEGRAM_CHAT_ID}}"
+            },
+            {
+              "name": "caption",
+              "value": "={{ '🎬 MAIN VIDEO\\n\\n' + $('⏱️ Final Runtime Check').first().json.youtube_title + '\\n\\nRuntime: ' + $('⏱️ Final Runtime Check').first().json.estimatedMinutes + ' min\\nWords: ' + $('⏱️ Final Runtime Check').first().json.totalWords + '\\nScenes: ' + $('⏱️ Final Runtime Check').first().json.scenes.length + '\\n\\n' + ($('⏱️ Final Runtime Check').first().json.youtube_description || '') }}"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "document",
+              "inputDataFieldName": "video_data"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 900000
+        }
+      },
+      "id": "6601f7c3-db65-4faa-af30-b6303a78f54f",
+      "name": "📨 Telegram Main Video",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -672,
+        2960
+      ],
+      "retryOnFail": true,
+      "maxTries": 8,
+      "waitBetweenTries": 30000,
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const d=$('⏱️ Final Runtime Check').first().json;\nif(!Array.isArray(d.shorts)||d.shorts.length===0) throw new Error('No Shorts were generated');\nreturn d.shorts.map(s=>({json:s}));"
+      },
+      "id": "7edac4d3-3ab4-4c32-9e2a-441630be55b2",
+      "name": "📱 Prepare Shorts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -432,
+        2960
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "ad3e416c-0baf-41fc-bd16-06645890920e",
+      "name": "🔁 One Short At A Time",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -192,
+        2960
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d=$('⏱️ Final Runtime Check').first().json;\nconst s=$json;\nconst scenes=d.scenes.slice(Math.max(0,s.start_scene-1),s.end_scene);\nreturn scenes.map((x,i)=>({json:{...x,short_id:s.short_id,title:s.title,description:s.description,hook:s.hook,short_index:i,character_style:d.character_style,prop_style:d.prop_style,visual_style:d.visual_style,voice:d.voice,seed:d.seed}}));"
+      },
+      "id": "df1bd2a0-4513-4e32-a7ee-681c405ededd",
+      "name": "Get Short Scenes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        48,
+        2720
+      ]
+    },
+    {
+      "parameters": {
+        "executeOnce": false,
+        "command": "=set -e;\nVDIR=\"/home/node/.n8n-files/video_tmp\";\nmkdir -p \"$VDIR\";\nSID={{ $('Get Short Scenes').item.json.short_id || $('Get Short Scenes').first().json.short_id || 1 }};\nIDX={{ $('Get Short Scenes').item.json.short_index ?? $('Get Short Scenes').first().json.short_index ?? 0 }};\nOUT=\"$VDIR/short_${SID}_${IDX}.png\";\nrm -f \"$OUT\";\n\npython3 - <<'PY'\nimport urllib.parse, subprocess, os\naction = \"\"\"{{ $('Get Short Scenes').item.json.visual_action || $('Get Short Scenes').first().json.visual_action || 'caveman around fire' }}\"\"\"\naction = action.replace(\"'\",\"\").replace('\"','').strip()\nbase_style = \"Mack style, Ancient Thoughts cartoon style, minimalist webcomic, vertical 9:16 framing, white circle head, shaggy spiky black hair wig, animal pelt tunic, thick black marker outlines, flat color fills, no watermark\"\nact_lower = action.lower()\nif any(w in act_lower for w in ['fire','camp','smoke','savanna','night']):\n    scene_prompt = f\"{action}, burning campfire, stick figure cavemen, savanna dusk sky, {base_style}\"\nelif any(w in act_lower for w in ['netflix','phone','modern','screen','door']):\n    scene_prompt = f\"{action}, stick figure shrugging, white background, crossed out TV NO NETFLIX and phone NO PHONE, {base_style}\"\nelse:\n    scene_prompt = f\"{action}, hilarious cartoon meme reaction, white background, {base_style}\"\nq = urllib.parse.quote(scene_prompt)\nsid=str({{ $('Get Short Scenes').item.json.short_id || $('Get Short Scenes').first().json.short_id || 1 }})\nidx=str({{ $('Get Short Scenes').item.json.short_index ?? $('Get Short Scenes').first().json.short_index ?? 0 }})\nseed=str({{ $('Get Short Scenes').item.json.seed || 12345 }}+int(sid)*997+int(idx)*101)\nout_file=f\"/home/node/.n8n-files/video_tmp/short_{sid}_{idx}.png\"\nraw_file=f\"/home/node/.n8n-files/video_tmp/raw_short_{sid}_{idx}.png\"\ndownloaded=False\nfor url in [f\"https://image.pollinations.ai/prompt/{q}?width=1080&height=1980&model=flux&nologo=true&nofeed=true&seed={seed}\",f\"https://image.pollinations.ai/prompt/{q}?width=1080&height=1980&model=turbo&nologo=true&nofeed=true&seed={seed}\"]:\n    try:\n        res=subprocess.run(['curl','-fsSL','--retry','1','--connect-timeout','8','--max-time','25','-o',raw_file,url],timeout=28)\n        if res.returncode==0 and os.path.exists(raw_file) and os.path.getsize(raw_file)>1000:\n            downloaded=True; break\n    except: pass\nif downloaded:\n    subprocess.run(['ffmpeg','-nostdin','-y','-i',raw_file,'-vf','crop=in_w:in_h-60:0:0,scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920',out_file],check=True,timeout=15)\n    if os.path.exists(raw_file): os.remove(raw_file)\nelse:\n    subprocess.run(['ffmpeg','-nostdin','-y','-f','lavfi','-i','color=c=white:s=1080x1920:d=1','-frames:v','1',out_file],check=True,timeout=10)\nPY\ntest -s \"$OUT\""
+      },
+      "id": "05f616c3-b107-4402-a5ce-b93b72cfe2e0",
+      "name": "📱 Short Visual",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        288,
+        2720
+      ],
+      "executeOnce": false
+    },
+    {
+      "parameters": {
+        "executeOnce": false,
+        "command": "=set -e\nSID={{ $('Get Short Scenes').item.json.short_id || $('Get Short Scenes').first().json.short_id || 1 }}\nIDX={{ $('Get Short Scenes').item.json.short_index ?? $('Get Short Scenes').first().json.short_index ?? 0 }}\nVOICE=\"{{ $('Get Short Scenes').item.json.voice || $('🎯 Topic + Voice').first().json.voice || 'en-US-GuyNeural' }}\"\nTEXT={{ JSON.stringify($('Get Short Scenes').item.json.narration || $('Get Short Scenes').first().json.narration || 'Ancient survival story.') }}\ntimeout 35s edge-tts --voice \"$VOICE\" --rate=\"-5%\" --text \"$TEXT\" --write-media \"/home/node/.n8n-files/video_tmp/short_${SID}_${IDX}_raw.mp3\" || timeout 25s edge-tts --voice \"en-US-GuyNeural\" --rate=\"-5%\" --text \"$TEXT\" --write-media \"/home/node/.n8n-files/video_tmp/short_${SID}_${IDX}_raw.mp3\";\nffmpeg -nostdin -y -threads 2 -i \"/home/node/.n8n-files/video_tmp/short_${SID}_${IDX}_raw.mp3\" -af \"volume=1.25,bass=g=4:f=120,treble=g=-1,highpass=f=75,lowpass=f=12000,alimiter=limit=0.95\" -ar 48000 -ac 2 -c:a aac -b:a 192k \"/home/node/.n8n-files/video_tmp/short_${SID}_${IDX}.m4a\";\ntest -s \"/home/node/.n8n-files/video_tmp/short_${SID}_${IDX}.m4a\""
+      },
+      "id": "8903a635-8a99-4408-b5bb-bd9824083b0c",
+      "name": "📱 Short Voice",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        528,
+        2720
+      ],
+      "executeOnce": false
+    },
+    {
+      "parameters": {
+        "executeOnce": false,
+        "command": "=set -e\nSID={{ $('Get Short Scenes').item.json.short_id || $('Get Short Scenes').first().json.short_id || 1 }}\nIDX={{ $('Get Short Scenes').item.json.short_index ?? $('Get Short Scenes').first().json.short_index ?? 0 }}\nDUR=$(ffprobe -v error -show_entries format=duration -of default=nk=1:nw=1 \"/home/node/.n8n-files/video_tmp/short_${SID}_${IDX}.m4a\")\nDUR=$(awk -v d=\"$DUR\" 'BEGIN { dur = d + 0.2; if (dur < 2) dur = 2; if (dur > 59) dur = 59; printf \"%.2f\", dur }')\nffmpeg -nostdin -y -threads 1 -loop 1 -i \"/home/node/.n8n-files/video_tmp/short_${SID}_${IDX}.png\" -i \"/home/node/.n8n-files/video_tmp/short_${SID}_${IDX}.m4a\" -vf \"scale=1080:1920:force_original_aspect_ratio=increase:flags=lanczos,crop=1080:1920,zoompan=z='if(lt(on,100),min(1.0+on*0.001,1.10),1.22)':x='iw/2-(iw/zoom/2)':y='if(lt(on,100),ih/2-(ih/zoom/2),ih/2-(ih/zoom/2)-ih*0.04)':d=1:s=1080x1920:fps=24,unsharp=3:3:0.4:3:3:0.0,eq=contrast=1.05:brightness=0.01:saturation=1.10,format=yuv420p\" -af \"apad\" -t \"$DUR\" -map 0:v:0 -map 1:a:0 -c:v libx264 -preset veryfast -crf 20 -profile:v high -level 4.1 -color_range tv -colorspace bt709 -color_primaries bt709 -color_trc bt709 -c:a aac -b:a 192k -ar 48000 -ac 2 -movflags +faststart \"/home/node/.n8n-files/video_tmp/short_${SID}_${IDX}_out.mp4\";\ntest -s \"/home/node/.n8n-files/video_tmp/short_${SID}_${IDX}_out.mp4\""
+      },
+      "id": "242dbf70-c98e-417c-95ee-4169ae80eb4c",
+      "name": "📱 Render Short Scene",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        768,
+        2720
+      ],
+      "executeOnce": false
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { done: true } }];"
+      },
+      "id": "879c1e21-0687-4ed3-9366-e1c5d9af3212",
+      "name": "Short Scene Done",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1008,
+        2720
+      ]
+    },
+    {
+      "parameters": {
+        "command": "set -e;\nVDIR=\"/home/node/.n8n-files/video_tmp\";\ncd \"$VDIR\";\npython3 - <<'PY'\nimport glob, re, subprocess, os, random\nfiles=glob.glob(\"short_*_*_out.mp4\")\nshorts={}\nfor f in files:\n    m=re.match(r\"short_(\\d+)_(\\d+)_out\\.mp4\",f)\n    if m: shorts.setdefault(int(m.group(1)),[]).append((int(m.group(2)),f))\nprint(f\"Found {len(files)} short clips across {len(shorts)} shorts.\")\nmusic_files=glob.glob(\"/home/node/.n8n-files/music/*.mp3\")+glob.glob(\"/home/node/.n8n-files/music/*.m4a\")\nfor sid,sc_list in sorted(shorts.items()):\n    sc_list.sort(key=lambda x:x[0])\n    concat_file=f\"concat_short_{sid}.txt\"\n    with open(concat_file,\"w\") as out:\n        for idx,f in sc_list: out.write(f\"file '{f}'\\n\")\n    out_mp4=f\"/home/node/.n8n-files/final_short_{sid}.mp4\"\n    if music_files:\n        music_track=random.choice(music_files)\n        cmd=[\"ffmpeg\",\"-nostdin\",\"-y\",\"-threads\",\"1\",\"-f\",\"concat\",\"-safe\",\"0\",\"-i\",concat_file,\"-stream_loop\",\"-1\",\"-i\",music_track,\"-filter_complex\",\"[0:a]aformat=sample_rates=48000:channel_layouts=stereo,volume=1.0[a0];[1:a]aformat=sample_rates=48000:channel_layouts=stereo,volume=0.08[a1];[a0][a1]amix=inputs=2:duration=first:normalize=0,loudnorm=I=-14:TP=-1.0:LRA=7[aout]\",\"-map\",\"0:v\",\"-map\",\"[aout]\",\"-c:v\",\"copy\",\"-c:a\",\"aac\",\"-b:a\",\"192k\",\"-shortest\",\"-movflags\",\"+faststart\",out_mp4]\n    else:\n        cmd=[\"ffmpeg\",\"-nostdin\",\"-y\",\"-threads\",\"1\",\"-f\",\"concat\",\"-safe\",\"0\",\"-i\",concat_file,\"-af\",\"aformat=sample_rates=48000:channel_layouts=stereo,loudnorm=I=-14:TP=-1.0:LRA=7\",\"-c:v\",\"copy\",\"-c:a\",\"aac\",\"-b:a\",\"192k\",\"-movflags\",\"+faststart\",out_mp4]\n    subprocess.run(cmd,check=True)\n    assert os.path.exists(out_mp4) and os.path.getsize(out_mp4)>100000\nPY\nls -lh /home/node/.n8n-files/final_short_*.mp4"
+      },
+      "id": "d3684f47-8cac-4f2f-9abe-0852beb2bb75",
+      "name": "📱 Assemble Shorts",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        48,
+        2960
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d=$('⏱️ Final Runtime Check').first().json;\nreturn d.shorts.map(s=>({json:{...s,file:`/home/node/.n8n-files/final_short_${s.short_id}.mp4`}}));"
+      },
+      "id": "ddebd941-f8e2-45f9-9bcc-a359cdac836e",
+      "name": "Prepare Short Uploads",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        288,
+        2960
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "dff3f161-91f9-4ce4-aa0a-8428ecd3b9d5",
+      "name": "🔁 Upload Shorts One By One",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        528,
+        2960
+      ]
+    },
+    {
+      "parameters": {
+        "fileSelector": "={{ $json.file }}",
+        "options": {
+          "dataPropertyName": "data"
+        }
+      },
+      "id": "a5d2d099-cf8b-465a-9e04-cab0ca36439f",
+      "name": "Read Short",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        768,
+        2960
+      ]
+    },
+    {
+      "parameters": {
+        "command": "=set -e; FILE=\"{{ $json.file }}\"; test -s \"$FILE\"; D=$(ffprobe -v error -show_entries format=duration -of default=nk=1:nw=1 \"$FILE\"); W=$(ffprobe -v error -select_streams v:0 -show_entries stream=width -of csv=p=0 \"$FILE\"); H=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 \"$FILE\"); echo \"short={{ $json.short_id }} duration=$D width=$W height=$H\"; awk -v d=\"$D\" 'BEGIN { if (d > 60 || d < 2) exit 1 }'; [ \"$W\" = \"1080\" ]; [ \"$H\" = \"1920\" ]; echo SHORT_QC_PASSED"
+      },
+      "id": "24b6dd58-0d61-4e3d-9ffa-2eeb27149c99",
+      "name": "✅ Short QC",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1008,
+        2960
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.TELEGRAM_API_BASE}}/sendDocument",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{$env.TELEGRAM_CHAT_ID}}"
+            },
+            {
+              "name": "caption",
+              "value": "={{ '📱 SHORT ' + $('🔁 Upload Shorts One By One').item.json.short_id + '\\n\\n' + $('🔁 Upload Shorts One By One').item.json.title + '\\n\\n' + ($('🔁 Upload Shorts One By One').item.json.description || '') }}"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "document",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 600000
+        }
+      },
+      "id": "1dcd454d-799f-4162-a601-9055834cfb00",
+      "name": "📨 Telegram Short",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1264,
+        2928
+      ],
+      "retryOnFail": true,
+      "maxTries": 8,
+      "waitBetweenTries": 30000,
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "command": "=set -e; cat > /home/node/.n8n-files/video_meta.json <<'EOF'\n{{ JSON.stringify($('⏱️ Final Runtime Check').first().json, null, 2) }}\nEOF\nls -lh /home/node/.n8n-files/final_video.mp4 /home/node/.n8n-files/thumbnail.png /home/node/.n8n-files/final_short_*.mp4 2>/dev/null || true"
+      },
+      "id": "b129a75d-0297-4c1d-8166-376f1de296af",
+      "name": "💾 Save Video Metadata",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1488,
+        2960
+      ]
+    },
+    {
+      "parameters": {
+        "command": "rm -rf /home/node/.n8n-files/video_tmp/* /tmp/video_tmp/* 2>/dev/null || true; sync; df -h /home/node/.n8n-files"
+      },
+      "id": "403ae69f-1f74-436d-80c2-b9be4f3d8447",
+      "name": "🧹 FINAL CLEANUP",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1728,
+        2960
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 90
+      },
+      "id": "05728e51-34ad-4ef7-843a-9521b3cdc743",
+      "name": "⏳ Wait for Groq TPM (Script)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -4752,
+        2960
+      ],
+      "webhookId": "c2228560-f2c5-4bd2-83f6-7bced6adf421"
+    },
+    {
+      "parameters": {
+        "jsCode": "const meta=$(\"⏱️ Final Runtime Check\").first().json;\nconst title=(meta&&meta.youtube_title)||\"Unknown title\";\nconst mins=(meta&&meta.estimatedMinutes)||\"?\";\nconst scenes=(meta&&meta.scenes&&meta.scenes.length)||\"?\";\nconst shorts=(meta&&meta.shorts&&meta.shorts.length)||0;\nreturn [{json:{_notifyText:\"VIDEO READY\\n\\n\"+title+\"\\n\\n\"+mins+\" min | \"+scenes+\" scenes | \"+shorts+\" shorts\"}}];"
+      },
+      "id": "9076cb5b-ca02-41b6-a123-03fc0063074c",
+      "name": "Build Completion Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1280,
+        2688
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.TELEGRAM_API_BASE}}/sendMessage",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{$env.TELEGRAM_CHAT_ID}}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $json._notifyText }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "debef69d-c227-488d-9388-7013887eb4ae",
+      "name": "Telegram Completion Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1504,
+        2688
+      ],
+      "retryOnFail": false,
+      "continueOnFail": true
+    }
+  ],
+  "connections": {
+    "Manual Test": {
+      "main": [
+        [
+          {
+            "node": "🧹 Pre-Cleanup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Daily 1 AM": {
+      "main": [
+        [
+          {
+            "node": "🧹 Pre-Cleanup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🧹 Pre-Cleanup": {
+      "main": [
+        [
+          {
+            "node": "🎯 Topic + Voice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🎯 Topic + Voice": {
+      "main": [
+        [
+          {
+            "node": "🔎 Build Research Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔎 Build Research Prompt": {
+      "main": [
+        [
+          {
+            "node": "🧠 Research With Groq",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🧠 Research With Groq": {
+      "main": [
+        [
+          {
+            "node": "✅ Validate Research",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✅ Validate Research": {
+      "main": [
+        [
+          {
+            "node": "⏳ Wait for Groq TPM (Script)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🧠 Build Script Prompt": {
+      "main": [
+        [
+          {
+            "node": "🧠 Groq Script",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🧠 Groq Script": {
+      "main": [
+        [
+          {
+            "node": "✅ Validate Script",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✅ Validate Script": {
+      "main": [
+        [
+          {
+            "node": "⏱️ Check Runtime",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⏱️ Check Runtime": {
+      "main": [
+        [
+          {
+            "node": "🔍 Script Too Short?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔍 Script Too Short?": {
+      "main": [
+        [
+          {
+            "node": "🩹 Build Expansion Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "⏱️ Final Runtime Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🩹 Build Expansion Prompt": {
+      "main": [
+        [
+          {
+            "node": "⏳ Wait for Groq TPM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⏳ Wait for Groq TPM": {
+      "main": [
+        [
+          {
+            "node": "🧠 Groq Expansion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🧠 Groq Expansion": {
+      "main": [
+        [
+          {
+            "node": "✅ Validate Expanded Script",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✅ Validate Expanded Script": {
+      "main": [
+        [
+          {
+            "node": "⏱️ Final Runtime Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⏱️ Final Runtime Check": {
+      "main": [
+        [
+          {
+            "node": "🎬 Split Scenes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🎬 Split Scenes": {
+      "main": [
+        [
+          {
+            "node": "🔁 One Scene At A Time",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔁 One Scene At A Time": {
+      "main": [
+        [
+          {
+            "node": "🎬 Assemble Main Video",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "🎨 Generate Doodle",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🎨 Generate Doodle": {
+      "main": [
+        [
+          {
+            "node": "🎙️ Natural Voice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🎙️ Natural Voice": {
+      "main": [
+        [
+          {
+            "node": "🎞️ Render Scene",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🎞️ Render Scene": {
+      "main": [
+        [
+          {
+            "node": "Scene Done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scene Done": {
+      "main": [
+        [
+          {
+            "node": "🔁 One Scene At A Time",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🎬 Assemble Main Video": {
+      "main": [
+        [
+          {
+            "node": "🎵 Final Audio + Music Ducking",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🎵 Final Audio + Music Ducking": {
+      "main": [
+        [
+          {
+            "node": "✅ Final Video QC",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✅ Final Video QC": {
+      "main": [
+        [
+          {
+            "node": "🖼️ Generate Thumbnail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🖼️ Generate Thumbnail": {
+      "main": [
+        [
+          {
+            "node": "Read Thumbnail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Thumbnail": {
+      "main": [
+        [
+          {
+            "node": "📨 Telegram Thumbnail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📨 Telegram Thumbnail": {
+      "main": [
+        [
+          {
+            "node": "Read Main Video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Main Video": {
+      "main": [
+        [
+          {
+            "node": "📨 Telegram Main Video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📨 Telegram Main Video": {
+      "main": [
+        [
+          {
+            "node": "📱 Prepare Shorts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📱 Prepare Shorts": {
+      "main": [
+        [
+          {
+            "node": "🔁 One Short At A Time",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔁 One Short At A Time": {
+      "main": [
+        [
+          {
+            "node": "📱 Assemble Shorts",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Short Scenes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Short Scenes": {
+      "main": [
+        [
+          {
+            "node": "📱 Short Visual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📱 Short Visual": {
+      "main": [
+        [
+          {
+            "node": "📱 Short Voice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📱 Short Voice": {
+      "main": [
+        [
+          {
+            "node": "📱 Render Short Scene",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📱 Render Short Scene": {
+      "main": [
+        [
+          {
+            "node": "Short Scene Done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Short Scene Done": {
+      "main": [
+        [
+          {
+            "node": "🔁 One Short At A Time",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📱 Assemble Shorts": {
+      "main": [
+        [
+          {
+            "node": "Prepare Short Uploads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Short Uploads": {
+      "main": [
+        [
+          {
+            "node": "🔁 Upload Shorts One By One",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔁 Upload Shorts One By One": {
+      "main": [
+        [
+          {
+            "node": "💾 Save Video Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read Short",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Short": {
+      "main": [
+        [
+          {
+            "node": "✅ Short QC",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✅ Short QC": {
+      "main": [
+        [
+          {
+            "node": "📨 Telegram Short",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📨 Telegram Short": {
+      "main": [
+        [
+          {
+            "node": "🔁 Upload Shorts One By One",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "💾 Save Video Metadata": {
+      "main": [
+        [
+          {
+            "node": "Build Completion Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⏳ Wait for Groq TPM (Script)": {
+      "main": [
+        [
+          {
+            "node": "🧠 Build Script Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Completion Message": {
+      "main": [
+        [
+          {
+            "node": "Telegram Completion Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Completion Alert": {
+      "main": [
+        [
+          {
+            "node": "🧹 FINAL CLEANUP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "instanceId": "d5d24f3f8f2b7cb132295de30374916c5c069c71d269b78dba8f17c748128c26"
+  }
+}

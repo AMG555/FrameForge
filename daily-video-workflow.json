@@ -1,0 +1,1037 @@
+﻿{
+    "nodes":  [
+                  {
+                      "parameters":  {
+
+                                     },
+                      "id":  "d3f168b1-4745-46c4-82c9-25154b7495e3",
+                      "name":  "Manual Trigger",
+                      "type":  "n8n-nodes-base.manualTrigger",
+                      "typeVersion":  1,
+                      "position":  [
+                                       -768,
+                                       7808
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "command":  "mkdir -p /tmp/video_tmp /home/node/.n8n-files/music; rm -f /tmp/video_tmp/scene_* /tmp/video_tmp/voice_* /tmp/video_tmp/short_* /tmp/video_tmp/concat*.txt /home/node/.n8n-files/thumbnail.png /home/node/.n8n-files/final_video*.mp4 /home/node/.n8n-files/final_short*.mp4 || true"
+                                     },
+                      "id":  "1666d061-9f25-4730-99b5-336c8387072c",
+                      "name":  "Pre-Cleanup Old Data",
+                      "type":  "n8n-nodes-base.executeCommand",
+                      "typeVersion":  1,
+                      "position":  [
+                                       -528,
+                                       7904
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const seed = Math.floor(Math.random() * 100000);\nconst structures = [\n  { type: \u0027question\u0027, hook: \u0027What if the version of history you learned in school was carefully cleaned up?\u0027 },\n  { type: \u0027story\u0027, hook: \u0027A buried diary sat unread for centuries. The first page alone is enough to ruin your appetite.\u0027 },\n  { type: \u0027compare\u0027, hook: \u0027You complain about rent, bosses, and dating apps. Ancient people had worse versions of all three.\u0027 },\n  { type: \u0027bizarre\u0027, hook: \u0027This daily habit was normal back then. Today it would get you arrested.\u0027 }\n];\nconst topics = [\n  \u0027The disgusting truth about Ancient Roman street food, apartments, and plumbing\u0027,\n  \u0027Victorian medicine: the cures that were scarier than the disease\u0027,\n  \u0027Medieval peasant life: rent, work, romance, and survival\u0027,\n  \u0027Ancient Egyptian beauty, pets, and punishments nobody mentions\u0027,\n  \u0027The weirdest real jobs in history and what they paid\u0027,\n  \u0027Sparta was not a movie. Daily training, food, and fear\u0027,\n  \u0027How ancient empires handled toxic bosses, debt, and breakups\u0027\n];\nconst structure = structures[seed % structures.length];\nconst topic = topics[seed % topics.length];\n// Stable, high-quality male neural voices\nconst voices = [\u0027en-US-GuyNeural\u0027,\u0027en-GB-RyanNeural\u0027,\u0027en-US-ChristopherNeural\u0027,\u0027en-AU-WilliamNeural\u0027];\nconst voice = voices[Math.floor(seed / 7) % voices.length];\n\nconst sceneCount = 36 + (seed % 9); // 36-44 scenes (fits Groq token limits)\nconst grainIntensity = 2 + (seed % 3);\nconst speedVariation = (0.97 + (seed % 5) / 100).toFixed(2);\nreturn [{ json: { seed, structure, voice, sceneCount, grainIntensity, speedVariation, topic, groqModel: \u0027openai/gpt-oss-120b\u0027 } }];"
+                                     },
+                      "id":  "957f30c3-6e1f-4a19-85fc-23e32b3b2837",
+                      "name":  "Randomization",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       -288,
+                                       7904
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const rand = $input.item.json;\nconst systemPrompt = `You write scripts for YouTube channels like Simple History and Ink Explainer.\nGoal: entertainment + retention, NOT a textbook.\nSTYLE: One camera shot per scene. One idea. One visual. Sound like a clever human telling a wild true story.\nBan: delve, explore, tapestry, fascinating, in this video, let\u0027s dive in, robust, groundbreaking.\nUse open loops: tease a wild payoff early, delay the answer. Output ONLY valid JSON.`;\n\nconst userPrompt = [\n  `Topic: ${rand.topic}`,\n  `Hook: ${rand.structure.hook}`,\n  `Write EXACTLY ${rand.sceneCount} scenes for a 12-16 minute video.`,\n  `METADATA:`,\n  `- youtube_title: human, curiosity, not Title Case Spam`,\n  `- youtube_description: casual + Chapters + pinned comment`,\n  `- thumbnail_prompt: ONE extreme close-up emotion + one prop`,\n  `- youtube_tags: 10 tags`,\n  `EACH SCENE MUST HAVE:`,\n  `- narration: 40-65 words. First line hooks. ONE idea only.`,\n  `- visual_action: mandatory. Format: \"[character] [doing exact action] [emotion] [1 prop]\". Must be drawable as a single still.`,\n  `- doodle_prompt: Expand visual_action. MUST match narration. Include: Simple History style, thick black ink, white background, single character, exaggerated face, no photorealism.`,\n  `- visual_type: \"doodle\" for 95%+ ; \"stock\" only real landscape/nature`,\n  `JSON: {\"youtube_title\":\"...\",\"youtube_description\":\"...\",\"thumbnail_prompt\":\"...\",\"youtube_tags\":[\"...\"],\"scenes\":[{\"narration\":\"...\",\"visual_action\":\"...\",\"doodle_prompt\":\"...\",\"visual_type\":\"doodle\",\"stock_keyword\":\"...\"}]}`\n].join(\u0027\\n\u0027);\n\nconst groqBody = {\n  model: rand.groqModel || \u0027openai/gpt-oss-120b\u0027,\n  messages: [\n    { role: \u0027system\u0027, content: systemPrompt },\n    { role: \u0027user\u0027, content: userPrompt }\n  ],\n  temperature: 0.8,\n  max_tokens: 6500\n};\nreturn [{ json: { ...rand, groqBody } }];"
+                                     },
+                      "id":  "99afca65-3bfd-4aee-a18a-c367e1793f38",
+                      "name":  "Build Groq Main",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       -48,
+                                       7904
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "method":  "POST",
+                                         "url":  "https://api.groq.com/openai/v1/chat/completions",
+                                         "authentication":  "genericCredentialType",
+                                         "genericAuthType":  "httpHeaderAuth",
+                                         "sendHeaders":  true,
+                                         "headerParameters":  {
+                                                                  "parameters":  [
+                                                                                     {
+                                                                                         "name":  "Content-Type",
+                                                                                         "value":  "application/json"
+                                                                                     }
+                                                                                 ]
+                                                              },
+                                         "sendBody":  true,
+                                         "specifyBody":  "json",
+                                         "jsonBody":  "={{ JSON.stringify($json.groqBody) }}",
+                                         "options":  {
+                                                         "timeout":  300000
+                                                     }
+                                     },
+                      "id":  "a51e3629-f653-4ce8-86ad-60f8b488b40e",
+                      "name":  "Groq Main",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.3,
+                      "position":  [
+                                       192,
+                                       7904
+                                   ],
+                      "credentials":  {
+                                          "httpHeaderAuth":  {
+                                                                 "id":  "obp5x49pUbWadmJk",
+                                                                 "name":  "Header Auth account"
+                                                             }
+                                      }
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const choice = $input.item.json.choices?.[0] || {};\nlet raw = choice.message?.content || \u0027\u0027;\n\nif (!raw || raw.trim().length \u003c 20) {\n  throw new Error(\u0027Groq returned empty script content. Check token limits.\u0027);\n}\n\nlet cleanRaw = raw.replace(/```json\\s*/gi, \u0027\u0027).replace(/```/g, \u0027\u0027).trim();\nconst start = cleanRaw.indexOf(\u0027{\u0027);\nconst end = cleanRaw.lastIndexOf(\u0027}\u0027);\nif (start !== -1 \u0026\u0026 end \u003e start) {\n  cleanRaw = cleanRaw.slice(start, end + 1);\n}\n\nlet jsonStr = cleanRaw\n  .replace(/\\*\\*\\s*(\"[^\"]+\")\\s*:\\s*\\*\\*/g, \u0027$1:\u0027)\n  .replace(/\\*\\*\\s*(\"[^\"]+\")\\s*\\*\\*\\s*:/g, \u0027$1:\u0027)\n  .replace(/\\*\\*\\s*([a-zA-Z0-9_-]+)\\s*\\*\\*\\s*:/g, \u0027\"$1\":\u0027)\n  .replace(/:\\s*\\*\\*\\s*(\"[^\"]*\")\\s*\\*\\*/g, \u0027: $1\u0027)\n  .replace(/:\\s*\\*\\*\\s*([a-zA-Z0-9_]+)\\s*\\*\\*/g, \u0027: \"$1\"\u0027)\n  .replace(/\\*\\*/g, \u0027\u0027)\n  .replace(/,\\s*([}\\]])/g, \u0027$1\u0027);\n\nlet data;\ntry { data = JSON.parse(jsonStr); } catch (e) {\n  throw new Error(\u0027Groq JSON parse failed: \u0027 + e.message);\n}\n\nconst scenes = data.scenes.map((s, i) =\u003e ({\n  json: {\n    index: i,\n    narration: (s.narration || \u0027\u0027).trim(),\n    visual_type: s.visual_type === \u0027stock\u0027 ? \u0027stock\u0027 : \u0027doodle\u0027,\n    visual_action: s.visual_action || s.doodle_prompt || \u0027expressive historical person\u0027,\n    stock_keyword: s.stock_keyword || \u0027ancient history\u0027,\n    youtube_title: data.youtube_title || \u0027History is wild\u0027,\n    youtube_description: data.youtube_description || \u0027\u0027,\n    youtube_tags: Array.isArray(data.youtube_tags) ? data.youtube_tags.join(\u0027, \u0027) : (data.youtube_tags || \u0027\u0027),\n    thumbnail_prompt: data.thumbnail_prompt || \u0027shocked face history\u0027\n  }\n})).filter(s =\u003e s.json.narration.length \u003e 15);\nreturn scenes;"
+                                     },
+                      "id":  "696ad31f-eb49-406b-904c-1abd9be47c7d",
+                      "name":  "Parse Main",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       432,
+                                       7904
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "a64d2270-ac93-4b33-9d47-526eb3472bac",
+                      "name":  "Loop Main",
+                      "type":  "n8n-nodes-base.splitInBatches",
+                      "typeVersion":  3,
+                      "position":  [
+                                       672,
+                                       7904
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "conditions":  {
+                                                            "options":  {
+                                                                            "caseSensitive":  true
+                                                                        },
+                                                            "conditions":  [
+                                                                               {
+                                                                                   "id":  "c1",
+                                                                                   "leftValue":  "={{ $json.visual_type }}",
+                                                                                   "rightValue":  "doodle",
+                                                                                   "operator":  {
+                                                                                                    "type":  "string",
+                                                                                                    "operation":  "equals"
+                                                                                                }
+                                                                               }
+                                                                           ],
+                                                            "combinator":  "and"
+                                                        },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "bbde4501-57f0-4c31-b15c-16e312a77136",
+                      "name":  "Doodle or Stock?",
+                      "type":  "n8n-nodes-base.if",
+                      "typeVersion":  2,
+                      "position":  [
+                                       912,
+                                       7904
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "command":  "=IDX={{ $(\u0027Loop Main\u0027).item.json.index }}; OUT=\"/tmp/video_tmp/scene_${IDX}.png\"; PROMPT=\"{{ encodeURIComponent( ($(\u0027Loop Main\u0027).item.json.visual_action) + \u0027, Simple History style, Ink Explainer style, educational whiteboard animation, thick black ink marker outlines, flat colors, pure white background, comic book illustration, clear silhouette, expressive cartoon face, no photorealism, no text, no watermark\u0027 ) }}\"; SEED=$((IDX * 97)); curl -sL --retry 2 --retry-delay 2 --max-time 60 -o \"$OUT\" \"https://image.pollinations.ai/prompt/${PROMPT}?width=1920\u0026height=1080\u0026model=flux\u0026nologo=true\u0026seed=${SEED}\" || true; if [ ! -s \"$OUT\" ]; then curl -sL --retry 2 --retry-delay 2 --max-time 45 -o \"$OUT\" \"https://image.pollinations.ai/prompt/${PROMPT}?width=1920\u0026height=1080\u0026model=turbo\u0026nologo=true\" || true; fi; if [ ! -s \"$OUT\" ]; then ffmpeg -y -f lavfi -i color=c=white:s=1920x1080 -frames:v 1 \"$OUT\"; fi; echo \"DOODLE_OK_${IDX}\""
+                                     },
+                      "id":  "935f037b-8650-48ba-b9e1-8aa6838e8b50",
+                      "name":  "Download Doodle Main",
+                      "type":  "n8n-nodes-base.executeCommand",
+                      "typeVersion":  1,
+                      "position":  [
+                                       1152,
+                                       7760
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "url":  "=https://api.pexels.com/videos/search?query={{ encodeURIComponent($json.stock_keyword || \u0027history\u0027) }}\u0026per_page=3\u0026size=medium\u0026orientation=landscape",
+                                         "authentication":  "genericCredentialType",
+                                         "genericAuthType":  "httpHeaderAuth",
+                                         "options":  {
+                                                         "timeout":  30000
+                                                     }
+                                     },
+                      "id":  "340c0f31-c661-4d53-9cd6-c92178e7c084",
+                      "name":  "Pexels Video Main",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       1152,
+                                       8048
+                                   ],
+                      "credentials":  {
+                                          "httpHeaderAuth":  {
+                                                                 "id":  "obp5x49pUbWadmJk",
+                                                                 "name":  "Header Auth account"
+                                                             }
+                                      },
+                      "continueOnFail":  true
+                  },
+                  {
+                      "parameters":  {
+                                         "command":  "=IDX={{ $(\u0027Loop Main\u0027).item.json.index }}; URL=\"{{ ($json.videos \u0026\u0026 $json.videos[0] \u0026\u0026 $json.videos[0].video_files \u0026\u0026 $json.videos[0].video_files[0] \u0026\u0026 $json.videos[0].video_files[0].link) ? $json.videos[0].video_files[0].link : \u0027\u0027 }}\"; if [ -n \"$URL\" ]; then curl -sL --max-time 90 -o /tmp/video_tmp/scene_${IDX}.mp4 \"$URL\" || true; fi; if [ ! -s /tmp/video_tmp/scene_${IDX}.mp4 ]; then PROMPT=\"{{ encodeURIComponent( ($(\u0027Loop Main\u0027).item.json.visual_action || \u0027historical landscape\u0027) + \u0027, Simple History style, educational whiteboard animation, thick black ink marker outlines, pure white background, no photorealism\u0027 ) }}\"; curl -sL --retry 2 --max-time 60 -o /tmp/video_tmp/scene_${IDX}.png \"https://image.pollinations.ai/prompt/${PROMPT}?width=1920\u0026height=1080\u0026model=turbo\u0026nologo=true\" || true; fi; if [ ! -s /tmp/video_tmp/scene_${IDX}.png ] \u0026\u0026 [ ! -s /tmp/video_tmp/scene_${IDX}.mp4 ]; then ffmpeg -y -f lavfi -i color=c=white:s=1920x1080 -frames:v 1 /tmp/video_tmp/scene_${IDX}.png; fi; echo OK"
+                                     },
+                      "id":  "f96ad952-98b3-44b4-ace8-f9db879cb363",
+                      "name":  "Download Stock Main",
+                      "type":  "n8n-nodes-base.executeCommand",
+                      "typeVersion":  1,
+                      "position":  [
+                                       1376,
+                                       8048
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "command":  "=IDX={{ $(\u0027Loop Main\u0027).item.json.index }}; VOICE=\"{{ $(\u0027Randomization\u0027).first().json.voice }}\"; TEXT={{ JSON.stringify($(\u0027Loop Main\u0027).item.json.narration) }}; edge-tts --voice \"$VOICE\" --rate=\"-5%\" --text \"$TEXT\" --write-media /tmp/video_tmp/voice_${IDX}_raw.mp3 \u0026\u0026 ffmpeg -y -threads 2 -i /tmp/video_tmp/voice_${IDX}_raw.mp3 -af \"asetrate=44100*0.86,aresample=44100,atempo=1.03,bass=g=8:f=110,treble=g=-3,volume=1.35,highpass=f=70,lowpass=f=6500\" -ar 44100 -ac 2 -c:a aac -b:a 192k /tmp/video_tmp/voice_${IDX}.m4a \u0026\u0026 echo TTS_DEEP_OK"
+                                     },
+                      "id":  "f61d574c-10f0-440d-900f-94a5983965b0",
+                      "name":  "Deep TTS Engine",
+                      "type":  "n8n-nodes-base.executeCommand",
+                      "typeVersion":  1,
+                      "position":  [
+                                       1600,
+                                       7904
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "command":  "=IDX={{ $(\u0027Loop Main\u0027).item.json.index }}; GRAIN={{ $(\u0027Randomization\u0027).first().json.grainIntensity }}; test -n \"$IDX\"; DUR=$(ffprobe -v error -show_entries format=duration -of default=nk=1:nw=1 /tmp/video_tmp/voice_${IDX}.m4a 2\u003e/dev/null | cut -d. -f1); [ -z \"$DUR\" ] \u0026\u0026 DUR=8; [ \"$DUR\" -lt 2 ] \u0026\u0026 DUR=8; [ \"$DUR\" -gt 90 ] \u0026\u0026 DUR=90; if [ -s /tmp/video_tmp/scene_${IDX}.mp4 ]; then ffmpeg -y -threads 1 -stream_loop -1 -i /tmp/video_tmp/scene_${IDX}.mp4 -i /tmp/video_tmp/voice_${IDX}.m4a -vf \"scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720,fps=24,noise=alls=${GRAIN}:allf=t\" -t \"$DUR\" -map 0:v:0 -map 1:a:0 -c:v libx264 -preset ultrafast -tune stillimage -crf 30 -pix_fmt yuv420p -c:a aac -b:a 128k -ar 44100 -ac 2 /tmp/video_tmp/scene_${IDX}_out.mp4; else test -s /tmp/video_tmp/scene_${IDX}.png; ffmpeg -y -threads 1 -loop 1 -i /tmp/video_tmp/scene_${IDX}.png -i /tmp/video_tmp/voice_${IDX}.m4a -vf \"scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720,fps=24,noise=alls=${GRAIN}:allf=t\" -t \"$DUR\" -map 0:v:0 -map 1:a:0 -c:v libx264 -preset ultrafast -tune stillimage -crf 30 -pix_fmt yuv420p -c:a aac -b:a 128k -ar 44100 -ac 2 /tmp/video_tmp/scene_${IDX}_out.mp4; fi \u0026\u0026 test -s /tmp/video_tmp/scene_${IDX}_out.mp4 \u0026\u0026 ls -lh /tmp/video_tmp/scene_${IDX}_out.mp4 \u0026\u0026 echo SCENE_OK_${IDX}"
+                                     },
+                      "id":  "8d9aafcc-227e-49e5-8221-e216bdfa16da",
+                      "name":  "FFmpeg Scene Main",
+                      "type":  "n8n-nodes-base.executeCommand",
+                      "typeVersion":  1,
+                      "position":  [
+                                       1824,
+                                       7904
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "command":  "cd /tmp/video_tmp || exit 1; ls scene_*_out.mp4 \u003e/dev/null 2\u003e\u00261 || { echo NO_OUTS; ls -la; exit 1; }; ls scene_*_out.mp4 | sort -V | while read f; do echo \"file \u0027$f\u0027\"; done \u003e concat.txt; COUNT=$(wc -l \u003c concat.txt); echo CLIPS=$COUNT; test \"$COUNT\" -ge 5 || exit 1; ffmpeg -y -threads 1 -f concat -safe 0 -i concat.txt -c:v libx264 -preset ultrafast -crf 28 -pix_fmt yuv420p -c:a aac -b:a 128k -ar 44100 -ac 2 /home/node/.n8n-files/final_video_novoice.mp4 \u0026\u0026 ls -lh /home/node/.n8n-files/final_video_novoice.mp4 \u0026\u0026 echo CONCAT_OK"
+                                     },
+                      "id":  "ccbc9b6e-6002-44b0-b034-fb9969741433",
+                      "name":  "Concat Main",
+                      "type":  "n8n-nodes-base.executeCommand",
+                      "typeVersion":  1,
+                      "position":  [
+                                       2064,
+                                       7904
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "command":  "=MUSIC=$(ls /home/node/.n8n-files/music/*.mp3 /home/node/.n8n-files/music/*.m4a 2\u003e/dev/null | shuf -n 1); IN=/home/node/.n8n-files/final_video_novoice.mp4; OUT=/home/node/.n8n-files/final_video.mp4; test -s \"$IN\" || exit 1; if [ -z \"$MUSIC\" ]; then ffmpeg -y -threads 1 -i \"$IN\" -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 \"$OUT\"; else ffmpeg -y -threads 1 -i \"$IN\" -stream_loop -1 -i \"$MUSIC\" -filter_complex \"[0:a]aformat=sample_rates=44100:channel_layouts=stereo,volume=1.0[a0];[1:a]aformat=sample_rates=44100:channel_layouts=stereo,volume=0.08[a1];[a0][a1]amix=inputs=2:duration=first:normalize=0[aout]\" -map 0:v -map \"[aout]\" -c:v copy -c:a aac -b:a 192k -shortest \"$OUT\"; fi; ls -lh \"$OUT\"; echo MUSIC_OK"
+                                     },
+                      "id":  "d059e44c-fe91-4d24-a785-9b63cce20e85",
+                      "name":  "Add Music Main",
+                      "type":  "n8n-nodes-base.executeCommand",
+                      "typeVersion":  1,
+                      "position":  [
+                                       2272,
+                                       7904
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "command":  "=python3 \u003c\u003c \u0027EOF\u0027\nimport json, base64, urllib.request, os, sys, urllib.parse, subprocess\n\nAPI_KEY = \"{{$env.GEMINI_API_KEY}}\"\n\ntitle = \"\"\"{{ $(\u0027Parse Main\u0027).first().json.youtube_title.replace(/\"/g, \u0027\u0027) }}\"\"\"\nprompt_extra = \"\"\"{{ ($(\u0027Parse Main\u0027).first().json.thumbnail_prompt || \u0027\u0027).replace(/\"/g, \u0027\u0027) }}\"\"\"\n\nprompt = f\"\"\"Generate a viral YouTube thumbnail image, 16:9.\nStyle: Simple History / Ink Explainer educational doodle.\n- Huge exaggerated facial expression (shock, disgust, or fear).\n- One main character only, big in frame.\n- High contrast black ink line art on white background.\n- Leave a clean area on the left for title text (DO NOT DRAW TEXT).\nVideo context: {title}. Visual Idea: {prompt_extra}\"\"\"\n\ndef run_fallback():\n    print(\"Using Pollinations Fallback...\")\n    q = urllib.parse.quote(prompt_extra[:200] + \", Simple History style YouTube thumbnail, high contrast ink doodle, huge expressive face, white background\")\n    subprocess.check_call([\"curl\",\"-sL\",\"--max-time\",\"120\",\"-o\",\"/home/node/.n8n-files/thumbnail.png\", f\"https://image.pollinations.ai/prompt/{q}?width=1920\u0026height=1080\u0026model=flux\u0026nologo=true\"])\n    sys.exit(0)\n\nif API_KEY == \"PASTE_YOUR_GEMINI_KEY_HERE\" or API_KEY == \"\":\n    run_fallback()\n\nurl = f\"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key={API_KEY}\"\nbody = {\n  \"contents\": [{\"parts\": [{\"text\": prompt}]}],\n  \"generationConfig\": {\"responseModalities\": [\"TEXT\", \"IMAGE\"]}\n}\nreq = urllib.request.Request(url, data=json.dumps(body).encode(), headers={\"Content-Type\": \"application/json\"})\n\ntry:\n    resp = urllib.request.urlopen(req, timeout=90)\n    data = json.load(resp)\n    parts = data[\"candidates\"][0][\"content\"][\"parts\"]\n    img_b64 = None\n    for p in parts:\n        inline = p.get(\"inlineData\") or p.get(\"inline_data\")\n        if inline and inline.get(\"data\"):\n            img_b64 = inline[\"data\"]\n            break\n    if img_b64:\n        open(\"/home/node/.n8n-files/thumbnail.png\",\"wb\").write(base64.b64decode(img_b64))\n        print(\"GEMINI_THUMB_OK\")\n    else:\n        run_fallback()\nexcept Exception as e:\n    print(f\"Gemini failed: {e}\")\n    run_fallback()\nEOF\n"
+                                     },
+                      "id":  "529efb90-c41c-4462-b93a-c8c726aea708",
+                      "name":  "Download Thumbnail (Gemini)",
+                      "type":  "n8n-nodes-base.executeCommand",
+                      "typeVersion":  1,
+                      "position":  [
+                                       2496,
+                                       7904
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "fileSelector":  "/home/node/.n8n-files/thumbnail.png",
+                                         "options":  {
+                                                         "dataPropertyName":  "thumb_data"
+                                                     }
+                                     },
+                      "id":  "18aebea6-28de-4cb4-90e5-226916568127",
+                      "name":  "Read Thumbnail",
+                      "type":  "n8n-nodes-base.readWriteFile",
+                      "typeVersion":  1,
+                      "position":  [
+                                       2720,
+                                       7904
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "method":  "POST",
+                                         "url":  "={{$env.TELEGRAM_API_BASE}}/bot{{$env.TELEGRAM_BOT_TOKEN}}/sendPhoto",
+                                         "sendBody":  true,
+                                         "contentType":  "multipart-form-data",
+                                         "bodyParameters":  {
+                                                                "parameters":  [
+                                                                                   {
+                                                                                       "name":  "chat_id",
+                                                                                       "value":  "={{$env.TELEGRAM_CHAT_ID}}"
+                                                                                   },
+                                                                                   {
+                                                                                       "name":  "caption",
+                                                                                       "value":  "=🖼️ THUMBNAIL\n\nTITLE: {{ $(\u0027Parse Main\u0027).first().json.youtube_title }}\n\nTAGS: {{ $(\u0027Parse Main\u0027).first().json.youtube_tags }}\n\n(See next message for description)"
+                                                                                   },
+                                                                                   {
+                                                                                       "parameterType":  "formBinaryData",
+                                                                                       "name":  "photo",
+                                                                                       "inputDataFieldName":  "thumb_data"
+                                                                                   }
+                                                                               ]
+                                                            },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "2bfb99c3-c167-4594-821e-c4a44111d209",
+                      "name":  "Telegram Meta",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       2944,
+                                       7904
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "method":  "POST",
+                                         "url":  "={{$env.TELEGRAM_API_BASE}}/bot{{$env.TELEGRAM_BOT_TOKEN}}/sendMessage",
+                                         "sendBody":  true,
+                                         "specifyBody":  "json",
+                                         "jsonBody":  "={\n  \\\"chat_id\\\": \\\"{{$env.TELEGRAM_CHAT_ID}}\\\",\n  \"text\": {{ JSON.stringify(\u0027📝 YOUTUBE DESCRIPTION:\\n\\n\u0027 + ($(\u0027Parse Main\u0027).first().json.youtube_description || \u0027\u0027)) }}\n}",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "bd4d55fd-d0ef-4d7d-9233-723afb646643",
+                      "name":  "Telegram Description",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       3152,
+                                       7904
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "fileSelector":  "/home/node/.n8n-files/final_video.mp4",
+                                         "options":  {
+                                                         "dataPropertyName":  "data"
+                                                     }
+                                     },
+                      "id":  "40ebc85a-0603-4c71-ab09-f2d59726709b",
+                      "name":  "Read Main Video",
+                      "type":  "n8n-nodes-base.readWriteFile",
+                      "typeVersion":  1,
+                      "position":  [
+                                       3376,
+                                       7904
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "method":  "POST",
+                                         "url":  "={{$env.TELEGRAM_API_BASE}}/bot{{$env.TELEGRAM_BOT_TOKEN}}/sendDocument",
+                                         "sendBody":  true,
+                                         "contentType":  "multipart-form-data",
+                                         "bodyParameters":  {
+                                                                "parameters":  [
+                                                                                   {
+                                                                                       "name":  "chat_id",
+                                                                                       "value":  "={{$env.TELEGRAM_CHAT_ID}}"
+                                                                                   },
+                                                                                   {
+                                                                                       "name":  "caption",
+                                                                                       "value":  "🎬 MAIN VIDEO (12-16 Min)"
+                                                                                   },
+                                                                                   {
+                                                                                       "parameterType":  "formBinaryData",
+                                                                                       "name":  "document",
+                                                                                       "inputDataFieldName":  "data"
+                                                                                   }
+                                                                               ]
+                                                            },
+                                         "options":  {
+                                                         "timeout":  600000
+                                                     }
+                                     },
+                      "id":  "47c43827-01f1-4ac7-a7e7-72b2acca9efc",
+                      "name":  "Telegram Main",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       3600,
+                                       7904
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const topic = $(\u0027Randomization\u0027).first().json.topic;\nconst groqModel = $(\u0027Randomization\u0027).first().json.groqModel || \u0027openai/gpt-oss-120b\u0027;\nconst systemPrompt = \u0027You write viral YouTube Shorts. JSON only.\u0027;\nconst userPrompt = [\n  \u0027Create 3 Shorts about: \u0027 + topic,\n  \u0027Each short: exactly 5 scenes, narration 10-15 words max.\u0027,\n  \u0027visual_action: format \"[character] [action] [emotion]\".\u0027,\n  \u0027short_title + short_desc (1 line + hashtags).\u0027,\n  \u0027JSON: {\"shorts\":[{\"short_title\":\"...\",\"short_desc\":\"...\",\"scenes\":[{\"narration\":\"...\",\"visual_action\":\"...\"}]}]}\u0027\n].join(\u0027\\n\u0027);\nreturn [{ json: { groqBody: { model: groqModel, messages: [{role:\u0027system\u0027,content:systemPrompt},{role:\u0027user\u0027,content:userPrompt}], temperature: 0.9, max_tokens: 4000 } } }];"
+                                     },
+                      "id":  "67f667b0-0aba-43ce-9d9c-570e8b455822",
+                      "name":  "Build Groq Shorts",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       3824,
+                                       7904
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "method":  "POST",
+                                         "url":  "https://api.groq.com/openai/v1/chat/completions",
+                                         "authentication":  "genericCredentialType",
+                                         "genericAuthType":  "httpHeaderAuth",
+                                         "sendHeaders":  true,
+                                         "headerParameters":  {
+                                                                  "parameters":  [
+                                                                                     {
+                                                                                         "name":  "Content-Type",
+                                                                                         "value":  "application/json"
+                                                                                     }
+                                                                                 ]
+                                                              },
+                                         "sendBody":  true,
+                                         "specifyBody":  "json",
+                                         "jsonBody":  "={{ JSON.stringify($json.groqBody) }}",
+                                         "options":  {
+                                                         "timeout":  300000
+                                                     }
+                                     },
+                      "id":  "9b20043b-deee-4a22-b551-23ec2eb63f92",
+                      "name":  "Groq Shorts",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.3,
+                      "position":  [
+                                       4032,
+                                       7904
+                                   ],
+                      "credentials":  {
+                                          "httpHeaderAuth":  {
+                                                                 "id":  "obp5x49pUbWadmJk",
+                                                                 "name":  "Header Auth account"
+                                                             }
+                                      }
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const raw = $input.item.json.choices?.[0]?.message?.content || \u0027\u0027;\nconst clean = raw.replace(/```json\\s*/gi,\u0027\u0027).replace(/```/g,\u0027\u0027).trim();\nconst match = clean.match(/\\{[\\s\\S]*\\}/);\nif (!match) throw new Error(\u0027No JSON found in Shorts response\u0027);\nlet jsonStr = match[0]\n  .replace(/\\*\\*\\s*(\"[^\"]+\")\\s*:\\s*\\*\\*/g, \u0027$1:\u0027)\n  .replace(/\\*\\*\\s*(\"[^\"]+\")\\s*\\*\\*\\s*:/g, \u0027$1:\u0027)\n  .replace(/\\*\\*\\s*([a-zA-Z0-9_-]+)\\s*\\*\\*\\s*:/g, \u0027\"$1\":\u0027)\n  .replace(/:\\s*\\*\\*\\s*(\"[^\"]*\")\\s*\\*\\*/g, \u0027: $1\u0027)\n  .replace(/:\\s*\\*\\*\\s*([a-zA-Z0-9_]+)\\s*\\*\\*/g, \u0027: \"$1\"\u0027)\n  .replace(/\\*\\*/g, \u0027\u0027)\n  .replace(/,\\s*([}\\]])/g, \u0027$1\u0027);\nlet data;\ntry { data = JSON.parse(jsonStr); } catch (e) {\n  throw new Error(\u0027Shorts JSON parse failed: \u0027 + e.message);\n}\nconst out = [];\n(data.shorts || []).forEach((short, si) =\u003e {\n  (short.scenes || []).forEach((sc, sci) =\u003e {\n    out.push({ json: { shortId: si + 1, sceneIndex: sci, narration: sc.narration, visual_action: sc.visual_action || \u0027historical person\u0027, title: short.short_title, desc: short.short_desc } });\n  });\n});\nreturn out;"
+                                     },
+                      "id":  "d742e6b1-5c7c-4e95-b35e-0f1f09c20bf9",
+                      "name":  "Parse Shorts",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       4256,
+                                       7904
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "f2a49856-fa54-47f1-9988-fee7f0a54c14",
+                      "name":  "Loop Shorts",
+                      "type":  "n8n-nodes-base.splitInBatches",
+                      "typeVersion":  3,
+                      "position":  [
+                                       4480,
+                                       7904
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "command":  "=SID={{ $(\u0027Loop Shorts\u0027).item.json.shortId }}; SCI={{ $(\u0027Loop Shorts\u0027).item.json.sceneIndex }}; OUT=\"/tmp/video_tmp/short_${SID}_scene_${SCI}.png\"; PROMPT=\"{{ encodeURIComponent(($(\u0027Loop Shorts\u0027).item.json.visual_action) + \u0027, Simple History style, YouTube Shorts vertical, hand-drawn black and white sketch, flat colors, expressive face, pure white background\u0027) }}\"; curl -sL --retry 2 --retry-delay 2 --max-time 60 -o \"$OUT\" \"https://image.pollinations.ai/prompt/${PROMPT}?width=1080\u0026height=1920\u0026model=flux\u0026nologo=true\" || true; if [ ! -s \"$OUT\" ]; then curl -sL --retry 2 --max-time 45 -o \"$OUT\" \"https://image.pollinations.ai/prompt/${PROMPT}?width=1080\u0026height=1920\u0026model=turbo\u0026nologo=true\" || true; fi; if [ ! -s \"$OUT\" ]; then ffmpeg -y -f lavfi -i color=c=white:s=1080x1920 -frames:v 1 \"$OUT\"; fi; echo OK"
+                                     },
+                      "id":  "e80f0f3a-0794-45ed-bb00-934cc6023f86",
+                      "name":  "Download Short Doodle",
+                      "type":  "n8n-nodes-base.executeCommand",
+                      "typeVersion":  1,
+                      "position":  [
+                                       4704,
+                                       7760
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "command":  "=SID={{ $(\u0027Loop Shorts\u0027).item.json.shortId }}; SCI={{ $(\u0027Loop Shorts\u0027).item.json.sceneIndex }}; VOICE=\"{{ $(\u0027Randomization\u0027).first().json.voice }}\"; TEXT={{ JSON.stringify($(\u0027Loop Shorts\u0027).item.json.narration) }}; edge-tts --voice \"$VOICE\" --rate=\"-5%\" --text \"$TEXT\" --write-media /tmp/video_tmp/short_voice_${SID}_${SCI}_raw.mp3 \u0026\u0026 ffmpeg -y -threads 2 -i /tmp/video_tmp/short_voice_${SID}_${SCI}_raw.mp3 -af \"asetrate=44100*0.86,aresample=44100,atempo=1.03,bass=g=8:f=110,treble=g=-3,volume=1.35,highpass=f=70,lowpass=f=6500\" -ar 44100 -ac 2 -c:a aac -b:a 192k /tmp/video_tmp/short_voice_${SID}_${SCI}.m4a \u0026\u0026 echo OK"
+                                     },
+                      "id":  "7465732e-29ea-49af-9ddc-7c0aebb2bc97",
+                      "name":  "Edge TTS Shorts",
+                      "type":  "n8n-nodes-base.executeCommand",
+                      "typeVersion":  1,
+                      "position":  [
+                                       4912,
+                                       7760
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "command":  "=SID={{ $(\u0027Loop Shorts\u0027).item.json.shortId }}; SCI={{ $(\u0027Loop Shorts\u0027).item.json.sceneIndex }}; GRAIN={{ $(\u0027Randomization\u0027).first().json.grainIntensity }}; DUR=$(ffprobe -v error -show_entries format=duration -of default=nk=1:nw=1 /tmp/video_tmp/short_voice_${SID}_${SCI}.m4a 2\u003e/dev/null); DUR=$(echo \"$DUR\" | cut -d. -f1); [ -z \"$DUR\" ] \u0026\u0026 DUR=5; [ \"$DUR\" -lt 2 ] \u0026\u0026 DUR=5; [ \"$DUR\" -gt 60 ] \u0026\u0026 DUR=60; ffmpeg -y -threads 1 -loop 1 -i /tmp/video_tmp/short_${SID}_scene_${SCI}.png -i /tmp/video_tmp/short_voice_${SID}_${SCI}.m4a -vf \"scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,zoompan=z=\u0027min(1.0+0.0006*on\\,1.06)\u0027:x=\u0027iw/2-(iw/zoom/2)\u0027:y=\u0027ih/2-(ih/zoom/2)\u0027:d=$((DUR*24)):s=720x1280:fps=24,noise=alls=${GRAIN}:allf=t\" -t $DUR -map 0:v:0 -map 1:a:0 -c:v libx264 -preset ultrafast -tune stillimage -crf 30 -pix_fmt yuv420p -c:a aac -b:a 128k -ar 44100 -ac 2 /tmp/video_tmp/short_${SID}_scene_${SCI}_out.mp4; ls -lh /tmp/video_tmp/short_${SID}_scene_${SCI}_out.mp4; echo OK"
+                                     },
+                      "id":  "9c1776a2-f8ee-4bb4-a9a3-e3a5e2a9cf69",
+                      "name":  "FFmpeg Scene Shorts",
+                      "type":  "n8n-nodes-base.executeCommand",
+                      "typeVersion":  1,
+                      "position":  [
+                                       5136,
+                                       7760
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "command":  "=cd /tmp/video_tmp \u0026\u0026 for i in 1 2 3; do ls short_${i}_scene_*_out.mp4 2\u003e/dev/null | sort -V | sed \u0027s/^/file /\u0027 \u003e concat_short_${i}.txt \u0026\u0026 if [ -s concat_short_${i}.txt ]; then ffmpeg -y -threads 2 -f concat -safe 0 -i concat_short_${i}.txt -c:v libx264 -preset ultrafast -crf 24 -pix_fmt yuv420p -c:a aac -b:a 192k -ar 44100 -ac 2 /home/node/.n8n-files/final_short_${i}_novoice.mp4; fi; done \u0026\u0026 echo OK"
+                                     },
+                      "id":  "5d905ba1-f5e2-451b-aea2-c0325346d658",
+                      "name":  "Concat Shorts",
+                      "type":  "n8n-nodes-base.executeCommand",
+                      "typeVersion":  1,
+                      "position":  [
+                                       4704,
+                                       8048
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "command":  "=for i in 1 2 3; do IN=/home/node/.n8n-files/final_short_${i}_novoice.mp4; OUT=/home/node/.n8n-files/final_short_${i}.mp4; [ -f \"$IN\" ] || continue; MUSIC=$(ls /home/node/.n8n-files/music/*.{mp3,m4a,wav,ogg} 2\u003e/dev/null | shuf -n 1); if [ -z \"$MUSIC\" ]; then ffmpeg -y -threads 2 -i \"$IN\" -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 \"$OUT\"; else ffmpeg -y -threads 2 -i \"$IN\" -stream_loop -1 -i \"$MUSIC\" -filter_complex \"[0:a]aformat=sample_rates=44100:channel_layouts=stereo,volume=1.0[a0];[1:a]aformat=sample_rates=44100:channel_layouts=stereo,volume=0.10[a1];[a0][a1]amix=inputs=2:duration=first:normalize=0[aout]\" -map 0:v -map \"[aout]\" -c:v copy -c:a aac -b:a 192k -shortest \"$OUT\"; fi; done \u0026\u0026 echo OK"
+                                     },
+                      "id":  "31ecd920-9d59-4fd0-81c5-71c00cb7cd3d",
+                      "name":  "Add Music Shorts",
+                      "type":  "n8n-nodes-base.executeCommand",
+                      "typeVersion":  1,
+                      "position":  [
+                                       4912,
+                                       8048
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const shortsMeta = {};\nfor (const item of $(\u0027Parse Shorts\u0027).all()) {\n  const j = item.json;\n  if (!shortsMeta[j.shortId]) shortsMeta[j.shortId] = j;\n}\nreturn [1,2,3].map(i =\u003e ({\n  json: {\n    file: `/home/node/.n8n-files/final_short_${i}.mp4`,\n    title: (shortsMeta[i] \u0026\u0026 shortsMeta[i].title) || `Short ${i}`,\n    desc: (shortsMeta[i] \u0026\u0026 shortsMeta[i].desc) || \u0027\u0027\n  }\n}));"
+                                     },
+                      "id":  "f60375c4-732b-49ba-a29b-f1790f57665a",
+                      "name":  "Prepare Shorts Files",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       5136,
+                                       8048
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "fileSelector":  "={{ $json.file }}",
+                                         "options":  {
+                                                         "dataPropertyName":  "data"
+                                                     }
+                                     },
+                      "id":  "c23b2da6-8742-4474-b96b-a388a6f1334c",
+                      "name":  "Read Shorts Video",
+                      "type":  "n8n-nodes-base.readWriteFile",
+                      "typeVersion":  1,
+                      "position":  [
+                                       5360,
+                                       8048
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "method":  "POST",
+                                         "url":  "={{$env.TELEGRAM_API_BASE}}/bot{{$env.TELEGRAM_BOT_TOKEN}}/sendDocument",
+                                         "sendBody":  true,
+                                         "contentType":  "multipart-form-data",
+                                         "bodyParameters":  {
+                                                                "parameters":  [
+                                                                                   {
+                                                                                       "name":  "chat_id",
+                                                                                       "value":  "={{$env.TELEGRAM_CHAT_ID}}"
+                                                                                   },
+                                                                                   {
+                                                                                       "name":  "caption",
+                                                                                       "value":  "=📱 SHORT: {{ $json.title }}\\n\\n{{ $json.desc }}"
+                                                                                   },
+                                                                                   {
+                                                                                       "parameterType":  "formBinaryData",
+                                                                                       "name":  "document",
+                                                                                       "inputDataFieldName":  "data"
+                                                                                   }
+                                                                               ]
+                                                            },
+                                         "options":  {
+                                                         "timeout":  300000
+                                                     }
+                                     },
+                      "id":  "45c11b4c-3126-4ba5-904c-2b076b4d619e",
+                      "name":  "Telegram Shorts",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       5584,
+                                       8048
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "command":  "rm -f /tmp/video_tmp/scene_* /tmp/video_tmp/voice_* /tmp/video_tmp/short_* /tmp/video_tmp/concat*.txt /home/node/.n8n-files/thumbnail.png /home/node/.n8n-files/final_video*.mp4 /home/node/.n8n-files/final_short*.mp4 || true; echo CLEANED"
+                                     },
+                      "id":  "12378d7a-0906-4454-b4f8-2bc77a2a3b5c",
+                      "name":  "Cleanup Everything",
+                      "type":  "n8n-nodes-base.executeCommand",
+                      "typeVersion":  1,
+                      "position":  [
+                                       5872,
+                                       8048
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "rule":  {
+                                                      "interval":  [
+                                                                       {
+                                                                           "field":  "cronExpression",
+                                                                           "expression":  "0 1 * * *"
+                                                                       }
+                                                                   ]
+                                                  }
+                                     },
+                      "id":  "de4ef5ea-4f14-4424-aad4-d937b4a90fa8",
+                      "name":  "Cron (1 AM)",
+                      "type":  "n8n-nodes-base.scheduleTrigger",
+                      "typeVersion":  1.2,
+                      "position":  [
+                                       -768,
+                                       8000
+                                   ]
+                  }
+              ],
+    "connections":  {
+                        "Manual Trigger":  {
+                                               "main":  [
+                                                            [
+                                                                {
+                                                                    "node":  "Pre-Cleanup Old Data",
+                                                                    "type":  "main",
+                                                                    "index":  0
+                                                                }
+                                                            ]
+                                                        ]
+                                           },
+                        "Pre-Cleanup Old Data":  {
+                                                     "main":  [
+                                                                  [
+                                                                      {
+                                                                          "node":  "Randomization",
+                                                                          "type":  "main",
+                                                                          "index":  0
+                                                                      }
+                                                                  ]
+                                                              ]
+                                                 },
+                        "Randomization":  {
+                                              "main":  [
+                                                           [
+                                                               {
+                                                                   "node":  "Build Groq Main",
+                                                                   "type":  "main",
+                                                                   "index":  0
+                                                               }
+                                                           ]
+                                                       ]
+                                          },
+                        "Build Groq Main":  {
+                                                "main":  [
+                                                             [
+                                                                 {
+                                                                     "node":  "Groq Main",
+                                                                     "type":  "main",
+                                                                     "index":  0
+                                                                 }
+                                                             ]
+                                                         ]
+                                            },
+                        "Groq Main":  {
+                                          "main":  [
+                                                       [
+                                                           {
+                                                               "node":  "Parse Main",
+                                                               "type":  "main",
+                                                               "index":  0
+                                                           }
+                                                       ]
+                                                   ]
+                                      },
+                        "Parse Main":  {
+                                           "main":  [
+                                                        [
+                                                            {
+                                                                "node":  "Loop Main",
+                                                                "type":  "main",
+                                                                "index":  0
+                                                            }
+                                                        ]
+                                                    ]
+                                       },
+                        "Loop Main":  {
+                                          "main":  [
+                                                       [
+                                                           {
+                                                               "node":  "Concat Main",
+                                                               "type":  "main",
+                                                               "index":  0
+                                                           }
+                                                       ],
+                                                       [
+                                                           {
+                                                               "node":  "Doodle or Stock?",
+                                                               "type":  "main",
+                                                               "index":  0
+                                                           }
+                                                       ]
+                                                   ]
+                                      },
+                        "Doodle or Stock?":  {
+                                                 "main":  [
+                                                              [
+                                                                  {
+                                                                      "node":  "Download Doodle Main",
+                                                                      "type":  "main",
+                                                                      "index":  0
+                                                                  }
+                                                              ],
+                                                              [
+                                                                  {
+                                                                      "node":  "Pexels Video Main",
+                                                                      "type":  "main",
+                                                                      "index":  0
+                                                                  }
+                                                              ]
+                                                          ]
+                                             },
+                        "Download Doodle Main":  {
+                                                     "main":  [
+                                                                  [
+                                                                      {
+                                                                          "node":  "Deep TTS Engine",
+                                                                          "type":  "main",
+                                                                          "index":  0
+                                                                      }
+                                                                  ]
+                                                              ]
+                                                 },
+                        "Pexels Video Main":  {
+                                                  "main":  [
+                                                               [
+                                                                   {
+                                                                       "node":  "Download Stock Main",
+                                                                       "type":  "main",
+                                                                       "index":  0
+                                                                   }
+                                                               ]
+                                                           ]
+                                              },
+                        "Download Stock Main":  {
+                                                    "main":  [
+                                                                 [
+                                                                     {
+                                                                         "node":  "Deep TTS Engine",
+                                                                         "type":  "main",
+                                                                         "index":  0
+                                                                     }
+                                                                 ]
+                                                             ]
+                                                },
+                        "Deep TTS Engine":  {
+                                                "main":  [
+                                                             [
+                                                                 {
+                                                                     "node":  "FFmpeg Scene Main",
+                                                                     "type":  "main",
+                                                                     "index":  0
+                                                                 }
+                                                             ]
+                                                         ]
+                                            },
+                        "FFmpeg Scene Main":  {
+                                                  "main":  [
+                                                               [
+                                                                   {
+                                                                       "node":  "Loop Main",
+                                                                       "type":  "main",
+                                                                       "index":  0
+                                                                   }
+                                                               ]
+                                                           ]
+                                              },
+                        "Concat Main":  {
+                                            "main":  [
+                                                         [
+                                                             {
+                                                                 "node":  "Add Music Main",
+                                                                 "type":  "main",
+                                                                 "index":  0
+                                                             }
+                                                         ]
+                                                     ]
+                                        },
+                        "Add Music Main":  {
+                                               "main":  [
+                                                            [
+                                                                {
+                                                                    "node":  "Download Thumbnail (Gemini)",
+                                                                    "type":  "main",
+                                                                    "index":  0
+                                                                }
+                                                            ]
+                                                        ]
+                                           },
+                        "Download Thumbnail (Gemini)":  {
+                                                            "main":  [
+                                                                         [
+                                                                             {
+                                                                                 "node":  "Read Thumbnail",
+                                                                                 "type":  "main",
+                                                                                 "index":  0
+                                                                             }
+                                                                         ]
+                                                                     ]
+                                                        },
+                        "Read Thumbnail":  {
+                                               "main":  [
+                                                            [
+                                                                {
+                                                                    "node":  "Telegram Meta",
+                                                                    "type":  "main",
+                                                                    "index":  0
+                                                                }
+                                                            ]
+                                                        ]
+                                           },
+                        "Telegram Meta":  {
+                                              "main":  [
+                                                           [
+                                                               {
+                                                                   "node":  "Telegram Description",
+                                                                   "type":  "main",
+                                                                   "index":  0
+                                                               }
+                                                           ]
+                                                       ]
+                                          },
+                        "Telegram Description":  {
+                                                     "main":  [
+                                                                  [
+                                                                      {
+                                                                          "node":  "Read Main Video",
+                                                                          "type":  "main",
+                                                                          "index":  0
+                                                                      }
+                                                                  ]
+                                                              ]
+                                                 },
+                        "Read Main Video":  {
+                                                "main":  [
+                                                             [
+                                                                 {
+                                                                     "node":  "Telegram Main",
+                                                                     "type":  "main",
+                                                                     "index":  0
+                                                                 }
+                                                             ]
+                                                         ]
+                                            },
+                        "Telegram Main":  {
+                                              "main":  [
+                                                           [
+                                                               {
+                                                                   "node":  "Build Groq Shorts",
+                                                                   "type":  "main",
+                                                                   "index":  0
+                                                               }
+                                                           ]
+                                                       ]
+                                          },
+                        "Build Groq Shorts":  {
+                                                  "main":  [
+                                                               [
+                                                                   {
+                                                                       "node":  "Groq Shorts",
+                                                                       "type":  "main",
+                                                                       "index":  0
+                                                                   }
+                                                               ]
+                                                           ]
+                                              },
+                        "Groq Shorts":  {
+                                            "main":  [
+                                                         [
+                                                             {
+                                                                 "node":  "Parse Shorts",
+                                                                 "type":  "main",
+                                                                 "index":  0
+                                                             }
+                                                         ]
+                                                     ]
+                                        },
+                        "Parse Shorts":  {
+                                             "main":  [
+                                                          [
+                                                              {
+                                                                  "node":  "Loop Shorts",
+                                                                  "type":  "main",
+                                                                  "index":  0
+                                                              }
+                                                          ]
+                                                      ]
+                                         },
+                        "Loop Shorts":  {
+                                            "main":  [
+                                                         [
+                                                             {
+                                                                 "node":  "Concat Shorts",
+                                                                 "type":  "main",
+                                                                 "index":  0
+                                                             }
+                                                         ],
+                                                         [
+                                                             {
+                                                                 "node":  "Download Short Doodle",
+                                                                 "type":  "main",
+                                                                 "index":  0
+                                                             }
+                                                         ]
+                                                     ]
+                                        },
+                        "Download Short Doodle":  {
+                                                      "main":  [
+                                                                   [
+                                                                       {
+                                                                           "node":  "Edge TTS Shorts",
+                                                                           "type":  "main",
+                                                                           "index":  0
+                                                                       }
+                                                                   ]
+                                                               ]
+                                                  },
+                        "Edge TTS Shorts":  {
+                                                "main":  [
+                                                             [
+                                                                 {
+                                                                     "node":  "FFmpeg Scene Shorts",
+                                                                     "type":  "main",
+                                                                     "index":  0
+                                                                 }
+                                                             ]
+                                                         ]
+                                            },
+                        "FFmpeg Scene Shorts":  {
+                                                    "main":  [
+                                                                 [
+                                                                     {
+                                                                         "node":  "Loop Shorts",
+                                                                         "type":  "main",
+                                                                         "index":  0
+                                                                     }
+                                                                 ]
+                                                             ]
+                                                },
+                        "Concat Shorts":  {
+                                              "main":  [
+                                                           [
+                                                               {
+                                                                   "node":  "Add Music Shorts",
+                                                                   "type":  "main",
+                                                                   "index":  0
+                                                               }
+                                                           ]
+                                                       ]
+                                          },
+                        "Add Music Shorts":  {
+                                                 "main":  [
+                                                              [
+                                                                  {
+                                                                      "node":  "Prepare Shorts Files",
+                                                                      "type":  "main",
+                                                                      "index":  0
+                                                                  }
+                                                              ]
+                                                          ]
+                                             },
+                        "Prepare Shorts Files":  {
+                                                     "main":  [
+                                                                  [
+                                                                      {
+                                                                          "node":  "Read Shorts Video",
+                                                                          "type":  "main",
+                                                                          "index":  0
+                                                                      }
+                                                                  ]
+                                                              ]
+                                                 },
+                        "Read Shorts Video":  {
+                                                  "main":  [
+                                                               [
+                                                                   {
+                                                                       "node":  "Telegram Shorts",
+                                                                       "type":  "main",
+                                                                       "index":  0
+                                                                   }
+                                                               ]
+                                                           ]
+                                              },
+                        "Telegram Shorts":  {
+                                                "main":  [
+                                                             [
+                                                                 {
+                                                                     "node":  "Cleanup Everything",
+                                                                     "type":  "main",
+                                                                     "index":  0
+                                                                 }
+                                                             ]
+                                                         ]
+                                            },
+                        "Cron (1 AM)":  {
+                                            "main":  [
+                                                         [
+                                                             {
+                                                                 "node":  "Pre-Cleanup Old Data",
+                                                                 "type":  "main",
+                                                                 "index":  0
+                                                             }
+                                                         ]
+                                                     ]
+                                        }
+                    },
+    "pinData":  {
+
+                },
+    "meta":  {
+                 "instanceId":  "d5d24f3f8f2b7cb132295de30374916c5c069c71d269b78dba8f17c748128c26"
+             }
+}

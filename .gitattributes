@@ -1,0 +1,19 @@
+# Normalise line endings on commit; checkout as-is on Windows
+* text=auto
+
+# Shell scripts must be LF
+*.sh text eol=lf
+
+# JSON, Markdown, JS — normalise
+*.json text eol=lf
+*.md   text eol=lf
+*.js   text eol=lf
+
+# Binary files
+*.mp4 binary
+*.mp3 binary
+*.m4a binary
+*.wav binary
+*.png binary
+*.jpg binary
+*.pdf binary

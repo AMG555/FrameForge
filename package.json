@@ -1,0 +1,24 @@
+{
+  "name": "video-agent",
+  "version": "1.0.0",
+  "description": "Autonomous AI video production pipeline — MCP server + n8n workflow",
+  "main": "src/mcp-server/server.js",
+  "scripts": {
+    "start": "node src/mcp-server/server.js",
+    "test": "node --test src/**/*.test.js src/asset-library/test-asset-library.js",
+    "lint": "echo 'No linter configured — add eslint for production'",
+    "check-credentials": "node -e \"require('./src/utils/n8n-log-redaction').runCredentialAudit()\"",
+    "generate-assets": "node scripts/generate-initial-assets.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {},
+  "devDependencies": {},
+  "keywords": ["video", "ai", "mcp", "n8n", "automation"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sunithvs/video-agent-skill"
+  }
+}
