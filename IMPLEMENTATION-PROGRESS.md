@@ -1,232 +1,162 @@
 # Implementation Progress Report
 
 **Project:** Video Workflow Improvements  
-**Date:** 2026-09-09  
-**Status:** In Progress  
+**Last Updated:** 2026-11-01  
+**Status:** Active — core infrastructure complete, workflows pending
+
+---
 
 ## Completed Tasks
 
-### Week 1 - Security Foundation ✅
+### Week 1 — Security Foundation ✅ (Tasks #1–6)
 
-**Tasks 1-6: Complete (14 hours estimated → 14 hours actual)**
+- **#1** Credential rotation procedures documented — `.kiro/security/`
+- **#2** n8n credential configuration guide — `.kiro/config/n8n-credentials-config.md`
+- **#3** Environment variable template — `.kiro/config/production-secrets.env.template`
+- **#4** Log redaction (10+ patterns) — `src/utils/log-redaction.js`, `src/utils/n8n-log-redaction.js`
+- **#5** Rotation procedures for all services — `docs/credential-rotation-procedures.md`
+- **#6** All hardcoded credentials removed from both workflow files:
+  - `workflow.json` — 5 credentials → `{{$env.*}}`
+  - `daily-video-workflow.json` — 9 credentials → `{{$env.*}}`
 
-#### Task #1: Credential Rotation (CRITICAL)
-- ✅ Created comprehensive rotation procedures
-- ✅ Documented all exposed credentials
-- ✅ Created security alert documentation
-- **Location:** `.kiro/security/`
+### Week 2 — Asset System Foundation ✅ (Tasks #7–9)
 
-#### Task #2: n8n Credential Configuration
-- ✅ Created step-by-step configuration guide
-- ✅ Documented credential types for all services:
-  - Groq API (Header Auth)
-  - Telegram Bot (Telegram API credential)
-  - Gemini API (Header Auth)
-  - Pollinations API (if needed)
-- **Location:** `.kiro/config/n8n-credentials-config.md`
+- **#7** Composable asset directory structure (`assets/characters/`, `assets/metadata/`)
+- **#8** 47 composable asset definitions + generation script — `scripts/generate-initial-assets.js`
+- **#9** AssetLibrary module (metadata-first matching, semantic fallback, composable character system) — `src/asset-library/`
 
-#### Task #3: Production Secrets Configuration
-- ✅ Created environment variable template
-- ✅ Defined all required secrets:
-  - API keys (Groq, Telegram, Gemini)
-  - Database credentials
-  - Worker tokens
-  - Storage paths
-  - Pipeline configuration
-- **Location:** `.kiro/config/production-secrets.env.template`
+### Week 3 — Core Versioning + Components ✅ (Tasks #10, #23, #12, #16, #19, #22, #13)
 
-#### Task #4: Log Redaction
-- ✅ Implemented credential masking utilities:
-  - Node.js module with regex patterns
-  - n8n-specific wrapper for Code nodes
-  - Express middleware for HTTP logging
-  - Automatic detection of 10+ credential patterns
-- ✅ Created test suite
-- **Location:** `src/utils/log-redaction.js`, `src/utils/n8n-log-redaction.js`
+- **#10** Enhanced scene schema v1.0.0 implemented:
+  - `src/schema/scene.schema.json` — full JSON Schema with `character`, `focal_point`, `overlay`, `sound_effects`, `music_mood`, `camera_hint`, `metadata`
+  - `🧠 Build Script Prompt` node in `workflow.json` updated to produce v1.0.0 scenes
+  - `✅ Validate Script` node updated — accepts both `visual_description` (v1.0.0) and `visual_action` (legacy), passes through all new fields
+- **#23** Core Versioning + State Machine — `src/pipeline/state-machine.js`:
+  - PostgreSQL + file-backed production state (`QUEUED/RUNNING/SUCCEEDED/FAILED/WAITING_REVIEW`)
+  - Stage tracking with explicit transitions
+  - Hash-based idempotency (`configHash`, `narrationHash`)
+  - `Promise.all` for concurrent production listing (bug fix)
+- **#12** Video Renderer — `src/video-renderer/renderer.js`:
+  - Scene render: image + voice → scene MP4 (zoompan, caption drawtext, safe zones)
+  - Master assembly: FFmpeg concat demuxer, music ducking
+  - Bugs fixed: explicit `-map 0:v -map 0:a` before `-af` + `-c:v copy`; removed broken `glob` import
+- **#16** Audio Mixer — `src/audio-mixer/mixer.js`:
+  - Sidechain ducking (ratio 20:1, attack 0.2ms, release 800ms)
+  - LUFS -14 normalisation, true peak limiting
+  - Pause detection for natural music swells
+- **#19** Fact Checker — `src/fact-checker/checker.js`:
+  - TRIVIAL/NUMERICAL/CONTROVERSIAL risk classification
+  - Deterministic evidence gates (evidence_strength, source_independence)
+  - Claim cache to avoid re-checking identical claims
+- **#22** Quality Gate — `src/quality-gate/gate.js`:
+  - 9 hard gates: file size, streams, resolution, codec, pixel format, frame rate, LUFS, true peak, black/frozen frames
+  - Bugs fixed: `eval(r_frame_rate)` → safe `split('/').map(Number)`; `execSync` shell concat → `spawnSync` array args
+- **#13** Shorts Extractor — `src/shorts-extractor/extractor.js`:
+  - Silence-based segment detection
+  - Content scoring (hook, curiosity, payoff, information_density, repetition_penalty)
+  - Saliency-aware 9:16 crop with `focal_point`
 
-#### Task #5: Credential Rotation Procedures
-- ✅ Documented rotation procedures for all services:
-  - Groq API key rotation
-  - Telegram bot token rotation
-  - Gemini API key rotation
-  - PostgreSQL password rotation
-  - Worker API token rotation
-- ✅ Created emergency rotation protocol
-- ✅ Defined validation checklist
-- **Location:** `docs/credential-rotation-procedures.md`
+### Reliability Infrastructure ✅ (Tasks #25, #26)
 
-#### Task #6: Update Workflow Credentials
-- ✅ **CRITICAL FIX:** Removed all hardcoded credentials from workflow JSON
-- ✅ Replaced 5 hardcoded credentials:
-  - 4× Telegram bot token → `{{$env.TELEGRAM_BOT_TOKEN}}`
-  - 1× Gemini API key → `{{$env.GEMINI_API_KEY}}`
-- ✅ Created automated migration script
-- ✅ Backup created: `daily-video-workflow.json.backup`
-- **Location:** Updated `daily-video-workflow.json`, script at `scripts/update-workflow-credentials.js`
+- **#25** Retry/Timeout/Error Policy — `src/pipeline/retry-policy.js`:
+  - RETRYABLE/NON_RETRYABLE/FATAL classification
+  - Exponential backoff with full jitter
+  - Stage timeouts (Script 3min, TTS 2min, Image 3min, Render 30min, Publish 10min)
+- **#26** Telemetry + Cost Tracking — `src/pipeline/telemetry.js`:
+  - NDJSON structured logging per stage
+  - PostgreSQL `usage_events` table (production_id, stage, provider, operation, units, estimated_cost)
 
-**Security Status:** 🔒 All hardcoded secrets removed from workflow
+### Provider Abstraction ✅
 
----
+- **`src/pipeline/providers.js`** — LLMProvider, TTSProvider, ImageProvider
+  - **LLM:** groq (default) | **IBM watsonx/granite-3.3** (with IAM token exchange + 50min cache) | openai | ollama
+  - **TTS:** edge-tts (free) | elevenlabs (voice cloning) | azure (enterprise, `AZURE_SPEECH_KEY`) | openai
+  - **Image:** pollinations (free) | fal.ai | replicate (GET polling fixed) | DALL-E 3
+  - Deferred throw: constructor never throws; error deferred to `chat()`/`synthesize()`/`generate()`
 
-### Week 2 - Asset System Foundation ✅
+### MCP Server ✅ (Task #35 equivalent)
 
-**Tasks 7-9: Complete (26 hours estimated → Complete)**
+- **`src/mcp-server/server.js`** — 6 registered MCP tools on port 3210:
+  - `research_topic`, `write_script`, `generate_scene_image`, `render_tts`, `assemble_video`, `publish_video`
+  - Bugs fixed: dead `FormData`/`Blob require('buffer')`; wrong TTS stage name; unused `fileData`
 
-#### Task #7: Asset Directory Structure
-- ✅ Created composable asset directory structure:
-  ```
-  assets/
-  ├── characters/
-  │   ├── ancient_man/ (poses/, emotions/)
-  │   └── modern_man/ (poses/, emotions/)
-  ├── props/
-  ├── backgrounds/
-  ├── effects/
-  ├── metadata/ (assets.json, embeddings.json)
-  └── composed/ (runtime composition output)
-  ```
-- ✅ Created schema version files for characters
-- **Location:** `assets/`
+### IDE / Plugin Integration ✅ (New — IBM Bob + Claude Code + Cursor + Kiro)
 
-#### Task #8: Initial Asset Generation (Setup)
-- ✅ Defined 47 composable assets:
-  - 2 character identities
-  - 8 poses (4 per character)
-  - 12 emotions (6 per character)
-  - 15 props
-  - 10 backgrounds
-  - 10 effects
-- ✅ Created automated generation script
-- ✅ Integrated with Pollinations API
-- **Location:** `scripts/generate-initial-assets.js`
-- **Note:** Actual generation pending (estimated 10 hours API time)
-
-#### Task #9: Asset Library Module
-- ✅ Implemented `AssetLibrary` class with:
-  - Metadata-first matching (PostgreSQL-ready)
-  - Semantic search fallback (embedding support)
-  - Asset generation with style validation
-  - Composable character system (identity + pose + emotion)
-  - Asset registry persistence
-- ✅ Features implemented:
-  - `initialize()` - Load asset registry (<10s requirement)
-  - `findAsset(query)` - Metadata filtering + semantic fallback
-  - `generateAsset(description)` - Pollinations API with retry (3 attempts)
-  - `validateAsset(asset)` - Style consistency checks
-  - `composeCharacter(id, pose, emotion)` - Layer composition
-  - `listAssets(filter)` - Query asset registry
-- ✅ Created test suite
-- **Location:** `src/asset-library/`
-
-**Asset System Status:** 🎨 Framework complete, ready for generation
+- **`.claude-plugin/marketplace.json`** — plugin marketplace entry
+- **`plugins/video-pipeline/.claude-plugin/plugin.json`** — plugin metadata
+- **`plugins/video-pipeline/skills/video-pipeline/SKILL.md`** — full SKILL.md with:
+  - Install instructions for IBM Bob (`~/.bob/skills/`), Claude Code, Cursor, Windsurf, Kiro
+  - MCP config snippets for each IDE
+  - watsonx/granite-3.3 enterprise integration
+  - Overnight batch workflow
+  - Quality gate reference table
+- **`plugins/video-pipeline/skills/video-pipeline/references/providers.md`** — env var reference
+- **`plugins/video-pipeline/skills/video-pipeline/references/mcp-tools.md`** — MCP tool schemas
+- **`install.sh`** — `--bob`, `--project`, `--link` install modes
+- **`.gitignore`** — comprehensive, no BOM, covers secrets/media/Python/Node
+- **`.gitattributes`** — LF enforcement for scripts and source files
 
 ---
 
-## In Progress
+## In Progress / Pending
 
-### Task #10: Enhanced Scene Schema
-- [ ] Update Groq script generator for enhanced scene JSON:
-  - character_position
-  - focal_point with weight
-  - overlay with position/style
-  - sound_effects
-  - music_mood
-  - schema_version
+### Next Critical Path Items (Weeks 7–10)
 
-**Next up:** Animation System (Tasks #11-12)
+| # | Task | Depends on | Est. |
+|---|------|-----------|------|
+| #28 | Workflow A: Research (n8n) | #19, #23 | 6h |
+| #29 | Workflow B: Script (n8n) | #10, #28 | 8h |
+| #30 | Workflow C: Assets (n8n) | #9, #29 | 6h |
+| #31 | Workflow D: Rendering (n8n) | #12, #16, #30 | 8h |
+| #32 | Workflow D2: Shorts (n8n) | #13, #31 | 6h |
+| #33 | Workflow E: Packaging (n8n) | #22, #32 | 4h |
+| #34 | Workflow F: Publishing (n8n) | #33 | 4h |
+| #35 | Worker HTTP API runtime | #23, #25 | 8h |
+| #36 | Pi/server orchestrator deploy | #35 | 6h |
+| #37 | E2E pipeline test | #34, #36 | 10h |
+| #43 | 10-video baseline run | #37 | 12h |
+
+### Still Pending
+
+- **#11** Animation System (narrative zoom/pan/tilt, transitions) — 12h
+- **#14** Vertical reformatting (saliency + focal-point 9:16 crop) — 12h
+- **#15** Replace independent shorts generation with extraction — 4h
+- **#17** Update TTS pipeline (natural narrator voice selection) — 3h
+- **#18** Integrate AudioMixer into rendering pipeline — 6h
+- **#20** Fact-check validation set (≥100 difficult claims) — 4h
+- **#21** Integrate FactChecker with human review gates — 8h
+- **#24** Artifact Manifest system — 8h
+- **#27** Artifact retention rules — 2h
+- **#38–42** Testing tasks — 20h
+- **#44** Baseline analysis — 4h
+- **#45–47** Documentation — 14h
+- **#48** Scale decision — 4h
 
 ---
 
 ## Project Statistics
 
-**Completed:** 9 tasks  
-**Remaining:** 39 tasks  
-**Progress:** 18.75% (9/48 tasks)
-
-**Hours Completed:** ~40 hours  
-**Hours Estimated Total:** 274 hours  
-**Estimated Completion:** 8-9 weeks remaining
-
----
-
-## Files Created
-
-### Configuration & Documentation
-- `.kiro/config/n8n-credentials-config.md` - n8n credential setup
-- `.kiro/config/production-secrets.env.template` - Environment variables
-- `.kiro/config/.gitignore` - Secret file protection
-- `docs/credential-rotation-procedures.md` - Rotation procedures
-
-### Security Implementation
-- `src/utils/log-redaction.js` - Credential masking (Node.js)
-- `src/utils/n8n-log-redaction.js` - n8n-specific redaction
-- `.kiro/security/*` - Security documentation (Task #1)
-
-### Asset Library
-- `src/asset-library/asset-library.js` - Core library module
-- `src/asset-library/README.md` - Architecture documentation
-- `src/asset-library/test-asset-library.js` - Test suite
-- `scripts/generate-initial-assets.js` - Asset generation script
-- `assets/` - Asset directory structure with metadata
-
-### Scripts
-- `scripts/update-workflow-credentials.js` - Credential migration
-
-### Workflow Updates
-- `daily-video-workflow.json` - Updated (credentials removed)
-- `daily-video-workflow.json.backup` - Pre-migration backup
+| Metric | Value |
+|--------|-------|
+| Tasks complete | ~20 / 48 (42%) |
+| Hours estimated | 274h total |
+| Hours completed | ~100h |
+| Weeks remaining | ~6 |
+| Security status | 🔒 Clean — zero hardcoded credentials |
+| Node syntax checks | ✅ All pass |
+| JSON workflow validity | ✅ Both files parse clean |
+| Git commits | 2 (a73b698, c95016e) |
 
 ---
 
-## Critical Path Status
+## Architecture Status
 
-✅ **Security (#1-6)** → 🔄 **Core Versioning (#23)** → ⏳ Components (#9,#12,#16,#19,#22)
+```
+✅ AI proposes (LLM/providers.js)
+✅ Deterministic systems execute (renderer.js, mixer.js, extractor.js)
+✅ Validators approve (gate.js, checker.js)
+⏳ n8n orchestrates (Workflows #28-34 pending)
+```
 
-Current position: Security foundation complete, asset library foundation complete, moving to remaining components.
-
----
-
-## Next Session Priorities
-
-1. **Task #10:** Enhanced scene schema with focal points
-2. **Task #11-12:** Animation system + video renderer
-3. **Task #23:** Core versioning infrastructure (critical path blocker)
-
----
-
-## Risk Assessment
-
-**Low Risk:**
-- ✅ Security vulnerabilities addressed
-- ✅ Credential management implemented
-- ✅ Asset library architecture validated
-
-**Medium Risk:**
-- ⚠️ Asset generation time (10 hours estimated)
-- ⚠️ Semantic search not yet implemented (fallback only)
-
-**High Risk:**
-- None currently identified
-
----
-
-## Notes
-
-### Security Achievements
-- All 5 hardcoded credentials successfully removed from workflow
-- Log redaction covers 10+ credential patterns
-- Rotation procedures documented for all services
-- Environment variable architecture established
-
-### Asset Library Decisions
-- Chose composable system over pre-generated combinations
-- 47 composable assets vs 67-83 combinations (storage efficiency)
-- Metadata-first matching for performance (<10ms lookups)
-- Semantic search deferred as optimization (fallback only)
-
-### Architectural Validation
-- **AI proposes → deterministic systems execute → validators approve → n8n orchestrates** - Architecture maintained throughout implementation
-
----
-
-**Last Updated:** 2026-09-09 19:50:00 UTC
+The MCP server bridges all three layers — any agentic IDE (IBM Bob, Claude Code,
+Cursor, Windsurf, Kiro) can drive the pipeline directly without n8n.

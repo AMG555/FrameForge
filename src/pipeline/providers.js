@@ -43,7 +43,7 @@ async function withRetry(fn, { maxAttempts = 3, baseDelayMs = 2000, label = '' }
   throw lastErr;
 }
 
-// ── HTTP helper ───────────────────────────────────────────────────────────
+// ── HTTP helpers ──────────────────────────────────────────────────────────
 
 function httpPost(url, body, headers = {}) {
   return new Promise((resolve, reject) => {
@@ -73,6 +73,71 @@ function httpPost(url, body, headers = {}) {
     req.write(bodyBuf);
     req.end();
   });
+}
+
+/** HTTP GET — used for Replicate polling and IBM IAM token checks. */
+function httpGet(url, headers = {}) {
+  return new Promise((resolve, reject) => {
+    const parsed = new URL(url);
+    const lib    = parsed.protocol === 'https:' ? https : http;
+    const options = {
+      hostname: parsed.hostname,
+      port:     parsed.port || (parsed.protocol === 'https:' ? 443 : 80),
+      path:     parsed.pathname + parsed.search,
+      method:   'GET',
+      headers:  { 'Content-Type': 'application/json', ...headers },
+    };
+    const req = lib.request(options, res => {
+      const chunks = [];
+      res.on('data', c => chunks.push(c));
+      res.on('end', () => {
+        const raw = Buffer.concat(chunks).toString();
+        if (res.statusCode >= 400) {
+          reject(new Error(`HTTP ${res.statusCode}: ${raw.slice(0, 200)}`));
+        } else {
+          try { resolve(JSON.parse(raw)); } catch { resolve(raw); }
+        }
+      });
+    });
+    req.on('error', reject);
+    req.end();
+  });
+}
+
+/**
+ * Exchange an IBM Cloud API key for a short-lived IAM bearer token.
+ * Token is cached for 50 minutes (IBM tokens last 60 min).
+ */
+const _iamCache = { token: null, expiresAt: 0 };
+async function getIAMToken(apiKey) {
+  const now = Date.now();
+  if (_iamCache.token && now < _iamCache.expiresAt) return _iamCache.token;
+  const body = `grant_type=urn%3Aibm%3Aparams%3Aoauth%3Agrant-type%3Aapikey&apikey=${encodeURIComponent(apiKey)}`;
+  const parsed  = new URL('https://iam.cloud.ibm.com/identity/token');
+  const options = {
+    hostname: parsed.hostname, port: 443, path: parsed.pathname,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Content-Length': Buffer.byteLength(body) },
+  };
+  const token = await new Promise((resolve, reject) => {
+    const req = https.request(options, res => {
+      const chunks = [];
+      res.on('data', c => chunks.push(c));
+      res.on('end', () => {
+        const raw = Buffer.concat(chunks).toString();
+        if (res.statusCode >= 400) { reject(new Error(`IAM token exchange failed HTTP ${res.statusCode}: ${raw.slice(0, 200)}`)); return; }
+        const data = JSON.parse(raw);
+        if (!data.access_token) reject(new Error('IAM response missing access_token'));
+        else resolve(data.access_token);
+      });
+    });
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
+  _iamCache.token     = token;
+  _iamCache.expiresAt = now + 50 * 60 * 1000; // 50 min
+  return token;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -113,13 +178,28 @@ class LLMProvider {
       temperature,
       max_tokens:  maxTokens,
     };
-    const headers = this.apiKey ? { Authorization: `Bearer ${this.apiKey}` } : {};
-    const url     = this.name === 'ollama'
+    // IBM watsonx uses IAM token exchange; all other providers use Bearer apiKey
+    let authHeader;
+    if (this.name === 'watsonx') {
+      const iamToken = await getIAMToken(this.apiKey);
+      authHeader = { Authorization: `Bearer ${iamToken}` };
+    } else {
+      authHeader = this.apiKey ? { Authorization: `Bearer ${this.apiKey}` } : {};
+    }
+
+    // watsonx endpoint requires project_id in the body
+    if (this.name === 'watsonx') {
+      const projectId = process.env.WATSONX_PROJECT_ID;
+      if (!projectId) throw new Error('WATSONX_PROJECT_ID env var required for watsonx provider');
+      body.project_id = projectId;
+    }
+
+    const url = this.name === 'ollama'
       ? `${this.baseUrl}/chat`
       : `${this.baseUrl}/chat/completions`;
 
     return withRetry(async () => {
-      const resp = await httpPost(url, body, headers);
+      const resp = await httpPost(url, body, authHeader);
       // OpenAI-compat: choices[0].message.content
       // Ollama: message.content
       const content = resp?.choices?.[0]?.message?.content
@@ -202,9 +282,10 @@ class TTSProvider {
   }
 
   async _azureTTS({ text, voice, outputPath, rate }) {
-    const key    = process.env.AZURE_TTS_KEY;
-    const region = process.env.AZURE_TTS_REGION || 'eastus';
-    if (!key) throw new Error('AZURE_TTS_KEY not set');
+    // Accept both AZURE_SPEECH_KEY (documented) and AZURE_TTS_KEY (legacy)
+    const key    = process.env.AZURE_SPEECH_KEY || process.env.AZURE_TTS_KEY;
+    const region = process.env.AZURE_SPEECH_REGION || process.env.AZURE_TTS_REGION || 'eastus';
+    if (!key) throw new Error('AZURE_SPEECH_KEY env var not set');
     const ssml = `<speak version="1.0" xml:lang="en-US"><voice name="${voice || 'en-US-GuyNeural'}"><prosody rate="${rate}">${text}</prosody></voice></speak>`;
     return withRetry(async () => {
       const audio = await httpPost(
@@ -301,7 +382,8 @@ class ImageProvider {
       if (!pollUrl) throw new Error('Replicate: no polling URL');
       for (let i = 0; i < 20; i++) {
         await new Promise(r => setTimeout(r, 3000));
-        const status = await httpPost(pollUrl, {}, { Authorization: `Token ${apiKey}` });
+        // Replicate polling is a GET request, not POST
+        const status = await httpGet(pollUrl, { Authorization: `Token ${apiKey}` });
         if (status.status === 'succeeded') {
           const imageUrl = Array.isArray(status.output) ? status.output[0] : status.output;
           await this._download(imageUrl, outputPath, 60);
