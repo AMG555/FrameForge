@@ -77,3 +77,5 @@ audit_output*.txt
 */out/
 */tmp/
 */source/
+# ── IDE internal state ───────────────────────────────────────────────────
+.bob/
