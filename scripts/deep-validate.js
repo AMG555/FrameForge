@@ -198,6 +198,77 @@ const combined = JSON.stringify(wf) + JSON.stringify(wf2);
 const leaked = ['0000000000','AAAAAAAAAAAAAAAA','000000000','192.168.1.15'].filter(s => combined.includes(s));
 check('No leaked credentials in workflows',      leaked.length, 0);
 
+// ── make.js — batch mode + language + thumbnail ───────────────────────────
+console.log('\n=== make.js batch + language + thumbnail ===');
+const makejs = fs.readFileSync('./src/cli/make.js', 'utf8');
+check('make.js has LANGUAGE_VOICES map',          makejs.includes('LANGUAGE_VOICES'));
+check('make.js sets TTS_VOICE from language',     makejs.includes('process.env.TTS_VOICE = voice'));
+check('make.js reads topics-file',                makejs.includes('topicsFile'));
+check('make.js has batch loop over topics',       makejs.includes('for (let i = 0; i < topics.length'));
+check('make.js sends Telegram batch summary',     makejs.includes('Batch Complete'));
+check('make.js has generateThumbnail function',   makejs.includes('async function generateThumbnail'));
+check('make.js has runSingleVideo function',      makejs.includes('async function runSingleVideo'));
+check('make.js has _downloadFile helper',         makejs.includes('function _downloadFile'));
+check('make.js requires both topic and topics-file error', makejs.includes('--topic or --topics-file'));
+
+// ── publishing.js — YouTube OAuth2 ───────────────────────────────────────
+console.log('\n=== publishing.js YouTube OAuth2 ===');
+const pubjsPath = './src/workflows/publishing.js';
+const pubjs = fs.readFileSync(pubjsPath, 'utf8');
+check('publishing.js has _refreshAccessToken',    pubjs.includes('_refreshAccessToken'));
+check('publishing.js has _initiateResumableUpload', pubjs.includes('_initiateResumableUpload'));
+check('publishing.js has _uploadChunked',         pubjs.includes('_uploadChunked'));
+check('publishing.js has YT_MAX_CHUNK_BYTES',     pubjs.includes('YT_MAX_CHUNK_BYTES'));
+check('publishing.js sends Telegram shorts',      pubjs.includes('telegramShorts'));
+check('publishing.js checks YOUTUBE_PRIVACY',     pubjs.includes('YOUTUBE_PRIVACY'));
+
+// ── server.js — YouTube + n8n webhook ───────────────────────────────────
+console.log('\n=== server.js YouTube fix + n8n webhook ===');
+const serverjs = fs.readFileSync('./src/mcp-server/server.js', 'utf8');
+check('server.js publish_video calls runPublishing', serverjs.includes("require('../workflows/publishing')"));
+check('server.js no YouTube manual stub',         !serverjs.includes("'YouTube upload requires manual setup'"));
+check('server.js has n8n_webhook_trigger tool',   serverjs.includes('n8n_webhook_trigger'));
+check('server.js n8n_webhook_trigger needs N8N_WEBHOOK_URL', serverjs.includes('N8N_WEBHOOK_URL'));
+
+// ── state-machine.js — write mutex ───────────────────────────────────────
+console.log('\n=== state-machine.js write mutex ===');
+const smjs = fs.readFileSync('./src/pipeline/state-machine.js', 'utf8');
+check('state-machine has _writeLocks Map',        smjs.includes('_writeLocks = new Map()'));
+check('state-machine _saveProduction uses mutex', smjs.includes('_writeLocks.get(productionId)'));
+
+// ── asset-library.js — real implementations ──────────────────────────────
+console.log('\n=== asset-library.js real implementations ===');
+const assetLib = fs.readFileSync('./src/asset-library/asset-library.js', 'utf8');
+check('asset-library has _downloadAsset',         assetLib.includes('_downloadAsset'));
+check('asset-library has _semanticSearch',        assetLib.includes('_semanticSearch'));
+check('asset-library has composeCharacter',       assetLib.includes('composeCharacter'));
+
+// ── fact-checker — real search ────────────────────────────────────────────
+console.log('\n=== fact-checker real search ===');
+const checker = fs.readFileSync('./src/fact-checker/checker.js', 'utf8');
+check('fact-checker has _querySources',           checker.includes('_querySources'));
+
+// ── log-redaction — new patterns ─────────────────────────────────────────
+console.log('\n=== log-redaction patterns ===');
+const redaction = fs.readFileSync('./src/utils/log-redaction.js', 'utf8');
+check('log-redaction has ElevenLabs sk_ pattern', redaction.includes('sk_') || redaction.includes('elevenlabs'));
+check('log-redaction has Tavily tvly- pattern',   redaction.includes('tvly') || redaction.includes('tavily'));
+
+// ── html-renderer skill ───────────────────────────────────────────────────
+console.log('\n=== html-renderer skill ===');
+const htmlSkillPath = './plugins/video-pipeline/skills/html-renderer/SKILL.md';
+check('html-renderer SKILL.md exists',            fs.existsSync(htmlSkillPath));
+if (fs.existsSync(htmlSkillPath)) {
+  const htmlSkill = fs.readFileSync(htmlSkillPath, 'utf8');
+  check('html-renderer mentions Playwright',      htmlSkill.includes('Playwright'));
+  check('html-renderer mentions seek(t)',         htmlSkill.includes('seek(t)'));
+  check('html-renderer mentions attribution',     htmlSkill.includes('sunithvs/video-agent-skill'));
+}
+
+// ── html-renderer scaffolder ──────────────────────────────────────────────
+console.log('\n=== html-renderer scaffolder ===');
+check('new-project.mjs exists',                   fs.existsSync('./scripts/html-renderer/new-project.mjs'));
+
 // ── Final result ──────────────────────────────────────────────────────────
 console.log(`\n${'─'.repeat(48)}`);
 if (failures > 0) {

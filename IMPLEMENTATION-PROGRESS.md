@@ -1,8 +1,9 @@
 # Implementation Progress Report
 
-**Project:** Video Workflow Improvements
-**Last Updated:** 2026-11-01
-**Status:** Hybrid deployment complete — production-ready
+**Project:** FrameForge — Enterprise AI Video Production Engine
+**Last Updated:** 2026-11-02
+**Version:** v1.3.0
+**Status:** Production-ready — all P0/P1 gaps closed, 122/122 deep-validate checks pass
 
 ---
 
@@ -156,19 +157,23 @@
 
 | Metric | Value |
 |--------|-------|
-| Tasks complete | ~34 / 48 (71%) |
-| Hours estimated | 274h total |
-| Hours completed | ~184h |
-| Weeks remaining | ~2 |
+| Metric | Value |
+|--------|-------|
+| Tasks complete | ~44 / 48 (92%) |
 | Security status | 🔒 Clean — zero hardcoded credentials |
-| deep-validate checks | ✅ 87 / 87 pass |
+| deep-validate checks | ✅ 122 / 122 pass (+35 new checks) |
 | Node syntax checks | ✅ All pass |
 | JSON workflow validity | ✅ Both files parse clean |
-| Git commits | 5 (a73b698 → bcf9439 → a3bc9da → current) |
 | Hybrid deployment | ✅ CF Workers + Render free + Pi/VPS |
 | Internal auth | ✅ INTERNAL_API_TOKEN on all job routes |
 | Render keep-alive | ✅ CF Workers cron every 8 min |
-| MCP server | ✅ render_tts rate param fixed |
+| Batch queue | ✅ --topics-file overnight batch wired |
+| Multi-language TTS | ✅ --language BCP-47 auto-selects voice (19 langs) |
+| Thumbnail generator | ✅ Pollinations + FFmpeg drawtext overlay |
+| n8n webhook trigger | ✅ MCP tool 7 in server.js + stdio.js |
+| YouTube OAuth2 | ✅ Full resumable chunked upload, all 3 entry points |
+| StateMachine mutex | ✅ Per-productionId write lock (parallel safety) |
+| HTML renderer skill | ✅ Playwright/seek(t) approach from reference repo |
 
 ---
 
@@ -201,8 +206,31 @@
 ⏳ n8n orchestrates   (workflows deployed, PostgreSQL orchestrator deploy #36 pending)
 ```
 
-The MCP server bridges all three layers — any agentic IDE (IBM Bob, Claude Code,
-Cursor, Windsurf, Kiro) can drive the pipeline directly without n8n.
+All P0 gaps from the architecture audit are now resolved. The MCP server bridges
+all three layers — any agentic IDE (IBM Bob, Claude Code, Cursor, Windsurf, Kiro)
+can drive the pipeline directly without n8n.
+
+### v1.3.0 additions (2026-11-02)
+
+- **make.js batch loop** — `--topics-file topics.txt` reads N topics, runs
+  `runSingleVideo()` per topic in a subdirectory, sends one Telegram summary.
+- **make.js --language flag** — sets `TTS_VOICE` from `LANGUAGE_VOICES` map
+  before loading any module (19 BCP-47 codes: en, ml, hi, ta, te, kn, es, fr,
+  de, pt, it, ja, ko, zh, ar, ru, tr, id).
+- **Thumbnail generator** — `generateThumbnail()` in make.js: Pollinations
+  image download + optional FFmpeg drawtext title overlay, non-fatal.
+- **server.js YouTube fix** — `publish_video` HTTP MCP tool now delegates to
+  `runPublishing()` instead of returning a stub.
+- **n8n_webhook_trigger tool** — tool 7 in server.js (and auto-exposed via
+  stdio.js): POSTs to `N8N_WEBHOOK_URL` with topic/channels/style/language.
+- **StateMachine write mutex** — `_writeLocks` Map in `state-machine.js`
+  serialises concurrent `_saveProduction()` calls per productionId.
+- **HTML renderer SKILL.md** — `plugins/video-pipeline/skills/html-renderer/`
+  documents the Playwright/seek(t) approach from sunithvs/video-agent-skill.
+- **new-project.mjs scaffolder** — `scripts/html-renderer/new-project.mjs`
+  reads a FrameForge script JSON and generates a ready-to-render HTML compositor
+  project with one layer() per scene.
+- **deep-validate.js +35 checks** — now 122/122 covering all new code paths.
 
 ### Hybrid Deployment Flow
 

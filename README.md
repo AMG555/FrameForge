@@ -98,7 +98,7 @@ Add to your project or global MCP configuration (`.mcp.json` or `~/.claude/mcp.j
   "mcpServers": {
     "frameforge": {
       "command": "node",
-      "args": ["/absolute/path/to/FrameForg/src/mcp-server/stdio.js"],
+      "args": ["/absolute/path/to/FrameForge/src/mcp-server/stdio.js"],
       "env": {
         "GROQ_API_KEY": "gsk_...",
         "PROVIDER_LLM": "groq",

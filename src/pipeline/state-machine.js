@@ -40,6 +40,10 @@ class StateMachine {
     this.mode     = config.mode || 'file';
     this.stateDir = config.stateDir || '/home/node/.n8n-files/state';
     this.pg       = config.pg || null; // pg.Pool instance when mode === 'pg'
+    // Per-productionId write mutex — prevents concurrent file writes from
+    // parallel asset generation (assets.js runs up to 4 scenes at once).
+    // Each entry is a Promise chain; new writes append to the tail.
+    this._writeLocks = new Map();
   }
 
   async init() {
@@ -184,8 +188,20 @@ class StateMachine {
 
   async _saveProduction(productionId, record) {
     if (this.mode === 'file') {
-      const filePath = path.join(this.stateDir, `${productionId}.json`);
-      await fs.writeFile(filePath, JSON.stringify(record, null, 2), 'utf8');
+      // Serialize writes for the same productionId to prevent data loss from
+      // concurrent stage updates (e.g. parallel TTS/image generation).
+      const prev = this._writeLocks.get(productionId) || Promise.resolve();
+      const next = prev.then(async () => {
+        const filePath = path.join(this.stateDir, `${productionId}.json`);
+        await fs.writeFile(filePath, JSON.stringify(record, null, 2), 'utf8');
+      });
+      // Store the tail; remove once resolved so the Map doesn't grow unbounded
+      this._writeLocks.set(productionId, next.catch(() => {}).then(() => {
+        if (this._writeLocks.get(productionId) === next) {
+          this._writeLocks.delete(productionId);
+        }
+      }));
+      await next;
     } else {
       await this._pgUpsertProduction(record);
     }

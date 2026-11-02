@@ -41,6 +41,7 @@ const { Telemetry }     = require('../pipeline/telemetry');
 const { VideoRenderer } = require('../video-renderer/renderer');
 const { AudioMixer }    = require('../audio-mixer/mixer');
 const { QualityGate }   = require('../quality-gate/gate');
+const { runPublishing } = require('../workflows/publishing');
 
 const PORT        = parseInt(process.env.MCP_PORT || '3210', 10);
 const FILES_DIR   = process.env.N8N_FILES_DIR || '/home/node/.n8n-files';
@@ -297,15 +298,70 @@ const TOOLS = {
         });
       }
 
-      if (channels.includes('youtube')) {
-        results.youtube = { ok: false, reason: 'YouTube upload requires manual setup — see docs/youtube-upload.md' };
-      }
+      // Delegate the full publishing workflow (handles YouTube OAuth2, Telegram, etc.)
+      const manifest = {
+        master: { path: masterPath },
+        metadata: { youtubeTitle, youtubeDescription },
+        shorts: [],
+      };
+      const pubResult = await runPublishing({ productionId, manifest, channels });
+      Object.assign(results, pubResult.results || {});
 
       await sm.completeStage(productionId, 'Publishing', {});
-      await sm.transitionProduction(productionId, 'SUCCEEDED');
-      await telemetry.track({ productionId, stage: 'Publishing', provider: 'telegram', operation: 'video_delivery', units: 1 });
+      await sm.transitionProduction(productionId, 'SUCCEEDED').catch(() => {});
+      await telemetry.track({ productionId, stage: 'Publishing', provider: 'multi', operation: 'video_delivery', units: 1 });
 
       return { productionId, results };
+    },
+  },
+
+  // ── Tool 7: n8n webhook trigger ───────────────────────────────────────────
+  // Bridges the MCP protocol with n8n workflows — fires an n8n webhook to
+  // trigger a full pipeline run without requiring direct n8n access.
+  n8n_webhook_trigger: {
+    description: 'Trigger an n8n webhook to start a video pipeline workflow. Returns {jobId, status} immediately. Requires N8N_WEBHOOK_URL env var.',
+    inputSchema: {
+      type: 'object',
+      required: ['topic'],
+      properties: {
+        topic:    { type: 'string', description: 'Video topic to produce' },
+        channels: { type: 'array', items: { type: 'string' }, default: ['telegram'], description: 'Delivery channels' },
+        style:    { type: 'string', default: 'educational comedy', description: 'Narrative style' },
+        language: { type: 'string', default: 'en', description: 'BCP-47 language code for TTS voice selection' },
+        payload:  { type: 'object', description: 'Additional fields forwarded to the n8n workflow' },
+      },
+    },
+    handler: async ({ topic, channels = ['telegram'], style = 'educational comedy', language = 'en', payload = {} }) => {
+      const webhookUrl = process.env.N8N_WEBHOOK_URL;
+      if (!webhookUrl) {
+        throw new Error('N8N_WEBHOOK_URL not set. Add it to your .env file.');
+      }
+      const body = JSON.stringify({ topic, channels, style, language, ...payload, _source: 'frameforge-mcp' });
+      const { https: _https, http: _http } = require('https'), isHttps = webhookUrl.startsWith('https');
+      const client = require(isHttps ? 'https' : 'http');
+      const result = await new Promise((resolve, reject) => {
+        const url = new URL(webhookUrl);
+        const req = client.request({
+          host: url.hostname, port: url.port || (isHttps ? 443 : 80),
+          path: url.pathname + url.search,
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
+        }, (res) => {
+          const chunks = [];
+          res.on('data', d => chunks.push(d));
+          res.on('end', () => {
+            if (res.statusCode >= 400) return reject(new Error(`n8n webhook returned HTTP ${res.statusCode}`));
+            const text = Buffer.concat(chunks).toString('utf8');
+            try { resolve(JSON.parse(text)); } catch { resolve({ raw: text }); }
+          });
+        });
+        req.on('error', reject);
+        req.setTimeout(30000, () => { req.destroy(); reject(new Error('n8n webhook timeout')); });
+        req.write(body);
+        req.end();
+      });
+      const jobId = result.jobId || result.executionId || result.id || crypto.randomUUID?.() || crypto.randomBytes(8).toString('hex');
+      return { jobId, status: result.status || 'triggered', topic, n8nResponse: result };
     },
   },
 };
