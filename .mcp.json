@@ -1,19 +1,35 @@
 {
+  "_comment": "MCP server configuration for Claude Code, Cursor, Windsurf, and Kiro IDE.",
+  "_modes": {
+    "local": "Spawns a local Node.js process — use when running everything on your machine. Fastest for dev.",
+    "remote": "Connects to Cloudflare Workers remote MCP — use in production for token efficiency (~80% fewer tokens). Requires cloudflare-mcp to be deployed."
+  },
+
   "mcpServers": {
-    "video-pipeline": {
+
+    "video-pipeline-local": {
+      "_comment": "LOCAL MODE: spawns node process. Use for development / when your machine does the rendering.",
       "command": "node",
       "args": ["src/mcp-server/server.js"],
       "env": {
-        "PROVIDER_LLM":    "${PROVIDER_LLM:-groq}",
-        "GROQ_API_KEY":    "${GROQ_API_KEY}",
-        "PROVIDER_TTS":    "${PROVIDER_TTS:-edge-tts}",
-        "PROVIDER_IMAGE":  "${PROVIDER_IMAGE:-pollinations}",
-        "TELEGRAM_BOT_TOKEN": "${TELEGRAM_BOT_TOKEN}",
-        "TELEGRAM_CHAT_ID":   "${TELEGRAM_CHAT_ID}",
-        "TELEGRAM_API_BASE":  "${TELEGRAM_API_BASE:-https://api.telegram.org}",
-        "N8N_FILES_DIR":   "${N8N_FILES_DIR:-/home/node/.n8n-files}",
-        "MCP_PORT":        "${MCP_PORT:-3210}"
+        "PROVIDER_LLM":        "groq",
+        "GROQ_API_KEY":        "${GROQ_API_KEY}",
+        "PROVIDER_TTS":        "edge-tts",
+        "PROVIDER_IMAGE":      "pollinations",
+        "TELEGRAM_BOT_TOKEN":  "${TELEGRAM_BOT_TOKEN}",
+        "TELEGRAM_CHAT_ID":    "${TELEGRAM_CHAT_ID}",
+        "MCP_PORT":            "3210",
+        "N8N_FILES_DIR":       "${HOME}/.n8n-files"
+      }
+    },
+
+    "video-pipeline-remote": {
+      "_comment": "REMOTE MODE (Cloudflare Workers): connect via URL. ~80% fewer tokens. Deploy cloudflare-mcp/ first.",
+      "url":     "https://video-pipeline-mcp.YOUR_SUBDOMAIN.workers.dev/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_MCP_AUTH_TOKEN"
       }
     }
+
   }
 }

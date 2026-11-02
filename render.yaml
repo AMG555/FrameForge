@@ -1,0 +1,34 @@
+services:
+  - type: web
+    name: video-pipeline-worker
+    runtime: node
+    plan: free          # 512 MB RAM, sleeps after 15 min, no persistent disk
+    buildCommand: npm install
+    startCommand: RENDER_MODE=api_only node src/worker/server-render-free.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: WORKER_PORT
+        value: 3211
+      - key: RENDER_MODE
+        value: api_only
+      - key: N8N_FILES_DIR
+        value: /tmp/video-pipeline
+      # Set these as secrets in the Render dashboard:
+      - key: GROQ_API_KEY
+        sync: false
+      - key: PROVIDER_LLM
+        value: groq
+      - key: PROVIDER_TTS
+        value: edge-tts
+      - key: PROVIDER_IMAGE
+        value: pollinations
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+      # Point to your local machine / Pi for FFmpeg rendering:
+      - key: LOCAL_RENDER_URL
+        sync: false       # e.g. https://yourpi.tailnet.ts.net:3211
+    healthCheckPath: /health
+    autoDeploy: true     # redeploy on git push

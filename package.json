@@ -4,17 +4,20 @@
   "description": "Autonomous AI video production pipeline — MCP server + n8n workflow",
   "main": "src/mcp-server/server.js",
   "scripts": {
-    "start":          "node src/mcp-server/server.js",
-    "start:worker":   "node src/worker/server.js",
-    "start:all":      "node src/mcp-server/server.js & node src/worker/server.js",
-    "validate":       "node scripts/deep-validate.js",
-    "test":           "node --test src/**/*.test.js src/asset-library/test-asset-library.js",
-    "lint":           "echo 'No linter configured — add eslint for production'",
-    "check-credentials": "node -e \"require('./src/utils/n8n-log-redaction').runCredentialAudit()\"",
-    "generate-assets": "node scripts/generate-initial-assets.js",
-    "pipeline:research": "node src/workflows/research.js",
-    "pipeline:script":   "node src/workflows/script.js",
-    "patch:workflow":    "node scripts/patch-script-prompt.js && node scripts/patch-validate-script.js"
+    "start":                "node src/mcp-server/server.js",
+    "start:worker":         "node src/worker/server.js",
+    "start:worker:render":  "RENDER_MODE=api_only node src/worker/server-render-free.js",
+    "start:worker:local":   "RENDER_MODE=full node src/worker/server-render-free.js",
+    "start:all":            "node src/mcp-server/server.js & node src/worker/server-render-free.js",
+    "start:local-render":   "RENDER_MODE=full PORT=3211 node src/worker/server-render-free.js",
+    "validate":             "node scripts/deep-validate.js",
+    "test":                 "node --test src/**/*.test.js src/asset-library/test-asset-library.js",
+    "lint":                 "echo 'No linter configured — add eslint for production'",
+    "check-credentials":    "node -e \"require('./src/utils/n8n-log-redaction').runCredentialAudit()\"",
+    "generate-assets":      "node scripts/generate-initial-assets.js",
+    "pipeline:research":    "node src/workflows/research.js",
+    "pipeline:script":      "node src/workflows/script.js",
+    "patch:workflow":       "node scripts/patch-script-prompt.js && node scripts/patch-validate-script.js"
   },
   "engines": {
     "node": ">=18.0.0"
