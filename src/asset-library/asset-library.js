@@ -104,10 +104,11 @@ class AssetLibrary {
     if (query.visual_description) {
       console.log('🔍 Trying semantic fallback...');
       const semanticMatch = await this._semanticSearch(query.visual_description);
-      
-      if (semanticMatch && semanticMatch.similarity > this.similarityThreshold) {
-        console.log(`✅ Found semantic match (similarity: ${semanticMatch.similarity.toFixed(3)})`);
-        return semanticMatch.asset;
+
+      // _semanticSearch returns the asset directly (not a {similarity, asset} wrapper)
+      if (semanticMatch) {
+        console.log(`✅ Found semantic match`);
+        return semanticMatch;
       }
     }
     
@@ -498,10 +499,10 @@ class AssetLibrary {
 
     console.log(`   Calling Pollinations API (${model}, seed: ${seed})...`);
 
-    // Download the image and return the local file path
-    const localPath = await this._downloadAsset(imageUrl.toString(), description);
-    console.log(`   ✅ Image saved: ${localPath}`);
-    return localPath;
+    // Return just the URL string — generateAsset → _downloadAsset does the actual download.
+    // Previously this called _downloadAsset itself which caused a double-download when
+    // generateAsset also called _downloadAsset with the returned path.
+    return imageUrl.toString();
   }
 
   async _downloadAsset(imageUrl, description) {
@@ -596,24 +597,32 @@ class AssetLibrary {
       last_updated: new Date().toISOString(),
       assets: Array.from(this.assets.values())
     };
-    
-    await fs.writeFile(
-      this.metadataFile,
-      JSON.stringify(registry, null, 2),
-      'utf8'
-    );
+
+    // Atomic write: write to a temp file then rename so concurrent reads never
+    // see a partial JSON file, and concurrent saves don't corrupt each other.
+    const tmpPath = this.metadataFile + '.tmp';
+    await fs.writeFile(tmpPath, JSON.stringify(registry, null, 2), 'utf8');
+    await fs.rename(tmpPath, this.metadataFile);
   }
 
   _generateAssetId(description) {
+    // Deterministic ID based on content, not time — ensures idempotency so
+    // re-generating the same asset description returns the same ID and doesn't
+    // create duplicate registry entries.
     const parts = [
       description.character_id || 'generic',
       description.asset_type,
       description.pose || '',
       description.emotion || '',
-      Date.now()
     ];
-    
-    return parts.filter(Boolean).join('_');
+    const base = parts.filter(Boolean).join('_');
+    // Short hash of the visual_description for uniqueness within the same type/character
+    const hash = require('crypto')
+      .createHash('sha256')
+      .update(description.visual_description || base)
+      .digest('hex')
+      .slice(0, 8);
+    return `${base}_${hash}`;
   }
 
   _generateSeed(description) {

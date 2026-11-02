@@ -56,6 +56,7 @@ function httpPost(url, body, headers = {}) {
       path:     parsed.pathname + parsed.search,
       method:   'POST',
       headers:  { 'Content-Type': 'application/json', 'Content-Length': bodyBuf.length, ...headers },
+      timeout:  30000,
     };
     const req = lib.request(options, res => {
       const chunks = [];
@@ -70,6 +71,7 @@ function httpPost(url, body, headers = {}) {
       });
     });
     req.on('error', reject);
+    req.on('timeout', () => { req.destroy(); reject(new Error(`httpPost timeout: ${url}`)); });
     req.write(bodyBuf);
     req.end();
   });
@@ -86,6 +88,7 @@ function httpGet(url, headers = {}) {
       path:     parsed.pathname + parsed.search,
       method:   'GET',
       headers:  { 'Content-Type': 'application/json', ...headers },
+      timeout:  30000,
     };
     const req = lib.request(options, res => {
       const chunks = [];
@@ -100,6 +103,7 @@ function httpGet(url, headers = {}) {
       });
     });
     req.on('error', reject);
+    req.on('timeout', () => { req.destroy(); reject(new Error(`httpGet timeout: ${url}`)); });
     req.end();
   });
 }
@@ -517,15 +521,47 @@ class ImageProvider {
     }, { maxAttempts: 2, baseDelayMs: 5000, label: 'Image(dalle)' });
   }
 
-  _download(url, outputPath, timeoutSec = 60) {
+  _download(url, outputPath, timeoutSec = 60, maxRedirects = 5) {
     return new Promise((resolve, reject) => {
-      const file = require('fs').createWriteStream(outputPath);
-      const lib  = url.startsWith('https') ? https : http;
-      const timer = setTimeout(() => { file.destroy(); reject(new Error(`Download timeout: ${url}`)); }, timeoutSec * 1000);
+      const fsSync = require('fs');
+      const lib    = url.startsWith('https') ? https : http;
+      const timer  = setTimeout(() => {
+        fsSync.unlink(outputPath, () => {});
+        reject(new Error(`Download timeout: ${url}`));
+      }, timeoutSec * 1000);
+
       lib.get(url, res => {
-        if (res.statusCode !== 200) { clearTimeout(timer); reject(new Error(`Download HTTP ${res.statusCode}`)); return; }
+        // Follow redirects (Pollinations and image CDNs commonly use 302)
+        if ((res.statusCode === 301 || res.statusCode === 302 || res.statusCode === 307 || res.statusCode === 308)
+            && res.headers.location && maxRedirects > 0) {
+          res.resume();
+          clearTimeout(timer);
+          this._download(res.headers.location, outputPath, timeoutSec, maxRedirects - 1)
+            .then(resolve).catch(reject);
+          return;
+        }
+
+        if (res.statusCode < 200 || res.statusCode >= 300) {
+          clearTimeout(timer);
+          res.resume();
+          reject(new Error(`Download HTTP ${res.statusCode}: ${url}`));
+          return;
+        }
+
+        const file = fsSync.createWriteStream(outputPath);
         res.pipe(file);
-        file.on('finish', () => { clearTimeout(timer); file.close(); resolve(); });
+        file.on('finish', () => { clearTimeout(timer); file.close(); resolve(outputPath); });
+        file.on('error', err => {
+          clearTimeout(timer);
+          fsSync.unlink(outputPath, () => {});
+          reject(err);
+        });
+        res.on('error', err => {
+          clearTimeout(timer);
+          file.destroy();
+          fsSync.unlink(outputPath, () => {});
+          reject(err);
+        });
       }).on('error', err => { clearTimeout(timer); reject(err); });
     });
   }

@@ -4,6 +4,51 @@ All notable changes to FrameForge are documented here.
 
 ---
 
+## [1.3.2] — 2026-11-02
+
+### Fixed
+
+- **`asset-library.js` `findAsset` — null-dereference on semantic match** (#bug): `_semanticSearch`
+  returns the asset directly, not a `{similarity, asset}` wrapper. The caller checked
+  `semanticMatch.similarity` which was always `undefined`, so semantic fallback never matched.
+  The guard is now `if (semanticMatch)` with a direct return.
+- **`asset-library.js` `_callPollinationsAPI` — double download** (#bug): The method called
+  `_downloadAsset(imageUrl, description)` internally, then `generateAsset` also called
+  `_downloadAsset` with the returned path. The image was fetched twice. Fixed: `_callPollinationsAPI`
+  now returns the URL string only; `generateAsset → _downloadAsset` performs the single download.
+- **`asset-library.js` `_generateAssetId` — timestamp-based ID breaks idempotency** (#bug):
+  `Date.now()` was part of every generated ID, so running the same description twice created
+  two registry entries for the same asset. ID is now a deterministic content hash of the
+  visual description.
+- **`asset-library.js` `_saveRegistry` — non-atomic write corrupts JSON under concurrency** (#bug):
+  A crash mid-write left a truncated `assets.json`. Registry is now written to a `.tmp` file
+  and atomically renamed, so readers always see a complete file.
+- **`pipeline/providers.js` `_download` — no redirect following** (#bug): Pollinations and most
+  image CDNs issue 302 redirects. The old helper rejected non-200 responses, making every
+  Pollinations download fail. The method now follows up to 5 redirects and cleans up the
+  partial output file on any error.
+- **`pipeline/providers.js` `httpPost`/`httpGet` — no request timeout** (#bug): Both helpers
+  had no socket timeout, so a hung connection (e.g., LLM provider under load) blocked the
+  process indefinitely. A 30-second `timeout` option is now set on every request.
+- **`fact-checker/review-gate.js` `_sendReviewRequest` — dead `escaped` variable** (#cleanup):
+  The method built an `escaped` string with MarkdownV2 escaping but then passed the raw
+  `message` (not `escaped`) to Telegram with `parse_mode: 'Markdown'`. Raw message with
+  unescaped markdown caused Telegram 400 errors. Fixed: removed the unused `escaped` variable
+  and dropped `parse_mode` so the message is delivered as plain text.
+- **`fact-checker/review-gate.js` `_waitForDecisions` — silent TIMEOUT_APPROVE** (#bug):
+  Timed-out claims were marked `TIMEOUT_APPROVE` and logged only at `warn` level, silently
+  releasing the pipeline. They are now marked `TIMEOUT` (neutral decision, visible in state
+  machine logs, no auto-approve semantics).
+- **`fact-checker/checker.js` `_searchBrave` — `r.age` NaN year** (#bug): Brave Search returns
+  `r.age` as a human-readable string like `"5 days ago"`, which `new Date("5 days ago")` parses
+  as `Invalid Date` (year `NaN`). The field `r.page_age` is the ISO date string — used that
+  instead, with `new Date().getFullYear()` as the fallback.
+- **`pipeline/artifact-retention.js` `sweepExpiredIntermediates` — shallow scan** (#bug): The
+  sweep only descended one directory level from `filesDir`, missing retention tags in
+  `video_tmp` and deep production subdirectories. The directory walk is now fully recursive.
+
+---
+
 ## [1.3.1] — 2026-11-02
 
 ### Fixed

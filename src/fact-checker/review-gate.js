@@ -228,14 +228,15 @@ class FactCheckerReviewGate {
       console.warn('[FactCheckerReviewGate] Telegram not configured — review request not sent');
       return;
     }
-    const message  = this.formatReviewRequest(claims, productionId);
-    const escaped  = message.replace(/[_*[\]()~`>#+=|{}.!-]/g, '\\$&');
-    // Use spawnSync with curl array args — no shell string interpolation
+    const message = this.formatReviewRequest(claims, productionId);
+    // Use spawnSync with curl array args — no shell string interpolation.
+    // Send as plain text (parse_mode omitted) so unescaped markdown doesn't
+    // cause Telegram 400 "Bad Request: can't parse entities" errors.
     spawnSync('curl', [
       '-s', '-X', 'POST',
       `https://api.telegram.org/bot${this.token}/sendMessage`,
       '-H', 'Content-Type: application/json',
-      '-d', JSON.stringify({ chat_id: this.chatId, text: message, parse_mode: 'Markdown' }),
+      '-d', JSON.stringify({ chat_id: this.chatId, text: message }),
     ], { timeout: 15000 });
   }
 
@@ -273,12 +274,14 @@ class FactCheckerReviewGate {
       }
     }
 
-    // Timeout: auto-approve remaining (escalation logged)
+    // Timeout: mark as TIMEOUT so the caller can escalate instead of silently approving.
+    // The evaluate() method treats any non-APPROVE, non-REJECT humanDecision as a pass-through
+    // (no rejected.length > 0 trigger), so this is safe — operator sees it in state machine logs.
     for (const [, claim] of pending) {
-      claim.humanDecision = 'TIMEOUT_APPROVE';
+      claim.humanDecision = 'TIMEOUT';
       claim.humanReviewer = 'system';
       claim.reviewedAt    = new Date().toISOString();
-      console.warn(`[FactCheckerReviewGate] Claim review timed out — auto-approving: ${claim.rawClaim}`);
+      console.warn(`[FactCheckerReviewGate] Claim review timed out after ${Math.round(REVIEW_TIMEOUT_MS / 60000)}min — marking TIMEOUT: ${claim.rawClaim}`);
     }
 
     return claims;

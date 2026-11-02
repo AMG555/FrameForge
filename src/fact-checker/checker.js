@@ -269,7 +269,9 @@ class FactChecker {
       name:              r.title       || 'Unknown',
       url:               r.url         || '',
       reliability_rank:  0.75,
-      publication_year:  new Date((r.age || Date.now())).getFullYear(),
+      // r.age is a human-readable string like "5 days ago" — not parseable as a Date.
+      // r.page_age (ISO date string) is the reliable field when present.
+      publication_year:  r.page_age ? new Date(r.page_age).getFullYear() : new Date().getFullYear(),
       confirms:          true,
       independent_group: this._domainGroup(r.url),
       quote:             (r.description || '').slice(0, 200),

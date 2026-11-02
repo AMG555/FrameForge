@@ -114,13 +114,17 @@ function sweepExpiredIntermediates({ filesDir, dryRun = false }) {
   let   skipped = 0;
   const now     = Date.now();
 
-  // Scan all subdirectories under filesDir
-  const dirs = [filesDir];
-  try {
-    for (const entry of fs.readdirSync(filesDir, { withFileTypes: true })) {
-      if (entry.isDirectory()) dirs.push(path.join(filesDir, entry.name));
-    }
-  } catch { /* no subdirs */ }
+  // Scan all subdirectories under filesDir (recursive — productions nest several levels deep)
+  const dirs = [];
+  const _walkDirs = (dir) => {
+    dirs.push(dir);
+    try {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        if (entry.isDirectory()) _walkDirs(path.join(dir, entry.name));
+      }
+    } catch { /* permission error or disappeared — skip */ }
+  };
+  _walkDirs(filesDir);
 
   for (const dir of dirs) {
     if (!fs.existsSync(dir)) continue;
