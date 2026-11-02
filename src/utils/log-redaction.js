@@ -14,32 +14,49 @@
 const CREDENTIAL_PATTERNS = [
   // Groq API keys
   { pattern: /gsk_[a-zA-Z0-9]{32,}/g, replacement: '***GROQ_API_KEY_REDACTED***' },
-  
+
   // Telegram bot tokens (format: 123456789:ABC-DEF...)
   { pattern: /\d{9,}:[A-Za-z0-9_-]{35}/g, replacement: '***TELEGRAM_TOKEN_REDACTED***' },
-  
-  // Google API keys (AIza...)
-  { pattern: /AIza[A-Za-z0-9_-]{35}/g, replacement: '***GEMINI_API_KEY_REDACTED***' },
-  
+
+  // Google / YouTube / Gemini API keys (AIza...)
+  { pattern: /AIza[A-Za-z0-9_-]{35}/g, replacement: '***GOOGLE_API_KEY_REDACTED***' },
+
+  // ElevenLabs API keys (sk_...)
+  { pattern: /sk_[a-zA-Z0-9]{32,}/g, replacement: '***ELEVENLABS_API_KEY_REDACTED***' },
+
+  // Tavily API keys (tvly-...)
+  { pattern: /tvly-[A-Za-z0-9]{20,}/g, replacement: '***TAVILY_API_KEY_REDACTED***' },
+
+  // Brave Search API keys (BSA...)
+  { pattern: /BSA[A-Za-z0-9]{20,}/g, replacement: '***BRAVE_API_KEY_REDACTED***' },
+
+  // fal.ai API keys (key_...)
+  { pattern: /key_[a-zA-Z0-9]{20,}/g, replacement: '***FALAI_API_KEY_REDACTED***' },
+
+  // Replicate API keys (r8_...)
+  { pattern: /r8_[A-Za-z0-9]{30,}/g, replacement: '***REPLICATE_API_KEY_REDACTED***' },
+
+  // Internal / MCP auth tokens (32-char hex)
+  { pattern: /\b[0-9a-f]{32,64}\b/g, replacement: '***INTERNAL_TOKEN_REDACTED***' },
+
   // Generic Bearer tokens in Authorization headers
   { pattern: /Bearer\s+[A-Za-z0-9_\-\.]{20,}/gi, replacement: 'Bearer ***REDACTED***' },
-  
+
   // Basic auth (base64 encoded username:password)
   { pattern: /Basic\s+[A-Za-z0-9+\/=]{20,}/gi, replacement: 'Basic ***REDACTED***' },
-  
+
   // PostgreSQL connection strings
   { pattern: /postgresql:\/\/[^:]+:[^@]+@[^\/]+\/\w+/gi, replacement: 'postgresql://***REDACTED***' },
-  { pattern: /postgres:\/\/[^:]+:[^@]+@[^\/]+\/\w+/gi, replacement: 'postgres://***REDACTED***' },
-  
-  // Generic passwords in various formats
-  { pattern: /(password|pwd|passwd|token|secret|api[_-]?key)\s*[=:]\s*["']?[^\s"']{8,}["']?/gi, replacement: '$1=***REDACTED***' },
-  
+  { pattern: /postgres:\/\/[^:]+:[^@]+@[^\/]+\/\w+/gi,   replacement: 'postgres://***REDACTED***' },
+
+  // Generic passwords / tokens / secrets / API keys in key=value or key: value format
+  { pattern: /(password|pwd|passwd|token|secret|api[_-]?key|webhook[_-]?url)\s*[=:]\s*["']?[^\s"']{8,}["']?/gi, replacement: '$1=***REDACTED***' },
+
   // AWS keys
-  { pattern: /AKIA[0-9A-Z]{16}/g, replacement: '***AWS_ACCESS_KEY_REDACTED***' },
-  { pattern: /[A-Za-z0-9\/+=]{40}/g, replacement: '***AWS_SECRET_KEY_REDACTED***' }, // AWS secret keys
-  
-  // Private keys
-  { pattern: /-----BEGIN\s+(?:RSA\s+)?PRIVATE\s+KEY-----.+?-----END\s+(?:RSA\s+)?PRIVATE\s+KEY-----/gs, replacement: '***PRIVATE_KEY_REDACTED***' }
+  { pattern: /AKIA[0-9A-Z]{16}/g,    replacement: '***AWS_ACCESS_KEY_REDACTED***' },
+
+  // Private keys (PEM format)
+  { pattern: /-----BEGIN\s+(?:RSA\s+)?PRIVATE\s+KEY-----.+?-----END\s+(?:RSA\s+)?PRIVATE\s+KEY-----/gs, replacement: '***PRIVATE_KEY_REDACTED***' },
 ];
 
 /**
@@ -58,7 +75,29 @@ const JSON_CREDENTIAL_KEYS = [
   'privateKey',
   'private_key',
   'clientSecret',
-  'client_secret'
+  'client_secret',
+  // Webhook provider URLs (may embed tokens)
+  'webhookUrl',
+  'webhook_url',
+  'webhookLlmUrl',
+  'webhook_llm_url',
+  'webhookTtsUrl',
+  'webhook_tts_url',
+  'webhookImageUrl',
+  'webhook_image_url',
+  // Internal / MCP tokens
+  'internalApiToken',
+  'internal_api_token',
+  'mcpAuthToken',
+  'mcp_auth_token',
+  // YouTube OAuth2
+  'youtubeRefreshToken',
+  'youtube_refresh_token',
+  'youtubeClientSecret',
+  'youtube_client_secret',
+  // Search API
+  'searchApiKey',
+  'search_api_key',
 ];
 
 /**

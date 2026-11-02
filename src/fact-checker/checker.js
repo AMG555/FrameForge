@@ -36,7 +36,14 @@
 'use strict';
 
 const crypto = require('crypto');
+const https  = require('https');
 const { LLMProvider } = require('../pipeline/providers');
+
+// ── Search provider config ────────────────────────────────────────────────────
+// Set SEARCH_API_KEY + SEARCH_PROVIDER=tavily|brave|searxng to enable real search.
+// Without a key the system falls back to LLM-synthesized sources (existing behaviour).
+const SEARCH_PROVIDER = (process.env.SEARCH_PROVIDER || 'tavily').toLowerCase();
+const SEARCH_API_KEY  = process.env.SEARCH_API_KEY || '';
 
 class FactChecker {
   constructor({ llm = null } = {}) {
@@ -176,7 +183,17 @@ class FactChecker {
   }
 
   async _querySources(claim, count) {
-    // Use LLM to generate source evidence (real sources would use a search API)
+    // ── Real search (when SEARCH_API_KEY is configured) ──────────────────────
+    if (SEARCH_API_KEY) {
+      try {
+        const results = await this._realSearch(claim, count);
+        if (results && results.length > 0) return results;
+      } catch (err) {
+        console.warn(`[FactChecker] Real search failed (${err.message}), falling back to LLM`);
+      }
+    }
+
+    // ── LLM fallback (no search key, or search returned nothing) ────────────
     const system = 'You are a historical fact verifier. Output ONLY raw JSON array. No markdown.';
     const user   = `Verify this claim: "${claim}"\n\nReturn ${count} sources as JSON array:\n[{"name":"Source Name","url":"https://...","reliability_rank":0.9,"publication_year":2020,"confirms":true,"independent_group":"academic","quote":"relevant quote"}]`;
 
@@ -186,6 +203,152 @@ class FactChecker {
     const la   = text.lastIndexOf(']');
     if (fi < 0 || la <= fi) return [];
     return JSON.parse(text.slice(fi, la + 1));
+  }
+
+  /**
+   * Query a real search API and normalize results to the internal source schema.
+   * Supports Tavily, Brave Search, and SearXNG.
+   * @private
+   */
+  async _realSearch(claim, count) {
+    if (SEARCH_PROVIDER === 'tavily') {
+      return this._searchTavily(claim, count);
+    } else if (SEARCH_PROVIDER === 'brave') {
+      return this._searchBrave(claim, count);
+    } else if (SEARCH_PROVIDER === 'searxng') {
+      return this._searchSearXNG(claim, count);
+    }
+    throw new Error(`Unknown SEARCH_PROVIDER: ${SEARCH_PROVIDER}`);
+  }
+
+  /** POST https://api.tavily.com/search */
+  async _searchTavily(claim, count) {
+    const body = JSON.stringify({
+      api_key:      SEARCH_API_KEY,
+      query:        claim,
+      search_depth: 'advanced',
+      max_results:  Math.max(count, 5),
+      include_answer: false,
+      include_raw_content: false,
+    });
+
+    const raw = await this._httpsPost('api.tavily.com', '/search', body, {
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(body),
+    });
+
+    const data = JSON.parse(raw);
+    return (data.results || []).map(r => ({
+      name:              r.title  || 'Unknown',
+      url:               r.url    || '',
+      reliability_rank:  r.score  != null ? Math.min(r.score, 1.0) : 0.7,
+      publication_year:  new Date(r.published_date || Date.now()).getFullYear(),
+      confirms:          true, // search results are presumed supporting; LLM re-assesses contradictions
+      independent_group: this._domainGroup(r.url),
+      quote:             (r.content || '').slice(0, 200),
+    }));
+  }
+
+  /** GET https://api.search.brave.com/res/v1/web/search */
+  async _searchBrave(claim, count) {
+    const qs  = new URLSearchParams({ q: claim, count: String(Math.max(count, 5)) });
+    const raw = await this._httpsGet(
+      'api.search.brave.com',
+      `/res/v1/web/search?${qs}`,
+      {
+        'Accept':            'application/json',
+        'Accept-Encoding':   'gzip',
+        'X-Subscription-Token': SEARCH_API_KEY,
+      }
+    );
+
+    const data = JSON.parse(raw);
+    return ((data.web && data.web.results) || []).map(r => ({
+      name:              r.title       || 'Unknown',
+      url:               r.url         || '',
+      reliability_rank:  0.75,
+      publication_year:  new Date((r.age || Date.now())).getFullYear(),
+      confirms:          true,
+      independent_group: this._domainGroup(r.url),
+      quote:             (r.description || '').slice(0, 200),
+    }));
+  }
+
+  /** GET {SEARXNG_BASE_URL}/search (self-hosted SearXNG) */
+  async _searchSearXNG(claim, count) {
+    const baseUrl = process.env.SEARXNG_BASE_URL || 'https://searx.be';
+    const parsed  = new URL(baseUrl);
+    const qs      = new URLSearchParams({ q: claim, format: 'json', pageno: '1' });
+    const raw     = await this._httpsGet(
+      parsed.hostname,
+      `${parsed.pathname.replace(/\/$/, '')}/search?${qs}`,
+      { 'Accept': 'application/json' }
+    );
+
+    const data = JSON.parse(raw);
+    return ((data.results || []).slice(0, count)).map(r => ({
+      name:              r.title   || 'Unknown',
+      url:               r.url     || '',
+      reliability_rank:  r.score   != null ? Math.min(r.score / 10, 1.0) : 0.65,
+      publication_year:  new Date((r.publishedDate || Date.now())).getFullYear(),
+      confirms:          true,
+      independent_group: this._domainGroup(r.url),
+      quote:             (r.content || '').slice(0, 200),
+    }));
+  }
+
+  /** Normalize a URL's hostname to an independent_group string */
+  _domainGroup(url) {
+    try {
+      return new URL(url).hostname.replace(/^www\./, '').split('.').slice(-2, -1)[0] || 'web';
+    } catch { return 'web'; }
+  }
+
+  /** Generic HTTPS POST helper — returns response body string */
+  _httpsPost(host, path, body, headers = {}) {
+    return new Promise((resolve, reject) => {
+      const req = https.request(
+        { host, path, method: 'POST', headers },
+        (res) => {
+          const chunks = [];
+          res.on('data', d => chunks.push(d));
+          res.on('end', () => {
+            const text = Buffer.concat(chunks).toString('utf8');
+            if (res.statusCode < 200 || res.statusCode >= 300) {
+              return reject(new Error(`Search API HTTP ${res.statusCode}: ${text.slice(0, 200)}`));
+            }
+            resolve(text);
+          });
+        }
+      );
+      req.on('error', reject);
+      req.setTimeout(15000, () => { req.destroy(); reject(new Error('Search API timeout')); });
+      req.write(body);
+      req.end();
+    });
+  }
+
+  /** Generic HTTPS GET helper — returns response body string */
+  _httpsGet(host, urlPath, headers = {}) {
+    return new Promise((resolve, reject) => {
+      const req = https.request(
+        { host, path: urlPath, method: 'GET', headers },
+        (res) => {
+          const chunks = [];
+          res.on('data', d => chunks.push(d));
+          res.on('end', () => {
+            const text = Buffer.concat(chunks).toString('utf8');
+            if (res.statusCode < 200 || res.statusCode >= 300) {
+              return reject(new Error(`Search API HTTP ${res.statusCode}: ${text.slice(0, 200)}`));
+            }
+            resolve(text);
+          });
+        }
+      );
+      req.on('error', reject);
+      req.setTimeout(15000, () => { req.destroy(); reject(new Error('Search API timeout')); });
+      req.end();
+    });
   }
 
   // ── Approval gates ────────────────────────────────────────────────────────

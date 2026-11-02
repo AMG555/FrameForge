@@ -10,9 +10,12 @@
  * - Generation: Pollinations API with style consistency
  */
 
-const fs = require('fs').promises;
-const path = require('path');
+const fs     = require('fs').promises;
+const fsSync = require('fs');
+const path   = require('path');
 const crypto = require('crypto');
+const https  = require('https');
+const http   = require('http');
 
 class AssetLibrary {
   constructor(config = {}) {
@@ -200,41 +203,59 @@ class AssetLibrary {
    */
   async composeCharacter(characterId, pose, emotion) {
     if (!this.initialized) await this.initialize();
-    
+
     console.log(`🎭 Composing character: ${characterId} / ${pose} / ${emotion}`);
-    
-    // Find component assets
-    const identity = await this.findAsset({
-      asset_type: 'character_identity',
-      character_id: characterId
-    });
-    
-    const poseAsset = await this.findAsset({
-      asset_type: 'pose',
-      character_id: characterId,
-      pose: pose
-    });
-    
-    const emotionAsset = await this.findAsset({
-      asset_type: 'emotion',
-      character_id: characterId,
-      emotion: emotion
-    });
-    
-    if (!identity || !poseAsset || !emotionAsset) {
-      throw new Error(`Missing components for ${characterId}/${pose}/${emotion}`);
+
+    const identity = await this.findAsset({ asset_type: 'character_identity', character_id: characterId });
+    const poseAsset = await this.findAsset({ asset_type: 'pose', character_id: characterId, pose });
+    const emotionAsset = await this.findAsset({ asset_type: 'emotion', character_id: characterId, emotion });
+
+    if (!identity || !poseAsset) {
+      throw new Error(`Missing base components for ${characterId}/${pose}/${emotion}`);
     }
-    
-    // Compose layers using ImageMagick or sharp
-    const outputPath = path.join(
-      this.assetsDir,
-      'composed',
-      `${characterId}_${pose}_${emotion}.png`
-    );
-    
-    // TODO: Implement actual image composition
-    // For now, return pose asset as placeholder
-    console.log(`   ⚠️  Composition not yet implemented, using pose asset`);
+
+    const outputPath = path.join(this.assetsDir, 'composed', `${characterId}_${pose}_${emotion}.png`);
+    await fs.mkdir(path.dirname(outputPath), { recursive: true });
+
+    // If output already exists (cache hit), return immediately
+    try {
+      await fs.access(outputPath);
+      console.log(`   ✅ Using cached composition: ${outputPath}`);
+      return outputPath;
+    } catch { /* not cached — compose */ }
+
+    // Try FFmpeg overlay composition (identity base + pose overlay + optional emotion overlay)
+    const { spawnSync } = require('child_process');
+    const layers = [identity.file_path, poseAsset.file_path];
+    if (emotionAsset) layers.push(emotionAsset.file_path);
+
+    // Build FFmpeg filter: stack overlays with overlay=0:0, alpha blending
+    const inputs = layers.flatMap(p => ['-i', p]);
+    let filterComplex, mapArg;
+    if (layers.length === 3) {
+      filterComplex = '[0:v][1:v]overlay=0:0[tmp];[tmp][2:v]overlay=0:0[out]';
+      mapArg = '[out]';
+    } else {
+      filterComplex = '[0:v][1:v]overlay=0:0[out]';
+      mapArg = '[out]';
+    }
+
+    const ffmpegResult = spawnSync('ffmpeg', [
+      '-nostdin', '-y',
+      ...inputs,
+      '-filter_complex', filterComplex,
+      '-map', mapArg,
+      '-frames:v', '1',
+      outputPath,
+    ], { timeout: 30000, encoding: 'utf8' });
+
+    if (ffmpegResult.status === 0 && fsSync.existsSync(outputPath)) {
+      console.log(`   ✅ FFmpeg composition complete: ${outputPath}`);
+      return outputPath;
+    }
+
+    // FFmpeg unavailable or failed — fall back to pose-only asset
+    console.warn(`   ⚠️  FFmpeg composition failed (${ffmpegResult.stderr?.slice(0, 120)}), using pose asset`);
     return poseAsset.file_path;
   }
 
@@ -393,9 +414,54 @@ class AssetLibrary {
   }
 
   async _semanticSearch(description) {
-    // TODO: Implement actual semantic search with embeddings
-    // For now, return null (no fallback)
-    console.log('   ⚠️  Semantic search not yet implemented');
+    // Keyword-based semantic search against visual_description fields in the registry.
+    // No embedding API required — scores by term overlap.
+    if (this.assets.size === 0) return null;
+
+    const queryText = (
+      description.visual_description || description.character_id || ''
+    ).toLowerCase();
+
+    if (!queryText) return null;
+
+    const queryTerms = queryText
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .split(/\s+/)
+      .filter(t => t.length > 2);
+
+    if (queryTerms.length === 0) return null;
+
+    let bestAsset = null;
+    let bestScore = 0;
+
+    for (const asset of this.assets.values()) {
+      // Skip type mismatch if asset_type is specified
+      if (description.asset_type && asset.asset_type !== description.asset_type) continue;
+
+      const corpus = [
+        asset.visual_description || '',
+        asset.asset_type || '',
+        asset.character_id || '',
+        asset.pose || '',
+        asset.emotion || '',
+        ...(asset.tags || []),
+      ].join(' ').toLowerCase();
+
+      const matchCount = queryTerms.filter(t => corpus.includes(t)).length;
+      const score = matchCount / queryTerms.length;
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestAsset = asset;
+      }
+    }
+
+    // Require at least 30% term overlap to be a meaningful match
+    if (bestScore >= 0.3) {
+      console.log(`   🔍 Semantic search match (score ${(bestScore * 100).toFixed(0)}%): ${bestAsset.asset_id}`);
+      return bestAsset;
+    }
+
     return null;
   }
 
@@ -420,27 +486,27 @@ class AssetLibrary {
   }
 
   async _callPollinationsAPI(prompt, description) {
-    const model = 'flux'; // or 'turbo' for faster generation
-    const seed = this._generateSeed(description);
-    
-    const url = new URL('https://image.pollinations.ai/prompt/' + encodeURIComponent(prompt));
-    url.searchParams.set('width', '1920');
-    url.searchParams.set('height', '1080');
-    url.searchParams.set('model', model);
-    url.searchParams.set('nologo', 'true');
-    url.searchParams.set('seed', seed.toString());
-    
+    const model = process.env.POLLINATIONS_MODEL || 'flux';
+    const seed  = this._generateSeed(description);
+
+    const imageUrl = new URL('https://image.pollinations.ai/prompt/' + encodeURIComponent(prompt));
+    imageUrl.searchParams.set('width',   '1920');
+    imageUrl.searchParams.set('height',  '1080');
+    imageUrl.searchParams.set('model',   model);
+    imageUrl.searchParams.set('nologo',  'true');
+    imageUrl.searchParams.set('seed',    seed.toString());
+
     console.log(`   Calling Pollinations API (${model}, seed: ${seed})...`);
-    
-    // In production, use actual HTTP fetch
-    // For now, return the URL
-    return url.toString();
+
+    // Download the image and return the local file path
+    const localPath = await this._downloadAsset(imageUrl.toString(), description);
+    console.log(`   ✅ Image saved: ${localPath}`);
+    return localPath;
   }
 
   async _downloadAsset(imageUrl, description) {
-    // Determine file path based on asset type
+    // ── Determine output path ──────────────────────────────────────────────────
     let relativePath;
-    
     if (description.asset_type === 'character_identity') {
       relativePath = `characters/${description.character_id}/identity_v1.png`;
     } else if (description.asset_type === 'pose') {
@@ -456,16 +522,67 @@ class AssetLibrary {
     } else {
       relativePath = `generated/${Date.now()}.png`;
     }
-    
+
     const fullPath = path.join(this.assetsDir, relativePath);
-    
-    // Ensure parent directory exists
     await fs.mkdir(path.dirname(fullPath), { recursive: true });
-    
-    // TODO: Implement actual download
-    console.log(`   ⚠️  Download not implemented, would save to: ${fullPath}`);
-    
-    return relativePath;
+
+    // ── HTTP download with redirect following (max 5 hops) ───────────────────
+    await this._httpDownload(imageUrl, fullPath, 5);
+
+    return fullPath;
+  }
+
+  /**
+   * Download a URL to disk, following up to maxRedirects redirects.
+   * Works with both http:// and https:// URLs.
+   * @private
+   */
+  _httpDownload(url, destPath, maxRedirects) {
+    return new Promise((resolve, reject) => {
+      const parsedUrl = new URL(url);
+      const client = parsedUrl.protocol === 'https:' ? https : http;
+
+      const req = client.get(url, {
+        timeout: 120_000,
+        headers: { 'User-Agent': 'FrameForge/1.1 (+https://github.com/frameforge)' },
+      }, (res) => {
+        // Follow redirects
+        if ((res.statusCode === 301 || res.statusCode === 302 || res.statusCode === 307 || res.statusCode === 308)
+            && res.headers.location && maxRedirects > 0) {
+          res.resume(); // drain response
+          return this._httpDownload(res.headers.location, destPath, maxRedirects - 1)
+            .then(resolve).catch(reject);
+        }
+
+        if (res.statusCode < 200 || res.statusCode >= 300) {
+          res.resume();
+          return reject(new Error(`HTTP ${res.statusCode} downloading asset from ${url}`));
+        }
+
+        const writeStream = fsSync.createWriteStream(destPath);
+        res.pipe(writeStream);
+
+        writeStream.on('finish', () => {
+          writeStream.close();
+          resolve(destPath);
+        });
+        writeStream.on('error', (err) => {
+          fsSync.unlink(destPath, () => {}); // clean up partial file
+          reject(err);
+        });
+        res.on('error', (err) => {
+          writeStream.destroy();
+          fsSync.unlink(destPath, () => {});
+          reject(err);
+        });
+      });
+
+      req.on('error', reject);
+      req.on('timeout', () => {
+        req.destroy();
+        reject(new Error(`Timeout downloading asset from ${url}`));
+      });
+    });
   }
 
   async _saveAsset(asset) {
