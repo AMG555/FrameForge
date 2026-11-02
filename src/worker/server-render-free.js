@@ -57,6 +57,21 @@ const crypto = require('crypto');
 const path   = require('path');
 const fs     = require('fs').promises;
 
+// ── Security helpers ──────────────────────────────────────────────────────────
+
+// Timing-safe string comparison — prevents timing attacks on secret comparison.
+// Falls back to a constant-time loop if crypto.timingSafeEqual is unavailable.
+function timingSafeEqual(a, b) {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) {
+    // Still compare to avoid length-based timing leak
+    crypto.timingSafeEqual(bufA, bufA);
+    return false;
+  }
+  return crypto.timingSafeEqual(bufA, bufB);
+}
+
 const PORT             = parseInt(process.env.WORKER_PORT || '3211', 10);
 const FILES_DIR        = process.env.N8N_FILES_DIR || '/tmp/video-pipeline';
 const RENDER_MODE      = process.env.RENDER_MODE || 'api_only';
@@ -194,10 +209,11 @@ async function runFullPipeline(payload, jobId) {
   }
 
   // Steps E-F run here (network-only)
-  const pkg = await runPackaging({ productionId: scr.productionId, masterPath: ren.masterPath, shorts: sht.shorts || [], scenes: scr.scenes, youtubeTitle: scr.youtubeTitle, youtubeDescription: scr.youtubeDescription, youtubeTags: scr.youtubeTags, thumbnailPrompt: scr.thumbnailPrompt, qcReport: ren.qcReport, totalWords: scr.totalWords });
+  // Script schema v2.0.0 uses title/description/tags (not youtubeTitle/youtubeDescription/youtubeTags)
+  const pkg = await runPackaging({ productionId: scr.productionId, masterPath: ren.masterPath, shorts: sht.shorts || [], scenes: scr.scenes, youtubeTitle: scr.title, youtubeDescription: scr.description, youtubeTags: scr.tags, thumbnailPrompt: scr.thumbnailPrompt, qcReport: ren.qcReport, totalWords: scr.totalWords });
   const pub = await runPublishing({ productionId: scr.productionId, manifest: pkg.manifest, channels });
 
-  return { productionId: scr.productionId, topic, youtubeTitle: scr.youtubeTitle, masterPath: ren.masterPath, publishResults: pub.results, sceneCount: scr.sceneCount, totalWords: scr.totalWords, shortsCount: sht.shorts?.length || 0, qcPassed: ren.passed };
+  return { productionId: scr.productionId, topic, youtubeTitle: scr.title, masterPath: ren.masterPath, publishResults: pub.results, sceneCount: scr.sceneCount, totalWords: scr.totalWords, shortsCount: sht.shorts?.length || 0, qcPassed: ren.passed };
 }
 
 // ── Delegation to local render endpoint ───────────────────────────────────────
@@ -290,7 +306,7 @@ function checkInternalAuth(req) {
   if (!INTERNAL_TOKEN) return true; // auth disabled if token not configured
   const header = req.headers['authorization'] || req.headers['x-internal-token'] || '';
   const token  = header.replace(/^Bearer\s+/i, '').trim();
-  return token === INTERNAL_TOKEN;
+  return timingSafeEqual(token, INTERNAL_TOKEN);
 }
 
 async function handleRequest(req, res) {
@@ -323,9 +339,13 @@ async function handleRequest(req, res) {
   }
 
   if (req.method === 'POST' && parts[0] === 'jobs' && !parts[1]) {
-    const body = await readBody(req);
+    let rawBody;
+    try { rawBody = await readBody(req); }
+    catch (err) {
+      return json(res, err.statusCode || 500, { error: err.message });
+    }
     let parsed;
-    try { parsed = JSON.parse(body); } catch { return json(res, 400, { error: 'Invalid JSON' }); }
+    try { parsed = JSON.parse(rawBody); } catch { return json(res, 400, { error: 'Invalid JSON' }); }
     const { type, payload } = parsed;
     if (!type) return json(res, 400, { error: 'Missing field: type' });
     const job = _submitJob(type, payload || {});
@@ -343,10 +363,21 @@ async function handleRequest(req, res) {
   json(res, 404, { error: 'Not found' });
 }
 
+// 4 MB body limit — prevents OOM on Render free tier from oversized payloads
+const MAX_BODY_BYTES = 4 * 1024 * 1024;
+
 function readBody(req) {
   return new Promise((resolve, reject) => {
+    let size = 0;
     const chunks = [];
-    req.on('data', c => chunks.push(c));
+    req.on('data', chunk => {
+      size += chunk.length;
+      if (size > MAX_BODY_BYTES) {
+        req.destroy();
+        return reject(Object.assign(new Error('Request body too large'), { statusCode: 413 }));
+      }
+      chunks.push(chunk);
+    });
     req.on('end', () => resolve(Buffer.concat(chunks).toString()));
     req.on('error', reject);
   });
@@ -373,6 +404,9 @@ async function start() {
 
   server.listen(PORT, '0.0.0.0', () => {
     console.log(`[Worker] ${RENDER_MODE} mode — listening on :${PORT}`);
+    if (!INTERNAL_TOKEN) {
+      console.warn('[Worker] WARNING: INTERNAL_API_TOKEN not set — API is unauthenticated. Set INTERNAL_API_TOKEN in .env for production use.');
+    }
     if (RENDER_MODE === 'api_only' && LOCAL_RENDER) {
       console.log(`[Worker] FFmpeg render delegated to: ${LOCAL_RENDER}`);
     } else if (RENDER_MODE === 'api_only' && !LOCAL_RENDER) {

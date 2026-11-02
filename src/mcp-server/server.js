@@ -309,6 +309,10 @@ const TOOLS = {
     handler: async ({ productionId, edits = [], appendScenes = [] }) => {
       const fsp       = require('fs').promises;
       const syncFs    = require('fs');
+      // Guard: productionId must not contain path separators (prevents path traversal)
+      if (!productionId || /[/\\]/.test(productionId)) {
+        throw new Error(`Invalid productionId: must not contain path separators`);
+      }
       // Find the scenes manifest for this productionId
       const scenesPath = path.join(FILES_DIR, `${productionId}-scenes.json`);
       if (!syncFs.existsSync(scenesPath)) {
@@ -361,6 +365,11 @@ const TOOLS = {
       const { runAssets }   = require('../workflows/assets');
       const { runRender }   = require('../workflows/render');
       const { runIngest }   = require('../workflows/ingest');
+
+      // Guard: productionId must not contain path separators (prevents path traversal)
+      if (productionId && /[/\\]/.test(productionId)) {
+        throw new Error(`Invalid productionId: must not contain path separators`);
+      }
 
       // Resolve scenes
       let resolvedScenes = scenes;
@@ -557,8 +566,19 @@ Example scene:
       },
     },
     handler: async ({ text, outputPath, platform, voice, rate, apiKey, webhookUrl, productionId = 'adhoc', sceneIndex }) => {
-      const syncFs = require('fs');
+      const syncFs  = require('fs');
       const pathMod = require('path');
+
+      // Guard: outputPath must not escape FILES_DIR — prevent path traversal
+      if (outputPath) {
+        const absOutput  = pathMod.resolve(outputPath);
+        const absFilesDir = pathMod.resolve(FILES_DIR);
+        if (!absOutput.startsWith(absFilesDir + pathMod.sep) && !absOutput.startsWith(absFilesDir)) {
+          throw new Error(`outputPath must be inside the files directory (${FILES_DIR})`);
+        }
+      } else {
+        throw new Error('outputPath is required');
+      }
 
       // Auto-derive outputPath if sceneIndex given and outputPath is a directory
       let resolvedOutput = outputPath;
@@ -567,48 +587,20 @@ Example scene:
       }
       await fs.mkdir(pathMod.dirname(resolvedOutput), { recursive: true });
 
-      // Temporarily override env vars for this single call
-      const prevProvider = process.env.PROVIDER_TTS;
-      const prevRate     = process.env.TTS_RATE;
-      const prevVoice    = process.env.TTS_VOICE;
-      const prevKey      = {
-        elevenlabs: process.env.ELEVENLABS_API_KEY,
-        azure:      process.env.AZURE_SPEECH_KEY,
-        openai:     process.env.OPENAI_API_KEY,
-        webhook:    process.env.WEBHOOK_TTS_URL,
-      };
+      // Create a TTSProvider with per-call options — no process.env mutation needed.
+      // This is concurrency-safe: each invocation has its own provider instance.
+      const { TTSProvider } = require('../pipeline/providers');
+      const ttsInstance = new TTSProvider({ platform, voice, rate, apiKey, webhookUrl });
 
-      try {
-        if (platform)    process.env.PROVIDER_TTS = platform;
-        if (rate)        process.env.TTS_RATE     = rate;
-        if (voice)       process.env.TTS_VOICE    = voice;
-        if (apiKey && platform === 'elevenlabs') process.env.ELEVENLABS_API_KEY = apiKey;
-        if (apiKey && platform === 'azure')      process.env.AZURE_SPEECH_KEY   = apiKey;
-        if (apiKey && platform === 'openai')     process.env.OPENAI_API_KEY     = apiKey;
-        if (webhookUrl)                          process.env.WEBHOOK_TTS_URL    = webhookUrl;
-
-        // Create a fresh TTSProvider with the overridden env
-        const { TTSProvider } = require('../pipeline/providers');
-        const ttsInstance = new TTSProvider();
-
-        await retryPol.executeStage('TTS', async () => {
-          return ttsInstance.synthesize({ text, voice, outputPath: resolvedOutput });
-        });
-      } finally {
-        // Restore env vars
-        if (platform !== undefined) process.env.PROVIDER_TTS          = prevProvider;
-        if (rate !== undefined)     process.env.TTS_RATE               = prevRate;
-        if (voice !== undefined)    process.env.TTS_VOICE              = prevVoice;
-        process.env.ELEVENLABS_API_KEY = prevKey.elevenlabs;
-        process.env.AZURE_SPEECH_KEY   = prevKey.azure;
-        process.env.OPENAI_API_KEY     = prevKey.openai;
-        process.env.WEBHOOK_TTS_URL    = prevKey.webhook;
-      }
+      await retryPol.executeStage('TTS', async () => {
+        return ttsInstance.synthesize({ text, voice, outputPath: resolvedOutput });
+      });
 
       const stat = await fs.stat(resolvedOutput);
-      await telemetry.track({ productionId, stage: 'TTS', provider: platform || process.env.PROVIDER_TTS || 'edge-tts', operation: 'multi_voice_tts', units: text.length });
+      const resolvedPlatform = platform || process.env.PROVIDER_TTS || 'edge-tts';
+      await telemetry.track({ productionId, stage: 'TTS', provider: resolvedPlatform, operation: 'multi_voice_tts', units: text.length });
 
-      return { audioPath: resolvedOutput, sizeBytes: stat.size, platform: platform || process.env.PROVIDER_TTS || 'edge-tts', voice };
+      return { audioPath: resolvedOutput, sizeBytes: stat.size, platform: resolvedPlatform, voice };
     },
   },
 
@@ -665,7 +657,7 @@ Example scene:
 
 const SERVER_INFO = {
   name:    'video-pipeline',
-  version: '1.0.0',
+  version: '2.0.0',
 };
 
 const CAPABILITIES = {
@@ -733,9 +725,34 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
+// 4 MB body limit — prevents OOM on Render free tier from oversized payloads
+const MAX_BODY_BYTES = 4 * 1024 * 1024;
+
+async function readBodyLimited(req) {
+  return new Promise((resolve, reject) => {
+    let size = 0;
+    const chunks = [];
+    req.on('data', chunk => {
+      size += chunk.length;
+      if (size > MAX_BODY_BYTES) {
+        req.destroy();
+        return reject(Object.assign(new Error('Request body too large'), { statusCode: 413 }));
+      }
+      chunks.push(chunk);
+    });
+    req.on('end', () => resolve(Buffer.concat(chunks).toString()));
+    req.on('error', reject);
+  });
+}
+
 async function start() {
   await sm.init();
   await telemetry.init();
+
+  // Warn on startup if auth is disabled (intentional for local dev, risky otherwise)
+  if (!process.env.MCP_AUTH_TOKEN) {
+    console.warn('[MCP] WARNING: MCP_AUTH_TOKEN not set — HTTP MCP endpoint is unauthenticated. Set MCP_AUTH_TOKEN in .env for production use.');
+  }
 
   const server = http.createServer(async (req, res) => {
     // CORS pre-flight (required by browser-based IDE extensions)
@@ -744,38 +761,43 @@ async function start() {
       return res.end();
     }
 
-    // Health check
+    // Health check — omit tool list to avoid leaking internal API surface
     if (req.method === 'GET' && req.url === '/health') {
       res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
-      return res.end(JSON.stringify({ status: 'ok', serverInfo: SERVER_INFO, tools: Object.keys(TOOLS) }));
+      return res.end(JSON.stringify({ status: 'ok', serverInfo: SERVER_INFO }));
     }
 
     if (req.method !== 'POST') {
       res.writeHead(405, CORS_HEADERS); return res.end();
     }
 
-    const chunks = [];
-    req.on('data', c => chunks.push(c));
-    req.on('end', async () => {
-      let body;
-      try { body = JSON.parse(Buffer.concat(chunks).toString()); } catch {
-        res.writeHead(400, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify({ jsonrpc: '2.0', error: { code: -32700, message: 'Parse error' } }));
-      }
+    let rawBody;
+    try {
+      rawBody = await readBodyLimited(req);
+    } catch (err) {
+      const status = err.statusCode || 400;
+      res.writeHead(status, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ jsonrpc: '2.0', error: { code: -32700, message: err.message } }));
+    }
 
-      // Handle JSON-RPC batch (array) or single request
-      let response;
-      if (Array.isArray(body)) {
-        const results = await Promise.all(body.map(handleMCPRequest));
-        response = results.filter(r => r !== null); // drop notifications
-      } else {
-        response = await handleMCPRequest(body);
-        if (response === null) { res.writeHead(204, CORS_HEADERS); return res.end(); }
-      }
+    let body;
+    try { body = JSON.parse(rawBody); } catch {
+      res.writeHead(400, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ jsonrpc: '2.0', error: { code: -32700, message: 'Parse error' } }));
+    }
 
-      res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(response));
-    });
+    // Handle JSON-RPC batch (array) or single request
+    let response;
+    if (Array.isArray(body)) {
+      const results = await Promise.all(body.map(handleMCPRequest));
+      response = results.filter(r => r !== null); // drop notifications
+    } else {
+      response = await handleMCPRequest(body);
+      if (response === null) { res.writeHead(204, CORS_HEADERS); return res.end(); }
+    }
+
+    res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(response));
   });
 
   server.listen(PORT, '127.0.0.1', () => {

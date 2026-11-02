@@ -2,7 +2,7 @@
  * Cloudflare Workers — Remote MCP Server
  *
  * Deploys to Cloudflare Workers (free tier: 100k req/day).
- * Exposes all 6 video-pipeline tools via Streamable HTTP transport
+ * Exposes all 13 video-pipeline tools via Streamable HTTP transport
  * (MCP 2024-11-05 spec). IDEs connect with a single URL — no local
  * Node.js process spawned.
  *
@@ -95,11 +95,24 @@ export default {
 
 // ── Auth ─────────────────────────────────────────────────────────────────────
 
+// Timing-safe string comparison — prevents token oracle via response time.
+function timingSafeEqual(a, b) {
+  const enc = new TextEncoder();
+  const bufA = enc.encode(a);
+  const bufB = enc.encode(b);
+  if (bufA.byteLength !== bufB.byteLength) {
+    // Compare equal-length buffers to avoid short-circuit timing leak
+    crypto.subtle.timingSafeEqual(bufA, bufA);
+    return false;
+  }
+  return crypto.subtle.timingSafeEqual(bufA, bufB);
+}
+
 function checkAuth(request, env) {
   if (!env.MCP_AUTH_TOKEN) return true; // auth disabled if no token set
   const header = request.headers.get('Authorization') || '';
   const token  = header.replace(/^Bearer\s+/i, '').trim();
-  return token === env.MCP_AUTH_TOKEN;
+  return timingSafeEqual(token, env.MCP_AUTH_TOKEN);
 }
 
 // ── MCP Streamable HTTP handler ───────────────────────────────────────────────
@@ -181,7 +194,7 @@ async function handleRPC(body, env) {
         protocolVersion: '2024-11-05',
         serverInfo: {
           name:    'frameforge',
-          version: '1.1.0',
+          version: '2.0.0',
           status:  configured ? 'ready' : 'not_configured',
           // IDEs that surface _meta will show this warning in the tools panel
           ...(configured ? {} : {
@@ -244,14 +257,17 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: 'write_script',
-    description: 'Generate a 55-scene JSON script from research claims. Fast (~8s). Returns scenes array + youtubeTitle + productionId.',
+    description: 'Generate a scene-by-scene JSON script from research claims. Fast (~8s). Returns scenes array + title + description + productionId.',
     inputSchema: {
       type: 'object', required: ['productionId', 'claims', 'topic'],
       properties: {
         productionId: { type: 'string' },
         claims:       { type: 'array' },
         topic:        { type: 'string' },
-        style:        { type: 'string', default: 'educational comedy' },
+        style:        { type: 'string', default: 'informative', description: 'Narrative style, e.g. "educational", "documentary", "comedic"' },
+        persona:      { type: 'string', description: 'Narrator persona' },
+        audience:     { type: 'string', description: 'Target audience' },
+        sceneCount:   { type: 'number', default: 20, description: 'Target number of scenes' },
       },
     },
   },
@@ -302,6 +318,105 @@ const TOOL_DEFINITIONS = [
       },
     },
   },
+  // ── Tools 7-13 ───────────────────────────────────────────────────────────
+  {
+    name: 'ingest_media',
+    description: 'Ingest existing media files (video, audio, images) into FrameForge and create a scenes manifest. Returns {productionId, sceneCount}.',
+    inputSchema: {
+      type: 'object', required: ['files'],
+      properties: {
+        files:       { type: 'array', items: { type: 'string' }, description: 'Local file paths to ingest' },
+        productionId:{ type: 'string', description: 'Custom productionId (auto-generated if omitted)' },
+        title:       { type: 'string' },
+        style:       { type: 'string', default: 'informative' },
+      },
+    },
+  },
+  {
+    name: 'edit_scenes',
+    description: 'Read and modify an existing scenes manifest. Patch narration, captions, camera hints, or media files before rendering.',
+    inputSchema: {
+      type: 'object', required: ['productionId'],
+      properties: {
+        productionId: { type: 'string' },
+        edits:        { type: 'array', description: 'Array of { sceneIndex, field, value } patches' },
+        appendScenes: { type: 'array', description: 'New scenes to append' },
+      },
+    },
+  },
+  {
+    name: 'render_from_scenes',
+    description: 'Render a video from a scenes manifest, skipping research and scripting. Supply productionId from ingest_media/edit_scenes, or inline scenes.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        productionId: { type: 'string' },
+        scenes:       { type: 'array' },
+        skipImages:   { type: 'boolean', default: false },
+        skipTts:      { type: 'boolean', default: false },
+        withMusic:    { type: 'boolean', default: true },
+      },
+    },
+  },
+  {
+    name: 'external_platform_call',
+    description: 'Bridge to an external platform (VoxForge, Runway, ElevenLabs, Remotion, etc.). Actions: ingest, render, status, download.',
+    inputSchema: {
+      type: 'object', required: ['action'],
+      properties: {
+        action:      { type: 'string', enum: ['ingest','render','status','download'] },
+        files:       { type: 'array', items: { type: 'string' } },
+        scenes:      { type: 'array' },
+        productionId:{ type: 'string' },
+        jobId:       { type: 'string' },
+        outputUrl:   { type: 'string' },
+      },
+    },
+  },
+  {
+    name: 'create_video_from_script',
+    description: 'Render a complete video from an IDE-authored scenes array. The IDE writes the script; FrameForge handles assets and rendering. Returns masterPath.',
+    inputSchema: {
+      type: 'object', required: ['scenes'],
+      properties: {
+        scenes:      { type: 'array', description: 'Scene objects with narration, image_prompt, caption, character_id fields' },
+        productionId:{ type: 'string' },
+        title:       { type: 'string' },
+        withMusic:   { type: 'boolean', default: true },
+        channels:    { type: 'array', items: { type: 'string' }, default: ['telegram'] },
+      },
+    },
+  },
+  {
+    name: 'multi_voice_tts',
+    description: 'Synthesize text to audio with per-call TTS platform override. Supports edge-tts, elevenlabs, azure, openai, webhook. Returns audioPath.',
+    inputSchema: {
+      type: 'object', required: ['text', 'outputPath'],
+      properties: {
+        text:       { type: 'string' },
+        outputPath: { type: 'string', description: 'Destination path within the files directory' },
+        platform:   { type: 'string', enum: ['edge-tts','elevenlabs','azure','openai','webhook'] },
+        voice:      { type: 'string' },
+        rate:       { type: 'string' },
+        apiKey:     { type: 'string' },
+        webhookUrl: { type: 'string' },
+      },
+    },
+  },
+  {
+    name: 'n8n_webhook_trigger',
+    description: 'Trigger an n8n webhook to start a video pipeline workflow. Returns {jobId, status} immediately. Requires N8N_WEBHOOK_URL env var.',
+    inputSchema: {
+      type: 'object', required: ['topic'],
+      properties: {
+        topic:    { type: 'string' },
+        channels: { type: 'array', items: { type: 'string' }, default: ['telegram'] },
+        style:    { type: 'string', default: 'informative' },
+        language: { type: 'string', default: 'en' },
+        payload:  { type: 'object' },
+      },
+    },
+  },
 ];
 
 // ── Tool handlers (proxy to Worker API) ──────────────────────────────────────
@@ -311,9 +426,17 @@ const TOOL_DEFINITIONS = [
 
 const TOOL_HANDLERS = {
 
-  research_topic: (args, env) => proxyJob('research', args, env),
-
-  write_script: (args, env) => proxyJob('script', args, env),
+  research_topic:      (args, env) => proxyJob('research',       args, env),
+  write_script:        (args, env) => proxyJob('script',         args, env),
+  assemble_video:      (args, env) => proxyJob('render',         args, env),
+  publish_video:       (args, env) => proxyJob('publish',        args, env),
+  ingest_media:        (args, env) => proxyJob('ingest',         args, env),
+  edit_scenes:         (args, env) => proxyJob('edit_scenes',    args, env),
+  render_from_scenes:  (args, env) => proxyJob('render_from_scenes', args, env),
+  external_platform_call: (args, env) => proxyJob('external_platform_call', args, env),
+  create_video_from_script: (args, env) => proxyJob('create_video_from_script', args, env),
+  multi_voice_tts:     (args, env) => proxyJob('multi_voice_tts', args, env),
+  n8n_webhook_trigger: (args, env) => proxyJob('n8n_webhook_trigger', args, env),
 
   queue_full_pipeline: async (args, env) => {
     // Submit async job — returns immediately with jobId
@@ -324,10 +447,6 @@ const TOOL_HANDLERS = {
   get_job_status: async ({ jobId }, env) => {
     return callWorkerAPI(`/jobs/${encodeURIComponent(jobId)}`, 'GET', null, env);
   },
-
-  assemble_video: (args, env) => proxyJob('render', args, env),
-
-  publish_video: (args, env) => proxyJob('publish', args, env),
 };
 
 // ── Worker API proxy ──────────────────────────────────────────────────────────

@@ -141,14 +141,15 @@ async function runFullPipeline(payload, jobId) {
   console.log(`[Worker/${jobId}] Shorts done: ${sht.shorts?.length || 0} passed`);
 
   // E → Package
+  // Script schema v2.0.0 uses title/description/tags (not youtubeTitle/youtubeDescription/youtubeTags)
   const pkg = await runPackaging({
     productionId:       scr.productionId,
     masterPath:         ren.masterPath,
     shorts:             sht.shorts || [],
     scenes:             scr.scenes,
-    youtubeTitle:       scr.youtubeTitle,
-    youtubeDescription: scr.youtubeDescription,
-    youtubeTags:        scr.youtubeTags,
+    youtubeTitle:       scr.title,
+    youtubeDescription: scr.description,
+    youtubeTags:        scr.tags,
     thumbnailPrompt:    scr.thumbnailPrompt,
     qcReport:           ren.qcReport,
     totalWords:         scr.totalWords,
@@ -162,7 +163,7 @@ async function runFullPipeline(payload, jobId) {
   return {
     productionId: scr.productionId,
     topic,
-    youtubeTitle:   scr.youtubeTitle,
+    youtubeTitle:   scr.title,
     masterPath:     ren.masterPath,
     packageDir:     pkg.packageDir,
     publishResults: pub.results,
@@ -221,9 +222,11 @@ async function handleRequest(req, res) {
 
   // POST /jobs
   if (req.method === 'POST' && parts[0] === 'jobs' && !parts[1]) {
-    const body = await readBody(req);
+    let rawBody;
+    try { rawBody = await readBody(req); }
+    catch (err) { return jsonResponse(res, err.statusCode || 500, { error: err.message }); }
     let parsed;
-    try { parsed = JSON.parse(body); } catch { return jsonResponse(res, 400, { error: 'Invalid JSON' }); }
+    try { parsed = JSON.parse(rawBody); } catch { return jsonResponse(res, 400, { error: 'Invalid JSON' }); }
     const { type, payload } = parsed;
     if (!type) return jsonResponse(res, 400, { error: 'Missing field: type' });
     const job = _submitJob(type, payload || {});
@@ -242,10 +245,21 @@ async function handleRequest(req, res) {
   jsonResponse(res, 404, { error: 'Not found' });
 }
 
+// 4 MB body limit — prevents OOM from oversized payloads
+const MAX_BODY_BYTES = 4 * 1024 * 1024;
+
 function readBody(req) {
   return new Promise((resolve, reject) => {
+    let size = 0;
     const chunks = [];
-    req.on('data', c => chunks.push(c));
+    req.on('data', chunk => {
+      size += chunk.length;
+      if (size > MAX_BODY_BYTES) {
+        req.destroy();
+        return reject(Object.assign(new Error('Request body too large'), { statusCode: 413 }));
+      }
+      chunks.push(chunk);
+    });
     req.on('end',  () => resolve(Buffer.concat(chunks).toString()));
     req.on('error', reject);
   });

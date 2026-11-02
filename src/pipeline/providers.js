@@ -349,8 +349,17 @@ const NARRATOR_VOICES = {
 };
 
 class TTSProvider {
-  constructor() {
-    this.name = (process.env.PROVIDER_TTS || 'edge-tts').toLowerCase();
+  /**
+   * @param {object} [opts]  Per-call overrides — avoids mutating process.env in concurrent calls.
+   * @param {string} [opts.platform]   TTS provider name (overrides PROVIDER_TTS)
+   * @param {string} [opts.voice]      Voice ID (overrides TTS_VOICE)
+   * @param {string} [opts.rate]       Speaking rate (overrides TTS_RATE)
+   * @param {string} [opts.apiKey]     API key (overrides provider-specific env var)
+   * @param {string} [opts.webhookUrl] Webhook URL (overrides WEBHOOK_TTS_URL)
+   */
+  constructor(opts = {}) {
+    this.name        = (opts.platform || process.env.PROVIDER_TTS || 'edge-tts').toLowerCase();
+    this._overrides  = opts; // stash for _* methods that read env vars
   }
 
   /**
@@ -388,16 +397,17 @@ class TTSProvider {
   }
 
   async _customTTS({ text, voice, outputPath }) {
-    const url = process.env.CUSTOM_TTS_URL || process.env.TTS_WEBHOOK_URL;
+    const url = this._overrides.webhookUrl || process.env.CUSTOM_TTS_URL || process.env.TTS_WEBHOOK_URL;
     if (!url) throw new Error('CUSTOM_TTS_URL or TTS_WEBHOOK_URL not set for custom/webhook TTS provider');
-    const apiKey = process.env.CUSTOM_TTS_KEY || '';
+    const apiKey = this._overrides.apiKey || process.env.CUSTOM_TTS_KEY || '';
     const headers = { 'Content-Type': 'application/json' };
     if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
 
     const isSpeechEndpoint = /\/v1\/audio\/speech/i.test(url);
+    const rate = this._overrides.rate || process.env.TTS_RATE || '+0%';
     const body = isSpeechEndpoint
       ? { model: process.env.TTS_MODEL || 'tts-1', input: text, voice: voice || 'alloy' }
-      : { text, voice, rate: process.env.TTS_RATE || '+0%' };
+      : { text, voice, rate };
 
     return withRetry(async () => {
       const audio = await httpPost(url, body, headers);
@@ -411,7 +421,7 @@ class TTSProvider {
     const safeVoice = voice || NARRATOR_VOICES['edge-tts'].default;
     // No artificial rate manipulation — use the voice's natural cadence.
     // Only a mild rate adjustment from env (e.g. TTS_RATE='+0%') is supported.
-    const rate = process.env.TTS_RATE || '+0%';
+    const rate = this._overrides.rate || process.env.TTS_RATE || '+0%';
     return withRetry(async () => {
       await new Promise((resolve, reject) => {
         const proc = spawn('edge-tts', ['--voice', safeVoice, '--rate', rate, '--text', text, '--write-media', rawPath], { timeout: 40000 });
@@ -433,7 +443,7 @@ class TTSProvider {
   }
 
   async _elevenLabs({ text, voice, outputPath }) {
-    const apiKey   = process.env.ELEVENLABS_API_KEY;
+    const apiKey   = this._overrides.apiKey || process.env.ELEVENLABS_API_KEY;
     if (!apiKey) throw new Error('ELEVENLABS_API_KEY not set');
     const voiceId  = process.env.ELEVENLABS_VOICE_ID || voice || 'Rachel';
     const body     = { text, model_id: 'eleven_multilingual_v2', voice_settings: { stability: 0.5, similarity_boost: 0.75 } };
@@ -448,12 +458,12 @@ class TTSProvider {
 
   async _azureTTS({ text, voice, outputPath }) {
     // Accept both AZURE_SPEECH_KEY (documented) and AZURE_TTS_KEY (legacy)
-    const key    = process.env.AZURE_SPEECH_KEY || process.env.AZURE_TTS_KEY;
+    const key    = this._overrides.apiKey || process.env.AZURE_SPEECH_KEY || process.env.AZURE_TTS_KEY;
     const region = process.env.AZURE_SPEECH_REGION || process.env.AZURE_TTS_REGION || 'eastus';
     if (!key) throw new Error('AZURE_SPEECH_KEY env var not set');
     const resolvedVoice = voice || NARRATOR_VOICES.azure.default;
-    // Natural rate via env TTS_RATE; default is no change (+0%)
-    const rate = process.env.TTS_RATE || '+0%';
+    // Natural rate via override or env TTS_RATE; default is no change (+0%)
+    const rate = this._overrides.rate || process.env.TTS_RATE || '+0%';
     const ssml = `<speak version="1.0" xml:lang="en-US"><voice name="${resolvedVoice}"><prosody rate="${rate}">${text}</prosody></voice></speak>`;
     return withRetry(async () => {
       const audio = await httpPost(
@@ -467,7 +477,7 @@ class TTSProvider {
   }
 
   async _openaiTTS({ text, voice, outputPath }) {
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = this._overrides.apiKey || process.env.OPENAI_API_KEY;
     if (!apiKey) throw new Error('OPENAI_API_KEY not set');
     const body = { model: 'tts-1', input: text, voice: voice || 'onyx' };
     return withRetry(async () => {
