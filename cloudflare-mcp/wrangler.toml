@@ -11,6 +11,18 @@ compatibility_date = "2024-11-01"
 [vars]
 # Non-secret environment variables
 PIPELINE_VERSION = "1.0.0"
+# Per-token rate limit: max tool calls per sliding 1-hour window.
+# Set to 0 to disable rate limiting.
+RATE_LIMIT_PER_HOUR = "100"
+
+# ── KV namespace for rate limiting ──────────────────────────────────────────
+# Create with: wrangler kv:namespace create "RATE_LIMITS"
+# Then paste the returned id below.
+# Workers KV is free for <1k writes/day on the free tier.
+[[kv_namespaces]]
+binding = "RATE_LIMITS"
+id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+preview_id = "REPLACE_WITH_YOUR_KV_NAMESPACE_PREVIEW_ID"
 
 # ── Cron trigger: keep Render free from sleeping ────────────────────────────
 # Pings the Worker API /health endpoint every 8 minutes so the Render free

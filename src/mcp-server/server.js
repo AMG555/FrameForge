@@ -604,6 +604,53 @@ Example scene:
     },
   },
 
+  // ── Tool 14: Get job status ────────────────────────────────────────────────
+  // Poll a job that was queued via queue_full_pipeline (Tool 13).
+  // Returns the current status, stage, and result when the job completes.
+  get_job_status: {
+    description: 'Poll a queued pipeline job by jobId. Returns { status:"RUNNING"|"SUCCEEDED"|"FAILED", stage, result, error }. Call every 30s until SUCCEEDED. Required after queue_full_pipeline.',
+    inputSchema: {
+      type: 'object',
+      required: ['jobId'],
+      properties: {
+        jobId: { type: 'string', description: 'The jobId returned by queue_full_pipeline' },
+      },
+    },
+    handler: async ({ jobId }) => {
+      if (!jobId) throw new Error('jobId is required');
+      const targetUrl = process.env.WORKER_API_URL;
+      if (!targetUrl) {
+        throw new Error('Set WORKER_API_URL in .env (the worker HTTP endpoint, e.g. http://localhost:3211)');
+      }
+
+      const isHttps = targetUrl.startsWith('https');
+      const client  = require(isHttps ? 'https' : 'http');
+      const safePath = `/jobs/${encodeURIComponent(jobId)}`;
+
+      return new Promise((resolve, reject) => {
+        const url = new URL(targetUrl.replace(/\/$/, '') + safePath);
+        const req = client.request({
+          hostname: url.hostname,
+          port:     url.port || (isHttps ? 443 : 80),
+          path:     url.pathname + url.search,
+          method:   'GET',
+          headers:  {},
+        }, (res) => {
+          const chunks = [];
+          res.on('data', d => chunks.push(d));
+          res.on('end', () => {
+            if (res.statusCode >= 400) return reject(new Error(`Worker returned HTTP ${res.statusCode}`));
+            const text = Buffer.concat(chunks).toString('utf8');
+            try { resolve(JSON.parse(text)); } catch { resolve({ raw: text }); }
+          });
+        });
+        req.on('error', reject);
+        req.setTimeout(15000, () => { req.destroy(); reject(new Error('get_job_status timeout')); });
+        req.end();
+      });
+    },
+  },
+
   // ── Tool 13: Queue full pipeline ──────────────────────────────────────────
   // Trigger a full pipeline job on the worker API or a generic HTTP endpoint.
   queue_full_pipeline: {
@@ -663,7 +710,7 @@ Example scene:
 
 const SERVER_INFO = {
   name:    'video-pipeline',
-  version: '2.2.0',
+  version: '2.3.0',
 };
 
 const CAPABILITIES = {

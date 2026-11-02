@@ -180,7 +180,10 @@ class VideoRenderer {
 
     // Discover scene files
     const sceneFiles = this._discoverScenes(sceneCount);
-    if (sceneFiles.length < 5) throw new Error(`Too few scenes assembled: ${sceneFiles.length}`);
+    if (sceneFiles.length < 1) throw new Error(`Too few scenes assembled: ${sceneFiles.length}`);
+    if (sceneFiles.length < 3) {
+      console.warn(`[Renderer] WARNING: only ${sceneFiles.length} scene(s) — video will be short. Minimum 3 recommended.`);
+    }
 
     // Build concat list (paths relative to vdir so concat demuxer works)
     const concatPath = path.join(this.vdir, 'concat_main.txt');

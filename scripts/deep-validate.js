@@ -20,9 +20,8 @@ check('batch handling',              code.includes('Array.isArray(body)'));
 check('ping handler',                code.includes("method === 'ping'"));
 check('notifications/init',          code.includes("notifications/initialized"));
 check('body size limit',             code.includes('MAX_BODY_BYTES'));
-check('SERVER_INFO version 2.2.0',   code.includes("version: '2.2.0'"));
-check('13 tools defined',            Object.keys(
-  (code.match(/^\s{2}(\w+):\s*\{/gm)||[])).length >= 0 || code.includes('n8n_webhook_trigger'));
+check('SERVER_INFO version 2.3.0',   code.includes("version: '2.3.0'"));
+check('14 tools defined (incl get_job_status)', code.includes('get_job_status'));
 
 // ── No execSync with shell strings in renderer or extractor ───────────────
 console.log('\n=== Shell injection check ===');
@@ -192,6 +191,7 @@ console.log('\n=== server.js tool completeness ===');
 const serverjs = fs.readFileSync('./src/mcp-server/server.js', 'utf8');
 check('server.js publish_video calls runPublishing', serverjs.includes("require('../workflows/publishing')"));
 check('server.js has queue_full_pipeline tool',      serverjs.includes('queue_full_pipeline'));
+check('server.js has get_job_status tool',           serverjs.includes('get_job_status'));
 check('server.js has create_video_from_script',      serverjs.includes('create_video_from_script'));
 check('server.js has multi_voice_tts',               serverjs.includes('multi_voice_tts'));
 check('server.js body size limit present',           serverjs.includes('MAX_BODY_BYTES'));
@@ -224,6 +224,35 @@ check('log-redaction has Tavily tvly- pattern',   redaction.includes('tvly') || 
 // ── html-renderer scaffolder ──────────────────────────────────────────────
 console.log('\n=== html-renderer scaffolder ===');
 check('new-project.mjs exists', fs.existsSync('./scripts/html-renderer/new-project.mjs'));
+
+// ── html-renderer engine assets ──────────────────────────────────────────
+console.log('\n=== html-renderer engine assets ===');
+const engineAssetBase = './plugins/video-pipeline/skills/video-pipeline/assets/project';
+check('reel/engine.js exists',        fs.existsSync(`${engineAssetBase}/reel/engine.js`));
+check('reel/engine.css exists',       fs.existsSync(`${engineAssetBase}/reel/engine.css`));
+check('scripts/render.mjs exists',    fs.existsSync(`${engineAssetBase}/scripts/render.mjs`));
+check('scripts/mix_audio.py exists',  fs.existsSync(`${engineAssetBase}/scripts/mix_audio.py`));
+check('scripts/verify.py exists',     fs.existsSync(`${engineAssetBase}/scripts/verify.py`));
+check('scripts/transcribe.py exists', fs.existsSync(`${engineAssetBase}/scripts/transcribe.py`));
+check('scripts/capture.mjs exists',   fs.existsSync(`${engineAssetBase}/scripts/capture.mjs`));
+check('scripts/stock.py exists',      fs.existsSync(`${engineAssetBase}/scripts/stock.py`));
+const engineJs = fs.readFileSync(`${engineAssetBase}/reel/engine.js`, 'utf8');
+check('engine.js exports seek()',     engineJs.includes('export function seek'));
+check('engine.js exports spring()',   engineJs.includes('export function spring'));
+check('engine.js exports layer()',    engineJs.includes('export function layer'));
+check('engine.js exports wallCard()', engineJs.includes('export function wallCard'));
+check('engine.js exports reel()',     engineJs.includes('export function reel'));
+check('engine.js REEL state exported',engineJs.includes('export const REEL'));
+
+// ── Cloudflare Worker rate limiting ───────────────────────────────────────
+console.log('\n=== Cloudflare Worker rate limiting ===');
+const cfWorker = fs.readFileSync('./cloudflare-mcp/src/index.js', 'utf8');
+check('cf-worker has checkRateLimit',   cfWorker.includes('checkRateLimit'));
+check('cf-worker hashes token (SHA-256)', cfWorker.includes('SHA-256'));
+check('cf-worker uses RATE_LIMITS KV',  cfWorker.includes('env.RATE_LIMITS'));
+check('cf-worker returns 429 on limit', cfWorker.includes('429'));
+check('cf-worker version 2.3.0',        cfWorker.includes("'2.3.0'"));
+check('wrangler.toml has kv_namespaces',fs.readFileSync('./cloudflare-mcp/wrangler.toml','utf8').includes('kv_namespaces'));
 
 // ── plugins/skills present ────────────────────────────────────────────────
 console.log('\n=== Plugin skills ===');

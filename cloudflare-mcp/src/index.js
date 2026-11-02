@@ -58,13 +58,18 @@ export default {
       return Response.json({
         status:     configured ? 'ok' : 'degraded',
         worker:     'frameforge-mcp',
-        version:    '1.1.0',
+        version:    '2.3.0',
         configured,
+        rateLimit: {
+          enabled:      !!env.RATE_LIMITS,
+          limitPerHour: parseInt(env.RATE_LIMIT_PER_HOUR || '100', 10),
+        },
         // Surface missing config clearly so the user knows exactly what to fix
         missing:    [
           !env.WORKER_API_URL     && 'WORKER_API_URL (wrangler secret put WORKER_API_URL)',
           !env.MCP_AUTH_TOKEN     && 'MCP_AUTH_TOKEN optional but recommended',
           !env.INTERNAL_API_TOKEN && 'INTERNAL_API_TOKEN (shared with Render API)',
+          !env.RATE_LIMITS        && 'RATE_LIMITS KV namespace not bound (see wrangler.toml) — rate limiting disabled',
         ].filter(Boolean),
       });
     }
@@ -92,6 +97,61 @@ export default {
     } catch { /* ignore — Render may be temporarily waking up */ }
   },
 };
+
+// ── Rate limiting (Cloudflare KV sliding window) ──────────────────────────────
+//
+// Key:   ratelimit:<sha256(token)>
+// Value: JSON array of Unix timestamps (seconds) of recent tool/calls
+// TTL:   3600s (auto-expires from KV; no manual sweep needed)
+//
+// On each tool call we:
+//   1. Read the current window from KV
+//   2. Drop timestamps older than 1 hour
+//   3. Check if count ≥ limit → 429
+//   4. Append current timestamp and write back (TTL 3600s)
+//
+// Returns null if within limit, or a Response with HTTP 429 if exceeded.
+// If RATE_LIMITS KV is not bound (e.g. local dev), rate limiting is skipped.
+
+async function checkRateLimit(token, env, cors) {
+  const limitPerHour = parseInt(env.RATE_LIMIT_PER_HOUR || '100', 10);
+  if (!limitPerHour || !env.RATE_LIMITS) return null; // disabled or KV not bound
+
+  // Use a hash of the token as the KV key (never store raw tokens)
+  const tokenBuf  = new TextEncoder().encode(token);
+  const hashBuf   = await crypto.subtle.digest('SHA-256', tokenBuf);
+  const hashHex   = Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
+  const kvKey     = `ratelimit:${hashHex}`;
+
+  const nowSec    = Math.floor(Date.now() / 1000);
+  const windowSec = 3600;
+
+  // Read existing window (ignore missing key — first call)
+  let timestamps = [];
+  try {
+    const raw = await env.RATE_LIMITS.get(kvKey);
+    if (raw) timestamps = JSON.parse(raw);
+  } catch { /* treat as empty — don't block on KV errors */ }
+
+  // Slide: drop timestamps older than 1 hour
+  timestamps = timestamps.filter(ts => nowSec - ts < windowSec);
+
+  if (timestamps.length >= limitPerHour) {
+    const resetAt  = Math.min(...timestamps) + windowSec;
+    const retryAfter = Math.max(0, resetAt - nowSec);
+    return Response.json(
+      { error: 'Rate limit exceeded', limit: limitPerHour, window: '1 hour', retryAfterSeconds: retryAfter },
+      { status: 429, headers: { ...cors, 'Retry-After': String(retryAfter) } }
+    );
+  }
+
+  // Within limit — record this call
+  timestamps.push(nowSec);
+  // Fire-and-forget KV write: don't await to keep the request fast
+  env.RATE_LIMITS.put(kvKey, JSON.stringify(timestamps), { expirationTtl: windowSec }).catch(() => {});
+
+  return null; // allowed
+}
 
 // ── Auth ─────────────────────────────────────────────────────────────────────
 
@@ -140,6 +200,14 @@ async function handleMCP(request, env) {
   if (request.method !== 'POST') {
     return Response.json({ error: 'Method not allowed' }, { status: 405, headers: cors });
   }
+
+  // Rate limit — only applied to tool calls (not initialize/ping/tools/list)
+  // We check here (before body parse) using the bearer token as the rate-limit key.
+  // Only tool calls consume quota; infrastructure methods are free.
+  const authHeader = request.headers.get('Authorization') || '';
+  const bearerToken = authHeader.replace(/^Bearer\s+/i, '').trim();
+  const rateLimitResp = await checkRateLimit(bearerToken || 'anonymous', env, cors);
+  if (rateLimitResp) return rateLimitResp;
 
   let body;
   try { body = await request.json(); }
@@ -194,7 +262,7 @@ async function handleRPC(body, env) {
         protocolVersion: '2024-11-05',
         serverInfo: {
           name:    'frameforge',
-          version: '2.0.0',
+          version: '2.3.0',
           status:  configured ? 'ready' : 'not_configured',
           // IDEs that surface _meta will show this warning in the tools panel
           ...(configured ? {} : {

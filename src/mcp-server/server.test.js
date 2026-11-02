@@ -248,3 +248,41 @@ describe('multi_voice_tts outputPath guard', () => {
     assert.equal(isPathSafe(''), false);
   });
 });
+
+// ── get_job_status tool definition ───────────────────────────────────────────
+
+describe('get_job_status tool definition', () => {
+  const { TOOLS } = require('./server');
+
+  it('get_job_status is defined in TOOLS', () => {
+    assert.ok(Object.prototype.hasOwnProperty.call(TOOLS, 'get_job_status'), 'get_job_status missing from TOOLS');
+  });
+
+  it('get_job_status has a description', () => {
+    assert.ok(typeof TOOLS.get_job_status.description === 'string');
+    assert.ok(TOOLS.get_job_status.description.length > 10);
+  });
+
+  it('get_job_status inputSchema requires jobId', () => {
+    const schema = TOOLS.get_job_status.inputSchema;
+    assert.ok(schema.required.includes('jobId'), 'jobId not in required');
+    assert.ok(schema.properties.jobId, 'jobId not in properties');
+  });
+
+  it('get_job_status handler throws when jobId is missing', async () => {
+    await assert.rejects(
+      () => TOOLS.get_job_status.handler({}),
+      (err) => err instanceof Error && /jobId/.test(err.message)
+    );
+  });
+
+  it('get_job_status handler throws when WORKER_API_URL not set', async () => {
+    const saved = process.env.WORKER_API_URL;
+    delete process.env.WORKER_API_URL;
+    await assert.rejects(
+      () => TOOLS.get_job_status.handler({ jobId: 'test-job-123' }),
+      (err) => err instanceof Error && /WORKER_API_URL/.test(err.message)
+    );
+    if (saved !== undefined) process.env.WORKER_API_URL = saved;
+  });
+});

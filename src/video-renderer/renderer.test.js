@@ -208,20 +208,41 @@ describe('VideoRenderer.renderScene — error handling', () => {
 });
 
 describe('VideoRenderer.assembleMain — error handling', () => {
-  it('throws when fewer than 5 scene files are available', () => {
+  it('throws when zero scene files are available', () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ff-assemble-'));
     const vDir   = path.join(tmpDir, 'video_tmp');
     fs.mkdirSync(vDir);
-    // Only 2 scenes (need ≥5)
-    const big = Buffer.alloc(60 * 1024);
-    fs.writeFileSync(path.join(vDir, 'scene_1_out.mp4'), big);
-    fs.writeFileSync(path.join(vDir, 'scene_2_out.mp4'), big);
+    // No scenes at all — should throw
 
     const renderer = new VideoRenderer({ filesDir: tmpDir });
     assert.throws(
       () => renderer.assembleMain({ productionId: 'test-001', withMusic: false }),
       (err) => err instanceof Error && /Too few scenes/.test(err.message)
     );
+
+    fs.rmSync(tmpDir, { recursive: true });
+  });
+
+  it('does not throw with 2 scene files (short-form content)', () => {
+    // assembleMain must accept fewer than 5 scenes for demos and short-form content.
+    // It will fail later at FFmpeg concat (no real media), but the guard itself must pass.
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ff-assemble-2-'));
+    const vDir   = path.join(tmpDir, 'video_tmp');
+    fs.mkdirSync(vDir);
+    const big = Buffer.alloc(60 * 1024);
+    fs.writeFileSync(path.join(vDir, 'scene_1_out.mp4'), big);
+    fs.writeFileSync(path.join(vDir, 'scene_2_out.mp4'), big);
+
+    const renderer = new VideoRenderer({ filesDir: tmpDir });
+    // Should NOT throw "Too few scenes" — may throw FFmpeg error instead
+    try {
+      renderer.assembleMain({ productionId: 'test-short-001', withMusic: false });
+    } catch (err) {
+      assert.ok(
+        !/Too few scenes/.test(err.message),
+        `Expected no "Too few scenes" error, got: ${err.message}`
+      );
+    }
 
     fs.rmSync(tmpDir, { recursive: true });
   });

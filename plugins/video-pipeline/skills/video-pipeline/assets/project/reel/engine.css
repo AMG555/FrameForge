@@ -1,0 +1,70 @@
+/* reel/engine.css — Base reset and type scale for HTML compositor */
+
+/* ── Reset ─────────────────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  overflow: hidden;
+  background: #0d1117;
+  font-family: "Archivo", "Segoe UI", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+#stage {
+  position: relative;
+  overflow: hidden;
+  /* Size is set inline by the scaffolder to match reel() config */
+}
+
+/* ── Design tokens ─────────────────────────────────────────────────────────── */
+:root {
+  /* Override any of these in index.html <style> */
+  --primary:      #ffffff;
+  --accent:       #3b82f6;
+  --accent-warm:  #f59e0b;
+  --accent-green: #22c55e;
+  --bg:           #0d1117;
+  --surface:      rgba(13, 17, 23, 0.72);
+  --muted:        rgba(255, 255, 255, 0.55);
+
+  --font-sans:  "Archivo", "Segoe UI", system-ui, sans-serif;
+  --font-mono:  "Fira Code", "Cascadia Code", Consolas, monospace;
+
+  /* Type scale */
+  --text-xs:    18px;
+  --text-sm:    24px;
+  --text-base:  32px;
+  --text-lg:    48px;
+  --text-xl:    64px;
+  --text-2xl:   80px;
+  --text-hero:  96px;
+}
+
+/* ── Layer defaults ─────────────────────────────────────────────────────────── */
+[data-layer] {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  will-change: opacity, transform;
+}
+
+/* ── Caption baseline ───────────────────────────────────────────────────────── */
+#reel-captions {
+  pointer-events: none;
+  user-select: none;
+  /* JS drives all other properties via seek() */
+}
+
+/* ── Google Fonts load (optional — remove if offline) ──────────────────────── */
+/* Uncomment to load Archivo from Google Fonts: */
+/*
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700;800;900&display=swap');
+*/
+
+/* ── Scrollbar hide (Playwright screenshots) ───────────────────────────────── */
+::-webkit-scrollbar { display: none; }
+* { scrollbar-width: none; }

@@ -66,7 +66,8 @@ const height      = args.height || 1080;
 
 // ── Create project directory structure ───────────────────────────────────────
 
-const outDir = path.resolve(process.cwd(), args.out);
+const outDir    = path.resolve(process.cwd(), args.out);
+const assetsDir = path.resolve(__dirname, '../../plugins/video-pipeline/skills/video-pipeline/assets/project');
 for (const dir of ['', 'reel', 'scripts', 'source', 'audio', 'out', 'assets']) {
   fs.mkdirSync(path.join(outDir, dir), { recursive: true });
 }
@@ -192,103 +193,27 @@ editLines.push(
 
 fs.writeFileSync(path.join(outDir, 'edit.js'), editLines.join('\n'), 'utf8');
 
-// ── Write a minimal engine.js stub (to be replaced by full engine) ───────────
-// In production, the full engine from sunithvs/video-agent-skill is used.
-// This stub makes the project runnable immediately for visual inspection.
+// ── Copy engine files from assets/project/ ─────────────────────────────────
 
-const engineStub = `/**
- * reel/engine.js — FrameForge HTML Renderer Engine
- *
- * This is a scaffold stub. Replace with the full engine from:
- *   sunithvs/video-agent-skill (Apache 2.0)
- *   https://github.com/sunithvs/video-agent-skill/blob/main/plugins/video-editor/skills/reel-editor/assets/project/reel/engine.js
- *
- * Or install the full engine:
- *   node scripts/html-renderer/install-engine.mjs
- *
- * API: reel(), layer(), text(), wallCard(), stamp(), at(), stagger(), captions(), cue()
- */
-
-'use strict';
-
-const _state = { width: 1920, height: 1080, fps: 30, duration: 60, layers: [], elements: [] };
-
-export function reel(config) { Object.assign(_state, config); }
-
-export function layer(name) {
-  const l = { name, handlers: [] };
-  _state.layers.push(l);
-  return { on: (fn) => { l.fn = fn; return l; } };
+function copyAsset(srcRel, dstRel) {
+  const src = path.join(assetsDir, srcRel);
+  const dst = path.join(outDir, dstRel);
+  if (fs.existsSync(src)) {
+    fs.mkdirSync(path.dirname(dst), { recursive: true });
+    fs.copyFileSync(src, dst);
+  } else {
+    console.warn(`  ⚠  Asset not found: ${src} (scaffold may be incomplete)`);
+  }
 }
 
-export function text(str, opts = {}) {
-  return { type: 'text', str, opts };
-}
-
-export function wallCard(lines, opts = {}) {
-  return { type: 'wallCard', lines, opts };
-}
-
-export function stamp(str, opts = {}) {
-  return { type: 'stamp', str, opts };
-}
-
-export function at(t, element) {
-  _state.elements.push({ t, element });
-}
-
-export function stagger(t, dt, elements) {
-  elements.forEach((el, i) => at(t + i * dt, el));
-}
-
-export function captions(outlinePath) {
-  console.info('[engine] captions: outline will be loaded at render time from', outlinePath);
-}
-
-export function cue(sfxName, t, vol = 1.0) {
-  _state.elements.push({ type: 'cue', sfxName, t, vol });
-}
-
-// Expose seek for renderer
-export function seek(t) {
-  const stage = document.getElementById('stage');
-  if (!stage) return;
-  _state.layers.forEach(l => {
-    if (l.fn) {
-      const styles = l.fn(t);
-      if (!styles) return;
-      let el = document.getElementById('layer-' + l.name);
-      if (!el) {
-        el = document.createElement('div');
-        el.id = 'layer-' + l.name;
-        stage.appendChild(el);
-      }
-      Object.assign(el.style, styles);
-    }
-  });
-}
-
-// Auto-start preview in browser
-if (typeof window !== 'undefined') {
-  let t = 0;
-  const step = () => {
-    seek(t);
-    t += 1 / _state.fps;
-    if (t < _state.duration) requestAnimationFrame(step);
-  };
-  requestAnimationFrame(step);
-}
-`;
-
-fs.mkdirSync(path.join(outDir, 'reel'), { recursive: true });
-fs.writeFileSync(path.join(outDir, 'reel', 'engine.js'), engineStub, 'utf8');
-
-const engineCss = `/* reel/engine.css — Base reset for HTML compositor */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-body { overflow: hidden; background: #0d1117; }
-#stage { position: relative; overflow: hidden; }
-`;
-fs.writeFileSync(path.join(outDir, 'reel', 'engine.css'), engineCss, 'utf8');
+copyAsset('reel/engine.js',           'reel/engine.js');
+copyAsset('reel/engine.css',          'reel/engine.css');
+copyAsset('scripts/render.mjs',       'scripts/render.mjs');
+copyAsset('scripts/mix_audio.py',     'scripts/mix_audio.py');
+copyAsset('scripts/verify.py',        'scripts/verify.py');
+copyAsset('scripts/transcribe.py',    'scripts/transcribe.py');
+copyAsset('scripts/capture.mjs',      'scripts/capture.mjs');
+copyAsset('scripts/stock.py',         'scripts/stock.py');
 
 // ── Write package.json for the project ───────────────────────────────────────
 
@@ -297,11 +222,14 @@ const pkg = {
   version: '0.1.0',
   type:    'module',
   scripts: {
-    'render:sheet': 'node scripts/render.mjs sheet',
-    'render:full':  'node scripts/render.mjs full',
-    'render:mux':   'node scripts/render.mjs mux',
-    'mix':          'uv run scripts/mix_audio.py',
-    'verify':       'uv run scripts/verify.py',
+    'render:sheet':  'node scripts/render.mjs sheet',
+    'render:full':   'node scripts/render.mjs full',
+    'render:mux':    'node scripts/render.mjs mux',
+    'mix':           'uv run scripts/mix_audio.py',
+    'transcribe':    'uv run scripts/transcribe.py',
+    'verify':        'uv run scripts/verify.py',
+    'capture':       'node scripts/capture.mjs',
+    'stock':         'uv run scripts/stock.py',
   },
 };
 fs.writeFileSync(path.join(outDir, 'package.json'), JSON.stringify(pkg, null, 2), 'utf8');
@@ -350,10 +278,11 @@ console.log(`    Scenes:    ${scenes.length}`);
 console.log(`    Duration:  ${totalDuration.toFixed(1)}s`);
 console.log(`    Title:     "${title}"`);
 console.log(`\nNext steps:`);
-console.log(`  1. Install Playwright: npx playwright install chromium`);
-console.log(`  2. Replace reel/engine.js stub with the full engine from sunithvs/video-agent-skill`);
-console.log(`  3. Check visuals: node scripts/render.mjs sheet`);
-console.log(`  4. Full render:   node scripts/render.mjs full\n`);
+console.log(`  1. Install Playwright:   npx playwright install chromium`);
+console.log(`  2. Check visuals:        node scripts/render.mjs sheet`);
+console.log(`  3. Mix audio (TTS):      uv run scripts/mix_audio.py`);
+console.log(`  4. Full render:          node scripts/render.mjs full`);
+console.log(`  5. Verify quality gates: uv run scripts/verify.py\n`);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
