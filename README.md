@@ -8,12 +8,12 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
-[![Version](https://img.shields.io/badge/version-2.2.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.3.0-blue.svg)](CHANGELOG.md)
 [![MCP Spec](https://img.shields.io/badge/MCP-2024--11--05-blue.svg)](https://modelcontextprotocol.io/)
-[![Tests](https://img.shields.io/badge/tests-375%20passing-brightgreen.svg)](#-testing)
+[![Tests](https://img.shields.io/badge/tests-381%20passing-brightgreen.svg)](#-testing)
 [![FFmpeg](https://img.shields.io/badge/engine-FFmpeg%20native-red.svg)](https://ffmpeg.org/)
 
-[Quickstart](#-60-second-quickstart) · [Connect Your IDE](#-connect-your-ide) · [13 MCP Tools](#-mcp-tools-reference) · [Architecture](#-architecture) · [Deploy](#-deployment)
+[Quickstart](#-60-second-quickstart) · [Connect Your IDE](#-connect-your-ide) · [14 MCP Tools](#-mcp-tools-reference) · [HTML Renderer](#-html-renderer) · [Architecture](#-architecture) · [Deploy](#-deployment)
 
 ---
 
@@ -224,6 +224,51 @@ Any combination of `image_path`, `video_path`, `audio_path` works. FrameForge ge
 | 11 | `create_video_from_script` | **Agent-first.** Your IDE writes the scenes, FrameForge renders. No internal LLM. |
 | 12 | `multi_voice_tts` | Call any TTS platform per-request (ElevenLabs / Azure / OpenAI / edge-tts / webhook) without touching `.env`. |
 | 13 | `queue_full_pipeline` | Queue a full pipeline run via the Worker API. Returns `{ jobId, status }` immediately. |
+| 14 | `get_job_status` | Poll a queued job by `jobId`. Returns `{ status, stage, result }`. Call every 30s until `SUCCEEDED`. |
+
+---
+
+## HTML Renderer
+
+For motion-graphics-quality output, FrameForge includes an HTML compositor renderer as an alternative to FFmpeg zoompan. Instead of camera presets, every animation is a pure function of the frame number — the same approach as Remotion, but without a React runtime.
+
+| | FFmpeg zoompan (default) | HTML renderer |
+|--|--------------------------|---------------|
+| **Speed** | Fast — no browser | Slower — Playwright renders each frame |
+| **Quality** | Ken-Burns, pan, tilt | Kinetic text, springs, counters, captions |
+| **Requirements** | FFmpeg only | FFmpeg + Playwright + Chromium |
+| **Best for** | Overnight batch, Shorts | Creator-quality motion graphics |
+
+### Quick start
+
+```bash
+# 1. Get a script JSON from FrameForge
+npm run make -- --topic "How GPS works" --dry-run --out-dir output/gps
+
+# 2. Scaffold the HTML renderer project
+node scripts/html-renderer/new-project.mjs \
+  --script output/gps/<productionId>-script.json \
+  --out    output/gps/html-render/
+
+# 3. Install Playwright
+npx playwright install chromium
+
+# 4. Check visuals (fast)
+node scripts/render.mjs sheet
+
+# 5. Transcribe TTS audio for word-level captions
+uv run scripts/transcribe.py
+
+# 6. Full render + verify
+node scripts/render.mjs full
+uv run scripts/verify.py
+```
+
+The scaffold produces `edit.js` with one `layer()` per scene. Each layer is a pure function of `t` (seconds). Edit the animation math, re-run `render.mjs sheet` to check, repeat until satisfied, then `render.mjs full` to encode.
+
+The finished MP4 can be fed back into FrameForge via `video_path` in any scene, or published directly with `publish_video`.
+
+See [`plugins/video-pipeline/skills/html-renderer/SKILL.md`](plugins/video-pipeline/skills/html-renderer/SKILL.md) for the full workflow and engine API.
 
 ---
 
@@ -231,7 +276,7 @@ Any combination of `image_path`, `video_path`, `audio_path` works. FrameForge ge
 
 Switch any provider by setting the corresponding env var — no code changes.
 
-### LLM (10 providers)
+### LLM providers
 
 | `PROVIDER_LLM=` | Default model | Key env var | Free tier |
 |-----------------|--------------|-------------|-----------|
@@ -248,7 +293,7 @@ Switch any provider by setting the corresponding env var — no code changes.
 
 Override model: `LLM_MODEL=your-model-id` · Override endpoint: `LLM_BASE_URL=https://...`
 
-### TTS (5 providers)
+### TTS providers
 
 | `PROVIDER_TTS=` | Notes | Key |
 |-----------------|-------|-----|
@@ -260,7 +305,7 @@ Override model: `LLM_MODEL=your-model-id` · Override endpoint: `LLM_BASE_URL=ht
 
 Use `multi_voice_tts` to override the provider per call without changing `.env`.
 
-### Image generation (5 providers)
+### Image generation providers
 
 | `PROVIDER_IMAGE=` | Notes | Key |
 |-------------------|-------|-----|
@@ -286,7 +331,7 @@ YOUR IDE (IBM Bob / Codex / opencode / Cursor / Windsurf / Claude Code)
 [FrameForge Node]  ← runs on Render free / VPS / Pi / your machine
          │
          ├─ src/pipeline/
-         │   ├─ providers.js        10 LLM + 5 TTS + 5 Image providers
+         │   ├─ providers.js        LLM / TTS / Image providers (env-var-switchable)
          │   ├─ state-machine.js    file + PostgreSQL production state
          │   ├─ retry-policy.js     exponential backoff, FATAL/NON_RETRYABLE/RETRYABLE
          │   ├─ telemetry.js        NDJSON cost tracking per provider
@@ -303,8 +348,8 @@ YOUR IDE (IBM Bob / Codex / opencode / Cursor / Windsurf / Claude Code)
          │   └─ publishing.js file copy + HTTP webhook delivery
          │
          ├─ src/mcp-server/
-         │   ├─ server.js   HTTP MCP (port 3210) — 13 tools
-         │   └─ stdio.js    stdio MCP — same 13 tools
+         │   ├─ server.js   HTTP MCP (port 3210) — 14 tools
+         │   └─ stdio.js    stdio MCP — same 14 tools
          │
          └─ src/worker/
              ├─ server.js              full worker (local / VPS)

@@ -244,7 +244,7 @@ marks that production FAILED and moves to the next topic.
 src/mcp-server/server.js          MCP HTTP server (13 tools, port 3210)
 src/mcp-server/stdio.js           MCP stdio server (13 tools)
 cloudflare-mcp/src/index.js       Cloudflare Workers Remote MCP proxy
-src/pipeline/providers.js         LLM / TTS / Image abstraction (10 providers)
+src/pipeline/providers.js         LLM / TTS / Image abstraction (env-var-switchable providers)
 src/pipeline/state-machine.js     File + PostgreSQL production state
 src/pipeline/retry-policy.js      Exponential backoff, stage timeouts
 src/pipeline/telemetry.js         NDJSON cost tracking

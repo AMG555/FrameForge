@@ -4,6 +4,36 @@ All notable changes to FrameForge are documented here.
 
 ---
 
+## [2.3.0] — 2026-11-02
+
+### Added
+
+- **HTML renderer** — complete Playwright-based HTML compositor for motion-graphics-quality video output. Activated via the `html-renderer` skill (`plugins/video-pipeline/skills/html-renderer/SKILL.md`).
+  - `plugins/video-pipeline/skills/video-pipeline/assets/project/reel/engine.js` — full `seek(t)` runtime: `layer()`, `text()`, `chip()`, `wallCard()`, `imageCard()`, `stamp()`, `codeCard()`, `terminal()`, `at()`, `stagger()`, `captions()`, `cue()`, `faceAt()`, `spring()`, `lerp()`, `easeIn/Out/InOut()`, browser preview loop
+  - `reel/engine.css` — base reset + design tokens
+  - `scripts/render.mjs` — Playwright frame renderer (sheet / stills / full / mux)
+  - `scripts/mix_audio.py` — voice concat + sidechain ducking + -14 LUFS
+  - `scripts/verify.py` — 7-gate quality verification (same gates as `QualityGate`)
+  - `scripts/transcribe.py` — Whisper word-level caption outline generator (`openai-whisper`, free local)
+  - `scripts/capture.mjs` — headless Playwright screenshot for b-roll (site, tweet, URL)
+  - `scripts/stock.py` — Pexels stock footage/image downloader (free API key); Pollinations fallback for images
+  - `scripts/html-renderer/new-project.mjs` updated: copies real engine files instead of writing stubs; includes all 8 scripts
+- **Tool 14: `get_job_status`** — MCP tool to poll a job queued by `queue_full_pipeline`. Returns `{ status, stage, result, error }`. Added to `src/mcp-server/server.js`; automatically available on stdio transport. 5 new tests.
+- **Cloudflare KV rate limiter** — sliding-window 100 req/hr per bearer token. SHA-256-hashed key stored in `RATE_LIMITS` KV namespace. Returns HTTP 429 + `Retry-After` when exceeded. KV binding documented in `cloudflare-mcp/wrangler.toml`. Rate-limiting skipped when KV not bound (local dev).
+
+### Changed
+
+- `VideoRenderer.assembleMain` — minimum scene guard lowered from 5 → 1 (throws only on 0; warns below 3). The README's 2-scene `create_video_from_script` examples now work without error.
+- Cloudflare Worker version → `2.3.0`; `SERVER_INFO.version` → `2.3.0`; `package.json` → `2.3.0`
+- `scripts/deep-validate.js` — +23 checks (engine asset files, rate-limit, Tool 14, new scripts)
+- `README.md` — version badge, test count, Tool 14 row, HTML Renderer section, architecture diagram tool counts updated
+
+### Tests
+
+- 381 tests, 81 suites (was 375 / 80 in v2.2.0)
+
+---
+
 ## [2.2.0] — 2026-11-02
 
 ### Changed
@@ -157,12 +187,12 @@ FrameForge is a **rendering execution engine**. Your IDE (IBM Bob / Claude Code 
 - **`webhook` provider** now explicitly listed in `LLM_DEFAULTS` (covers LM Studio, vLLM, LocalAI, any proxy).
 - **Model update guide** embedded as a comment in `providers.js` with docs URL for each provider.
 
-**`npm run doctor`** updated — detects all 10 providers, shows active model name, recommends free options with a better fix message.
+**`npm run doctor`** updated — detects all configured providers, shows active model name, recommends free options with a better fix message.
 
 **`npm run setup` wizard** updated — all 6 new providers in the menu, WatsonX removed.
 
 **`.kiro/config/production-secrets.env.template`** — full rewrite:
-- All 10 LLM providers documented with inline links
+- All LLM providers documented with inline links
 - External platform adapter section added
 - YouTube OAuth2 section added
 - TTS key names corrected (`AZURE_SPEECH_KEY` was `AZURE_TTS_KEY`)
