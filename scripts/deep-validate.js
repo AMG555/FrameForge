@@ -105,6 +105,42 @@ check('concat txt is 30_day',          classifyRetention('concat_main.txt'), '30
 check('raw_concat is 30_day',          classifyRetention('raw_concat_123.mp4'), '30_day');
 check('_raw.mp3 is temp',              classifyRetention('voice_raw.mp3'), 'temp');
 
+// ── Fact-check Validation Set (Task #20) + Review Gate (Task #21) ────────
+console.log('\n=== Fact-check Validation Set + Review Gate (Tasks #20, #21) ===');
+const { VALIDATION_SET } = require('../src/fact-checker/validation-set');
+const { FactCheckerReviewGate } = require('../src/fact-checker/review-gate');
+check('validation set has ≥100 claims',   VALIDATION_SET.length >= 100);
+check('every entry has claim_text',        VALIDATION_SET.every(c => typeof c.claim_text === 'string'));
+check('every entry has gold_label',        VALIDATION_SET.every(c => ['SUPPORTED','UNSUPPORTED','DISPUTED','UNVERIFIABLE'].includes(c.gold_label)));
+check('every entry has risk_level',        VALIDATION_SET.every(c => ['TRIVIAL','NUMERICAL','CONTROVERSIAL'].includes(c.risk_level)));
+check('every entry has expected_decision', VALIDATION_SET.every(c => ['AUTO_APPROVE','HUMAN_REVIEW','REJECT'].includes(c.expected_decision)));
+// Count dangerous claims that must REJECT
+const mustReject = VALIDATION_SET.filter(c => c.expected_decision === 'REJECT');
+check('≥3 dangerous claims marked REJECT', mustReject.length >= 3);
+// Verify known claim decisions
+const vaccineAutism = VALIDATION_SET.find(c => c.claim_text.includes('Vaccines cause autism'));
+check('vaccines-autism is REJECT',         vaccineAutism?.expected_decision === 'REJECT');
+const earthFlat = VALIDATION_SET.find(c => c.claim_text.includes('Earth is flat'));
+check('flat-earth is REJECT',              earthFlat?.expected_decision === 'REJECT');
+// Review gate: classifyDecisions pure function
+const gate = new FactCheckerReviewGate({});
+const mockReport = {
+  results: [
+    { rawClaim: 'safe trivial fact',   claim_risk: 'TRIVIAL',       evidence_strength: 'STRONG',      status: 'VERIFIED',             sources: [] },
+    { rawClaim: 'disputed stat',       claim_risk: 'NUMERICAL',     evidence_strength: 'WEAK',        status: 'DISPUTED',             sources: [] },
+    { rawClaim: 'dangerous claim',     claim_risk: 'CONTROVERSIAL', evidence_strength: 'INSUFFICIENT', status: 'UNSUPPORTED',         sources: [] },
+  ],
+};
+const { autoApproved: aa, needsReview: nr, rejected: rj } = gate.classifyDecisions(mockReport);
+check('trivial auto-approved',          aa.length, 1);
+check('disputed numerical needs review', nr.length, 1);
+check('dangerous controversial rejected', rj.length, 1);
+// formatReviewRequest produces Telegram message
+const msg = gate.formatReviewRequest(mockReport.results.slice(1, 2), 'prod_test');
+check('review request contains production id', msg.includes('prod_test'));
+check('review request contains approve command', msg.includes('/approve'));
+check('review request contains reject command', msg.includes('/reject'));
+
 // ── TTS voice selection (Task #17) ────────────────────────────────────────
 console.log('\n=== TTS Voice Selection (Task #17) ===');
 const { TTSProvider } = require('../src/pipeline/providers');
