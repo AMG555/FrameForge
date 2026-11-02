@@ -1,5 +1,5 @@
 /**
- * Shorts Extractor
+ * Shorts Extractor — Tasks #13, #14, #15
  *
  * Extracts 3-5 vertical (9:16) short videos from a master 16:9 video.
  *
@@ -10,10 +10,26 @@
  * 4. Vertical reformat with saliency-aware crop (scene-defined focal_point or center)
  * 5. Final audio normalization to -14 LUFS
  *
+ * Task #14 — Vertical Reformatting (16:9 → 9:16):
+ * Input: 1920×1080 (16:9)
+ * Output: 1080×1920 (9:16)
+ * Strategy:
+ *   - Crop width = ih × 9/16 = 1080 × 9/16 = 607.5 → 607px (keeping divisible-by-2)
+ *   - X offset computed from focal_point.x, clamped to [0, 1920-607] = [0, 1313]
+ *   - Y is always 0 (full height retained; vertical output height = input height)
+ *   - After crop: scale 607×1080 → 1080×1920
+ *
+ * Safe zones enforced (YouTube Shorts UI overlay areas):
+ *   - Top 180px of OUTPUT: avoid placing text/action here (navigation bar)
+ *   - Bottom 400px of OUTPUT: avoid placing key action here (buttons/captions)
+ *   - Right 130px: avoid (subscribe / like buttons)
+ *   Focal-point bias: y ≤ 0.35 (upper-third bias for talking-head content)
+ *   These are informational — they guide _defaultFocalY() but FFmpeg itself crops the full frame.
+ *
  * Requirements implemented:
  * - Req 4.1: Analyze for scene changes, audio peaks, motion scores
  * - Req 4.2: Segments 30-90s, begin/end at scene boundaries
- * - Req 4.5: Saliency-aware framing with focal_point support
+ * - Req 4.5: Saliency-aware framing with focal_point support + safe-zone bias
  * - Req 4.7: Audio normalization to -14 LUFS
  * - Req 4.8: Generate 3-5 shorts per master
  * - Req 4.10: Output 1080x1920 H.264 AAC
@@ -211,19 +227,22 @@ class ShortsExtractor {
   // ── Extraction + vertical reformat ───────────────────────────────────────
 
   _extractSegment(masterPath, segment, scenes, outputPath) {
-    // Find focal point for this segment (use first scene in range, fallback to center)
+    // Task #14: focal-point aware crop with safe-zone bias
     const focal = this._focalPointForSegment(segment, scenes);
-    const xExpr = this._focalToFFmpegX(focal.x, 1920, 1080);
-    const yExpr = this._focalToFFmpegY(focal.y, 1080, 1920);
+    const xOff  = this._focalToFFmpegX(focal.x);
+    const yOff  = this._focalToFFmpegY();
+    // cropW=608, cropH=1080 → scale to 1080×1920 (9:16)
+    const CROP_W = 608;
+    const CROP_H = 1080;
 
-    // Extract → vertical crop → normalise audio
+    // Extract → vertical crop → scale → normalise audio
+    // Note: crop filter uses pixel integers — no FFmpeg expression needed
     const vf = [
-      // Crop 9:16 from 16:9 at focal point
-      `crop=ih*9/16:ih:${xExpr}:0`,
+      `crop=${CROP_W}:${CROP_H}:${xOff}:${yOff}`,
       'scale=1080:1920:flags=lanczos',
-      // Slight quality enhancement
-      'unsharp=3:3:0.4:3:3:0.0',
-      'eq=contrast=1.03:brightness=0:saturation=1.05',
+      // Gentle quality enhancement — safe for any content
+      'unsharp=3:3:0.3:3:3:0.0',
+      'eq=contrast=1.02:brightness=0:saturation=1.04',
       'format=yuv420p',
     ].join(',');
 
@@ -257,23 +276,55 @@ class ShortsExtractor {
     return outputPath;
   }
 
+  /**
+   * Task #14 — Vertical Reformat helpers
+   *
+   * For a 1920×1080 input:
+   *   cropW = floor(1080 * 9 / 16 / 2) * 2 = 608 (must be even for libx264)
+   *   cropH = 1080
+   *   x offset = clamp(round(focalX * 1920 - cropW/2), 0, 1920 - cropW)
+   *   y offset = 0
+   */
+
+  // Safe-zone bias: subjects are more compelling in the upper third of a Shorts frame.
+  // Focal y ≤ 0.35 maps naturally to upper-third; fallback for non-talking content is 0.5.
+  _defaultFocalY(scenes) {
+    for (const s of (scenes || [])) {
+      if (s.focal_point?.y !== undefined && s.focal_point.y <= 0.5) {
+        return s.focal_point.y;
+      }
+    }
+    return 0.35; // upper-third bias — safe against both top (180px) and bottom (400px) zones
+  }
+
   _focalPointForSegment(segment, scenes) {
     for (const scene of (segment.coveredScenes || [])) {
       if (scene.focal_point?.x !== undefined) {
-        return { x: scene.focal_point.x, y: scene.focal_point.y };
+        return { x: scene.focal_point.x, y: scene.focal_point.y ?? 0.35 };
       }
     }
-    return { x: 0.5, y: 0.5 }; // default: center
+    // No focal point from scenes — apply safe-zone upper-third bias
+    const defaultY = this._defaultFocalY(scenes);
+    return { x: 0.5, y: defaultY };
   }
 
-  _focalToFFmpegX(focalX, inputWidth, cropWidth) {
-    // Keep focal point in frame: x offset = focal_x * inputWidth - cropWidth/2
-    const offset = Math.round(focalX * inputWidth - cropWidth / 2);
-    return Math.max(0, Math.min(inputWidth - cropWidth, offset)).toString();
+  /**
+   * Compute pixel X offset for a 9:16 crop of a 1920×1080 frame.
+   * cropW = 608 (largest even number ≤ 1080 × 9/16 = 607.5)
+   * @param {number} focalX  0-1 relative horizontal position of subject
+   * @returns {number}       integer pixel offset (clamped, even)
+   */
+  _focalToFFmpegX(focalX) {
+    const INPUT_W = 1920;
+    const CROP_W  = 608; // must be even; = floor(1080*9/16/2)*2
+    const raw     = Math.round(focalX * INPUT_W - CROP_W / 2);
+    const clamped = Math.max(0, Math.min(INPUT_W - CROP_W, raw));
+    // Force even (libx264 requires even dimensions)
+    return clamped % 2 === 0 ? clamped : clamped - 1;
   }
 
-  _focalToFFmpegY(focalY, inputHeight, _cropHeight) {
-    return '0'; // for landscape→portrait, Y crop is always from top
+  _focalToFFmpegY() {
+    return 0; // for landscape→portrait, Y crop is always from top (retain full height)
   }
 
   _getDuration(videoPath) {

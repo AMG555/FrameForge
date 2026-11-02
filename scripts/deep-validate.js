@@ -71,6 +71,29 @@ check('loadOrCreate different narration does not resume', notResumed, false);
 // cleanup
 fs.rmSync(tmpDir, { recursive: true, force: true });
 
+// ── Vertical Reformatting (Task #14) ─────────────────────────────────────
+console.log('\n=== Vertical Reformatting (Task #14) ===');
+const { ShortsExtractor } = require('../src/shorts-extractor/extractor');
+const sx = new ShortsExtractor();
+// _focalToFFmpegX correctness
+check('focalX=0.5 centers crop (608px wide in 1920)', sx._focalToFFmpegX(0.5), 656);  // 0.5*1920 - 608/2 = 960-304 = 656
+check('focalX=0.0 clamps to 0',  sx._focalToFFmpegX(0.0), 0);
+check('focalX=1.0 clamps to 1312', sx._focalToFFmpegX(1.0), 1312); // 1920-608=1312
+check('focalX=0.3 is even pixel', sx._focalToFFmpegX(0.3) % 2 === 0);
+check('focalX=0.7 is even pixel', sx._focalToFFmpegX(0.7) % 2 === 0);
+// _focalToFFmpegY always 0
+check('focalToFFmpegY is always 0', sx._focalToFFmpegY(), 0);
+// _defaultFocalY
+check('defaultFocalY with no scenes = 0.35', sx._defaultFocalY([]), 0.35);
+check('defaultFocalY uses focal_point.y from scenes', sx._defaultFocalY([{focal_point:{y:0.25}}]), 0.25);
+// _focalPointForSegment
+const fp = sx._focalPointForSegment({ coveredScenes: [] }, []);
+check('focalPointForSegment default x=0.5', fp.x, 0.5);
+check('focalPointForSegment default y=0.35 (safe-zone bias)', fp.y, 0.35);
+const fp2 = sx._focalPointForSegment({ coveredScenes: [{ focal_point: { x: 0.3, y: 0.2 } }] }, []);
+check('focalPointForSegment uses scene focal_point.x', fp2.x, 0.3);
+check('focalPointForSegment uses scene focal_point.y', fp2.y, 0.2);
+
 // ── Artifact Retention (Task #27) ─────────────────────────────────────────
 console.log('\n=== Artifact Retention (Task #27) ===');
 const { classifyRetention } = require('../src/pipeline/artifact-retention');
