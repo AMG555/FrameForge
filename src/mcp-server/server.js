@@ -190,7 +190,7 @@ const TOOLS = {
 
   // ── Tool 4: TTS ──────────────────────────────────────────────────────────
   render_tts: {
-    description: 'Convert narration text to audio using the configured TTS provider.',
+    description: 'Convert narration text to audio using the configured TTS provider. Speech rate is controlled via TTS_RATE env var (default: -5%).',
     inputSchema: {
       type: 'object',
       required: ['productionId', 'sceneIndex', 'text'],
@@ -198,17 +198,17 @@ const TOOLS = {
         productionId: { type: 'string' },
         sceneIndex:   { type: 'number' },
         text:         { type: 'string' },
-        voice:        { type: 'string', default: 'en-US-GuyNeural' },
-        rate:         { type: 'string', default: '-5%' },
+        voice:        { type: 'string', description: 'Voice ID (e.g. en-US-GuyNeural). Overrides TTS_VOICE env var.' },
       },
     },
-    handler: async ({ productionId, sceneIndex, text, voice = 'en-US-GuyNeural', rate = '-5%' }) => {
+    handler: async ({ productionId, sceneIndex, text, voice }) => {
       const vdir      = path.join(FILES_DIR, 'video_tmp');
       const outputPath = path.join(vdir, `voice_${sceneIndex}.m4a`);
       await fs.mkdir(vdir, { recursive: true });
 
       await retryPol.executeStage('TTS', async () => {
-        return tts.synthesize({ text, voice, outputPath, rate });
+        // voice arg overrides env; rate is read from TTS_RATE env inside synthesize()
+        return tts.synthesize({ text, voice, outputPath });
       });
 
       const stat = await fs.stat(outputPath);

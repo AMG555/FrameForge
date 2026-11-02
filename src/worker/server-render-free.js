@@ -57,23 +57,26 @@ const crypto = require('crypto');
 const path   = require('path');
 const fs     = require('fs').promises;
 
-const PORT         = parseInt(process.env.WORKER_PORT || '3211', 10);
-const FILES_DIR    = process.env.N8N_FILES_DIR || '/tmp/video-pipeline';
-const RENDER_MODE  = process.env.RENDER_MODE || 'api_only';
-const LOCAL_RENDER = process.env.LOCAL_RENDER_URL || '';
+const PORT             = parseInt(process.env.WORKER_PORT || '3211', 10);
+const FILES_DIR        = process.env.N8N_FILES_DIR || '/tmp/video-pipeline';
+const RENDER_MODE      = process.env.RENDER_MODE || 'api_only';
+const LOCAL_RENDER     = process.env.LOCAL_RENDER_URL || '';
+const INTERNAL_TOKEN   = process.env.INTERNAL_API_TOKEN || '';
 
 // Only require heavy modules when in full mode (avoids startup crash on Render free)
 let runResearch, runScript, runAssets, runRender, runShorts, runPackaging, runPublishing;
 
 function loadWorkflows() {
   if (runResearch) return; // already loaded
-  ({ runResearch }   = require('./workflows/research'));
-  ({ runScript }     = require('./workflows/script'));
-  ({ runAssets }     = require('./workflows/assets'));
-  ({ runRender }     = require('./workflows/render'));
-  ({ runShorts }     = require('./workflows/shorts'));
-  ({ runPackaging }  = require('./workflows/packaging'));
-  ({ runPublishing } = require('./workflows/publishing'));
+  // NOTE: this file lives at src/worker/server-render-free.js
+  //       workflows live at src/workflows/ — so path is one level up
+  ({ runResearch }   = require('../workflows/research'));
+  ({ runScript }     = require('../workflows/script'));
+  ({ runAssets }     = require('../workflows/assets'));
+  ({ runRender }     = require('../workflows/render'));
+  ({ runShorts }     = require('../workflows/shorts'));
+  ({ runPackaging }  = require('../workflows/packaging'));
+  ({ runPublishing } = require('../workflows/publishing'));
 }
 
 // ── Job registry ──────────────────────────────────────────────────────────────
@@ -201,10 +204,11 @@ async function runFullPipeline(payload, jobId) {
 
 async function delegateToLocalRender(type, payload) {
   if (!LOCAL_RENDER) throw new Error('LOCAL_RENDER_URL not configured — cannot delegate render job');
-  const baseUrl = LOCAL_RENDER.replace(/\/$/, '');
+  const baseUrl      = LOCAL_RENDER.replace(/\/$/, '');
+  const extraHeaders = INTERNAL_TOKEN ? { Authorization: `Bearer ${INTERNAL_TOKEN}` } : {};
 
   // Submit job to local worker
-  const submitResp = await httpJSON(`${baseUrl}/jobs`, 'POST', { type, payload });
+  const submitResp = await httpJSON(`${baseUrl}/jobs`, 'POST', { type, payload }, extraHeaders);
   const jobId      = submitResp.jobId;
   if (!jobId) throw new Error('Local render API did not return jobId');
 
@@ -215,7 +219,7 @@ async function delegateToLocalRender(type, payload) {
 
   while (Date.now() - start < maxMs) {
     await sleep(pollMs);
-    const status = await httpJSON(`${baseUrl}/jobs/${encodeURIComponent(jobId)}`, 'GET', null);
+    const status = await httpJSON(`${baseUrl}/jobs/${encodeURIComponent(jobId)}`, 'GET', null, extraHeaders);
     if (status.status === 'SUCCEEDED') return status.result;
     if (status.status === 'FAILED')    throw new Error(`Local render job failed: ${status.error?.message}`);
   }
@@ -240,7 +244,7 @@ function startKeepAlive() {
 
 // ── HTTP helpers ──────────────────────────────────────────────────────────────
 
-function httpJSON(url, method, body) {
+function httpJSON(url, method, body, extraHeaders = {}) {
   return new Promise((resolve, reject) => {
     const parsed  = new URL(url);
     const lib     = parsed.protocol === 'https:' ? https : http;
@@ -250,7 +254,7 @@ function httpJSON(url, method, body) {
       port:     parsed.port || (parsed.protocol === 'https:' ? 443 : 80),
       path:     parsed.pathname + parsed.search,
       method,
-      headers:  { 'Content-Type': 'application/json', ...(bodyBuf ? { 'Content-Length': bodyBuf.length } : {}) },
+      headers:  { 'Content-Type': 'application/json', ...extraHeaders, ...(bodyBuf ? { 'Content-Length': bodyBuf.length } : {}) },
     };
     const req = lib.request(opts, res => {
       const chunks = [];
@@ -282,13 +286,26 @@ function json(res, status, body) {
   res.end(JSON.stringify(body, null, 2));
 }
 
+function checkInternalAuth(req) {
+  if (!INTERNAL_TOKEN) return true; // auth disabled if token not configured
+  const header = req.headers['authorization'] || req.headers['x-internal-token'] || '';
+  const token  = header.replace(/^Bearer\s+/i, '').trim();
+  return token === INTERNAL_TOKEN;
+}
+
 async function handleRequest(req, res) {
   if (req.method === 'OPTIONS') { res.writeHead(204, CORS); return res.end(); }
   const url   = new URL(req.url, `http://localhost:${PORT}`);
   const parts = url.pathname.replace(/^\/+|\/+$/g, '').split('/');
 
+  // Health check is unauthenticated (Cloudflare cron pings this)
   if (req.method === 'GET' && parts[0] === 'health') {
     return json(res, 200, { status: 'ok', mode: RENDER_MODE, running: _runningJob, queued: _queue.length, localRender: LOCAL_RENDER ? 'configured' : 'none' });
+  }
+
+  // All other routes require internal auth when INTERNAL_API_TOKEN is set
+  if (!checkInternalAuth(req)) {
+    return json(res, 401, { error: 'Unauthorized — set Authorization: Bearer <INTERNAL_API_TOKEN>' });
   }
 
   if (req.method === 'GET' && parts[0] === 'jobs' && !parts[1]) {

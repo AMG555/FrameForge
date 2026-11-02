@@ -3,10 +3,18 @@ main = "src/index.js"
 compatibility_date = "2024-11-01"
 
 # Secrets (set via: wrangler secret put <NAME>)
-# WORKER_API_URL   — full URL to your Worker API, e.g. https://yourapp.onrender.com
-# MCP_AUTH_TOKEN   — random 32-byte hex for bearer auth (optional but recommended)
-# GROQ_API_KEY     — for direct LLM calls if you add them to this Worker later
+# WORKER_API_URL        — full URL to your Worker API, e.g. https://yourapp.onrender.com
+# MCP_AUTH_TOKEN        — random 32-byte hex for bearer auth (optional but recommended)
+# INTERNAL_API_TOKEN    — shared secret between this Worker and the Render API
+# GROQ_API_KEY          — for direct LLM calls if you add them to this Worker later
 
 [vars]
 # Non-secret environment variables
 PIPELINE_VERSION = "1.0.0"
+
+# ── Cron trigger: keep Render free from sleeping ────────────────────────────
+# Pings the Worker API /health endpoint every 8 minutes so the Render free
+# dyno stays warm during overnight pipeline runs.
+# Workers Cron Triggers are free (unlimited invocations on all plans).
+[triggers]
+crons = ["*/8 * * * *"]

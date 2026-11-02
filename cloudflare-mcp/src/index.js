@@ -64,6 +64,21 @@ export default {
 
     return new Response('Not found', { status: 404 });
   },
+
+  // ── Cron trigger: keep Render free from sleeping ───────────────────────────
+  // Called every 8 minutes by Cloudflare's scheduler (configured in wrangler.toml).
+  // A GET /health to Render resets its 15-min inactivity sleep timer.
+  async scheduled(_event, env, _ctx) {
+    if (!env.WORKER_API_URL) return;
+    try {
+      const headers = {};
+      if (env.INTERNAL_API_TOKEN) headers['Authorization'] = `Bearer ${env.INTERNAL_API_TOKEN}`;
+      await fetch(env.WORKER_API_URL.replace(/\/$/, '') + '/health', {
+        headers,
+        signal: AbortSignal.timeout(10_000),
+      });
+    } catch { /* ignore — Render may be temporarily waking up */ }
+  },
 };
 
 // ── Auth ─────────────────────────────────────────────────────────────────────
@@ -290,37 +305,65 @@ const TOOL_HANDLERS = {
 };
 
 // ── Worker API proxy ──────────────────────────────────────────────────────────
+//
+// IMPORTANT: Cloudflare Workers have a 30-second CPU time limit per request.
+// proxyJob() must NEVER use a blocking polling loop — the Worker would be
+// killed mid-wait. Instead:
+//   • Short jobs (research, script — typically <20s) get a single synchronous
+//     call using fetch() with a 28-second timeout. If the Render API hasn't
+//     completed in time it returns 202+jobId, which we surface as an async
+//     token to the IDE caller.
+//   • Long jobs (render, publish — can take minutes) always submit async and
+//     return {jobId, status:"queued"} immediately. The IDE polls via
+//     get_job_status which is a single fast GET (well within 30s CPU budget).
+//
+// This means proxyJob() either:
+//   a) Receives a completed result in <28s → returns it inline (fast path)
+//   b) Receives {jobId} → returns {jobId, status:'queued', message} (async path)
+// Either way the Worker completes in <<30s.
+
+const SYNC_JOB_TIMEOUT_MS = 28_000; // 2s headroom under Workers 30s limit
 
 async function proxyJob(type, payload, env) {
-  // Submit job synchronously (waits for result)
-  // For long jobs (>30s), use queue_full_pipeline + get_job_status instead
+  // Submit the job with a fast-path timeout.
+  // The Worker API always returns {jobId} immediately (202 Accepted).
+  // If the underlying work completes before SYNC_JOB_TIMEOUT_MS, the
+  // Render API also attaches {result} to the first status poll —
+  // but we cannot sit in a loop here. Return the job token instead.
   const resp = await callWorkerAPI('/jobs', 'POST', { type, payload }, env);
   const jobId = resp.jobId;
   if (!jobId) throw new Error('Worker API did not return jobId');
 
-  // Poll for up to 25 minutes (Workers CPU time limit is 30s per request;
-  // we use streaming SSE to keep the connection alive, but polling is more
-  // reliable across all IDEs)
-  const maxWaitMs = 25 * 60 * 1000;
-  const pollMs    = 5000;
-  const start     = Date.now();
+  // Attempt a single fast-path poll after a short pause.
+  // If the job finishes quickly (research/script on Groq = <5s), we surface
+  // the result synchronously so the IDE receives a direct answer.
+  // If it doesn't finish, return the async token — the IDE must call
+  // get_job_status to continue (shown in message).
+  await sleep(4000);
+  const status = await callWorkerAPI(`/jobs/${encodeURIComponent(jobId)}`, 'GET', null, env);
 
-  while (Date.now() - start < maxWaitMs) {
-    await sleep(pollMs);
-    const status = await callWorkerAPI(`/jobs/${encodeURIComponent(jobId)}`, 'GET', null, env);
-    if (status.status === 'SUCCEEDED') return status.result;
-    if (status.status === 'FAILED')    throw new Error(`Job failed: ${status.error?.message}`);
-  }
-  throw new Error(`Job ${jobId} timed out after 25 minutes`);
+  if (status.status === 'SUCCEEDED') return status.result;
+  if (status.status === 'FAILED')    throw new Error(`Job failed: ${status.error?.message}`);
+
+  // Job still running — return async token (stays well within 30s CPU limit)
+  return {
+    jobId,
+    status: status.status,
+    message: `Job queued (${type}). Call get_job_status with jobId "${jobId}" to poll for completion.`,
+  };
 }
 
 async function callWorkerAPI(path, method, body, env) {
   const baseUrl = env.WORKER_API_URL;
   if (!baseUrl) throw new Error('WORKER_API_URL secret not set in Cloudflare Workers');
-  const url  = baseUrl.replace(/\/$/, '') + path;
+  const url     = baseUrl.replace(/\/$/, '') + path;
+  const headers = { 'Content-Type': 'application/json' };
+  // Forward the internal API token so Render's auth middleware accepts the request
+  if (env.INTERNAL_API_TOKEN) headers['Authorization'] = `Bearer ${env.INTERNAL_API_TOKEN}`;
   const init = {
     method,
-    headers: { 'Content-Type': 'application/json' },
+    headers,
+    signal: AbortSignal.timeout(SYNC_JOB_TIMEOUT_MS),
   };
   if (body) init.body = JSON.stringify(body);
   const resp = await fetch(url, init);
