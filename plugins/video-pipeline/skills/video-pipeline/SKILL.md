@@ -241,8 +241,8 @@ marks that production FAILED and moves to the next topic.
 ## Key files
 
 ```
-src/mcp-server/server.js          MCP HTTP server (13 tools, port 3210)
-src/mcp-server/stdio.js           MCP stdio server (13 tools)
+src/mcp-server/server.js          MCP HTTP server (14 tools, port 3210)
+src/mcp-server/stdio.js           MCP stdio server (14 tools)
 cloudflare-mcp/src/index.js       Cloudflare Workers Remote MCP proxy
 src/pipeline/providers.js         LLM / TTS / Image abstraction (env-var-switchable providers)
 src/pipeline/state-machine.js     File + PostgreSQL production state

@@ -10,7 +10,7 @@
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
 [![Version](https://img.shields.io/badge/version-2.3.0-blue.svg)](CHANGELOG.md)
 [![MCP Spec](https://img.shields.io/badge/MCP-2024--11--05-blue.svg)](https://modelcontextprotocol.io/)
-[![Tests](https://img.shields.io/badge/tests-381%20passing-brightgreen.svg)](#-testing)
+[![Tests](https://img.shields.io/badge/tests-439%20passing-brightgreen.svg)](#-testing)
 [![FFmpeg](https://img.shields.io/badge/engine-FFmpeg%20native-red.svg)](https://ffmpeg.org/)
 
 [Quickstart](#-60-second-quickstart) · [Connect Your IDE](#-connect-your-ide) · [14 MCP Tools](#-mcp-tools-reference) · [HTML Renderer](#-html-renderer) · [Architecture](#-architecture) · [Deploy](#-deployment)
@@ -282,25 +282,11 @@ Set `PROVIDER_LLM=` to any supported provider. Override the model with `LLM_MODE
 
 ### TTS providers
 
-| `PROVIDER_TTS=` | Notes | Key |
-|-----------------|-------|-----|
-| `edge-tts` | Free, offline, 300+ voices | — |
-| `elevenlabs` | Voice cloning, highest quality | `ELEVENLABS_API_KEY` |
-| `azure` | Natural voices, multilingual | `AZURE_SPEECH_KEY` |
-| `openai` | Fast, clean narration | `OPENAI_API_KEY` |
-| `webhook` | Any HTTP TTS endpoint | `WEBHOOK_TTS_URL` |
-
-Use `multi_voice_tts` to override the provider per call without changing `.env`.
+Set `PROVIDER_TTS=` to any supported voice provider. Use `multi_voice_tts` to override per call without touching `.env`.
 
 ### Image generation providers
 
-| `PROVIDER_IMAGE=` | Notes | Key |
-|-------------------|-------|-----|
-| `pollinations` | Free, no account | — |
-| `falai` | Fast, high quality | `FALAI_API_KEY` |
-| `replicate` | 1000+ models | `REPLICATE_API_KEY` |
-| `dalle` | DALL-E 3 | `OPENAI_API_KEY` |
-| `webhook` | Any HTTP image endpoint | `CUSTOM_IMAGE_URL` |
+Set `PROVIDER_IMAGE=` to any supported image provider.
 
 ---
 

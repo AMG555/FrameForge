@@ -112,7 +112,9 @@ if (foundFont) {
 
 // 6. LLM Provider (Research & Scriptwriting)
 const llmProvider = (process.env.PROVIDER_LLM || 'groq').toLowerCase();
-const llmKeyMap = {
+
+// Built-in key env vars — any unknown provider can also supply LLM_BASE_URL or WEBHOOK_LLM_URL
+const builtinKeyMap = {
   groq:       process.env.GROQ_API_KEY,
   openrouter: process.env.OPENROUTER_API_KEY,
   anthropic:  process.env.ANTHROPIC_API_KEY,
@@ -121,41 +123,29 @@ const llmKeyMap = {
   together:   process.env.TOGETHER_API_KEY,
   cerebras:   process.env.CEREBRAS_API_KEY,
   openai:     process.env.OPENAI_API_KEY,
-  ollama:     'local',           // no key needed
+  ollama:     'local',
   webhook:    process.env.WEBHOOK_LLM_URL,
 };
 
-const modelInfo = {
-  groq:       'llama-3.3-70b-versatile (free)',
-  openrouter: 'any model via openrouter.ai',
-  anthropic:  'claude-sonnet-4-5',
-  gemini:     'gemini-2.0-flash',
-  mistral:    'mistral-large-latest',
-  together:   'Llama-3.3-70B-Instruct-Turbo',
-  cerebras:   'llama3.3-70b at 2000+ tok/s',
-  openai:     'gpt-4o',
-  ollama:     'local — ollama.com',
-  webhook:    process.env.WEBHOOK_LLM_URL || '(set WEBHOOK_LLM_URL)',
-};
-
 const hasLLMKey = Boolean(
-  llmKeyMap[llmProvider] ||
-  process.env.LLM_BASE_URL ||
-  process.env.WEBHOOK_LLM_URL ||
-  llmProvider === 'ollama'
+  builtinKeyMap[llmProvider] ||  // known built-in provider has a key
+  process.env.LLM_BASE_URL    ||  // custom OpenAI-compatible endpoint
+  process.env.WEBHOOK_LLM_URL ||  // webhook provider
+  llmProvider === 'ollama'        // ollama needs no key
 );
 
-const customModel = process.env.LLM_MODEL ? ` → LLM_MODEL=${process.env.LLM_MODEL}` : '';
+const customModel    = process.env.LLM_MODEL    ? ` model=${process.env.LLM_MODEL}`    : '';
+const customEndpoint = process.env.LLM_BASE_URL ? ` endpoint=${process.env.LLM_BASE_URL}` : '';
 
 if (hasLLMKey) {
-  pass('LLM Provider', `${llmProvider} — ${modelInfo[llmProvider] || llmProvider}${customModel}`);
+  pass('LLM Provider', `${llmProvider}${customModel}${customEndpoint}`);
 } else {
   warn(
     'LLM Provider',
     `PROVIDER_LLM=${llmProvider} but no API key found`,
     `Run: npm run setup   OR   set the required key in .env\n` +
     `    Free options: GROQ_API_KEY (groq) · GEMINI_API_KEY (gemini) · CEREBRAS_API_KEY (cerebras)\n` +
-    `    Any model:    OPENROUTER_API_KEY (openrouter.ai) — Claude, GPT-4o, Gemini, Llama all in one`
+    `    Any OpenAI-compatible API: set LLM_BASE_URL + PROVIDER_LLM=webhook`
   );
 }
 
