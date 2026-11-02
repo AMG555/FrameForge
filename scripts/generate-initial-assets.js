@@ -1,34 +1,30 @@
 /**
  * Generate Initial Asset Library
- * 
- * Generates the initial set of composable assets:
- * - 2 character identities (ancient_man, modern_man)
- * - 4 poses per character (standing, running, sitting, jumping)
- * - 6 emotions per character (neutral, happy, angry, sad, surprised, determined)
- * - 15 props (spear, phone, fire, etc.)
- * - 10 backgrounds (forest, cave, city, etc.)
- * - 10 effects (arrow, question, etc.)
- * 
+ *
+ * Generates a starter set of composable assets. Characters are generic/neutral
+ * so they work for any topic — not locked to any historical period or style.
+ * Customise ASSET_DEFINITIONS before running for your project.
+ *
  * Total: ~47 composable assets
- * 
+ *
  * Usage:
  *   node scripts/generate-initial-assets.js [--dry-run]
  */
 
 const { AssetLibrary } = require('../src/asset-library/asset-library');
 
-// Asset definitions
+// Asset definitions — edit these to match your project's visual identity.
 const ASSET_DEFINITIONS = {
   characters: [
     {
-      id: 'ancient_man',
-      description: 'Prehistoric caveman with wild messy hair, thick eyebrows, wearing tattered animal skin clothing',
+      id: 'narrator',
+      description: 'Friendly narrator figure, simple flat-design illustration, neutral modern clothing',
       poses: ['standing', 'running', 'sitting', 'jumping'],
       emotions: ['neutral', 'happy', 'angry', 'sad', 'surprised', 'determined']
     },
     {
-      id: 'modern_man',
-      description: 'Modern human in casual clothes (t-shirt and jeans), clean appearance, smartphone in hand',
+      id: 'expert',
+      description: 'Professional expert figure, smart casual clothing, confident posture, simple flat-design illustration',
       poses: ['standing', 'running', 'sitting', 'jumping'],
       emotions: ['neutral', 'happy', 'angry', 'sad', 'surprised', 'relaxed']
     }

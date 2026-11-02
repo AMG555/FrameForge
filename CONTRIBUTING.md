@@ -8,9 +8,9 @@ consistent and make reviews fast.
 ## Quick Start
 
 ```bash
-git clone https://github.com/AMG555/frameforge
-cd frameforge
-cp .kiro/config/production-secrets.env.template .env
+git clone https://github.com/AMG555/FrameForge
+cd FrameForge
+cp docs/env.template .env
 # Fill in at minimum: GROQ_API_KEY
 
 npm install
@@ -74,7 +74,7 @@ change needs more explanation.
    implementing `chat()`, `synthesize()`, or `generate()` as appropriate.
 2. Export it from the factory function (`createLLMProvider` / `createTTSProvider` /
    `createImageProvider`).
-3. Add the env var to [`.kiro/config/production-secrets.env.template`](.kiro/config/production-secrets.env.template).
+3. Add the env var to [`docs/env.template`](docs/env.template).
 4. Document it in [`AGENT.md`](AGENT.md) Section 4 and in [`README.md`](README.md).
 5. Run `node scripts/deep-validate.js` — all checks must pass.
 
@@ -82,18 +82,18 @@ change needs more explanation.
 
 ## Adding a New MCP Tool
 
-1. Add the tool definition to both:
+1. Add the tool definition to **all three** transport files:
    - `src/mcp-server/server.js` (HTTP MCP)
    - `src/mcp-server/stdio.js` (stdio MCP)
-2. Add a one-line description to `cloudflare-mcp/src/index.js` tool list.
-3. Document the tool in [`AGENT.md`](AGENT.md) Section 6.
+   - `cloudflare-mcp/src/index.js` (Cloudflare Remote MCP — both `TOOL_DEFINITIONS` array and `TOOL_HANDLERS` map)
+2. Document the tool in [`AGENT.md`](AGENT.md) and [`README.md`](README.md).
 
 ---
 
 ## Pull Request Checklist
 
 - [ ] `node scripts/deep-validate.js` passes with no new failures
-- [ ] New env vars added to `.kiro/config/production-secrets.env.template`
+- [ ] New env vars added to `docs/env.template`
 - [ ] `AGENT.md` updated with any architectural change
 - [ ] `CHANGELOG.md` updated under `[Unreleased]`
 - [ ] No secrets or credentials in any committed file

@@ -5,7 +5,7 @@ Deploy the MCP proxy to Cloudflare Workers for ~80% token savings vs local stdio
 ## How it works
 
 ```
-Agentic IDE (IBM Bob / Cursor / Windsurf / Kiro)
+Agentic IDE (Codex / opencode / IBM Bob / Cursor / Windsurf / Claude Code)
   │  HTTPS POST Bearer MCP_AUTH_TOKEN
   ▼
 Cloudflare Workers  ← this file
@@ -70,7 +70,7 @@ https://frameforge.<YOUR_SUBDOMAIN>.workers.dev/mcp
 }
 ```
 
-### Cursor / Claude Code / Windsurf / Kiro (`.mcp.json` or `~/.cursor/mcp.json`)
+### Codex / opencode / Cursor / Claude Code / Windsurf (`.mcp.json` or `~/.cursor/mcp.json`)
 ```json
 {
   "mcpServers": {
@@ -92,7 +92,7 @@ curl https://frameforge.YOUR_SUBDOMAIN.workers.dev/health
 
 Expected (configured):
 ```json
-{ "status": "ok", "worker": "frameforge-mcp", "version": "1.1.0", "configured": true }
+{ "status": "ok", "worker": "frameforge-mcp", "version": "2.0.0", "configured": true }
 ```
 
 Expected (not configured — `WORKER_API_URL` missing):

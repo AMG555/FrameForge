@@ -1,12 +1,12 @@
 ---
 name: video-pipeline
 description: >
-  Autonomous overnight video production pipeline. Given a topic, this skill
+  Autonomous AI video production pipeline. Given a topic, this skill
   researches, fact-checks, writes the script, synthesises voice, renders
-  animation (Remotion/HTML+Playwright or n8n), runs quality gates, and
-  delivers to Telegram or YouTube — all without human intervention.
-  Works in IBM Bob, Claude Code, Cursor, Windsurf, Kiro IDE, or any IDE
-  that loads Claude skills from ~/.claude/skills/ or .claude/skills/.
+  with FFmpeg, runs quality gates, and delivers to Telegram or YouTube —
+  all without human intervention.
+  Works in IBM Bob, Codex, opencode, Cursor, Windsurf, Claude Code,
+  or any IDE that loads skills from ~/.claude/skills/ or .claude/skills/.
   Trigger phrases: "make a video about", "produce a reel on", "overnight
   batch", "queue videos", "generate video", "run the pipeline", "publish
   video". Also activates when a user pastes a topic list and says
@@ -16,82 +16,94 @@ description: >
 # Video Pipeline Skill
 
 End-to-end autonomous video production. The AI proposes every creative
-decision; deterministic systems (FFmpeg, Playwright, n8n, MCP) execute them;
+decision; deterministic systems (FFmpeg, TTS, image gen, MCP) execute them;
 a quality gate blocks bad output before delivery.
 
 ## Architecture
 
 ```
-IDE Agent (IBM Bob / Claude Code / Cursor / Windsurf / Kiro)
+IDE Agent (IBM Bob / Codex / opencode / Cursor / Windsurf / Claude Code)
     │
-    ▼  MCP tools (port 3210) ──────────────────────────────────────────────
-    │  research_topic  →  write_script  →  generate_scene_image
-    │  render_tts  →  assemble_video  →  publish_video
+    ▼  Cloudflare Remote MCP (recommended) ─────────────────────────────
+    │  https://video-mcp.YOUR_SUBDOMAIN.workers.dev/mcp
+    │  13 tools: research_topic · write_script · assemble_video
+    │            publish_video · ingest_media · edit_scenes
+    │            render_from_scenes · external_platform_call
+    │            create_video_from_script · multi_voice_tts
+    │            n8n_webhook_trigger · get_job_status · queue_full_pipeline
+    │
+    ▼  OR — Local stdio / HTTP MCP ────────────────────────────────────
+    │  node src/mcp-server/stdio.js   (stdio)
+    │  node src/mcp-server/server.js  (HTTP :3210)
     │
     ▼  Execution layer
-    │  LLM provider:   PROVIDER_LLM=groq|watsonx|openai|ollama
-    │  TTS provider:   PROVIDER_TTS=edge-tts|elevenlabs|azure|openai
-    │  Image provider: PROVIDER_IMAGE=pollinations|fal|replicate|dalle
+    │  LLM provider:   PROVIDER_LLM=groq|openrouter|anthropic|gemini
+    │                              |mistral|together|cerebras|openai
+    │                              |ollama|webhook
+    │  TTS provider:   PROVIDER_TTS=edge-tts|elevenlabs|azure|openai|webhook
+    │  Image provider: PROVIDER_IMAGE=pollinations|falai|replicate|dalle|webhook
     │
-    ▼  n8n workflow (optional orchestration)
-       workflow.json  –  48-node pipeline, cron-triggered, Telegram delivery
-       daily-video-workflow.json  –  35-node simpler variant
+    ▼  Optional: n8n workflow orchestration
+       workflow.json            — full pipeline (import into n8n)
+       daily-video-workflow.json — simpler variant
 ```
 
 All secrets come from environment variables — **never** hardcoded.
-See `references/providers.md` for the full env-var reference.
+See `docs/env.template` for the full reference.
 
 ---
 
 ## Setup
 
-### 1. Start the MCP server (one time)
+### Option A — Cloudflare Remote MCP (Recommended)
+
+Deploy once; works in every IDE with no local server process:
 
 ```bash
-cd <this repo>
+cd cloudflare-mcp
 npm install
-node src/mcp-server/server.js
-# Listens on http://localhost:3210
+wrangler secret put WORKER_API_URL     # https://your-render-app.onrender.com
+wrangler secret put MCP_AUTH_TOKEN     # random 32-byte hex
+wrangler secret put INTERNAL_API_TOKEN # shared secret with render node
+wrangler deploy
 ```
 
-Register in your IDE:
+Add to any IDE's MCP config:
 
-**IBM Bob** (`.bob/mcp.json` or global `~/.bob/mcp.json`):
 ```json
 {
   "mcpServers": {
-    "video-pipeline": {
-      "url": "http://localhost:3210",
-      "transport": "http"
+    "frameforge": {
+      "url": "https://video-mcp.YOUR_SUBDOMAIN.workers.dev/mcp",
+      "headers": { "Authorization": "Bearer YOUR_MCP_AUTH_TOKEN" }
     }
   }
 }
 ```
 
-**Claude Code / Cursor / Windsurf** (`~/.claude/mcp.json` or project `.mcp.json`):
+### Option B — Local stdio MCP
+
+**IBM Bob** (`~/.bob/mcp.json`):
 ```json
 {
   "mcpServers": {
-    "video-pipeline": {
+    "frameforge": {
       "command": "node",
-      "args": ["<absolute-path>/src/mcp-server/server.js"],
-      "env": {
-        "PROVIDER_LLM": "groq",
-        "GROQ_API_KEY": "${GROQ_API_KEY}"
-      }
+      "args": ["<absolute-path>/src/mcp-server/stdio.js"],
+      "env": { "PROVIDER_LLM": "groq", "GROQ_API_KEY": "gsk_..." }
     }
   }
 }
 ```
 
-**Kiro IDE** (`.kiro/mcp.json`):
+**Codex / opencode / Cursor / Windsurf / Claude Code** (`~/.claude/mcp.json` or `.mcp.json`):
 ```json
 {
-  "servers": {
-    "video-pipeline": {
+  "mcpServers": {
+    "frameforge": {
       "command": "node",
-      "args": ["src/mcp-server/server.js"],
-      "cwd": "<this repo>"
+      "args": ["<absolute-path>/src/mcp-server/stdio.js"],
+      "env": { "PROVIDER_LLM": "groq", "GROQ_API_KEY": "${GROQ_API_KEY}" }
     }
   }
 }
@@ -99,238 +111,152 @@ Register in your IDE:
 
 ### 2. Set environment variables
 
-Copy `.kiro/config/production-secrets.env.template` → `.env` and fill in:
+Copy `docs/env.template` → `.env` and fill in. Minimum:
 
 ```bash
-# LLM (pick one)
-PROVIDER_LLM=groq          # or: watsonx | openai | ollama
+# LLM (pick one — Groq is free with no credit card)
+PROVIDER_LLM=groq
 GROQ_API_KEY=gsk_...
 
-# IBM watsonx (enterprise / data-residency deployments)
-# PROVIDER_LLM=watsonx
-# WATSONX_API_KEY=...
-# WATSONX_PROJECT_ID=...
-# LLM_BASE_URL=https://<region>.ml.cloud.ibm.com/ml/v1
-# LLM_MODEL=ibm/granite-3-3-8b-instruct
+# TTS (edge-tts is free offline)
+PROVIDER_TTS=edge-tts
 
-# TTS (pick one)
-PROVIDER_TTS=edge-tts       # free, no key
-# PROVIDER_TTS=elevenlabs
-# ELEVENLABS_API_KEY=sk_...
-
-# Image (pick one)
-PROVIDER_IMAGE=pollinations  # free, no key
-# PROVIDER_IMAGE=fal
-# FAL_API_KEY=...
+# Image (pollinations is free, no key)
+PROVIDER_IMAGE=pollinations
 
 # Delivery
 TELEGRAM_BOT_TOKEN=...
 TELEGRAM_CHAT_ID=...
-TELEGRAM_API_BASE=https://api.telegram.org
-
-# n8n
-N8N_WEBHOOK_URL=http://localhost:5678
 ```
 
-### 3. (Optional) Import into n8n
-
-Import `workflow.json` (full 48-node pipeline) or `daily-video-workflow.json`
-(35-node simpler variant) into your n8n instance. Both read from the same
-env vars above — no hardcoded values remain.
+Run the interactive wizard for guided setup:
+```bash
+npm run setup
+```
 
 ---
 
 ## Workflow (step-by-step)
 
-Work through these in order for a single video. For overnight batches, see
-the Batch section below.
+### Agent-First Path (Recommended for IDE agents)
 
-### 1. Research
-
-Tell the skill the topic. It calls `research_topic` via MCP:
+Your IDE writes the scenes. FrameForge renders. No internal LLM needed:
 
 ```
-research_topic(topic="Why you should never Google customer-care numbers",
-               productionId="prod-001")
+create_video_from_script({
+  scenes: [
+    { narration: "WiFi sends data as radio waves...", caption: "RADIO WAVES",
+      visual_description: "router emitting waves, flat illustration" },
+    { narration: "Your device picks up the signal...", caption: "YOUR DEVICE",
+      visual_description: "laptop receiving signal, clean diagram" }
+  ],
+  title: "How WiFi Works",
+  channels: ["telegram"]
+})
 ```
 
-Returns: researched talking points, verified facts with sources, hook ideas.
-Every numerical claim is sourced. Unverifiable claims are flagged, not stated.
+### Auto-Research Path
 
-### 2. Script
-
-```
-write_script(productionId="prod-001",
-             researchJson=<from step 1>,
-             style="educational explainer, 55-65s, Malayalam with English tech words")
-```
-
-Returns: scenes array (label, caption lines, voice text, visual prompt per scene).
-**Read the script before proceeding.** Changing one word after voice is generated
-means redoing audio and timing.
-
-Script structure that works:
-| Part | Length | Job |
-|------|--------|-----|
-| Hook | 0–5 s | Shocking number / question / twist. No "hi guys". |
-| Story | 15–25 s | One real case, simply told. |
-| How it works | 10–15 s | The trick in one picture. |
-| What to do | 10–15 s | 2–3 tips, best tip last. |
-| CTA | 5 s | Follow / share / comment. |
-
-### 3. Voice synthesis
+Let FrameForge handle research + scripting:
 
 ```
-render_tts(productionId="prod-001", sceneIndex=0,
-           text="...", voice="en-US-GuyNeural", rate="-5%")
+1. research_topic({ topic: "...", style: "educational", format: "YouTube short" })
+2. write_script({ productionId, claims, topic, persona: "tech reviewer" })
+3. render_from_scenes({ productionId })
+4. publish_video({ productionId, masterPath, channels: ["telegram", "youtube"] })
 ```
 
-Repeat per scene. With `PROVIDER_TTS=edge-tts` this is free and offline.
-With `PROVIDER_TTS=elevenlabs` you get voice cloning.
-
-### 4. Scene images
+### Voice Synthesis (per call)
 
 ```
-generate_scene_image(productionId="prod-001", sceneIndex=0,
-                     prompt="...", style="Simple History ink doodle")
+multi_voice_tts({
+  text: "Narration text here",
+  outputPath: "/path/in/files-dir/voice_0.m4a",
+  platform: "elevenlabs",
+  voice: "your_cloned_voice_id",
+  apiKey: "sk_..."
+})
 ```
 
-With `PROVIDER_IMAGE=pollinations`: free, no key. Images are
-1920×1080, consistent style.
-
-### 5. Assemble video
-
-```
-assemble_video(productionId="prod-001", sceneCount=6,
-               musicPath="/optional/music.mp3", musicVolume=0.08)
-```
-
-Runs FFmpeg concat demuxer → zoompan animation → caption drawtext →
-audio ducking → loudness normalisation (-14 LUFS) → H.264 CRF 22 master.
-Quality gate runs automatically and blocks if hard gates fail:
-resolution, codec, pixel format, frame rate, LUFS, true peak,
-black frames, frozen frames.
-
-### 6. Publish
-
-```
-publish_video(productionId="prod-001",
-              masterPath="/path/to/master.mp4",
-              channels=["telegram"],
-              youtubeTitle="...", youtubeDescription="...")
-```
-
-Sends to Telegram via curl (works in Docker / n8n without Node FormData).
-YouTube upload via Data API v3 (OAuth2 resumable upload). See `docs/youtube-upload.md` for token setup.
-
----
-
-## Overnight batch
+### Overnight batch
 
 ```
 I'm going to sleep. Make as many videos as you can before 9 AM.
 Topics (queue them all):
-  1. Why you should never Google customer-care numbers
-  2. The SIM swap scam explained simply
-  3. What happens when you click a phishing link
+  1. How does GPS actually work?
+  2. Why planes don't fly over the Pacific in a straight line
+  3. The engineering inside a modern CPU
 
 Rules:
 - Strong hook, double-verify every fact.
 - After each video: run the quality gate, then publish to Telegram.
-- Leave me a summary of topics + source URLs + captions when done.
+- Leave me a summary when done.
 ```
 
-The skill will call MCP tools sequentially for each topic using
-the StateMachine to track progress. If a stage fails, it retries
-with exponential backoff (jitter). If it fails terminally, it marks
-that production FAILED and moves to the next topic.
+The skill calls MCP tools sequentially using the StateMachine to track progress.
+If a stage fails it retries with exponential backoff; if it fails terminally it
+marks that production FAILED and moves to the next topic.
 
 ---
 
 ## Provider reference
 
-| Role | Provider | Key env var | Notes |
-|------|----------|-------------|-------|
-| LLM | groq | `GROQ_API_KEY` | Default. Fast, free tier. |
-| LLM | **watsonx** | `WATSONX_API_KEY` + `WATSONX_PROJECT_ID` | IBM enterprise, data residency, granite-3.3 |
-| LLM | openai | `OPENAI_API_KEY` | GPT-4o |
-| LLM | ollama | _(none)_ | Local, `LLM_BASE_URL=http://localhost:11434` |
-| TTS | edge-tts | _(none)_ | Free, offline, 300+ voices |
-| TTS | elevenlabs | `ELEVENLABS_API_KEY` | Voice cloning |
-| TTS | azure | `AZURE_SPEECH_KEY` + `AZURE_SPEECH_REGION` | Enterprise |
-| TTS | openai | `OPENAI_API_KEY` | High quality |
-| Image | pollinations | _(none)_ | Free, no key |
-| Image | fal | `FAL_API_KEY` | Fast FLUX |
-| Image | replicate | `REPLICATE_API_TOKEN` | Flexible |
-| Image | dalle | `OPENAI_API_KEY` | DALL-E 3 |
-
----
-
-## IDE-specific notes
-
-### IBM Bob
-Bob is the primary target platform. The MCP server registers all 6 tools
-(`research_topic`, `write_script`, `generate_scene_image`, `render_tts`,
-`assemble_video`, `publish_video`) which Bob can call directly in any
-conversation. No n8n is required — Bob drives the pipeline step by step.
-
-For watsonx models in Bob: set `PROVIDER_LLM=watsonx` and configure the
-watsonx env vars. The `LLMProvider` class in `src/pipeline/providers.js`
-handles the IBM IAM token exchange automatically.
-
-### Claude Code
-Install via plugin marketplace:
-```
-/plugin marketplace add <your-org>/auto-vid-gen
-/plugin install video-pipeline@auto-vid-gen
-```
-Or manually: `./install.sh` (copies skill to `~/.claude/skills/video-pipeline`).
-
-### Cursor / Windsurf
-Register the MCP server in project settings. The 6 tools appear in the
-tool palette. Cursor's Agent mode can run the overnight batch unattended.
-
-### Kiro IDE
-Add to `.kiro/mcp.json`. Kiro's spec-driven workflow pairs well with the
-StateMachine — each spec task maps to one MCP tool call.
+| Role  | Provider     | Key env var               | Notes                          |
+|-------|-------------|--------------------------|-------------------------------|
+| LLM   | groq        | `GROQ_API_KEY`            | Default. Fast, free tier.      |
+| LLM   | openrouter  | `OPENROUTER_API_KEY`      | Any model via one key          |
+| LLM   | anthropic   | `ANTHROPIC_API_KEY`       | Claude Sonnet/Haiku/Opus       |
+| LLM   | gemini      | `GEMINI_API_KEY`          | Gemini 2.0 Flash / 2.5 Pro     |
+| LLM   | cerebras    | `CEREBRAS_API_KEY`        | 2000+ tok/s Llama              |
+| LLM   | openai      | `OPENAI_API_KEY`          | GPT-4o / o1                    |
+| LLM   | ollama      | _(none)_                  | Local, OLLAMA_BASE_URL         |
+| TTS   | edge-tts    | _(none)_                  | Free, offline, 300+ voices     |
+| TTS   | elevenlabs  | `ELEVENLABS_API_KEY`      | Voice cloning                  |
+| TTS   | azure       | `AZURE_SPEECH_KEY`        | Enterprise                     |
+| TTS   | openai      | `OPENAI_API_KEY`          | High quality                   |
+| Image | pollinations| _(none)_                  | Free, no key                   |
+| Image | falai       | `FAL_API_KEY`             | Fast FLUX                      |
+| Image | replicate   | `REPLICATE_API_TOKEN`     | Flexible                       |
+| Image | dalle       | `OPENAI_API_KEY`          | DALL-E 3                       |
 
 ---
 
 ## Quality gates (hard — will block delivery)
 
-| Gate | Threshold |
-|------|-----------|
-| File size | > 1 MB |
-| Video stream | present |
-| Resolution (master) | 1920×1080 |
-| Resolution (short) | 1080×1920 |
-| Codec | H.264 |
-| Pixel format | yuv420p |
-| Frame rate | 24–30 fps |
-| Integrated loudness | −14 ±1.5 LUFS |
-| True peak | ≤ −0.5 dBTP |
-| Black frames | none > 0.5 s |
-| Frozen frames | none > 0.5 s |
-
-Sanity checks (warn, do not block): video bitrate ≥ 3 Mbps, duration in expected range.
+| Gate                | Threshold            |
+|---------------------|----------------------|
+| File size           | > 1 MB               |
+| Video stream        | present              |
+| Resolution (master) | 1920×1080            |
+| Resolution (short)  | 1080×1920            |
+| Codec               | H.264                |
+| Pixel format        | yuv420p              |
+| Frame rate          | 24–30 fps            |
+| Integrated loudness | −14 ±1.5 LUFS        |
+| True peak           | ≤ −0.5 dBTP          |
+| Black frames        | none > 0.5 s         |
+| Frozen frames       | none > 0.5 s         |
 
 ---
 
-## Files
+## Key files
 
 ```
-src/mcp-server/server.js          MCP server (6 tools, port 3210)
-src/pipeline/providers.js         LLM / TTS / Image abstraction
-src/pipeline/state-machine.js     PostgreSQL + file production state
+src/mcp-server/server.js          MCP HTTP server (13 tools, port 3210)
+src/mcp-server/stdio.js           MCP stdio server (13 tools)
+cloudflare-mcp/src/index.js       Cloudflare Workers Remote MCP proxy
+src/pipeline/providers.js         LLM / TTS / Image abstraction (10 providers)
+src/pipeline/state-machine.js     File + PostgreSQL production state
 src/pipeline/retry-policy.js      Exponential backoff, stage timeouts
-src/pipeline/telemetry.js         NDJSON + PostgreSQL cost tracking
-src/quality-gate/gate.js          9 hard gates, safe spawnSync (no eval)
+src/pipeline/telemetry.js         NDJSON cost tracking
+src/quality-gate/gate.js          9 hard gates
 src/audio-mixer/mixer.js          Sidechain ducking, LUFS normalisation
 src/shorts-extractor/extractor.js Silence-based 9:16 crop for Shorts
 src/fact-checker/checker.js       Claim risk classification + evidence gates
 src/video-renderer/renderer.js    Scene render + master assembly
-workflow.json                     n8n 48-node pipeline (all credentials env-var)
-daily-video-workflow.json         n8n 35-node simpler variant
-references/providers.md           Full env-var reference for all providers
-references/mcp-tools.md           MCP tool schemas and examples
+src/worker/server-render-free.js  Render-optimised worker API (Render free)
+src/worker/server.js              Full worker API
+workflow.json                     n8n full pipeline (optional)
+daily-video-workflow.json         n8n simpler variant (optional)
+docs/env.template                 Environment variable reference
 ```

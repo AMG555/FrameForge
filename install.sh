@@ -55,8 +55,10 @@ fi
 
 echo
 echo "Next steps:"
-echo "  1. cp .kiro/config/production-secrets.env.template .env"
-echo "  2. Edit .env with your API keys"
-echo "  3. node src/mcp-server/server.js   (start MCP server on :3210)"
-echo "  4. Register MCP server in your IDE (see plugins/video-pipeline/skills/video-pipeline/SKILL.md)"
+echo "  1. cp docs/env.template .env"
+echo "  2. Edit .env with your API keys (run 'npm run setup' for interactive wizard)"
+echo "  3. Deploy Cloudflare Remote MCP (recommended): cd cloudflare-mcp && wrangler deploy"
+echo "     OR start local HTTP MCP: node src/mcp-server/server.js"
+echo "  4. Register the MCP endpoint in your IDE:"
+echo "     Codex / opencode / Cursor / IBM Bob / Claude Code / Windsurf — see README.md"
 echo "  5. Restart your IDE to load the skill."

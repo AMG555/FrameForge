@@ -21,7 +21,7 @@
 
 **FrameForge is a rendering execution engine controlled by your agentic IDE.**
 
-Connect your IDE (Cursor, Windsurf, IBM Bob, Kiro, or any MCP-capable tool) via the Cloudflare Remote MCP endpoint. The IDE writes the video script — FrameForge handles TTS synthesis, AI image generation, FFmpeg compositing, audio mastering, and delivery.
+Connect your IDE (Codex, opencode, Cursor, or any MCP-capable tool) via the Cloudflare Remote MCP endpoint. The IDE writes the video script — FrameForge handles TTS synthesis, AI image generation, FFmpeg compositing, audio mastering, and delivery.
 
 No locked-in workflow. No hardcoded topics or styles. You describe what you want to make; the IDE structures it; FrameForge renders it.
 
@@ -36,7 +36,7 @@ No locked-in workflow. No hardcoded topics or styles. You describe what you want
 * 🎚️ **Broadcast-Grade Audio**: Voice compression, sidechain music ducking, EBU R128 (`-14 LUFS ± 1.5`) normalization.
 * 📱 **Vertical Shorts**: Silence-detecting boundary clustering + focal-point-aware 9:16 cropping for Reels/TikTok/Shorts.
 * 🛡️ **Hard Quality Gates**: Resolution, codec, LUFS, black frames, frozen frames — broken output never ships.
-* 🔌 **Universal IDE Support**: Cursor, Windsurf, IBM Bob, Kiro, VS Code + Copilot, JetBrains AI, and any MCP-capable tool.
+* 🔌 **Universal IDE Support**: Codex, opencode, Cursor, Windsurf, IBM Bob, Claude Code, VS Code + Copilot, JetBrains AI, and any MCP-capable tool.
 
 ---
 
@@ -122,7 +122,7 @@ wrangler deploy
 }
 ```
 
-That's it. The same config block works in Cursor, Windsurf, IBM Bob, Kiro, and any other MCP-capable IDE. See [`cloudflare-mcp/`](cloudflare-mcp/) for the full 2-minute deployment guide.
+That's it. The same config block works in Codex, opencode, Cursor, Windsurf, IBM Bob, Claude Code, and any other MCP-capable IDE. See [`cloudflare-mcp/`](cloudflare-mcp/) for the full 2-minute deployment guide.
 
 ---
 
@@ -156,7 +156,7 @@ Traditional stdio MCP spawns a local process that floods your IDE's active conte
 FrameForge's Cloudflare Workers proxy solves this:
 
 ```
-Your IDE (Cursor / Windsurf / IBM Bob / Kiro / any MCP tool)
+Your IDE (Codex / opencode / Cursor / Windsurf / IBM Bob / Claude Code / any MCP tool)
          │
          │  HTTPS POST + SSE streaming
          ▼
