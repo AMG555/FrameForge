@@ -162,14 +162,33 @@
 
 ---
 
+### Week 5–6 completions (Tasks #20, #21)
+
+- **#20** Fact-Check Validation Set — `src/fact-checker/validation-set.js`:
+  - 100 difficult claims across 12 domains (NUMERICAL, CONTROVERSIAL, TRIVIAL)
+  - Every entry: `claim_text`, `gold_label`, `risk_level`, `acceptable_evidence`, `independent_source_groups`, `expected_decision`, `notes`
+  - 10 `REJECT` entries (dangerous misinformation: vaccines→autism, flat-earth, bleach COVID cure, Holocaust denial, moon landing hoax, chemtrails, cold fusion, inverted gravity, antibiotics for viruses, 5G COVID)
+  - Labels are editorially assigned — NOT by the same LLM used in production (prevents self-agreement bias)
+
+- **#21** FactChecker Human Review Gates — `src/fact-checker/review-gate.js`:
+  - `classifyDecisions()` → pure function, 3-way bucketing: AUTO_APPROVE / HUMAN_REVIEW / REJECT
+  - REJECT gate fires immediately; `evaluate()` calls `stateMachine.fail()` + Telegram notification
+  - WAITING_REVIEW: Telegram message with per-claim hash + `/approve` / `/reject` commands
+  - `recordHumanDecision()` writes `reviews/<productionId>_<hash>.json` for webhook consumption
+  - `_waitForDecisions()` polls review files with configurable timeout (default 4h) → timeout-approve
+  - All Telegram sends use `spawnSync('curl', [...])` array args — no shell string injection
+
 ## Architecture Status
 
 ```
-✅ AI proposes (LLM/providers.js)
-✅ Deterministic systems execute (renderer.js, mixer.js, extractor.js)
-✅ Validators approve (gate.js, checker.js)
-⏳ n8n orchestrates (Workflows #28-34 pending)
+✅ AI proposes (LLM/providers.js — groq/openai/watsonx/ollama)
+✅ Deterministic systems execute (renderer.js + AnimationSystem, mixer.js, extractor.js + vertical crop)
+✅ Validators approve (gate.js, checker.js + FactCheckerReviewGate, ArtifactManifest idempotency)
+✅ Workflows built (research.js, script.js, assets.js, render.js, shorts.js, packaging.js, publishing.js)
+✅ Worker HTTP API (worker/server.js — /jobs POST + GET)
+⏳ n8n orchestrates (workflows deployed, PostgreSQL orchestrator deploy #36 pending)
 ```
 
 The MCP server bridges all three layers — any agentic IDE (IBM Bob, Claude Code,
 Cursor, Windsurf, Kiro) can drive the pipeline directly without n8n.
+All modules: **87/87 deep-validate checks pass** as of commit `1bfb448`.
