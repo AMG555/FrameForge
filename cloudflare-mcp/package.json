@@ -1,7 +1,7 @@
 {
-  "name": "video-pipeline-mcp",
-  "version": "0.0.1",
-  "description": "Cloudflare Workers remote MCP server for the video-pipeline",
+  "name": "frameforge-mcp",
+  "version": "1.2.0",
+  "description": "Cloudflare Workers remote MCP server for FrameForge — Streamable HTTP + SSE, bearer auth, cron keep-alive",
   "main": "src/index.js",
   "scripts": {
     "dev":    "wrangler dev",

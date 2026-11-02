@@ -44,8 +44,8 @@ Give it a topic: it **researches**, **fact-checks**, **scripts 55 dynamic scenes
 ### 1. Clone & Pre-flight Diagnostics
 
 ```bash
-git clone https://github.com/AMG555/FrameForg.git
-cd FrameForg
+git clone https://github.com/AMG555/FrameForge.git
+cd FrameForge
 npm install
 
 # Run the environment doctor (verifies FFmpeg, voice engine, and system fonts)
