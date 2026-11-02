@@ -30,7 +30,7 @@ All notable changes to FrameForge are documented here.
 
 ### Tests
 
-- 381 tests, 81 suites (was 375 / 80 in v2.2.0)
+- 439 tests, 93 suites (was 375 / 80 in v2.2.0)
 
 ---
 

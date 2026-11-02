@@ -1,7 +1,7 @@
 /**
  * FrameForge MCP Server — MCP 2024-11-05 spec compliant
  *
- * Exposes 13 video production tools via MCP.
+ * Exposes 14 video production tools via MCP.
  * Works with IBM Bob, Cursor, Windsurf, Codex, opencode, or any MCP-capable IDE.
  * Primary connection: Cloudflare Remote MCP (cloudflare-mcp/).
  * Alternative: stdio (src/mcp-server/stdio.js) or HTTP (this file).

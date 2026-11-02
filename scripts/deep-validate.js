@@ -186,9 +186,16 @@ check('publishing.js has PUBLISH_WEBHOOK_URL', pubjs.includes('PUBLISH_WEBHOOK_U
 check('publishing.js no Telegram curl',        !pubjs.includes('telegramShorts') && !pubjs.includes('TELEGRAM_BOT_TOKEN'));
 check('publishing.js no YouTube OAuth2',       !pubjs.includes('_refreshAccessToken') && !pubjs.includes('YOUTUBE_CLIENT_ID'));
 
+// ── server-render-free.js — no stale Telegram default ────────────────────
+console.log('\n=== server-render-free.js ===');
+const renderFreeJs = fs.readFileSync('./src/worker/server-render-free.js', 'utf8');
+check('render-free: no stale Telegram channel default', !renderFreeJs.includes("channels = ['telegram']"));
+check('render-free: default channel is file',            renderFreeJs.includes("channels = ['file']"));
+
 // ── server.js — queue_full_pipeline + tool completeness ──────────────────
 console.log('\n=== server.js tool completeness ===');
 const serverjs = fs.readFileSync('./src/mcp-server/server.js', 'utf8');
+check('server.js exposes 14 tools (header)',         serverjs.includes('14 video production tools'));
 check('server.js publish_video calls runPublishing', serverjs.includes("require('../workflows/publishing')"));
 check('server.js has queue_full_pipeline tool',      serverjs.includes('queue_full_pipeline'));
 check('server.js has get_job_status tool',           serverjs.includes('get_job_status'));

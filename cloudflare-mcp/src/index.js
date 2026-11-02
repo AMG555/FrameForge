@@ -2,7 +2,7 @@
  * Cloudflare Workers — Remote MCP Server
  *
  * Deploys to Cloudflare Workers (free tier: 100k req/day).
- * Exposes all 13 video-pipeline tools via Streamable HTTP transport
+ * Exposes all 14 video-pipeline tools via Streamable HTTP transport
  * (MCP 2024-11-05 spec). IDEs connect with a single URL — no local
  * Node.js process spawned.
  *

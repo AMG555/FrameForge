@@ -26,7 +26,7 @@
  *   render           → LOCAL/PI (FFmpeg — see LOCAL_RENDER_URL)
  *   shorts           → LOCAL/PI (FFmpeg)
  *   package          → Render free (file ops, cheap)
- *   publish          → Render free (Telegram API call)
+ *   publish          → Render free (file copy / webhook delivery)
  *   full_pipeline    → Render free up to render step; delegates render to LOCAL_RENDER_URL
  *
  * RENDER FREE WORKAROUNDS:
@@ -34,7 +34,7 @@
  *      keeps the connection alive by polling /health every 10 min (see keepAlive).
  *   2. No persistent disk: All intermediate files are stored in memory (small)
  *      or written to /tmp (ephemeral, fine for single-job state).
- *      Final videos are uploaded to Cloudflare R2 or delivered directly to Telegram.
+ *      Final videos are written to N8N_FILES_DIR/published/ or sent via PUBLISH_WEBHOOK_URL.
  *   3. 512 MB RAM: edge-tts runs as a subprocess (~50 MB). Groq calls are pure HTTP.
  *      Image generation is a HTTP fetch + stream to disk (~20 MB peak).
  *
@@ -183,7 +183,7 @@ async function dispatchJob(job) {
 }
 
 async function runFullPipeline(payload, jobId) {
-  const { topic, channels = ['telegram'] } = payload;
+  const { topic, channels = ['file'] } = payload;
   console.log(`[Worker/${jobId}] full_pipeline: "${topic}"`);
 
   // Steps A-C run here (network-only — safe on Render free)
