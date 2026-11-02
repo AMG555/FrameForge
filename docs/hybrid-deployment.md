@@ -120,7 +120,7 @@ For Claude Code / Cursor, edit `.mcp.json`:
 }
 ```
 
-**That's it.** IBM Bob now has 13 video tools that run on zero-cost infrastructure.
+**That's it.** IBM Bob now has 14 video tools that run on zero-cost infrastructure.
 
 ---
 
@@ -155,9 +155,7 @@ Your Machine
 Pi 4 (4 GB) — all pipeline stages locally
   ├── Worker API :3211
   ├── MCP Server :3210 (optional — use Cloudflare instead)
-  └── n8n :5678 (optional)
-       ↓
-Tailscale tunnel (free) for remote access
+  └── Tailscale tunnel (free) for remote access
 ```
 
 ```bash

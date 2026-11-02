@@ -52,20 +52,12 @@ For all credentials, follow this sequence:
    export GROQ_API_KEY=gsk_new_key_here
    ```
 
-3. **Update n8n credential:**
-   - Go to n8n → Settings → Credentials
-   - Edit `groq_api_credentials`
-   - Update Header Value: `Bearer {{$env.GROQ_API_KEY}}`
-   - Save
-
-4. **Restart n8n:**
+3. **Restart services:**
    ```bash
-   sudo systemctl restart n8n
-   # OR
-   docker-compose restart n8n
+   sudo systemctl restart video-mcp video-worker
    ```
 
-5. **Test authentication:**
+4. **Test authentication:**
    ```bash
    # Test via curl
    curl -X POST https://api.groq.com/openai/v1/chat/completions \
@@ -80,23 +72,22 @@ For all credentials, follow this sequence:
    # Expected: Valid response with content
    ```
 
-6. **Test in workflow:**
-   - Run test workflow with script generation
-   - Verify completion without errors
-   - Check logs for authentication issues
+5. **Test in pipeline:**
+   - Run `npm run doctor` to verify the key is accepted
+   - Run `npm run make -- --topic "test" --no-publish` for a live check
+   - Check `usage.ndjson` for successful LLM calls
 
-7. **Monitor (24 hours):**
-   - Check error logs: `tail -f /var/log/n8n/n8n.log | grep -i groq`
-   - Monitor workflow success rate
-   - Check for 401/403 errors
+6. **Monitor (24 hours):**
+   - Check for 401/403 errors in logs
+   - Monitor pipeline success rate
 
-8. **Revoke old key:**
+7. **Revoke old key:**
    - Return to https://console.groq.com/keys
    - Find old key (by date or name)
    - Click "Delete" or "Revoke"
    - Confirm deletion
 
-9. **Document:**
+8. **Document:**
    - Update credential inventory
    - Add rotation date, new key name (not value)
    - Note any issues encountered
@@ -281,11 +272,10 @@ For all credentials, follow this sequence:
    systemctl restart worker
    ```
 
-3. **Update orchestrator configuration:**
+3. **Update MCP server configuration:**
    ```bash
-   # On n8n machine
-   export WORKER_API_TOKEN=new_token_here
-   systemctl restart n8n
+   export INTERNAL_API_TOKEN=new_token_here
+   sudo systemctl restart video-mcp video-worker
    ```
 
 4. **Test worker communication:**
@@ -329,10 +319,9 @@ If a credential is compromised:
 After ANY rotation:
 
 - [ ] New credential works in test curl/API call
-- [ ] n8n credential updated and saved
-- [ ] Environment variable updated
-- [ ] Services restarted
-- [ ] Test workflow completes successfully
+- [ ] Environment variable updated in `.env` and any service dashboard (Render, etc.)
+- [ ] Services restarted (`sudo systemctl restart video-mcp video-worker`)
+- [ ] `npm run doctor` passes with new credential
 - [ ] No authentication errors in logs (check 1 hour)
 - [ ] Old credential revoked/deleted
 - [ ] Credential inventory updated
@@ -370,9 +359,9 @@ Future improvements:
 ### Issue: Service won't start after rotation
 
 **Symptoms:**
-- n8n fails to start
 - Worker crashes on startup
 - "Invalid credential" errors
+- `npm run doctor` shows a red ✖ for the provider
 
 **Solutions:**
 1. Check environment variable is set: `echo $GROQ_API_KEY`
