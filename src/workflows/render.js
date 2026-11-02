@@ -1,0 +1,94 @@
+/**
+ * Workflow D — Rendering
+ * Task #31: assets → TTS → audio mix → master video
+ *
+ * Returns: { productionId, masterPath, qcReport, sizeBytes }
+ */
+'use strict';
+
+const path   = require('path');
+const crypto = require('crypto');
+const { StateMachine }  = require('../pipeline/state-machine');
+const { RetryPolicy }   = require('../pipeline/retry-policy');
+const { Telemetry }     = require('../pipeline/telemetry');
+const { VideoRenderer } = require('../video-renderer/renderer');
+const { AudioMixer }    = require('../audio-mixer/mixer');
+const { QualityGate }   = require('../quality-gate/gate');
+
+const FILES_DIR = process.env.N8N_FILES_DIR || '/home/node/.n8n-files';
+const STATE_DIR = `${FILES_DIR}/state`;
+
+/**
+ * Render all scene assets into a final master video.
+ * @param {{ productionId: string, sceneAssets: object[], withMusic?: boolean, musicVolume?: number }} opts
+ * @returns {Promise<RenderResult>}
+ */
+async function runRender({ productionId, sceneAssets, withMusic = true, musicVolume = 0.07 }) {
+  const sm        = new StateMachine({ mode: 'file', stateDir: STATE_DIR });
+  const retryPol  = new RetryPolicy({ maxAttempts: 2, baseDelayMs: 15000 });
+  const telemetry = new Telemetry({ mode: 'file', logPath: `${FILES_DIR}/usage.ndjson` });
+  const renderer  = new VideoRenderer({ filesDir: FILES_DIR });
+  const mixer     = new AudioMixer({ filesDir: FILES_DIR });
+  const qc        = new QualityGate();
+
+  await sm.init();
+  await telemetry.init();
+  await sm.startStage(productionId, 'Video_Rendering');
+
+  // ── Phase 1: Render individual scenes ─────────────────────────────────
+  const sceneFiles = [];
+  for (const asset of sceneAssets) {
+    const idx = asset.sceneId - 1;
+    try {
+      const scenePath = renderer.renderScene({
+        sceneIndex: idx,
+        imagePath:  asset.imagePath,
+        voicePath:  asset.voicePath,
+        caption:    asset.caption || '',
+        camera:     asset.camera  || 'static',
+      });
+      sceneFiles.push(scenePath);
+    } catch (err) {
+      console.error(`[Render] Scene ${idx} failed: ${err.message} — skipping`);
+    }
+  }
+
+  if (sceneFiles.length < 5) {
+    await sm.failStage(productionId, 'Video_Rendering', `Too few scenes rendered: ${sceneFiles.length}`);
+    throw new Error(`Too few scenes rendered: ${sceneFiles.length}`);
+  }
+
+  // ── Phase 2: Assemble master ──────────────────────────────────────────
+  const masterPath = await retryPol.executeStage('Video_Rendering', async () =>
+    renderer.assembleMain({ productionId, sceneCount: sceneFiles.length, withMusic, musicVolume })
+  );
+
+  // ── Phase 3: Quality gate ─────────────────────────────────────────────
+  const qcReport = await qc.validateMaster(masterPath);
+  if (!qcReport.passed) {
+    const failed = qcReport.checks.filter(c => !c.passed).map(c => c.name).join(', ');
+    await sm.failStage(productionId, 'Video_Rendering', `QC failed: ${failed}`);
+    return { productionId, passed: false, qcReport, masterPath: null };
+  }
+
+  const stat = require('fs').statSync(masterPath);
+  const outputHash = crypto.createHash('sha256')
+    .update(`${productionId}:${stat.size}:${sceneFiles.length}`)
+    .digest('hex').slice(0, 16);
+
+  await sm.completeStage(productionId, 'Video_Rendering', {
+    outputHash,
+    metrics: { sceneCount: sceneFiles.length, sizeBytes: stat.size },
+  });
+  await telemetry.track({
+    productionId,
+    stage: 'Video_Rendering',
+    provider: 'ffmpeg',
+    operation: 'master_render',
+    units: Math.round(stat.size / 1024 / 1024),
+  });
+
+  return { productionId, masterPath, passed: true, qcReport, sizeBytes: stat.size, sceneCount: sceneFiles.length, outputHash };
+}
+
+module.exports = { runRender };

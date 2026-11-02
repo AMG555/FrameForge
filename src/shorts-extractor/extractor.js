@@ -21,7 +21,7 @@
 
 'use strict';
 
-const { spawnSync, execSync } = require('child_process');
+const { spawnSync } = require('child_process');
 const path = require('path');
 const fs   = require('fs');
 
@@ -31,9 +31,59 @@ class ShortsExtractor {
   }
 
   /**
-   * Extract shorts from a master video.
+   * Extract candidate segments from a master video (used by Workflow D2).
+   * Returns scored, non-overlapping segment objects — does NOT render them.
+   * @param {string} masterPath
+   * @param {{ sceneMeta?: object, maxCandidates?: number }} opts
+   * @returns {Segment[]}
+   */
+  extractCandidates(masterPath, { sceneMeta = {}, maxCandidates = 9 } = {}) {
+    const duration = this._getDuration(masterPath);
+    if (!duration || duration < 30) throw new Error(`Master video too short: ${duration}s`);
+
+    const silences   = this._detectSilence(masterPath);
+    const boundaries = this._silenceToBoundaries(silences, duration);
+
+    // Build scenes array from sceneMeta map (keyed by scene_id)
+    const scenes = Object.entries(sceneMeta).map(([id, meta]) => ({
+      scene_id:      parseInt(id, 10),
+      focal_point:   meta.focalPoint,
+      hook_potential: meta.hookPotential,
+      standalone:    meta.standalone,
+    }));
+
+    const candidates = this._buildCandidates(boundaries, scenes, duration);
+    const selected   = this._selectSegments(candidates).slice(0, maxCandidates);
+
+    return selected.map(seg => ({
+      startSec:  seg.start,
+      endSec:    seg.end,
+      duration:  seg.duration,
+      score:     seg.score,
+      coveredScenes: seg.coveredScenes,
+    }));
+  }
+
+  /**
+   * Render a single short from a pre-scored segment (used by Workflow D2).
+   * @param {string} masterPath
+   * @param {{ startSec: number, endSec: number, duration: number, coveredScenes?: object[] }} segment
+   * @param {string} outputPath
+   */
+  renderShort(masterPath, segment, outputPath) {
+    const seg = {
+      start:         segment.startSec,
+      end:           segment.endSec,
+      duration:      segment.duration || (segment.endSec - segment.startSec),
+      coveredScenes: segment.coveredScenes || [],
+    };
+    this._extractSegment(masterPath, seg, seg.coveredScenes, outputPath);
+    return outputPath;
+  }
+
+  /**
+   * High-level: extract + render all shorts in one call.
    * @param {{ masterPath: string, scenes: Scene[], outputDir: string }} opts
-   * @param {Scene[]} opts.scenes — scene list with optional focal_point coords
    * @returns {ShortResult[]}
    */
   extractShorts({ masterPath, scenes = [], outputDir }) {
@@ -228,11 +278,13 @@ class ShortsExtractor {
 
   _getDuration(videoPath) {
     try {
-      const raw = execSync(
-        `ffprobe -v error -show_entries format=duration -of default=nk=1:nw=1 "${videoPath}"`,
-        { encoding: 'utf8', timeout: 15000 }
-      );
-      return parseFloat(raw.trim());
+      const result = spawnSync('ffprobe', [
+        '-v', 'error',
+        '-show_entries', 'format=duration',
+        '-of', 'default=nk=1:nw=1',
+        videoPath,
+      ], { encoding: 'utf8', timeout: 15000 });
+      return parseFloat((result.stdout || result.stderr || '0').trim());
     } catch { return 0; }
   }
 }

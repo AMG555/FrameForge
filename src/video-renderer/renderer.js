@@ -189,11 +189,13 @@ class VideoRenderer {
 
   _getAudioDuration(audioPath) {
     try {
-      const raw = execSync(
-        `ffprobe -v error -show_entries format=duration -of default=nk=1:nw=1 "${audioPath}"`,
-        { encoding: 'utf8', timeout: 10000 }
-      );
-      return parseFloat(raw.trim()) || 3;
+      const result = spawnSync('ffprobe', [
+        '-v', 'error',
+        '-show_entries', 'format=duration',
+        '-of', 'default=nk=1:nw=1',
+        audioPath,
+      ], { encoding: 'utf8', timeout: 10000 });
+      return parseFloat((result.stdout || '').trim()) || 3;
     } catch { return 3; }
   }
 }

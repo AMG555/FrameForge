@@ -16,7 +16,7 @@
 
 'use strict';
 
-const { execSync, spawnSync } = require('child_process');
+const { spawnSync } = require('child_process');
 const path = require('path');
 const fs   = require('fs');
 
@@ -122,10 +122,11 @@ class AudioMixer {
   }
 
   _normaliseVideo(videoPath, outputPath) {
+    // -vf copy is not valid FFmpeg; use explicit stream maps instead
     const result = spawnSync('ffmpeg', [
       '-nostdin', '-y',
       '-i', videoPath,
-      '-vf', 'copy',
+      '-map', '0:v', '-map', '0:a',
       '-af', 'loudnorm=I=-14:TP=-1:LRA=11',
       '-c:v', 'copy',
       '-c:a', 'aac', '-b:a', '192k',

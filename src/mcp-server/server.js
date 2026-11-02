@@ -1,18 +1,19 @@
 /**
- * Video Agent MCP Server
+ * Video Agent MCP Server — MCP 2024-11-05 spec compliant
  *
  * Exposes the full video production pipeline as 6 MCP tools.
- * Works with IBM Bob, Kiro IDE, Cursor, Windsurf, or any MCP-capable agent.
+ * Works with IBM Bob, Kiro IDE, Cursor, Windsurf, Claude Code, or any
+ * MCP-capable agent.
  *
  * Tools:
  *   research_topic       — multi-source fact-checked research
- *   write_script         — 55-scene structured JSON from research
+ *   write_script         — 55-scene structured JSON (schema v1.0.0)
  *   generate_scene_image — pluggable image backend
  *   render_tts           — pluggable TTS backend
- *   assemble_video       — FFmpeg master + shorts render
+ *   assemble_video       — FFmpeg master + quality gate
  *   publish_video        — multi-channel delivery (Telegram, YouTube)
  *
- * Start: node src/mcp-server/server.js
+ * Start: node src/mcp-server/server.js   (or: npm start)
  * Port:  MCP_PORT env (default 3210)
  *
  * Env required:
@@ -111,22 +112,33 @@ const TOOLS = {
         const system = [
           'You are a YouTube scriptwriter. Style: rapid-fire educational comedy.',
           'Output ONLY raw JSON. No markdown. Start with { end with }.',
+          'Every scene MUST include all fields in schema_version 1.0.0.',
         ].join(' ');
         const user = [
           `TOPIC: ${topic}`,
           `FACTS: ${facts}`,
           `STYLE: ${style}`,
           '',
-          'Write exactly 55 scenes. Rules:',
-          '- narration: 15-35 words, punchy conversational.',
-          '- caption: 3-6 word UPPERCASE summary.',
-          '- visual_action: one vivid cartoon description. End with ONE tag: [CAMP] [MODERN] [COMPARE] [REACTION] [TIMELINE]',
-          '- camera: static or slow_zoom_in or slow_zoom_out',
+          'Write exactly 55 scenes using schema_version "1.0.0". Each scene has:',
+          '- scene_id: integer 1-55',
+          '- schema_version: "1.0.0"',
+          '- narration: 15-35 words, punchy conversational',
+          '- caption: 3-6 word UPPERCASE summary',
+          '- visual_description: vivid cartoon image + ONE tag: [CAMP] [MODERN] [COMPARE] [REACTION] [TIMELINE]',
+          '- character: { character_id: "ancient_man"|"modern_man"|"none", pose: "standing"|"running"|"sitting"|"jumping"|"none", emotion: "neutral"|"happy"|"angry"|"sad"|"surprised"|"determined"|"relaxed"|"none", position: {x:0.0-1.0, y:0.0-1.0, scale:0.5-2.0} }',
+          '- focal_point: { x:0.0-1.0, y:0.0-1.0, weight:0.0-1.0 }',
+          '- overlay: { type: "prop"|"effect"|"text"|"none" }',
+          '- sound_effects: [ { effect_id: "whoosh"|"fire_crackle"|"crowd_murmur"|"thunder"|"coins"|"heartbeat"|"camera_click"|"none", timing: "start"|"middle"|"end"|"continuous", volume: 0.0-1.0 } ]',
+          '- music_mood: "tense"|"calm"|"energetic"|"mysterious"|"neutral"|"dramatic"|"humorous"',
+          '- camera_hint: "zoom_in"|"zoom_out"|"pan_left"|"pan_right"|"static"|"auto"',
+          '- metadata: { importance: "low"|"medium"|"high"|"critical", hook_potential: 0.0-1.0, standalone: true|false }',
           '',
           'RESPOND WITH EXACTLY:',
-          '{"topic":"...","youtube_title":"...","youtube_description":"...","youtube_tags":["..."],"thumbnail_prompt":"...","scenes":[{"n":1,"narration":"...","caption":"CAPTION","visual_action":"description [CAMP]","camera":"slow_zoom_in"}],"shorts":[{"short_id":1,"title":"...","description":"...","start_scene":1,"end_scene":8}]}',
+          '{"topic":"...","youtube_title":"...","youtube_description":"...","youtube_tags":["..."],"thumbnail_prompt":"...",',
+          '"scenes":[{"scene_id":1,"schema_version":"1.0.0","narration":"...","caption":"CAPTION","visual_description":"description [CAMP]","character":{"character_id":"ancient_man","pose":"standing","emotion":"surprised","position":{"x":0.5,"y":0.8,"scale":1.0}},"focal_point":{"x":0.5,"y":0.3,"weight":0.9},"overlay":{"type":"none"},"sound_effects":[{"effect_id":"fire_crackle","timing":"continuous","volume":0.2}],"music_mood":"mysterious","camera_hint":"zoom_in","metadata":{"importance":"critical","hook_potential":0.9,"standalone":true}}],',
+          '"shorts":[{"short_id":1,"title":"...","description":"...","scene_range":[1,5],"hook_scene":1}]}',
         ].join('\n');
-        return llm.chat({ system, user, temperature: 1, maxTokens: 12000 });
+        return llm.chat({ system, user, temperature: 1, maxTokens: 16000 });
       });
 
       let script;
@@ -265,14 +277,21 @@ const TOOLS = {
       if (channels.includes('telegram')) {
         const botToken = process.env.TELEGRAM_BOT_TOKEN;
         const chatId   = process.env.TELEGRAM_CHAT_ID;
+        const apiBase  = process.env.TELEGRAM_API_BASE || 'https://api.telegram.org';
         if (!botToken || !chatId) throw new Error('TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID required');
         results.telegram = await retryPol.executeStage('Publishing', async () => {
-          // Use curl for multipart upload (most reliable in n8n/Docker environments)
-          const { execSync } = require('child_process');
+          // spawnSync array form — no shell injection risk from token/chatId/path values
+          const { spawnSync } = require('child_process');
           const caption = `🎬 ${youtubeTitle}\n\n${youtubeDescription}`.slice(0, 1024);
-          const cmd = `curl -sS -X POST "https://api.telegram.org/bot${botToken}/sendDocument" -F "chat_id=${chatId}" -F "document=@${masterPath}" -F "caption=${caption.replace(/"/g, '\\"')}"`;
-          const out = execSync(cmd, { timeout: 10 * 60 * 1000, maxBuffer: 10 * 1024 * 1024 });
-          const resp = JSON.parse(out.toString());
+          const result = spawnSync('curl', [
+            '-sS', '-X', 'POST',
+            `${apiBase}/bot${botToken}/sendDocument`,
+            '-F', `chat_id=${chatId}`,
+            '-F', `document=@${masterPath}`,
+            '-F', `caption=${caption}`,
+          ], { timeout: 10 * 60 * 1000, maxBuffer: 10 * 1024 * 1024, encoding: 'utf8' });
+          if (result.error) throw result.error;
+          const resp = JSON.parse(result.stdout || '{}');
           if (!resp.ok) throw new Error(`Telegram error: ${resp.description}`);
           return { ok: true, messageId: resp.result?.message_id };
         });
@@ -291,44 +310,97 @@ const TOOLS = {
   },
 };
 
-// ── MCP protocol handler ──────────────────────────────────────────────────
+// ── MCP protocol handler (MCP 2024-11-05 spec) ───────────────────────────
+
+const SERVER_INFO = {
+  name:    'video-pipeline',
+  version: '1.0.0',
+};
+
+const CAPABILITIES = {
+  tools: { listChanged: false },
+};
 
 async function handleMCPRequest(body) {
   const { method, params, id } = body;
 
+  // ── MCP lifecycle ─────────────────────────────────────────────────────────
+
+  // initialize — required handshake; IDEs send this first
+  if (method === 'initialize') {
+    return {
+      jsonrpc: '2.0', id,
+      result: {
+        protocolVersion: '2024-11-05',
+        serverInfo:      SERVER_INFO,
+        capabilities:    CAPABILITIES,
+      },
+    };
+  }
+
+  // notifications/initialized — no response expected
+  if (method === 'notifications/initialized') return null;
+
+  // ping
+  if (method === 'ping') return { jsonrpc: '2.0', id, result: {} };
+
+  // ── Tool calls ────────────────────────────────────────────────────────────
+
   if (method === 'tools/list') {
-    return { id, result: { tools: Object.entries(TOOLS).map(([name, t]) => ({ name, description: t.description, inputSchema: t.inputSchema })) } };
+    return {
+      jsonrpc: '2.0', id,
+      result: { tools: Object.entries(TOOLS).map(([name, t]) => ({ name, description: t.description, inputSchema: t.inputSchema })) },
+    };
   }
 
   if (method === 'tools/call') {
-    const { name, arguments: args } = params;
+    const { name, arguments: args } = params || {};
     const tool = TOOLS[name];
-    if (!tool) return { id, error: { code: -32601, message: `Unknown tool: ${name}` } };
+    if (!tool) return { jsonrpc: '2.0', id, error: { code: -32601, message: `Unknown tool: ${name}` } };
     try {
       const result = await tool.handler(args || {});
-      return { id, result: { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] } };
+      return {
+        jsonrpc: '2.0', id,
+        result: { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] },
+      };
     } catch (err) {
-      return { id, error: { code: -32000, message: err.message, data: { errorClass: err.errorClass, stageName: err.stageName } } };
+      return {
+        jsonrpc: '2.0', id,
+        error: { code: -32000, message: err.message, data: { errorClass: err.errorClass, stageName: err.stageName } },
+      };
     }
   }
 
-  return { id, error: { code: -32601, message: `Unknown method: ${method}` } };
+  return { jsonrpc: '2.0', id, error: { code: -32601, message: `Unknown method: ${method}` } };
 }
 
 // ── HTTP server ───────────────────────────────────────────────────────────
+
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin':  '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
 
 async function start() {
   await sm.init();
   await telemetry.init();
 
   const server = http.createServer(async (req, res) => {
+    // CORS pre-flight (required by browser-based IDE extensions)
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204, CORS_HEADERS);
+      return res.end();
+    }
+
+    // Health check
     if (req.method === 'GET' && req.url === '/health') {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      return res.end(JSON.stringify({ status: 'ok', tools: Object.keys(TOOLS) }));
+      res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ status: 'ok', serverInfo: SERVER_INFO, tools: Object.keys(TOOLS) }));
     }
 
     if (req.method !== 'POST') {
-      res.writeHead(405); return res.end();
+      res.writeHead(405, CORS_HEADERS); return res.end();
     }
 
     const chunks = [];
@@ -336,18 +408,30 @@ async function start() {
     req.on('end', async () => {
       let body;
       try { body = JSON.parse(Buffer.concat(chunks).toString()); } catch {
-        res.writeHead(400); return res.end(JSON.stringify({ error: 'Invalid JSON' }));
+        res.writeHead(400, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ jsonrpc: '2.0', error: { code: -32700, message: 'Parse error' } }));
       }
-      const response = await handleMCPRequest(body);
-      res.writeHead(200, { 'Content-Type': 'application/json' });
+
+      // Handle JSON-RPC batch (array) or single request
+      let response;
+      if (Array.isArray(body)) {
+        const results = await Promise.all(body.map(handleMCPRequest));
+        response = results.filter(r => r !== null); // drop notifications
+      } else {
+        response = await handleMCPRequest(body);
+        if (response === null) { res.writeHead(204, CORS_HEADERS); return res.end(); }
+      }
+
+      res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
       res.end(JSON.stringify(response));
     });
   });
 
   server.listen(PORT, '127.0.0.1', () => {
-    console.log(`[video-agent MCP] listening on http://127.0.0.1:${PORT}`);
-    console.log(`[video-agent MCP] tools: ${Object.keys(TOOLS).join(', ')}`);
-    console.log(`[video-agent MCP] LLM=${process.env.PROVIDER_LLM || 'groq'} TTS=${process.env.PROVIDER_TTS || 'edge-tts'} Image=${process.env.PROVIDER_IMAGE || 'pollinations'}`);
+    console.log(`[video-pipeline MCP] listening on http://127.0.0.1:${PORT}`);
+    console.log(`[video-pipeline MCP] protocol: MCP 2024-11-05`);
+    console.log(`[video-pipeline MCP] tools: ${Object.keys(TOOLS).join(', ')}`);
+    console.log(`[video-pipeline MCP] LLM=${process.env.PROVIDER_LLM || 'groq'} TTS=${process.env.PROVIDER_TTS || 'edge-tts'} Image=${process.env.PROVIDER_IMAGE || 'pollinations'}`);
   });
 }
 
