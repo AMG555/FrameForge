@@ -4,6 +4,35 @@ All notable changes to FrameForge are documented here.
 
 ---
 
+## [2.1.0] — 2026-11-02
+
+### Added
+
+- **5 new test modules** — 103 new tests across previously untested production modules:
+  - `src/quality-gate/gate.test.js` — QualityGate result schema, check entry shape, _ffprobe/_ffmpeg helpers
+  - `src/shorts-extractor/extractor.test.js` — _focalToFFmpegX (even-pixel constraint, clamping), _scoreSegment, _selectSegments (non-overlap, ≤5), _silenceToBoundaries, _defaultFocalY, error on too-short video
+  - `src/audio-mixer/mixer.test.js` — constructor, detectPauses graceful fallback, mixWithDucking/mixVideo error paths
+  - `src/video-renderer/renderer.test.js` — _captionFilter (sanitisation, truncation, upper-case), _discoverScenes (ordering, size filter, sceneCount cap), _findRandomMusicFile, renderScene/assembleMain error paths
+  - `src/fact-checker/checker.test.js` — _normalizeClaim, _classifyRisk, _requiredSources, _hash, _gatePass, _domainGroup, checkClaims (cache, structure, empty), checkClaim, formatCitation
+
+### Changed
+
+- **`src/schema/scene.schema.json`** — aligned with the v2.0.0 breaking changes shipped in that release:
+  - `schema_version` default corrected from `1.0.0` → `2.0.0`
+  - `character_id` enum (`ancient_man|modern_man|none`) replaced with a free-form string description
+  - `character` block no longer `required` in schema `required` array (character is optional)
+  - `narration` and `visual_description` `minLength` relaxed from `10` → `1`
+  - `camera_hint` enum expanded to include all 11 AnimationSystem hints: `slow_zoom_in`, `slow_zoom_out`, `tilt_up`, `tilt_down`, `ken_burns` (were missing since the animation system was extended)
+  - `character.pose` and `character.emotion` enums removed — free-form strings
+- **`package.json`** — version bumped to `2.1.0`; `test` script extended to include 4 new test files; dead `check-credentials` script reference to deleted `n8n-log-redaction.js` fixed
+
+### Removed
+
+- **`src/utils/n8n-log-redaction.js`** — n8n Code node utility. n8n was removed from this project; the file was dead code. Log redaction is handled by `src/utils/log-redaction.js`.
+- **`src/asset-library/test-asset-library.js`** — legacy console-log test script referencing the removed `ancient_man`/`modern_man` characters. Not in node:test format, not run by `npm test`.
+
+---
+
 ## [2.0.1] — 2026-11-02
 
 ### Security

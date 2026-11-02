@@ -1,25 +1,27 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Enhanced Scene Schema",
-  "description": "Scene definition with enhanced metadata for asset library, animation, and shorts extraction",
+  "title": "Scene Schema v2.0.0",
+  "description": "Scene definition for FrameForge pipeline. character_id is a free-form string since v2.0.0.",
   "type": "object",
-  "required": ["scene_id", "schema_version", "narration", "visual_description", "character"],
+  "required": ["scene_id", "schema_version", "narration", "visual_description"],
   "properties": {
     "scene_id": { "type": "integer", "minimum": 0 },
-    "schema_version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$", "default": "1.0.0" },
-    "narration": { "type": "string", "minLength": 10, "maxLength": 500 },
+    "schema_version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$", "default": "2.0.0" },
+    "narration": { "type": "string", "minLength": 1, "maxLength": 500 },
     "caption": { "type": "string", "maxLength": 100 },
     "video_path": { "type": "string", "description": "Optional path to user-supplied video clip or B-roll" },
     "image_path": { "type": "string", "description": "Optional path to user-supplied static image" },
     "audio_path": { "type": "string", "description": "Optional path to user-supplied pre-recorded voiceover" },
-    "visual_description": { "type": "string", "minLength": 10 },
+    "visual_description": { "type": "string", "minLength": 1 },
     "character": {
       "type": "object",
-      "required": ["character_id", "pose", "emotion"],
       "properties": {
-        "character_id": { "type": "string", "enum": ["ancient_man", "modern_man", "none"] },
-        "pose": { "type": "string", "enum": ["standing", "running", "sitting", "jumping", "none"] },
-        "emotion": { "type": "string", "enum": ["neutral", "happy", "angry", "sad", "surprised", "determined", "relaxed", "none"] },
+        "character_id": {
+          "type": "string",
+          "description": "Free-form character identifier. Use 'none' for no character. Any string is valid since schema v2.0.0."
+        },
+        "pose": { "type": "string" },
+        "emotion": { "type": "string" },
         "position": {
           "type": "object",
           "properties": {
@@ -72,8 +74,21 @@
         }
       }
     },
-    "music_mood": { "type": "string", "enum": ["tense", "calm", "energetic", "mysterious", "neutral", "dramatic", "humorous"] },
-    "camera_hint": { "type": "string", "enum": ["zoom_in", "zoom_out", "pan_left", "pan_right", "static", "auto"] },
+    "music_mood": {
+      "type": "string",
+      "enum": ["tense", "calm", "energetic", "mysterious", "neutral", "dramatic", "humorous"]
+    },
+    "camera_hint": {
+      "type": "string",
+      "enum": [
+        "zoom_in", "zoom_out",
+        "slow_zoom_in", "slow_zoom_out",
+        "pan_left", "pan_right",
+        "tilt_up", "tilt_down",
+        "ken_burns",
+        "static", "auto"
+      ]
+    },
     "metadata": {
       "type": "object",
       "properties": {
