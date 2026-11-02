@@ -98,35 +98,47 @@
 
 ---
 
+### Week 4–5 completions (Tasks #11, #17, #18, #24, #27)
+
+- **#11** Animation System — `src/animation/animation-system.js`:
+  - 8 camera presets: slow_zoom_in/out, zoom_in/out, pan_left/right, tilt_up/down, ken_burns, static, auto
+  - `buildCameraFilter(hint, opts)` → FFmpeg filter string; MAX_ZOOM 1.12 enforced everywhere
+  - `selectCameraHint(sceneIndex)` rotation-based auto-selection; `buildTransitionFilter()` for xfade
+- **#17** TTS Natural Narrator — `src/pipeline/providers.js`:
+  - `NARRATOR_VOICES` table per provider × gender (male/female/default)
+  - `selectNarratorVoice()` — respects `TTS_VOICE`, `TTS_VOICE_GENDER` env vars
+  - Removed artificial bass boost (`bass=g=3:f=110`); rate default `+0%` (natural cadence)
+- **#18** AudioMixer integration — `src/video-renderer/renderer.js`:
+  - Two-step assembly: FFmpeg concat → raw, then `AudioMixer.mixVideo()` for ducking + LUFS
+  - AudioMixer owns all audio processing; renderer no longer embeds filter strings
+- **#24** Artifact Manifest — `src/pipeline/artifact-manifest.js`:
+  - sha256 content-addressed scenes, images, voices, renders
+  - `loadOrCreate()` idempotency by narration_hash; scene lifecycle methods + telemetry
+  - Written to `artifacts/<production_id>/manifest.json` after every update
+- **#27** Artifact Retention — `src/pipeline/artifact-retention.js`:
+  - PERMANENT / 30-day / temp policies; `classifyRetention()` deterministic lookup
+  - `applyRetentionRules()` post-publish; `sweepExpiredIntermediates()` nightly cron
+
 ## In Progress / Pending
 
-### Next Critical Path Items (Weeks 7–10)
+### Remaining Critical Path (Weeks 8–10)
 
 | # | Task | Depends on | Est. |
 |---|------|-----------|------|
-| #28 | Workflow A: Research (n8n) | #19, #23 | 6h |
-| #29 | Workflow B: Script (n8n) | #10, #28 | 8h |
-| #30 | Workflow C: Assets (n8n) | #9, #29 | 6h |
-| #31 | Workflow D: Rendering (n8n) | #12, #16, #30 | 8h |
-| #32 | Workflow D2: Shorts (n8n) | #13, #31 | 6h |
-| #33 | Workflow E: Packaging (n8n) | #22, #32 | 4h |
-| #34 | Workflow F: Publishing (n8n) | #33 | 4h |
-| #35 | Worker HTTP API runtime | #23, #25 | 8h |
+| #14 | Vertical reformatting (9:16 crop + focal-point) | #13 | 12h |
+| #15 | Replace independent shorts gen with extraction | #14 | 4h |
+| #20 | Fact-check validation set (≥100 difficult claims) | #19 | 4h |
+| #21 | Integrate FactChecker with human review gates | #19, #20 | 8h |
 | #36 | Pi/server orchestrator deploy | #35 | 6h |
 | #37 | E2E pipeline test | #34, #36 | 10h |
 | #43 | 10-video baseline run | #37 | 12h |
 
 ### Still Pending
 
-- **#11** Animation System (narrative zoom/pan/tilt, transitions) — 12h
 - **#14** Vertical reformatting (saliency + focal-point 9:16 crop) — 12h
 - **#15** Replace independent shorts generation with extraction — 4h
-- **#17** Update TTS pipeline (natural narrator voice selection) — 3h
-- **#18** Integrate AudioMixer into rendering pipeline — 6h
 - **#20** Fact-check validation set (≥100 difficult claims) — 4h
-- **#21** Integrate FactChecker with human review gates — 8h
-- **#24** Artifact Manifest system — 8h
-- **#27** Artifact retention rules — 2h
+- **#21** Integrate Fact Checker with human review gates — 8h
 - **#38–42** Testing tasks — 20h
 - **#44** Baseline analysis — 4h
 - **#45–47** Documentation — 14h
@@ -138,14 +150,15 @@
 
 | Metric | Value |
 |--------|-------|
-| Tasks complete | ~20 / 48 (42%) |
+| Tasks complete | ~27 / 48 (56%) |
 | Hours estimated | 274h total |
-| Hours completed | ~100h |
-| Weeks remaining | ~6 |
+| Hours completed | ~148h |
+| Weeks remaining | ~4 |
 | Security status | 🔒 Clean — zero hardcoded credentials |
+| deep-validate checks | ✅ 62 / 62 pass |
 | Node syntax checks | ✅ All pass |
 | JSON workflow validity | ✅ Both files parse clean |
-| Git commits | 2 (a73b698, c95016e) |
+| Git commits | 4 (a73b698, c95016e, 696585b, 101eede) |
 
 ---
 

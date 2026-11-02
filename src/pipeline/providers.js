@@ -224,40 +224,90 @@ class LLMProvider {
 // TTS PROVIDER
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ── Task #17: Natural narrator voice table ────────────────────────────────
+// Voices are grouped by register. Override with TTS_VOICE env var.
+// No artificial rate deepening — all voices are selected for natural quality.
+const NARRATOR_VOICES = {
+  // edge-tts
+  'edge-tts': {
+    male:   process.env.TTS_VOICE_MALE   || 'en-US-BrianNeural',   // deep, authoritative
+    female: process.env.TTS_VOICE_FEMALE || 'en-US-JennyNeural',   // warm, clear
+    default: process.env.TTS_VOICE       || 'en-US-BrianNeural',
+  },
+  // ElevenLabs — voice IDs
+  elevenlabs: {
+    male:    process.env.ELEVENLABS_VOICE_MALE    || 'pNInz6obpgDQGcFmaJgB', // Adam
+    female:  process.env.ELEVENLABS_VOICE_FEMALE  || '21m00Tcm4TlvDq8ikWAM', // Rachel
+    default: process.env.ELEVENLABS_VOICE_ID      || 'pNInz6obpgDQGcFmaJgB',
+  },
+  // Azure cognitive services
+  azure: {
+    male:    process.env.AZURE_VOICE_MALE    || 'en-US-GuyNeural',
+    female:  process.env.AZURE_VOICE_FEMALE  || 'en-US-JennyNeural',
+    default: process.env.TTS_VOICE           || 'en-US-GuyNeural',
+  },
+  // OpenAI TTS
+  openai: {
+    male:    'onyx',
+    female:  'nova',
+    default: process.env.TTS_VOICE || 'onyx',
+  },
+};
+
 class TTSProvider {
   constructor() {
     this.name = (process.env.PROVIDER_TTS || 'edge-tts').toLowerCase();
   }
 
   /**
+   * Select the appropriate narrator voice for this provider.
+   * Respects TTS_VOICE env var as an explicit override; otherwise
+   * picks by gender preference (TTS_VOICE_GENDER=male|female|default).
+   *
+   * @param {string} [explicitVoice]  voice passed by caller (takes priority)
+   * @returns {string}
+   */
+  selectNarratorVoice(explicitVoice) {
+    if (explicitVoice) return explicitVoice;
+    const voices  = NARRATOR_VOICES[this.name] || NARRATOR_VOICES['edge-tts'];
+    const gender  = (process.env.TTS_VOICE_GENDER || 'default').toLowerCase();
+    return voices[gender] || voices.default;
+  }
+
+  /**
    * Synthesize text to an MP3/M4A file.
-   * @param {{ text: string, voice: string, outputPath: string, rate?: string }} opts
+   * @param {{ text: string, voice?: string, outputPath: string }} opts
+   *   voice is optional — if omitted, selectNarratorVoice() picks automatically
    * @returns {Promise<string>} resolves with outputPath
    */
-  async synthesize({ text, voice, outputPath, rate = '-5%' }) {
+  async synthesize({ text, voice, outputPath }) {
+    const resolvedVoice = this.selectNarratorVoice(voice);
     switch (this.name) {
-      case 'edge-tts':   return this._edgeTTS({ text, voice, outputPath, rate });
-      case 'elevenlabs': return this._elevenLabs({ text, voice, outputPath });
-      case 'azure':      return this._azureTTS({ text, voice, outputPath, rate });
-      case 'openai':     return this._openaiTTS({ text, voice, outputPath });
-      default:           return this._edgeTTS({ text, voice, outputPath, rate });
+      case 'edge-tts':   return this._edgeTTS({ text, voice: resolvedVoice, outputPath });
+      case 'elevenlabs': return this._elevenLabs({ text, voice: resolvedVoice, outputPath });
+      case 'azure':      return this._azureTTS({ text, voice: resolvedVoice, outputPath });
+      case 'openai':     return this._openaiTTS({ text, voice: resolvedVoice, outputPath });
+      default:           return this._edgeTTS({ text, voice: resolvedVoice, outputPath });
     }
   }
 
-  async _edgeTTS({ text, voice, outputPath, rate }) {
-    const rawPath = outputPath.replace(/\.[^.]+$/, '_raw.mp3');
-    const safeVoice = voice || 'en-US-GuyNeural';
+  async _edgeTTS({ text, voice, outputPath }) {
+    const rawPath   = outputPath.replace(/\.[^.]+$/, '_raw.mp3');
+    const safeVoice = voice || NARRATOR_VOICES['edge-tts'].default;
+    // No artificial rate manipulation — use the voice's natural cadence.
+    // Only a mild rate adjustment from env (e.g. TTS_RATE='+0%') is supported.
+    const rate = process.env.TTS_RATE || '+0%';
     return withRetry(async () => {
       await new Promise((resolve, reject) => {
         const proc = spawn('edge-tts', ['--voice', safeVoice, '--rate', rate, '--text', text, '--write-media', rawPath], { timeout: 40000 });
         proc.on('close', code => code === 0 ? resolve() : reject(new Error(`edge-tts exited ${code}`)));
         proc.on('error', reject);
       });
-      // Normalise audio via FFmpeg
+      // Normalise audio via FFmpeg — no bass-boost, no artificial deepening
       await new Promise((resolve, reject) => {
         const proc = spawn('ffmpeg', ['-nostdin', '-y', '-threads', '2',
           '-i', rawPath,
-          '-af', 'atrim=end_silence=0.3,asetpts=PTS-STARTPTS,highpass=f=80,bass=g=3:f=110,volume=1.1,dynaudnorm=f=150:g=5:p=0.95',
+          '-af', 'atrim=end_silence=0.3,asetpts=PTS-STARTPTS,highpass=f=80,volume=1.0,dynaudnorm=f=150:g=5:p=0.95',
           '-ar', '48000', '-ac', '2', '-c:a', 'aac', '-b:a', '192k', outputPath], { timeout: 30000 });
         proc.on('close', code => code === 0 ? resolve() : reject(new Error(`ffmpeg exited ${code}`)));
         proc.on('error', reject);
@@ -281,12 +331,15 @@ class TTSProvider {
     }, { maxAttempts: 3, baseDelayMs: 5000, label: 'TTS(elevenlabs)' });
   }
 
-  async _azureTTS({ text, voice, outputPath, rate }) {
+  async _azureTTS({ text, voice, outputPath }) {
     // Accept both AZURE_SPEECH_KEY (documented) and AZURE_TTS_KEY (legacy)
     const key    = process.env.AZURE_SPEECH_KEY || process.env.AZURE_TTS_KEY;
     const region = process.env.AZURE_SPEECH_REGION || process.env.AZURE_TTS_REGION || 'eastus';
     if (!key) throw new Error('AZURE_SPEECH_KEY env var not set');
-    const ssml = `<speak version="1.0" xml:lang="en-US"><voice name="${voice || 'en-US-GuyNeural'}"><prosody rate="${rate}">${text}</prosody></voice></speak>`;
+    const resolvedVoice = voice || NARRATOR_VOICES.azure.default;
+    // Natural rate via env TTS_RATE; default is no change (+0%)
+    const rate = process.env.TTS_RATE || '+0%';
+    const ssml = `<speak version="1.0" xml:lang="en-US"><voice name="${resolvedVoice}"><prosody rate="${rate}">${text}</prosody></voice></speak>`;
     return withRetry(async () => {
       const audio = await httpPost(
         `https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`,
