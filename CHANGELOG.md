@@ -4,6 +4,52 @@ All notable changes to FrameForge are documented here.
 
 ---
 
+## [2.0.0] — 2026-11-02
+
+### Breaking Changes
+
+**Scene schema updated to `2.0.0`.**
+- `character_id` is now a free-form string (was an enum of `ancient_man|modern_man|none`)
+- `visual_description` no longer requires `[CAMP][MODERN][COMPARE][REACTION][TIMELINE]` tags
+- `youtubeTitle`/`youtubeDescription`/`youtubeTags` renamed to `title`/`description`/`tags` in `runScript()` return value (legacy keys still returned for backwards compat)
+
+### Removed
+- All hardcoded domain content: "YouTube history researcher", "ancient_man", "modern_man", caveman loincloth image style constant, `[CAMP][MODERN][COMPARE][REACTION][TIMELINE]` scene tags
+- `.kiro/` folder removed from git history entirely (IBM Kiro IDE dev artifacts — not needed by contributors)
+- Hardcoded 55-scene / 1000-word minimums relaxed to 5 scenes / 50 words (short-form reels now work)
+
+### Added
+
+**Tool 11: `create_video_from_script`** — Agent-first path. The IDE agent writes the complete `scenes[]` array in its own context; FrameForge renders without any internal LLM calls. This is the primary path for IBM Bob, Claude Code, Cursor, and any agentic IDE.
+
+```json
+{ "scenes": [
+    { "narration": "Spoken text", "caption": "OVERLAY", "visual_description": "Image prompt" }
+] }
+```
+
+**Tool 12: `multi_voice_tts`** — Per-call TTS platform override. Call ElevenLabs, Azure, OpenAI TTS, edge-tts, or any webhook without changing global `.env`. Pass `apiKey` inline for voice cloning workflows.
+
+**Generic `research_topic` and `write_script` tools** — now accept:
+- `persona`: who the narrator is (e.g. "travel blogger", "tech reviewer")
+- `format`: video format (e.g. "Instagram reel", "long-form tutorial", "explainer")
+- `style`: content style (e.g. "comedic", "documentary", "educational", "vlog")
+- `language`: BCP-47 code for the script language
+- `targetDuration`: video duration in seconds (auto-calculates scene count)
+- `imageStyle`: visual aesthetic for AI image prompts ("photorealistic", "anime", "watercolour", etc.)
+
+**`generate_scene_image`** — `imageStyle` param replaces hardcoded art style. Any visual aesthetic now possible.
+
+### How FrameForge works with an agentic IDE
+
+FrameForge is a **rendering execution engine**. Your IDE (IBM Bob / Claude Code / Cursor) is the intelligence.
+
+**Farhan's workflow** (the PDF): Claude Desktop controls a browser, types scripts into ElevenLabs, runs Remotion renders. The agent drives the GUI.
+
+**FrameForge + agentic IDE**: The IDE writes scenes in its context and calls structured MCP tool functions. No browser control needed. The IDE calls `create_video_from_script` → FrameForge handles TTS + image gen + FFmpeg assembly → returns `masterPath`. Like Opus Clip but controlled by your IDE.
+
+---
+
 ## [1.4.1] — 2026-11-02
 
 ### Changed — LLM Provider Overhaul

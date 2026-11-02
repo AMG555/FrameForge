@@ -61,125 +61,98 @@ const telemetry = new Telemetry({ mode: 'file', logPath: USAGE_LOG });
 const TOOLS = {
 
   // ── Tool 1: Research ────────────────────────────────────────────────────
+  // Delegates to runResearch() which is fully generic — no hardcoded domain.
   research_topic: {
-    description: 'Research a topic with fact extraction. Returns verified claims ready for script generation.',
+    description: 'Research any topic with fact extraction. Returns verified claims ready for script generation. Works for any content type: tech, cooking, travel, history, tutorials, etc.',
     inputSchema: {
       type: 'object',
       required: ['topic'],
       properties: {
-        topic:       { type: 'string', description: 'Topic to research' },
-        claimCount:  { type: 'number', default: 10, description: 'Number of claims to extract' },
+        topic:      { type: 'string', description: 'Topic to research' },
+        claimCount: { type: 'number', default: 10, description: 'Number of claims to extract' },
+        persona:    { type: 'string', default: 'video content researcher', description: 'Researcher persona, e.g. "tech journalist", "travel blogger"' },
+        format:     { type: 'string', default: 'video', description: 'e.g. "short-form reel", "long YouTube video", "explainer"' },
+        style:      { type: 'string', default: 'informative', description: 'e.g. "educational", "comedic", "documentary"' },
+        audience:   { type: 'string', default: 'general public', description: 'Target audience' },
       },
     },
-    handler: async ({ topic, claimCount = 10 }) => {
-      const productionId = await sm.createProduction({ topic, pipelineVersion: '1.0.0' });
-      await sm.startStage(productionId, 'Research');
-
-      const content = await retryPol.executeStage('Research', async () => {
-        const system = 'You are a YouTube history researcher. Output ONLY raw JSON. No markdown. No code fences. Start with { and end with }.';
-        const user   = `TOPIC: ${topic}\n\nReturn ${claimCount} factual claims as JSON:\n{"topic":"...","claims":[{"claim":"...","confidence":"high","safe_wording":"..."}],"common_myths":["..."],"modern_comparisons":["..."],"story_angles":["..."]}`;
-        return llm.chat({ system, user, temperature: 0.7, maxTokens: 4000 });
-      });
-
-      let research;
-      try { research = LLMProvider.parseJson(content); } catch (e) { throw new Error(`Research JSON parse failed: ${e.message}`); }
-      if (!Array.isArray(research.claims) || research.claims.length < 5) throw new Error(`Research returned too few claims: ${research.claims?.length}`);
-
-      await sm.completeStage(productionId, 'Research', { outputHash: crypto.createHash('sha256').update(content).digest('hex').slice(0,16) });
-      await telemetry.track({ productionId, stage: 'Research', provider: process.env.PROVIDER_LLM || 'groq', operation: 'research_generation', units: content.length / 4 });
-
-      return { productionId, topic, claims: research.claims, myths: research.common_myths || [], angles: research.story_angles || [] };
+    handler: async ({ topic, claimCount = 10, persona, format, style, audience }) => {
+      const { runResearch } = require('../workflows/research');
+      return runResearch(topic, { claimCount, persona, format, style, audience });
     },
   },
 
   // ── Tool 2: Script ───────────────────────────────────────────────────────
+  // Delegates to runScript() which is fully generic — no hardcoded characters or domain.
   write_script: {
-    description: 'Write a 55-scene video script from research claims. Returns structured scene JSON.',
+    description: 'Write a video script from research claims. Generic — works for any topic, style, language, or format. Returns structured scene JSON.',
     inputSchema: {
       type: 'object',
       required: ['productionId', 'claims', 'topic'],
       properties: {
-        productionId: { type: 'string' },
-        claims:       { type: 'array' },
-        topic:        { type: 'string' },
-        style:        { type: 'string', default: 'educational comedy' },
+        productionId:    { type: 'string' },
+        claims:          { type: 'array' },
+        topic:           { type: 'string' },
+        style:           { type: 'string', default: 'informative', description: 'e.g. "educational", "comedic", "documentary", "tutorial", "vlog"' },
+        persona:         { type: 'string', default: 'video host', description: 'Who the narrator is, e.g. "travel blogger", "tech reviewer"' },
+        format:          { type: 'string', default: 'YouTube video', description: 'e.g. "YouTube short", "Instagram reel", "long-form tutorial"' },
+        language:        { type: 'string', default: 'en', description: 'BCP-47 language code for the script' },
+        sceneCount:      { type: 'number', default: 55, description: 'Target number of scenes' },
+        targetDuration:  { type: 'number', description: 'Target video duration in seconds (overrides sceneCount)' },
+        imageStyle:      { type: 'string', default: 'clean flat illustration', description: 'Visual aesthetic for AI image prompts, e.g. "photorealistic", "anime", "watercolour"' },
       },
     },
-    handler: async ({ productionId, claims, topic, style = 'educational comedy' }) => {
-      await sm.startStage(productionId, 'Script');
-      const facts = claims.slice(0, 8).map(c => c.safe_wording || c.claim).join('; ');
-
-      const content = await retryPol.executeStage('Script', async () => {
-        const system = [
-          'You are a YouTube scriptwriter. Style: rapid-fire educational comedy.',
-          'Output ONLY raw JSON. No markdown. Start with { end with }.',
-          'Every scene MUST include all fields in schema_version 1.0.0.',
-        ].join(' ');
-        const user = [
-          `TOPIC: ${topic}`,
-          `FACTS: ${facts}`,
-          `STYLE: ${style}`,
-          '',
-          'Write exactly 55 scenes using schema_version "1.0.0". Each scene has:',
-          '- scene_id: integer 1-55',
-          '- schema_version: "1.0.0"',
-          '- narration: 15-35 words, punchy conversational',
-          '- caption: 3-6 word UPPERCASE summary',
-          '- visual_description: vivid cartoon image + ONE tag: [CAMP] [MODERN] [COMPARE] [REACTION] [TIMELINE]',
-          '- character: { character_id: "ancient_man"|"modern_man"|"none", pose: "standing"|"running"|"sitting"|"jumping"|"none", emotion: "neutral"|"happy"|"angry"|"sad"|"surprised"|"determined"|"relaxed"|"none", position: {x:0.0-1.0, y:0.0-1.0, scale:0.5-2.0} }',
-          '- focal_point: { x:0.0-1.0, y:0.0-1.0, weight:0.0-1.0 }',
-          '- overlay: { type: "prop"|"effect"|"text"|"none" }',
-          '- sound_effects: [ { effect_id: "whoosh"|"fire_crackle"|"crowd_murmur"|"thunder"|"coins"|"heartbeat"|"camera_click"|"none", timing: "start"|"middle"|"end"|"continuous", volume: 0.0-1.0 } ]',
-          '- music_mood: "tense"|"calm"|"energetic"|"mysterious"|"neutral"|"dramatic"|"humorous"',
-          '- camera_hint: "zoom_in"|"zoom_out"|"pan_left"|"pan_right"|"static"|"auto"',
-          '- metadata: { importance: "low"|"medium"|"high"|"critical", hook_potential: 0.0-1.0, standalone: true|false }',
-          '',
-          'RESPOND WITH EXACTLY:',
-          '{"topic":"...","youtube_title":"...","youtube_description":"...","youtube_tags":["..."],"thumbnail_prompt":"...",',
-          '"scenes":[{"scene_id":1,"schema_version":"1.0.0","narration":"...","caption":"CAPTION","visual_description":"description [CAMP]","character":{"character_id":"ancient_man","pose":"standing","emotion":"surprised","position":{"x":0.5,"y":0.8,"scale":1.0}},"focal_point":{"x":0.5,"y":0.3,"weight":0.9},"overlay":{"type":"none"},"sound_effects":[{"effect_id":"fire_crackle","timing":"continuous","volume":0.2}],"music_mood":"mysterious","camera_hint":"zoom_in","metadata":{"importance":"critical","hook_potential":0.9,"standalone":true}}],',
-          '"shorts":[{"short_id":1,"title":"...","description":"...","scene_range":[1,5],"hook_scene":1}]}',
-        ].join('\n');
-        return llm.chat({ system, user, temperature: 1, maxTokens: 16000 });
-      });
-
-      let script;
-      try { script = LLMProvider.parseJson(content); } catch (e) { throw new Error(`Script parse failed: ${e.message}`); }
-      if (!Array.isArray(script.scenes) || script.scenes.length < 15) throw new Error(`Too few scenes: ${script.scenes?.length}`);
-
-      const totalWords = script.scenes.reduce((n, s) => n + (s.narration || '').split(/\s+/).filter(Boolean).length, 0);
-      if (totalWords < 1000) throw new Error(`Script too short: ${totalWords} words`);
-
-      await sm.completeStage(productionId, 'Script', { outputHash: crypto.createHash('sha256').update(content).digest('hex').slice(0,16) });
-      await telemetry.track({ productionId, stage: 'Script', provider: process.env.PROVIDER_LLM || 'groq', operation: 'script_generation', units: content.length / 4 });
-
-      return { productionId, scenes: script.scenes, shorts: script.shorts || [], youtubeTitle: script.youtube_title, youtubeDescription: script.youtube_description, youtubeTags: script.youtube_tags, thumbnailPrompt: script.thumbnail_prompt, totalWords };
+    handler: async ({ productionId, claims, topic, style, persona, format, language, sceneCount, targetDuration, imageStyle }) => {
+      const { runScript } = require('../workflows/script');
+      const result = await runScript({ productionId, claims, topic, style, persona, format, language, sceneCount, targetDuration, imageStyle });
+      return {
+        productionId: result.productionId,
+        scenes:       result.scenes,
+        shorts:       result.shorts,
+        title:        result.title,
+        description:  result.description,
+        tags:         result.tags,
+        thumbnailPrompt: result.thumbnailPrompt,
+        totalWords:   result.totalWords,
+        sceneCount:   result.sceneCount,
+      };
     },
   },
 
   // ── Tool 3: Generate scene image ─────────────────────────────────────────
   generate_scene_image: {
-    description: 'Generate a doodle/illustration for one scene using the configured image provider.',
+    description: 'Generate an image for one scene using the configured image provider. Pass imageStyle to control the visual aesthetic (default: clean flat illustration). No hardcoded art style.',
     inputSchema: {
       type: 'object',
-      required: ['productionId', 'sceneIndex', 'visualAction'],
+      required: ['productionId', 'sceneIndex', 'visualDescription'],
       properties: {
-        productionId: { type: 'string' },
-        sceneIndex:   { type: 'number' },
-        visualAction: { type: 'string', description: 'Scene visual description with [TAG]' },
-        seed:         { type: 'number', default: 12345 },
+        productionId:     { type: 'string' },
+        sceneIndex:       { type: 'number' },
+        visualDescription:{ type: 'string', description: 'Scene visual description — used directly as image prompt' },
+        imageStyle:       { type: 'string', description: 'Visual aesthetic, e.g. "flat design", "photorealistic", "anime", "watercolour sketch". Default: clean flat illustration.' },
+        negativePrompt:   { type: 'string', description: 'What to exclude from the image (optional)' },
+        seed:             { type: 'number', default: 12345 },
       },
     },
-    handler: async ({ productionId, sceneIndex, visualAction, seed = 12345 }) => {
-      const vdir      = path.join(FILES_DIR, 'video_tmp');
+    handler: async ({
+      productionId,
+      sceneIndex,
+      visualDescription,
+      // Accept legacy 'visualAction' param name for backwards compat
+      visualAction,
+      imageStyle = 'clean flat illustration, white background, bold lines',
+      negativePrompt = 'watermark, text, logo, blurry, low quality',
+      seed = 12345,
+    }) => {
+      const vdir       = path.join(FILES_DIR, 'video_tmp');
       const outputPath = path.join(vdir, `scene_${sceneIndex}.png`);
       await fs.mkdir(vdir, { recursive: true });
 
-      const STYLE = '2D flat vector cartoon, hand-drawn marker doodle, pure white background, thick solid black outlines 4px, zero shading, flat color fills, stick figure body, wild messy black hair, caveman wears brown animal pelt loincloth, big round expressive eyes, web comic panel style';
-      const NEG   = 'photorealistic, 3D render, CGI, painting, dark background, gradient, shadow, texture, noise, watermark, text, logo';
-      const prompt = `${visualAction.replace(/\[[A-Z]+\]/g, '').trim()}, ${STYLE}`;
+      const description = visualDescription || visualAction || '';
+      const prompt = `${description.trim()}, ${imageStyle}`;
 
       await retryPol.executeStage('Asset_Generation', async () => {
-        return imageGen.generate({ prompt, negativePrompt: NEG, outputPath, width: 1920, height: 1080, seed: seed + sceneIndex * 37 });
+        return imageGen.generate({ prompt, negativePrompt, outputPath, width: 1920, height: 1080, seed: seed + sceneIndex * 37 });
       });
 
       const stat = await fs.stat(outputPath);
@@ -484,9 +457,162 @@ const TOOLS = {
     },
   },
 
-  // ── Tool 11 (was 7): n8n webhook trigger ─────────────────────────────────
-  // Bridges the MCP protocol with n8n workflows — fires an n8n webhook to
-  // trigger a full pipeline run without requiring direct n8n access.
+  // ── Tool 11: Agent-first video creation (IDE writes the script, FF renders) ──
+  // Primary path for IBM Bob / Claude Code / Cursor users.
+  // The IDE agent writes the scenes array in its own context — no internal LLM needed.
+  create_video_from_script: {
+    description: `Agent-first video creation. YOU (the IDE agent) provide the complete scenes array — FrameForge just renders it. No internal LLM, no research stage. This is the primary path for Claude Code, IBM Bob, Cursor, and any agentic IDE.
+
+Example scene:
+{
+  "narration": "The text spoken aloud in this scene",
+  "caption": "OVERLAY TEXT",
+  "visual_description": "A description used as the AI image prompt",
+  "camera_hint": "zoom_in",
+  "music_mood": "energetic",
+  "image_path": "/optional/your/own/image.jpg",
+  "audio_path": "/optional/your/own/voice.mp3"
+}`,
+    inputSchema: {
+      type: 'object',
+      required: ['scenes'],
+      properties: {
+        scenes:       { type: 'array',   description: 'Complete scenes array written by the agent. Each scene: { narration, caption, visual_description, camera_hint?, music_mood?, image_path?, video_path?, audio_path? }' },
+        title:        { type: 'string',  description: 'Video title' },
+        skipImages:   { type: 'boolean', default: false, description: 'Set true if all scenes already have image_path or video_path' },
+        skipTts:      { type: 'boolean', default: false, description: 'Set true if all scenes already have audio_path' },
+        imageStyle:   { type: 'string',  description: 'Visual aesthetic for AI-generated images, e.g. "photorealistic", "anime", "flat design". Only used when skipImages is false.' },
+        withMusic:    { type: 'boolean', default: true },
+        musicVolume:  { type: 'number',  default: 0.07 },
+        productionId: { type: 'string',  description: 'Optional — reuse an existing productionId' },
+      },
+    },
+    handler: async ({ scenes, title = 'FrameForge Video', skipImages = false, skipTts = false, imageStyle, withMusic = true, musicVolume = 0.07, productionId }) => {
+      const { runAssets } = require('../workflows/assets');
+      const { runRender } = require('../workflows/render');
+
+      if (!Array.isArray(scenes) || scenes.length === 0) {
+        throw new Error('scenes array is required and must not be empty. You (the IDE agent) write the scenes.');
+      }
+
+      // Apply imageStyle to visual_description if provided and skipImages is false
+      const processedScenes = scenes.map((s, i) => ({
+        scene_id:           s.scene_id || i + 1,
+        schema_version:     '2.0.0',
+        narration:          s.narration          || '',
+        caption:            s.caption            || '',
+        visual_description: imageStyle && !s.image_path && !s.video_path
+          ? `${s.visual_description || ''}, ${imageStyle}`.trim()
+          : (s.visual_description  || ''),
+        camera_hint:        s.camera_hint        || 'auto',
+        music_mood:         s.music_mood         || 'neutral',
+        image_path:         s.image_path         || null,
+        video_path:         s.video_path         || null,
+        audio_path:         s.audio_path         || null,
+        character:          s.character          || { character_id: 'none', pose: 'none', emotion: 'neutral', position: { x: 0.5, y: 0.8, scale: 1.0 } },
+        focal_point:        s.focal_point        || { x: 0.5, y: 0.35, weight: 0.8 },
+        overlay:            s.overlay            || { type: 'none' },
+        sound_effects:      s.sound_effects      || [],
+        metadata:           s.metadata           || { importance: 'medium', hook_potential: 0.5, standalone: false },
+      }));
+
+      const pid = productionId || `agent_${crypto.randomBytes(4).toString('hex')}_${Date.now()}`;
+
+      const assetsResult = await runAssets({ productionId: pid, scenes: processedScenes, parallelism: 4, skipImages, skipTts });
+      const renderResult = await runRender({ productionId: pid, sceneAssets: assetsResult.sceneAssets, withMusic, musicVolume });
+
+      if (!renderResult.passed) {
+        return { productionId: pid, passed: false, qcReport: renderResult.qcReport };
+      }
+
+      return {
+        productionId: pid,
+        masterPath:   renderResult.masterPath,
+        passed:       true,
+        sizeBytes:    renderResult.sizeBytes,
+        sceneCount:   renderResult.sceneCount,
+        title,
+        message: `Video ready at: ${renderResult.masterPath}`,
+      };
+    },
+  },
+
+  // ── Tool 12: Multi-platform TTS ──────────────────────────────────────────
+  // Call any voice platform per-request without changing global .env
+  multi_voice_tts: {
+    description: 'Convert text to speech using any supported voice platform per-call. Overrides the global PROVIDER_TTS for this one request. Supports: edge-tts, elevenlabs, azure, openai, custom webhook.',
+    inputSchema: {
+      type: 'object',
+      required: ['text', 'outputPath'],
+      properties: {
+        text:       { type: 'string', description: 'Text to synthesise' },
+        outputPath: { type: 'string', description: 'Where to save the audio file (.m4a or .mp3)' },
+        platform:   { type: 'string', enum: ['edge-tts','elevenlabs','azure','openai','webhook'], description: 'TTS platform. Overrides PROVIDER_TTS for this call.' },
+        voice:      { type: 'string', description: 'Voice ID. edge-tts: e.g. en-US-GuyNeural. ElevenLabs: voice_id. Azure: short name. OpenAI: alloy/echo/fable/nova/onyx/shimmer.' },
+        rate:       { type: 'string', description: 'Speaking rate, e.g. "-10%" for slower, "+20%" for faster (edge-tts)' },
+        apiKey:     { type: 'string', description: 'API key for this call (optional — falls back to env var)' },
+        webhookUrl: { type: 'string', description: 'TTS webhook URL (when platform=webhook)' },
+        productionId: { type: 'string', description: 'Optional productionId for telemetry' },
+        sceneIndex: { type: 'number', description: 'Optional scene index for naming the output file' },
+      },
+    },
+    handler: async ({ text, outputPath, platform, voice, rate, apiKey, webhookUrl, productionId = 'adhoc', sceneIndex }) => {
+      const syncFs = require('fs');
+      const pathMod = require('path');
+
+      // Auto-derive outputPath if sceneIndex given and outputPath is a directory
+      let resolvedOutput = outputPath;
+      if (sceneIndex !== undefined && syncFs.existsSync(outputPath) && syncFs.statSync(outputPath).isDirectory()) {
+        resolvedOutput = pathMod.join(outputPath, `voice_${sceneIndex}.m4a`);
+      }
+      await fs.mkdir(pathMod.dirname(resolvedOutput), { recursive: true });
+
+      // Temporarily override env vars for this single call
+      const prevProvider = process.env.PROVIDER_TTS;
+      const prevRate     = process.env.TTS_RATE;
+      const prevVoice    = process.env.TTS_VOICE;
+      const prevKey      = {
+        elevenlabs: process.env.ELEVENLABS_API_KEY,
+        azure:      process.env.AZURE_SPEECH_KEY,
+        openai:     process.env.OPENAI_API_KEY,
+        webhook:    process.env.WEBHOOK_TTS_URL,
+      };
+
+      try {
+        if (platform)    process.env.PROVIDER_TTS = platform;
+        if (rate)        process.env.TTS_RATE     = rate;
+        if (voice)       process.env.TTS_VOICE    = voice;
+        if (apiKey && platform === 'elevenlabs') process.env.ELEVENLABS_API_KEY = apiKey;
+        if (apiKey && platform === 'azure')      process.env.AZURE_SPEECH_KEY   = apiKey;
+        if (apiKey && platform === 'openai')     process.env.OPENAI_API_KEY     = apiKey;
+        if (webhookUrl)                          process.env.WEBHOOK_TTS_URL    = webhookUrl;
+
+        // Create a fresh TTSProvider with the overridden env
+        const { TTSProvider } = require('../pipeline/providers');
+        const ttsInstance = new TTSProvider();
+
+        await retryPol.executeStage('TTS', async () => {
+          return ttsInstance.synthesize({ text, voice, outputPath: resolvedOutput });
+        });
+      } finally {
+        // Restore env vars
+        if (platform !== undefined) process.env.PROVIDER_TTS          = prevProvider;
+        if (rate !== undefined)     process.env.TTS_RATE               = prevRate;
+        if (voice !== undefined)    process.env.TTS_VOICE              = prevVoice;
+        process.env.ELEVENLABS_API_KEY = prevKey.elevenlabs;
+        process.env.AZURE_SPEECH_KEY   = prevKey.azure;
+        process.env.OPENAI_API_KEY     = prevKey.openai;
+        process.env.WEBHOOK_TTS_URL    = prevKey.webhook;
+      }
+
+      const stat = await fs.stat(resolvedOutput);
+      await telemetry.track({ productionId, stage: 'TTS', provider: platform || process.env.PROVIDER_TTS || 'edge-tts', operation: 'multi_voice_tts', units: text.length });
+
+      return { audioPath: resolvedOutput, sizeBytes: stat.size, platform: platform || process.env.PROVIDER_TTS || 'edge-tts', voice };
+    },
+  },
+
+  // ── Tool 13: n8n webhook trigger ─────────────────────────────────────────
   n8n_webhook_trigger: {
     description: 'Trigger an n8n webhook to start a video pipeline workflow. Returns {jobId, status} immediately. Requires N8N_WEBHOOK_URL env var.',
     inputSchema: {
@@ -495,12 +621,12 @@ const TOOLS = {
       properties: {
         topic:    { type: 'string', description: 'Video topic to produce' },
         channels: { type: 'array', items: { type: 'string' }, default: ['telegram'], description: 'Delivery channels' },
-        style:    { type: 'string', default: 'educational comedy', description: 'Narrative style' },
+        style:    { type: 'string', default: 'informative', description: 'Narrative style' },
         language: { type: 'string', default: 'en', description: 'BCP-47 language code for TTS voice selection' },
         payload:  { type: 'object', description: 'Additional fields forwarded to the n8n workflow' },
       },
     },
-    handler: async ({ topic, channels = ['telegram'], style = 'educational comedy', language = 'en', payload = {} }) => {
+    handler: async ({ topic, channels = ['telegram'], style = 'informative', language = 'en', payload = {} }) => {
       const webhookUrl = process.env.N8N_WEBHOOK_URL;
       if (!webhookUrl) {
         throw new Error('N8N_WEBHOOK_URL not set. Add it to your .env file.');

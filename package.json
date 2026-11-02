@@ -1,6 +1,6 @@
 {
   "name": "frameforge",
-  "version": "1.4.1",
+  "version": "2.0.0",
   "description": "FrameForge — Enterprise AI video production engine. Localhost-first. Any agentic IDE. Cloudflare Remote MCP for 80% token savings.",
   "main": "src/mcp-server/server.js",
   "bin": {

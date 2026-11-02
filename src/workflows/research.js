@@ -1,11 +1,16 @@
 /**
  * Workflow A — Research
- * Task #28: topic → facts → verification
+ *
+ * Generic topic researcher. Works for any content type: tech explainers,
+ * cooking tutorials, travel vlogs, educational shorts, etc.
+ *
+ * The caller (agentic IDE or CLI) controls persona, format and style.
+ * This module does NOT hardcode any domain or narrator persona.
  *
  * Can be called from:
- *   1. n8n Code node:  const { runResearch } = require('/home/node/.n8n-files/workflows/research.js');
- *   2. MCP server:     research_topic tool (already wires into this)
- *   3. CLI:            node src/workflows/research.js --topic "..."
+ *   1. n8n Code node
+ *   2. MCP server:  research_topic tool
+ *   3. CLI:         node src/workflows/research.js --topic "..."
  *
  * Returns: { productionId, topic, claims[], myths[], angles[], hookIdeas[] }
  */
@@ -23,11 +28,26 @@ const STATE_DIR = `${FILES_DIR}/state`;
 
 /**
  * Run the research workflow for a single topic.
+ *
  * @param {string} topic
- * @param {{ claimCount?: number, productionId?: string }} opts
+ * @param {{
+ *   claimCount?:   number,
+ *   productionId?: string,
+ *   persona?:      string,  // e.g. "tech journalist", "travel blogger", "cooking instructor"
+ *   format?:       string,  // e.g. "short-form reel", "long YouTube video", "explainer"
+ *   style?:        string,  // e.g. "educational", "comedic", "documentary", "tutorial"
+ *   audience?:     string,  // e.g. "beginners", "professionals", "general public"
+ * }} opts
  * @returns {Promise<ResearchResult>}
  */
-async function runResearch(topic, { claimCount = 10, productionId = null } = {}) {
+async function runResearch(topic, {
+  claimCount = 10,
+  productionId = null,
+  persona = 'video content researcher',
+  format = 'video',
+  style = 'informative',
+  audience = 'general public',
+} = {}) {
   const llm       = new LLMProvider();
   const sm        = new StateMachine({ mode: 'file', stateDir: STATE_DIR });
   const retryPol  = new RetryPolicy({ maxAttempts: 3, baseDelayMs: 10000 });
@@ -37,21 +57,28 @@ async function runResearch(topic, { claimCount = 10, productionId = null } = {})
   await sm.init();
   await telemetry.init();
 
-  // Create production if not continuing an existing one
-  const pid = productionId || await sm.createProduction({ topic, pipelineVersion: '1.0.0' });
+  const pid = productionId || await sm.createProduction({ topic, pipelineVersion: '2.0.0' });
   await sm.startStage(pid, 'Research');
 
-  // ── Phase 1: Initial research ──────────────────────────────────────────
+  // ── Phase 1: Initial research ─────────────────────────────────────────────
   const researchRaw = await retryPol.executeStage('Research', async () => {
-    const system = 'You are a YouTube history researcher. Output ONLY raw JSON. No markdown. No code fences. Start with { and end with }.';
+    const system = [
+      `You are a ${persona} specialising in ${format} content.`,
+      'Output ONLY raw JSON. No markdown. No code fences. Start with { and end with }.',
+    ].join(' ');
+
     const user = [
       `TOPIC: ${topic}`,
+      `FORMAT: ${format}`,
+      `STYLE: ${style}`,
+      `AUDIENCE: ${audience}`,
       '',
       `Return ${claimCount} factual claims as JSON:`,
       '{"topic":"...","claims":[{"claim":"...","confidence":"high|medium|low","safe_wording":"..."}],',
       '"common_myths":["..."],"modern_comparisons":["..."],"story_angles":["..."],',
       '"hook_ideas":["...","...","..."]}',
     ].join('\n');
+
     return llm.chat({ system, user, temperature: 0.7, maxTokens: 4000 });
   });
 
@@ -62,7 +89,7 @@ async function runResearch(topic, { claimCount = 10, productionId = null } = {})
     throw new Error(`Research returned too few claims: ${research.claims?.length}`);
   }
 
-  // ── Phase 2: Fact-check all claims ────────────────────────────────────
+  // ── Phase 2: Fact-check all claims ───────────────────────────────────────
   const checkedClaims = await Promise.all(
     research.claims.map(async c => {
       try {
@@ -75,15 +102,13 @@ async function runResearch(topic, { claimCount = 10, productionId = null } = {})
           sources:         result.evidence || [],
         };
       } catch {
-        // Fact checker failure is non-blocking — flag for review
         return { ...c, factCheckResult: 'UNVERIFIED', requiresReview: true };
       }
     })
   );
 
-  // Partition: auto-approved vs needs human review
-  const approved       = checkedClaims.filter(c => !c.requiresReview);
-  const needsReview    = checkedClaims.filter(c =>  c.requiresReview);
+  const approved    = checkedClaims.filter(c => !c.requiresReview);
+  const needsReview = checkedClaims.filter(c =>  c.requiresReview);
 
   if (needsReview.length > 0) {
     console.warn(`[Research] ${needsReview.length} claims flagged for review:`, needsReview.map(c => c.claim.slice(0, 60)));
@@ -100,20 +125,20 @@ async function runResearch(topic, { claimCount = 10, productionId = null } = {})
   });
 
   return {
-    productionId:   pid,
+    productionId:    pid,
     topic,
-    claims:         approved,
+    claims:          approved,
     claimsForReview: needsReview,
-    myths:          research.common_myths || [],
-    angles:         research.story_angles || [],
-    hookIdeas:      research.hook_ideas || [],
+    myths:           research.common_myths || [],
+    angles:          research.story_angles || [],
+    hookIdeas:       research.hook_ideas   || [],
     outputHash,
   };
 }
 
 module.exports = { runResearch };
 
-// ── CLI entrypoint ────────────────────────────────────────────────────────
+// ── CLI entrypoint ─────────────────────────────────────────────────────────
 if (require.main === module) {
   const args  = process.argv.slice(2);
   const tIdx  = args.indexOf('--topic');
