@@ -1,18 +1,54 @@
 /**
  * Provider abstraction layer — LLM, TTS, Image generation.
  *
- * Every provider is stateless. Swap by changing PROVIDER_* env vars.
- * All providers expose the same interface so pipeline code never references a vendor name.
+ * Every provider is stateless. Swap by setting PROVIDER_* env vars.
+ * All providers share the same interface — pipeline code never names a vendor.
  *
- * LLM:
- *   PROVIDER_LLM=groq|openai|watsonx|ollama  (default: groq)
- *   LLM_BASE_URL overrides the default endpoint for any provider
+ * ── LLM providers ──────────────────────────────────────────────────────────
  *
- * TTS:
- *   PROVIDER_TTS=edge-tts|elevenlabs|azure|openai  (default: edge-tts)
+ *  PROVIDER_LLM=groq          Free tier, fastest. llama-3.3-70b-versatile
+ *                             GROQ_API_KEY  → console.groq.com
  *
- * Image:
- *   PROVIDER_IMAGE=pollinations|falai|replicate|dalle  (default: pollinations)
+ *  PROVIDER_LLM=openrouter    Route to ANY model (Claude 3.5 Sonnet, GPT-4o,
+ *                             Gemini 2.0 Flash, Llama 3.3 70B, Mistral Large,
+ *                             DeepSeek R1, Qwen 2.5 72B, …) via one API key.
+ *                             OPENROUTER_API_KEY → openrouter.ai
+ *                             LLM_MODEL=anthropic/claude-sonnet-4-5   ← override
+ *
+ *  PROVIDER_LLM=anthropic     Claude Sonnet 4.5 / Haiku / Opus direct.
+ *                             ANTHROPIC_API_KEY → console.anthropic.com
+ *
+ *  PROVIDER_LLM=gemini        Google Gemini 2.0 Flash / 2.5 Pro direct.
+ *                             GEMINI_API_KEY → aistudio.google.com
+ *
+ *  PROVIDER_LLM=mistral       Mistral Large 2 / Codestral / Nemo.
+ *                             MISTRAL_API_KEY → console.mistral.ai
+ *
+ *  PROVIDER_LLM=together      Together AI — Llama 3.3 70B, Mixtral, DBRX, etc.
+ *                             TOGETHER_API_KEY → api.together.ai
+ *
+ *  PROVIDER_LLM=cerebras      Cerebras — llama3.3-70b at 2000+ tok/s.
+ *                             CEREBRAS_API_KEY → cloud.cerebras.ai
+ *
+ *  PROVIDER_LLM=openai        OpenAI GPT-4o / o1 / o3-mini.
+ *                             OPENAI_API_KEY → platform.openai.com
+ *
+ *  PROVIDER_LLM=ollama        Fully local — no key, any Ollama model.
+ *                             OLLAMA_BASE_URL + OLLAMA_MODEL
+ *
+ *  PROVIDER_LLM=webhook       Any OpenAI-compatible endpoint (LM Studio,
+ *                             vLLM, LocalAI, your own proxy, VoxForge, …).
+ *                             WEBHOOK_LLM_URL  (required)
+ *                             WEBHOOK_LLM_HEADERS, WEBHOOK_LLM_RESPONSE_PATH
+ *
+ *  LLM_MODEL=<model-id>       Override the default model for any provider.
+ *  LLM_BASE_URL=<url>         Override the endpoint URL for any provider.
+ *
+ * ── TTS providers ──────────────────────────────────────────────────────────
+ *  PROVIDER_TTS=edge-tts | elevenlabs | azure | openai | webhook
+ *
+ * ── Image providers ────────────────────────────────────────────────────────
+ *  PROVIDER_IMAGE=pollinations | falai | replicate | dalle | webhook
  */
 
 'use strict';
@@ -108,110 +144,164 @@ function httpGet(url, headers = {}) {
   });
 }
 
-/**
- * Exchange an IBM Cloud API key for a short-lived IAM bearer token.
- * Token is cached for 50 minutes (IBM tokens last 60 min).
- */
-const _iamCache = { token: null, expiresAt: 0 };
-async function getIAMToken(apiKey) {
-  const now = Date.now();
-  if (_iamCache.token && now < _iamCache.expiresAt) return _iamCache.token;
-  const body = `grant_type=urn%3Aibm%3Aparams%3Aoauth%3Agrant-type%3Aapikey&apikey=${encodeURIComponent(apiKey)}`;
-  const parsed  = new URL('https://iam.cloud.ibm.com/identity/token');
-  const options = {
-    hostname: parsed.hostname, port: 443, path: parsed.pathname,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Content-Length': Buffer.byteLength(body) },
-  };
-  const token = await new Promise((resolve, reject) => {
-    const req = https.request(options, res => {
-      const chunks = [];
-      res.on('data', c => chunks.push(c));
-      res.on('end', () => {
-        const raw = Buffer.concat(chunks).toString();
-        if (res.statusCode >= 400) { reject(new Error(`IAM token exchange failed HTTP ${res.statusCode}: ${raw.slice(0, 200)}`)); return; }
-        const data = JSON.parse(raw);
-        if (!data.access_token) reject(new Error('IAM response missing access_token'));
-        else resolve(data.access_token);
-      });
-    });
-    req.on('error', reject);
-    req.write(body);
-    req.end();
-  });
-  _iamCache.token     = token;
-  _iamCache.expiresAt = now + 50 * 60 * 1000; // 50 min
-  return token;
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // LLM PROVIDER
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Current top models per provider (Nov 2026).
+ * All overridable via LLM_MODEL env var. Keep ONLY providers that exist today.
+ *
+ * Model update guide:
+ *   groq:       console.groq.com/docs/models
+ *   openrouter: openrouter.ai/models
+ *   anthropic:  docs.anthropic.com/en/docs/about-claude/models
+ *   gemini:     ai.google.dev/gemini-api/docs/models
+ *   mistral:    docs.mistral.ai/getting-started/models
+ *   together:   api.together.ai/models
+ *   cerebras:   cloud.cerebras.ai/docs
+ *   openai:     platform.openai.com/docs/models
+ *   ollama:     ollama.com/library
+ */
 const LLM_DEFAULTS = {
-  groq:     { baseUrl: 'https://api.groq.com/openai/v1', model: 'llama-3.3-70b-versatile', apiKeyEnv: 'GROQ_API_KEY' },
-  openai:   { baseUrl: 'https://api.openai.com/v1',      model: 'gpt-4o-mini',             apiKeyEnv: 'OPENAI_API_KEY' },
-  watsonx:  { baseUrl: process.env.WATSONX_BASE_URL || 'https://us-south.ml.cloud.ibm.com/ml/v1/text/chat', model: process.env.WATSONX_MODEL || 'ibm/granite-3-3-8b-instruct', apiKeyEnv: 'WATSONX_API_KEY' },
-  ollama:   { baseUrl: process.env.OLLAMA_BASE_URL  || 'http://localhost:11434/api',        model: process.env.OLLAMA_MODEL || 'llama3.3', apiKeyEnv: null },
+  // ── Free / fast ────────────────────────────────────────────────────────
+  groq: {
+    baseUrl:   'https://api.groq.com/openai/v1',
+    model:     'llama-3.3-70b-versatile',   // fastest free tier, great for scripts
+    apiKeyEnv: 'GROQ_API_KEY',
+  },
+  cerebras: {
+    baseUrl:   'https://api.cerebras.ai/v1',
+    model:     'llama3.3-70b',              // 2000+ tok/s — fastest inference today
+    apiKeyEnv: 'CEREBRAS_API_KEY',
+  },
+  // ── Router (access all models with one key) ────────────────────────────
+  openrouter: {
+    baseUrl:   'https://openrouter.ai/api/v1',
+    model:     'anthropic/claude-sonnet-4-5',  // override with LLM_MODEL for any model
+    apiKeyEnv: 'OPENROUTER_API_KEY',
+  },
+  // ── Direct cloud APIs ──────────────────────────────────────────────────
+  anthropic: {
+    // Anthropic uses /v1/messages (not /chat/completions) — handled in chat()
+    baseUrl:   'https://api.anthropic.com/v1',
+    model:     'claude-sonnet-4-5',
+    apiKeyEnv: 'ANTHROPIC_API_KEY',
+  },
+  gemini: {
+    // Google uses openai-compat endpoint via generativelanguage
+    baseUrl:   'https://generativelanguage.googleapis.com/v1beta/openai',
+    model:     'gemini-2.0-flash',
+    apiKeyEnv: 'GEMINI_API_KEY',
+  },
+  mistral: {
+    baseUrl:   'https://api.mistral.ai/v1',
+    model:     'mistral-large-latest',
+    apiKeyEnv: 'MISTRAL_API_KEY',
+  },
+  together: {
+    baseUrl:   'https://api.together.xyz/v1',
+    model:     'meta-llama/Llama-3.3-70B-Instruct-Turbo',
+    apiKeyEnv: 'TOGETHER_API_KEY',
+  },
+  openai: {
+    baseUrl:   'https://api.openai.com/v1',
+    model:     'gpt-4o',
+    apiKeyEnv: 'OPENAI_API_KEY',
+  },
+  // ── Local / self-hosted ────────────────────────────────────────────────
+  ollama: {
+    baseUrl:   process.env.OLLAMA_BASE_URL || 'http://localhost:11434/api',
+    model:     process.env.OLLAMA_MODEL    || 'llama3.3',
+    apiKeyEnv: null,
+  },
+  // ── Generic OpenAI-compatible webhook ─────────────────────────────────
+  // Covers: LM Studio, vLLM, LocalAI, VoxForge, any custom proxy
+  webhook: {
+    baseUrl:   process.env.WEBHOOK_LLM_URL || '',
+    model:     process.env.LLM_MODEL       || 'default',
+    apiKeyEnv: null,  // auth via WEBHOOK_LLM_HEADERS
+  },
 };
 
 class LLMProvider {
   constructor() {
     const name     = (process.env.PROVIDER_LLM || 'groq').toLowerCase();
     const defaults = LLM_DEFAULTS[name] || LLM_DEFAULTS.groq;
-    this.name           = name;
-    this.baseUrl        = process.env.LLM_BASE_URL || defaults.baseUrl;
-    this.model          = process.env.LLM_MODEL    || defaults.model;
-    this.apiKey         = defaults.apiKeyEnv ? process.env[defaults.apiKeyEnv] : null;
-    this._requiredEnv   = defaults.apiKeyEnv || null;
+    this.name      = name;
+    this.baseUrl   = process.env.LLM_BASE_URL || defaults.baseUrl;
+    this.model     = process.env.LLM_MODEL    || defaults.model;
+    this.apiKey    = defaults.apiKeyEnv ? process.env[defaults.apiKeyEnv] : null;
+    this._requiredEnv = defaults.apiKeyEnv || null;
     // Do NOT throw here — defer to chat() so the MCP server can start without all keys
   }
 
   /**
-   * Chat completion — OpenAI-compatible interface.
+   * Chat completion — OpenAI-compatible interface (with Anthropic + Gemini shims).
    * @param {{ system: string, user: string, temperature?: number, maxTokens?: number }} opts
    * @returns {Promise<string>}
    */
   async chat({ system, user, temperature = 1, maxTokens = 8000 }) {
     if (this._requiredEnv && !this.apiKey) {
-      throw new Error(`Missing env var ${this._requiredEnv} for LLM provider ${this.name}`);
+      throw new Error(`Missing env var ${this._requiredEnv} for LLM provider ${this.name}. Run: npm run setup`);
     }
+
+    // ── Anthropic native API (uses /messages, different schema) ──────────
+    if (this.name === 'anthropic') {
+      return this._anthropicChat({ system, user, temperature, maxTokens });
+    }
+
     const body = {
-      model:       this.model,
-      messages:    [{ role: 'system', content: system }, { role: 'user', content: user }],
+      model:      this.model,
+      messages:   [{ role: 'system', content: system }, { role: 'user', content: user }],
       temperature,
-      max_tokens:  maxTokens,
+      max_tokens: maxTokens,
     };
-    // IBM watsonx uses IAM token exchange; all other providers use Bearer apiKey
-    let authHeader;
-    if (this.name === 'watsonx') {
-      const iamToken = await getIAMToken(this.apiKey);
-      authHeader = { Authorization: `Bearer ${iamToken}` };
-    } else {
-      authHeader = this.apiKey ? { Authorization: `Bearer ${this.apiKey}` } : {};
+
+    const authHeader = this.apiKey ? { Authorization: `Bearer ${this.apiKey}` } : {};
+
+    // OpenRouter requires an extra header for attribution (optional but encouraged)
+    if (this.name === 'openrouter') {
+      authHeader['HTTP-Referer'] = 'https://github.com/AMG555/FrameForge';
+      authHeader['X-Title']      = 'FrameForge';
     }
 
-    // watsonx endpoint requires project_id in the body
-    if (this.name === 'watsonx') {
-      const projectId = process.env.WATSONX_PROJECT_ID;
-      if (!projectId) throw new Error('WATSONX_PROJECT_ID env var required for watsonx provider');
-      body.project_id = projectId;
-    }
-
+    // Ollama uses /api/chat (not /chat/completions)
     const url = this.name === 'ollama'
       ? `${this.baseUrl}/chat`
       : `${this.baseUrl}/chat/completions`;
 
     return withRetry(async () => {
       const resp = await httpPost(url, body, authHeader);
-      // OpenAI-compat: choices[0].message.content
-      // Ollama: message.content
       const content = resp?.choices?.[0]?.message?.content
         ?? resp?.message?.content
         ?? resp?.content;
       if (!content) throw new Error(`LLM returned no content. finish_reason=${resp?.choices?.[0]?.finish_reason}`);
       return content;
-    }, { maxAttempts: 3, baseDelayMs: 10000, label: `LLM(${this.name})` });
+    }, { maxAttempts: 3, baseDelayMs: 10000, label: `LLM(${this.name}/${this.model})` });
+  }
+
+  /**
+   * Anthropic /v1/messages shim — maps to the same output as OpenAI-compat.
+   * @private
+   */
+  async _anthropicChat({ system, user, temperature, maxTokens }) {
+    const body = {
+      model:      this.model,
+      max_tokens: maxTokens,
+      system,
+      messages:   [{ role: 'user', content: user }],
+    };
+    const headers = {
+      'x-api-key':         this.apiKey,
+      'anthropic-version': '2023-06-01',
+    };
+    return withRetry(async () => {
+      const resp = await httpPost(`${this.baseUrl}/messages`, body, headers);
+      const content = resp?.content?.[0]?.text;
+      if (!content) throw new Error(`Anthropic returned no content: ${JSON.stringify(resp).slice(0, 200)}`);
+      return content;
+    }, { maxAttempts: 3, baseDelayMs: 10000, label: `LLM(anthropic/${this.model})` });
   }
 
   /** Parse JSON out of the raw LLM response, stripping markdown fences. */

@@ -4,6 +4,43 @@ All notable changes to FrameForge are documented here.
 
 ---
 
+## [1.4.1] — 2026-11-02
+
+### Changed — LLM Provider Overhaul
+
+**Removed**: `watsonx` provider. All WatsonX references removed from providers, doctor, setup wizard, and env template.
+
+**Added 6 new LLM providers** (all OpenAI-compatible except Anthropic):
+
+| Provider | Default model | Key env var | Free tier |
+|---|---|---|---|
+| `cerebras` | `llama3.3-70b` (2000+ tok/s) | `CEREBRAS_API_KEY` | ✅ |
+| `openrouter` | `anthropic/claude-sonnet-4-5` | `OPENROUTER_API_KEY` | ✅ credits |
+| `anthropic` | `claude-sonnet-4-5` | `ANTHROPIC_API_KEY` | — |
+| `gemini` | `gemini-2.0-flash` | `GEMINI_API_KEY` | ✅ |
+| `mistral` | `mistral-large-latest` | `MISTRAL_API_KEY` | — |
+| `together` | `meta-llama/Llama-3.3-70B-Instruct-Turbo` | `TOGETHER_API_KEY` | ✅ credits |
+
+- `openai` default model updated from `gpt-4o-mini` → `gpt-4o`
+- `groq` default updated to `llama-3.3-70b-versatile`
+- **Anthropic native API**: Anthropic uses `/v1/messages` (not `/chat/completions`) — a private `_anthropicChat()` shim handles this transparently.
+- **OpenRouter headers**: `HTTP-Referer` + `X-Title` attribution headers added automatically.
+- **`LLM_MODEL` env var** overrides the default model for any provider.
+- **`webhook` provider** now explicitly listed in `LLM_DEFAULTS` (covers LM Studio, vLLM, LocalAI, any proxy).
+- **Model update guide** embedded as a comment in `providers.js` with docs URL for each provider.
+
+**`npm run doctor`** updated — detects all 10 providers, shows active model name, recommends free options with a better fix message.
+
+**`npm run setup` wizard** updated — all 6 new providers in the menu, WatsonX removed.
+
+**`.kiro/config/production-secrets.env.template`** — full rewrite:
+- All 10 LLM providers documented with inline links
+- External platform adapter section added
+- YouTube OAuth2 section added
+- TTS key names corrected (`AZURE_SPEECH_KEY` was `AZURE_TTS_KEY`)
+
+---
+
 ## [1.4.0] — 2026-11-02
 
 ### Added — Flexible Pipeline Modes

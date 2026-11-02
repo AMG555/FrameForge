@@ -13,11 +13,16 @@
  * Provider options explained:
  *
  *   LLM (script + research):
- *     groq       — Free tier, very fast. Get key: console.groq.com
- *     openai     — GPT-4o-mini. Get key: platform.openai.com
- *     watsonx    — IBM granite. Get key: ibm.com/watsonx
- *     ollama     — Fully local. Install: ollama.com. No key needed.
- *     webhook    — Any OpenAI-compatible endpoint. Set WEBHOOK_LLM_URL.
+ *     groq        — Free, fast (llama-3.3-70b). Get key: console.groq.com
+ *     cerebras    — Fastest inference (2000+ tok/s). Get key: cloud.cerebras.ai
+ *     openrouter  — All models in one key. Get key: openrouter.ai
+ *     anthropic   — Claude Sonnet 4.5. Get key: console.anthropic.com
+ *     gemini      — Gemini 2.0 Flash. Get key: aistudio.google.com
+ *     mistral     — Mistral Large. Get key: console.mistral.ai
+ *     together    — Llama 3.3-70B Turbo. Get key: api.together.ai
+ *     openai      — GPT-4o. Get key: platform.openai.com
+ *     ollama      — Fully local, no key needed. Install: ollama.com
+ *     webhook     — Any OpenAI-compatible endpoint. Set WEBHOOK_LLM_URL.
  *
  *   TTS (voice generation):
  *     edge-tts   — Free, offline. 400+ voices. No key needed.
@@ -111,7 +116,12 @@ function checkEnv(envPath) {
     { key: 'PROVIDER_LLM',   label: 'LLM provider',   optional: false },
     { key: 'GROQ_API_KEY',   label: 'Groq key',        optional: true,  needs: env.PROVIDER_LLM === 'groq' || !env.PROVIDER_LLM },
     { key: 'OPENAI_API_KEY', label: 'OpenAI key',      optional: true,  needs: ['openai','dalle'].includes(env.PROVIDER_LLM) },
-    { key: 'WATSONX_API_KEY',label: 'WatsonX key',     optional: true,  needs: env.PROVIDER_LLM === 'watsonx' },
+    { key: 'CEREBRAS_API_KEY',  label: 'Cerebras key',   optional: true, needs: env.PROVIDER_LLM === 'cerebras' },
+    { key: 'OPENROUTER_API_KEY',label: 'OpenRouter key',  optional: true, needs: env.PROVIDER_LLM === 'openrouter' },
+    { key: 'ANTHROPIC_API_KEY', label: 'Anthropic key',   optional: true, needs: env.PROVIDER_LLM === 'anthropic' },
+    { key: 'GEMINI_API_KEY',    label: 'Gemini key',      optional: true, needs: env.PROVIDER_LLM === 'gemini' },
+    { key: 'MISTRAL_API_KEY',   label: 'Mistral key',     optional: true, needs: env.PROVIDER_LLM === 'mistral' },
+    { key: 'TOGETHER_API_KEY',  label: 'Together key',    optional: true, needs: env.PROVIDER_LLM === 'together' },
     { key: 'PROVIDER_TTS',   label: 'TTS provider',    optional: false },
     { key: 'ELEVENLABS_API_KEY', label: 'ElevenLabs key', optional: true, needs: env.PROVIDER_TTS === 'elevenlabs' },
     { key: 'AZURE_SPEECH_KEY',   label: 'Azure key',      optional: true, needs: env.PROVIDER_TTS === 'azure' },
@@ -169,22 +179,35 @@ Press Enter to accept a default. Ctrl+C to cancel.
   console.log('  Free option: Groq (no credit card needed for free tier).\n');
 
   cfg.PROVIDER_LLM = await menu('Choose LLM provider', [
-    ['groq',    'Groq — free, fast (llama-3.3-70b). Get key: console.groq.com'],
-    ['openai',  'OpenAI GPT-4o-mini. Get key: platform.openai.com'],
-    ['watsonx', 'IBM WatsonX Granite. Get key: ibm.com/watsonx'],
-    ['ollama',  'Ollama — fully local, no key needed. Install: ollama.com'],
-    ['webhook', 'Custom/VoxForge/any OpenAI-compatible endpoint'],
+    ['groq',       'Groq — free, fast (llama-3.3-70b). Get key: console.groq.com'],
+    ['cerebras',   'Cerebras — fastest inference (2000+ tok/s). Get key: cloud.cerebras.ai'],
+    ['openrouter', 'OpenRouter — all models with one key. Get key: openrouter.ai'],
+    ['anthropic',  'Anthropic Claude Sonnet 4.5. Get key: console.anthropic.com'],
+    ['gemini',     'Google Gemini 2.0 Flash. Get key: aistudio.google.com'],
+    ['mistral',    'Mistral Large. Get key: console.mistral.ai'],
+    ['together',   'Together AI Llama-3.3-70B-Turbo. Get key: api.together.ai'],
+    ['openai',     'OpenAI GPT-4o. Get key: platform.openai.com'],
+    ['ollama',     'Ollama — fully local, no key needed. Install: ollama.com'],
+    ['webhook',    'Custom/VoxForge/any OpenAI-compatible endpoint'],
   ], 'groq');
 
   if (cfg.PROVIDER_LLM === 'groq') {
     cfg.GROQ_API_KEY = await askSecret('  Groq API key (starts with gsk_)');
+  } else if (cfg.PROVIDER_LLM === 'cerebras') {
+    cfg.CEREBRAS_API_KEY = await askSecret('  Cerebras API key');
+  } else if (cfg.PROVIDER_LLM === 'openrouter') {
+    cfg.OPENROUTER_API_KEY = await askSecret('  OpenRouter API key (starts with sk-or-)');
+    cfg.LLM_MODEL = await ask('  Model to use (leave blank for claude-sonnet-4-5)', '');
+  } else if (cfg.PROVIDER_LLM === 'anthropic') {
+    cfg.ANTHROPIC_API_KEY = await askSecret('  Anthropic API key (starts with sk-ant-)');
+  } else if (cfg.PROVIDER_LLM === 'gemini') {
+    cfg.GEMINI_API_KEY = await askSecret('  Gemini API key');
+  } else if (cfg.PROVIDER_LLM === 'mistral') {
+    cfg.MISTRAL_API_KEY = await askSecret('  Mistral API key');
+  } else if (cfg.PROVIDER_LLM === 'together') {
+    cfg.TOGETHER_API_KEY = await askSecret('  Together AI API key');
   } else if (cfg.PROVIDER_LLM === 'openai') {
     cfg.OPENAI_API_KEY = await askSecret('  OpenAI API key (starts with sk-)');
-  } else if (cfg.PROVIDER_LLM === 'watsonx') {
-    cfg.WATSONX_API_KEY     = await askSecret('  WatsonX IBM Cloud API key');
-    cfg.WATSONX_PROJECT_ID  = await ask('  WatsonX project ID');
-    cfg.WATSONX_BASE_URL    = await ask('  WatsonX endpoint URL', 'https://us-south.ml.cloud.ibm.com/ml/v1/text/chat');
-    cfg.WATSONX_MODEL       = await ask('  WatsonX model ID', 'ibm/granite-3-3-8b-instruct');
   } else if (cfg.PROVIDER_LLM === 'ollama') {
     cfg.OLLAMA_BASE_URL = await ask('  Ollama base URL', 'http://localhost:11434/api');
     cfg.OLLAMA_MODEL    = await ask('  Ollama model name', 'llama3.3');
@@ -293,7 +316,7 @@ Press Enter to accept a default. Ctrl+C to cancel.
   ];
 
   const groups = {
-    '# ── LLM ─────────────────────────────────────────────────────────': ['PROVIDER_LLM','GROQ_API_KEY','OPENAI_API_KEY','WATSONX_API_KEY','WATSONX_PROJECT_ID','WATSONX_BASE_URL','WATSONX_MODEL','OLLAMA_BASE_URL','OLLAMA_MODEL','WEBHOOK_LLM_URL','WEBHOOK_LLM_HEADERS','WEBHOOK_LLM_RESPONSE_PATH','LLM_MODEL'],
+    '# ── LLM ─────────────────────────────────────────────────────────': ['PROVIDER_LLM','GROQ_API_KEY','CEREBRAS_API_KEY','OPENROUTER_API_KEY','ANTHROPIC_API_KEY','GEMINI_API_KEY','MISTRAL_API_KEY','TOGETHER_API_KEY','OPENAI_API_KEY','OLLAMA_BASE_URL','OLLAMA_MODEL','WEBHOOK_LLM_URL','WEBHOOK_LLM_HEADERS','WEBHOOK_LLM_RESPONSE_PATH','LLM_MODEL'],
     '# ── TTS ─────────────────────────────────────────────────────────': ['PROVIDER_TTS','ELEVENLABS_API_KEY','ELEVENLABS_VOICE_ID','AZURE_SPEECH_KEY','AZURE_SPEECH_REGION','WEBHOOK_TTS_URL','WEBHOOK_TTS_RESPONSE','WEBHOOK_TTS_RESPONSE_PATH','TTS_VOICE','TTS_RATE'],
     '# ── Image generation ─────────────────────────────────────────────': ['PROVIDER_IMAGE','FALAI_API_KEY','REPLICATE_API_KEY','WEBHOOK_IMAGE_URL','WEBHOOK_IMAGE_RESPONSE','WEBHOOK_IMAGE_RESPONSE_PATH','POLLINATIONS_MODEL'],
     '# ── Telegram ─────────────────────────────────────────────────────': ['TELEGRAM_BOT_TOKEN','TELEGRAM_CHAT_ID'],
