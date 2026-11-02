@@ -8,9 +8,9 @@
  * This module does NOT hardcode any domain or narrator persona.
  *
  * Can be called from:
- *   1. n8n Code node
- *   2. MCP server:  research_topic tool
- *   3. CLI:         node src/workflows/research.js --topic "..."
+ *   1. MCP server:  research_topic tool
+ *   2. CLI:         node src/workflows/research.js --topic "..."
+ *   3. Worker API:  full_pipeline job type
  *
  * Returns: { productionId, topic, claims[], myths[], angles[], hookIdeas[] }
  */

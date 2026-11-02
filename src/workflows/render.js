@@ -55,9 +55,12 @@ async function runRender({ productionId, sceneAssets, withMusic = true, musicVol
     }
   }
 
-  if (sceneFiles.length < 5) {
-    await sm.failStage(productionId, 'Video_Rendering', `Too few scenes rendered: ${sceneFiles.length}`);
-    throw new Error(`Too few scenes rendered: ${sceneFiles.length}`);
+  if (sceneFiles.length < 1) {
+    await sm.failStage(productionId, 'Video_Rendering', `No scenes rendered successfully`);
+    throw new Error(`No scenes rendered successfully`);
+  }
+  if (sceneFiles.length < 3) {
+    console.warn(`[Render] WARNING: only ${sceneFiles.length} scene(s) rendered — video will be short. Minimum 3 recommended.`);
   }
 
   // ── Phase 2: Assemble master ──────────────────────────────────────────

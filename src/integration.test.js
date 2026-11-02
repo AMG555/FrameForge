@@ -215,6 +215,31 @@ describe('Integration — Stage D: assembleMain rejects empty scene list', () =>
   });
 });
 
+// ── Stage D2: render.js workflow guard (matches assembleMain guard) ───────────
+
+describe('Integration — Stage D2: render.js scene guard consistency', () => {
+  it('render.js guard file is consistent — throws at 0, warns at 1-2', () => {
+    // Read render.js source and verify the guard is < 1 (not < 5)
+    const renderSrc = fs.readFileSync(
+      require('path').join(__dirname, 'workflows/render.js'), 'utf8'
+    );
+    assert.ok(
+      renderSrc.includes('sceneFiles.length < 1'),
+      'render.js must throw only when 0 scenes rendered (not < 5)'
+    );
+    assert.ok(
+      !renderSrc.includes('sceneFiles.length < 5'),
+      'render.js must not have the old < 5 guard'
+    );
+    assert.ok(
+      renderSrc.includes('sceneFiles.length < 3'),
+      'render.js must warn when < 3 scenes'
+    );
+  });
+});
+
+
+
 // ── Stage E: full pipeline data-flow (no I/O) ─────────────────────────────────
 
 describe('Integration — Stage E: full schema pipeline data flow', () => {

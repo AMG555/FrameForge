@@ -33,7 +33,7 @@
  *   --media-dir     <path>   Auto-discover clips from a directory (edit-only)
  *   --language      <code>   BCP-47 language code for TTS voice (default: en)
  *   --style         <text>   Narrative style (default: "educational comedy")
- *   --channels      <list>   telegram,youtube  (default: telegram)
+ *   --channels      <list>   file,webhook  (default: file)
  *   --no-research            Skip research stage (use --topic as raw facts)
  *   --no-script              Skip script stage (requires --scenes-file)
  *   --no-images              Skip AI image generation (use video/image_path in scenes)
