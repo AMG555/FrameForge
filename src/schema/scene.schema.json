@@ -1,4 +1,4 @@
-﻿{
+{
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Enhanced Scene Schema",
   "description": "Scene definition with enhanced metadata for asset library, animation, and shorts extraction",
@@ -8,6 +8,10 @@
     "scene_id": { "type": "integer", "minimum": 0 },
     "schema_version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$", "default": "1.0.0" },
     "narration": { "type": "string", "minLength": 10, "maxLength": 500 },
+    "caption": { "type": "string", "maxLength": 100 },
+    "video_path": { "type": "string", "description": "Optional path to user-supplied video clip or B-roll" },
+    "image_path": { "type": "string", "description": "Optional path to user-supplied static image" },
+    "audio_path": { "type": "string", "description": "Optional path to user-supplied pre-recorded voiceover" },
     "visual_description": { "type": "string", "minLength": 10 },
     "character": {
       "type": "object",

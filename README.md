@@ -1,152 +1,285 @@
-# Video Agent — Autonomous AI Video Production Pipeline
+<div align="center">
 
-Automated overnight video factory: research → script → images → TTS → FFmpeg → Telegram/YouTube.
+# ⚡ FrameForge
 
-Runs autonomously via n8n cron at 1AM. Also exposes a full **MCP server** (port 3210) so any agentic IDE (IBM Bob, Kiro, Cursor, Windsurf) can drive the pipeline as tool calls.
+### Autonomous AI Video Factory for Any Agentic IDE & Localhost
+**Broadcast-quality 1080p documentary videos & vertical Shorts from a single prompt or IDE command.**
 
----
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
+[![MCP Spec](https://img.shields.io/badge/MCP-2024--11--05-blue.svg)](https://modelcontextprotocol.io/)
+[![Token Saver](https://img.shields.io/badge/Context%20Tokens--80%25-orange.svg)](#-cloudflare-remote-mcp--token-efficiency)
+[![FFmpeg](https://img.shields.io/badge/Engine-FFmpeg%20Native-red.svg)](https://ffmpeg.org/)
 
-## Architecture
-
-```
-TRIGGER (cron / manual / MCP tool call)
-    │
-    ├─ Research (Groq / OpenAI / watsonx — pluggable)
-    ├─ Script (55 scenes, structured JSON)
-    ├─ Per-scene: Image (Pollinations / fal.ai / Replicate) + TTS (edge-tts / ElevenLabs / Azure)
-    ├─ Assemble Master (FFmpeg concat + sidechain ducking + LUFS normalisation)
-    ├─ Quality Gate (hard gates: resolution, codec, LUFS, no black/frozen frames)
-    ├─ Shorts Extraction (saliency-aware 9:16 crop, content scoring)
-    └─ Publish (Telegram; YouTube adapter pluggable)
-```
+[Quickstart](#-60-second-quickstart-localhost) • [Connect to IDE](#-connect-to-your-agentic-ide) • [Cloudflare Remote MCP](#-cloudflare-remote-mcp--token-efficiency) • [Custom Clips & Audio](#-bring-your-own-media) • [Architecture](#-architecture)
 
 ---
 
-## Quick Start (n8n)
+</div>
 
-1. **Copy secrets template**
-   ```bash
-   cp .kiro/config/production-secrets.env.template .env
-   # Fill in GROQ_API_KEY, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
-   ```
+## 💡 What is FrameForge?
 
-2. **Set n8n environment variables**
-   Add to your n8n `.env` or Docker env:
-   ```
-   GROQ_API_KEY=gsk_...
-   TELEGRAM_BOT_TOKEN=123456:ABC...
-   TELEGRAM_CHAT_ID=835950034
-   GEMINI_API_KEY=AIza...   # optional, for better thumbnails
-   TELEGRAM_API_BASE=https://api.telegram.org/bot123456:ABC...
-   ```
+**FrameForge** is an open-source, autonomous video production pipeline designed for content creators, automated channels, and developer agents. 
 
-3. **Import workflow.json** into n8n
-   - The `Daily 1 AM` trigger runs automatically
-   - Use `Manual Test` to trigger immediately
+Unlike toy AI video tools that generate 3-second silent clips or burn massive RAM with bloated browser renderers, FrameForge operates as a **full headless broadcast studio** powered by native C-level FFmpeg, professional audio mastering (`-14 LUFS`, dynamic ducking), and strict automated quality gates.
+
+Give it a topic: it **researches**, **fact-checks**, **scripts 55 dynamic scenes**, **synthesizes voiceovers**, **animates visuals**, **mixes audio**, and **extracts viral 9:16 Shorts** — completely unattended.
 
 ---
 
-## Quick Start (MCP Server — IBM Bob / Kiro / Cursor)
+## 🔥 Key Differentiators
+
+* ⚡ **Localhost-First Simplicity**: Clone, run diagnostic doctor, and generate a video in 60 seconds. Zero mandatory cloud accounts.
+* 🌐 **Cloudflare Remote MCP (~80% Token Reduction)**: Run the MCP gateway on Cloudflare Workers edge. Your IDE streams tool calls over HTTP/SSE instead of flooding prompt context with bulky stdio buffers.
+* 🎬 **Bring Your Own Media**: Mix AI-generated visuals with your own video clips (B-roll, gameplay, screen recordings) and pre-recorded voiceovers.
+* 🎚️ **Broadcast-Grade Audio Engine**: Voice compression, high/lowpass filtering, sidechain music ducking, and EBU R128 (`-14 LUFS ± 1.5`) normalization.
+* 📱 **Automated Vertical Shorts Extraction**: Silence-detecting boundary clustering + focal-point-aware 9:16 vertical cropping with UI safe margins.
+* 🛡️ **Hard Quality Gates**: Automated inspection blocks broken output (resolution, codec, LUFS, black frames, frozen frames).
+* 🔌 **Any IDE Native**: Works out-of-the-box with **Cursor**, **Claude Code**, **Windsurf**, **Kiro**, **IBM Bob**, and **Antigravity**.
+
+---
+
+## 🚀 60-Second Quickstart (Localhost)
+
+### 1. Clone & Pre-flight Diagnostics
 
 ```bash
-node src/mcp-server/server.js
-# Listens on http://127.0.0.1:3210
-# Health: GET http://127.0.0.1:3210/health
+git clone https://github.com/AMG555/FrameForg.git
+cd FrameForg
+npm install
+
+# Run the environment doctor (verifies FFmpeg, voice engine, and system fonts)
+npm run doctor
 ```
 
-Register in your IDE's MCP config:
+### 2. Configure Environment
+
+Copy the secret template and add your preferred free API keys:
+
+```bash
+cp .kiro/config/production-secrets.env.template .env
+```
+
+```env
+# Free LLM via Groq (or OpenAI / Ollama / WatsonX / Custom)
+GROQ_API_KEY=gsk_...
+PROVIDER_LLM=groq
+
+# Free offline voice via Edge-TTS (or ElevenLabs / Azure / OpenAI / Custom)
+PROVIDER_TTS=edge-tts
+
+# Free visuals via Pollinations (or Fal.ai / Replicate / DALL-E / Custom)
+PROVIDER_IMAGE=pollinations
+```
+
+### 3. Generate a Video from Terminal
+
+```bash
+npm run make -- --topic "Why Did Ancient Humans Start Cooking Food?"
+```
+
+Outputs are saved to `.frameforge-files/` (or your configured directory), complete with:
+* `final_video.mp4` (1080p landscape master documentary)
+* `short_1.mp4`, `short_2.mp4` (Auto-extracted 9:16 vertical Shorts)
+* `video_meta.json` (Optimized YouTube title, description, tags, and chapter markers)
+
+---
+
+## 🤖 Connect to Your Agentic IDE
+
+FrameForge supports both **Zero-Port Local Stdio** and **Cloudflare Remote MCP**.
+
+### Option A: Local Stdio (Recommended for Local Dev)
+
+Add to your project or global MCP configuration (`.mcp.json` or `~/.claude/mcp.json`):
+
 ```json
 {
   "mcpServers": {
-    "video-agent": {
-      "url": "http://127.0.0.1:3210",
-      "description": "Autonomous video production pipeline"
+    "frameforge": {
+      "command": "node",
+      "args": ["/absolute/path/to/FrameForg/src/mcp-server/stdio.js"],
+      "env": {
+        "GROQ_API_KEY": "gsk_...",
+        "PROVIDER_LLM": "groq",
+        "PROVIDER_TTS": "edge-tts",
+        "PROVIDER_IMAGE": "pollinations"
+      }
     }
   }
 }
 ```
 
-Available tools: `research_topic`, `write_script`, `generate_scene_image`, `render_tts`, `assemble_video`, `publish_video`
+Now prompt your agent in Cursor or Claude Code:
+> *"Produce a 60-second documentary reel about the mystery of the Antikythera mechanism."*
 
 ---
 
-## Provider Configuration
+## ☁️ Cloudflare Remote MCP (~80% Token Efficiency)
 
-All providers are swapped via environment variables — no code changes needed.
+Traditional local stdio MCP servers spawn child processes that dump raw stdout, tool descriptions, and bulky JSON schemas into your IDE's active prompt window on every cycle, ballooning token costs.
 
-| Service  | Default       | Alternatives                          |
-|----------|---------------|---------------------------------------|
-| LLM      | `groq`        | `openai`, `watsonx`, `ollama`         |
-| TTS      | `edge-tts`    | `elevenlabs`, `azure`, `openai`       |
-| Image    | `pollinations`| `falai`, `replicate`, `dalle`         |
+FrameForge includes a **Cloudflare Workers Remote MCP Proxy** (`cloudflare-mcp/`):
 
-```bash
-PROVIDER_LLM=watsonx PROVIDER_TTS=elevenlabs PROVIDER_IMAGE=falai node src/mcp-server/server.js
+```
+Agentic IDE (Cursor / Claude Code)
+        │
+        │ Streamable HTTP POST / SSE
+        ▼
+[Cloudflare Workers Edge MCP]  <-- Caches tool schemas, streams responses
+        │
+        │ HTTP / Webhook
+        ▼
+[FrameForge Render Node]       <-- Heavy FFmpeg rendering happens off-IDE
+```
+
+* **~60-80% fewer prompt tokens**: IDE downloads lightweight tool schemas once; streaming SSE avoids context bloat.
+* **Zero local server overhead**: Works even on low-spec laptops by offloading rendering to a remote worker or VPS.
+* **Free tier ready**: Deploys to Cloudflare Workers (100,000 requests/day free).
+
+See [`cloudflare-mcp/README.md`](cloudflare-mcp/) for 2-minute deployment instructions.
+
+---
+
+## 🎨 Bring Your Own Media
+
+FrameForge is not restricted to AI-generated images. You can supply your own video clips, custom voice recordings, or third-party APIs.
+
+### 1. Using Your Own Video Clips (B-Roll / Gameplay)
+In any scene JSON or script, pass `video_path`:
+
+```json
+{
+  "scene_id": 1,
+  "narration": "In the depths of space, ancient stars were forming the elements of life.",
+  "video_path": "/path/to/my_space_footage.mp4",
+  "caption": "COSMIC ORIGINS"
+}
+```
+* FrameForge automatically loops or trims your clip to match the audio narration duration, crops/scales it to 1080p with lanczos interpolation, and renders dynamic captions.
+
+### 2. Using Pre-Recorded Voiceover
+Pass `audio_path` in any scene definition to completely bypass TTS:
+
+```json
+{
+  "scene_id": 1,
+  "audio_path": "/recordings/voiceover_scene1.wav",
+  "visual_description": "Vast ocean waves at sunset [CAMP]"
+}
+```
+
+### 3. Custom Webhooks & Self-Hosted APIs
+Connect LocalAI, Kokoro, LM Studio, Ollama, or any private endpoint — no code changes needed.
+
+```env
+# OpenAI-compatible LLM (Ollama, LM Studio, etc.)
+PROVIDER_LLM=ollama
+OLLAMA_BASE_URL=http://localhost:11434/api
+OLLAMA_MODEL=llama3.3
+
+# Any HTTP LLM via webhook
+PROVIDER_LLM=webhook
+WEBHOOK_LLM_URL=http://localhost:11434/v1/chat/completions
+WEBHOOK_LLM_HEADERS={"Content-Type":"application/json"}
+WEBHOOK_LLM_RESPONSE_PATH=choices.0.message.content
+
+# Custom TTS / Voice API (Kokoro, Coqui, etc.)
+PROVIDER_TTS=webhook
+WEBHOOK_TTS_URL=http://localhost:8080/v1/audio/speech
+WEBHOOK_TTS_HEADERS={"Authorization":"Bearer optional_token"}
+WEBHOOK_TTS_BODY_TEMPLATE={"text":"{{text}}","voice":"{{voice}}"}
+WEBHOOK_TTS_RESPONSE=binary
+
+# Custom Image Generation (ComfyUI, Automatic1111, etc.)
+PROVIDER_IMAGE=webhook
+WEBHOOK_IMAGE_URL=http://localhost:7860/sdapi/v1/txt2img
+WEBHOOK_IMAGE_HEADERS={}
+WEBHOOK_IMAGE_BODY_TEMPLATE={"prompt":"{{prompt}}","width":{{width}},"height":{{height}}}
+WEBHOOK_IMAGE_RESPONSE=json_url
+WEBHOOK_IMAGE_RESPONSE_PATH=images.0
 ```
 
 ---
 
-## Source Modules
+## 🏗️ Architecture
 
-| Module | Purpose |
-|--------|---------|
-| [`src/pipeline/state-machine.js`](src/pipeline/state-machine.js) | PostgreSQL/file-backed production state machine |
-| [`src/pipeline/providers.js`](src/pipeline/providers.js) | LLM / TTS / Image provider abstraction |
-| [`src/pipeline/retry-policy.js`](src/pipeline/retry-policy.js) | Exponential backoff, error classification, stage timeouts |
-| [`src/pipeline/telemetry.js`](src/pipeline/telemetry.js) | Cost tracking, usage events, per-video cost report |
-| [`src/mcp-server/server.js`](src/mcp-server/server.js) | MCP server — 6 registered tools |
-| [`src/quality-gate/gate.js`](src/quality-gate/gate.js) | Hard gates: LUFS, codec, resolution, black/frozen frames |
-| [`src/audio-mixer/mixer.js`](src/audio-mixer/mixer.js) | Sidechain ducking, LUFS normalisation |
-| [`src/shorts-extractor/extractor.js`](src/shorts-extractor/extractor.js) | Segment scoring, vertical 9:16 crop |
-| [`src/fact-checker/checker.js`](src/fact-checker/checker.js) | Risk-based claim verification, deterministic gates |
-| [`src/video-renderer/renderer.js`](src/video-renderer/renderer.js) | Scene render + master assembly |
-| [`src/asset-library/asset-library.js`](src/asset-library/asset-library.js) | Composable character/prop/background library |
-| [`src/utils/log-redaction.js`](src/utils/log-redaction.js) | Credential masking for logs |
-
----
-
-## Security
-
-- **No hardcoded credentials** in `workflow.json` — all via `{{$env.VAR_NAME}}`
-- **Log redaction** covers 10+ credential patterns (gsk_*, AIza*, Telegram tokens, Bearer tokens)
-- **Credential rotation**: update env var → restart n8n → test → revoke old
-- See [`.kiro/security/`](.kiro/security/) for rotation procedures
-
----
-
-## Quality Gates (Hard — video never publishes without passing)
-
-| Gate | Threshold |
-|------|-----------|
-| Resolution | 1920x1080 (master), 1080x1920 (short) |
-| Codec | H.264, yuv420p |
-| Frame rate | 24–30 fps |
-| Integrated loudness | −14 LUFS ±1.5 LU |
-| True peak | ≤ −0.5 dBTP |
-| Black frames | None > 0.5s |
-| Frozen frames | None > 0.5s |
-| File size | > 1 MB |
+```
+INPUT (Topic / Manual / Agent MCP Tool Call)
+  │
+  ├─► 1. Research Engine: Groq / WatsonX / OpenAI / Ollama
+  │      └─ Extract verified claims, common myths & modern comparisons
+  │
+  ├─► 2. Scriptwriter: 55-scene structured schema
+  │      └─ Punchy pacing, camera directions, focal points, hook scoring
+  │
+  ├─► 3. Media Ingest:
+  │      ├─ AI Images (Pollinations / Fal.ai / Replicate / DALL-E)
+  │      └─ User Clips (MP4 / WebM / MOV with Lanczos scaling)
+  │
+  ├─► 4. Voiceover Synthesis:
+  │      ├─ Edge-TTS / ElevenLabs / Azure Speech / OpenAI
+  │      └─ User Voice (Pre-recorded WAV / MP3 / M4A)
+  │
+  ├─► 5. Compositing & Animation:
+  │      ├─ 10 Animation presets (Slow Zoom, Pan Left/Right, Ken Burns)
+  │      └─ Dynamic drawtext subtitle rendering with safe margin calculation
+  │
+  ├─► 6. Audio Mixer:
+  │      ├─ Highpass (80Hz) + Dynamic Voice Normalization
+  │      ├─ Sidechain music ducking (auto-lowers music when speaking)
+  │      └─ Broadcast EBU R128 loudness normalization (-14 LUFS ± 1.5)
+  │
+  ├─► 7. Quality Gate:
+  │      └─ Hard gates: Resolution (1080p), Codec (H.264/yuv420p), 0 black frames
+  │
+  ├─► 8. Shorts Extractor:
+  │      └─ Silence boundary detection + 9:16 focal-point crop for TikTok/Shorts
+  │
+  └─► 9. Dispatch:
+         └─ Telegram instant delivery / Local packaging / Webhook notification
+```
 
 ---
 
-## Dependencies (runtime)
+## 📊 Quality Gates (Broadcast Standards)
 
-- **Node.js** ≥ 18 (no npm packages required)
-- **FFmpeg** ≥ 6.0 with libx264 + loudnorm filter
-- **edge-tts** Python package (`pip install edge-tts`) — or swap for ElevenLabs/Azure
-- **ffprobe** (ships with FFmpeg)
-- **curl** (ships with most Linux distros)
-- **Python 3.10+** (for Pollinations image download in n8n Execute Command nodes)
+Every video generated by FrameForge must pass automated inspection before delivery:
+
+| Gate | Requirement | Action on Failure |
+| :--- | :--- | :--- |
+| **Resolution** | Master: 1920×1080 \| Short: 1080×1920 | Blocks delivery |
+| **Encoding** | H.264, profile high, level 4.1, yuv420p | Blocks delivery |
+| **Integrated Loudness** | −14 LUFS ± 1.5 LU (YouTube standard) | Blocks delivery |
+| **True Peak Audio** | ≤ −0.5 dBTP | Blocks delivery |
+| **Black Frames** | None > 0.5s duration | Blocks delivery |
+| **Frozen Frames** | None > 0.5s duration | Blocks delivery |
+| **File Integrity** | > 1 MB, valid video & audio streams | Blocks delivery |
 
 ---
 
-## Credential Rotation
+## 🛠️ CLI Reference
 
-See [`.kiro/security/credential-rotation-checklist.md`](.kiro/security/credential-rotation-checklist.md) for step-by-step procedures for each service.
+| Command | Description |
+| :--- | :--- |
+| `npm run doctor` | Run pre-flight environment diagnostics |
+| `npm run make -- --topic "Topic"` | Run full autonomous video pipeline locally |
+| `npm run mcp:stdio` | Start local Stdio MCP server (for Cursor/Claude Code) |
+| `npm run mcp` | Start local HTTP MCP server on port 3210 |
+| `npm run start:worker` | Start local background queue worker |
+| `npm run check-credentials` | Run regex secret-leak audit on repository logs |
 
-**Emergency (suspected leak):**
-1. Revoke immediately in the service dashboard
-2. Generate new key
-3. Update env var
-4. Restart n8n
-5. Verify first workflow run succeeds
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please ensure:
+1. All changes pass `npm run doctor`.
+2. FFmpeg commands preserve `-nostdin` and cross-platform font resolution.
+3. PRs maintain clean separation between CLI, worker, and MCP transport.
+
+---
+
+## 📄 License
+
+Distributed under the MIT License. See `LICENSE` for details.

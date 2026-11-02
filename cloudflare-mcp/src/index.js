@@ -52,9 +52,21 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
-    // Health check
+    // Health check — includes config status so IDEs can surface setup errors early
     if (url.pathname === '/health') {
-      return Response.json({ status: 'ok', worker: 'video-pipeline-mcp', version: '1.0.0' });
+      const configured = !!env.WORKER_API_URL;
+      return Response.json({
+        status:     configured ? 'ok' : 'degraded',
+        worker:     'frameforge-mcp',
+        version:    '1.1.0',
+        configured,
+        // Surface missing config clearly so the user knows exactly what to fix
+        missing:    [
+          !env.WORKER_API_URL     && 'WORKER_API_URL (wrangler secret put WORKER_API_URL)',
+          !env.MCP_AUTH_TOKEN     && 'MCP_AUTH_TOKEN optional but recommended',
+          !env.INTERNAL_API_TOKEN && 'INTERNAL_API_TOKEN (shared with Render API)',
+        ].filter(Boolean),
+      });
     }
 
     // MCP endpoint
@@ -161,11 +173,21 @@ async function handleRPC(body, env) {
   const { method, params, id } = body;
 
   if (method === 'initialize') {
+    // Surface configuration problems at handshake time so the IDE can warn immediately
+    const configured = !!env.WORKER_API_URL;
     return {
       jsonrpc: '2.0', id,
       result: {
         protocolVersion: '2024-11-05',
-        serverInfo: { name: 'video-pipeline', version: '1.0.0' },
+        serverInfo: {
+          name:    'frameforge',
+          version: '1.1.0',
+          status:  configured ? 'ready' : 'not_configured',
+          // IDEs that surface _meta will show this warning in the tools panel
+          ...(configured ? {} : {
+            _warning: 'WORKER_API_URL not set. Run: wrangler secret put WORKER_API_URL — then redeploy.',
+          }),
+        },
         capabilities: { tools: { listChanged: false } },
       },
     };
@@ -204,10 +226,14 @@ async function handleRPC(body, env) {
 // ── Tool definitions (lean — descriptions only, no handlers inline) ───────────
 // These are what the IDE downloads once on connect. Short descriptions = fewer tokens.
 
+// Tool descriptions are intentionally concise — IDEs cache them for the session,
+// so every byte here is paid once. Long descriptions would waste that cache.
+// ASYNC PATTERN: assemble_video and publish_video run for minutes — they return
+// {jobId} when not yet done. The agent MUST call get_job_status to retrieve results.
 const TOOL_DEFINITIONS = [
   {
     name: 'research_topic',
-    description: 'Research a topic. Returns verified claims for script generation.',
+    description: 'Research a topic and fact-check claims via LLM. Fast (~5s). Returns verified claims array + productionId.',
     inputSchema: {
       type: 'object', required: ['topic'],
       properties: {
@@ -218,7 +244,7 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: 'write_script',
-    description: 'Write a 55-scene video script from research. Returns scene JSON.',
+    description: 'Generate a 55-scene JSON script from research claims. Fast (~8s). Returns scenes array + youtubeTitle + productionId.',
     inputSchema: {
       type: 'object', required: ['productionId', 'claims', 'topic'],
       properties: {
@@ -231,7 +257,7 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: 'queue_full_pipeline',
-    description: 'Queue a complete video production (research → render → publish). Returns jobId for polling.',
+    description: 'Queue a complete research→render→publish pipeline. Returns {jobId} immediately — use get_job_status to poll. Takes 15-45 minutes.',
     inputSchema: {
       type: 'object', required: ['topic'],
       properties: {
@@ -242,7 +268,7 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: 'get_job_status',
-    description: 'Poll status of a queued pipeline job. Returns status, progress, result.',
+    description: 'Poll a queued job by jobId. Returns {status:"RUNNING"|"SUCCEEDED"|"FAILED", result, stage}. Call every 30s until SUCCEEDED.',
     inputSchema: {
       type: 'object', required: ['jobId'],
       properties: {
@@ -252,7 +278,7 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: 'assemble_video',
-    description: 'Assemble rendered scenes into a final MP4 with quality gate.',
+    description: 'Render scenes → master MP4 + quality gate. SLOW (10-30 min). If result contains jobId instead of masterPath, call get_job_status to retrieve the final path.',
     inputSchema: {
       type: 'object', required: ['productionId'],
       properties: {
@@ -264,7 +290,7 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: 'publish_video',
-    description: 'Deliver finished video to Telegram / YouTube.',
+    description: 'Deliver master MP4 to Telegram/YouTube. SLOW (1-5 min upload). If result contains jobId, call get_job_status to confirm delivery.',
     inputSchema: {
       type: 'object', required: ['productionId', 'masterPath'],
       properties: {
