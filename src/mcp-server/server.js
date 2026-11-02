@@ -1,29 +1,29 @@
 /**
- * Video Agent MCP Server — MCP 2024-11-05 spec compliant
+ * FrameForge MCP Server — MCP 2024-11-05 spec compliant
  *
- * Exposes the full video production pipeline as 6 MCP tools.
- * Works with IBM Bob, Kiro IDE, Cursor, Windsurf, Claude Code, or any
- * MCP-capable agent.
+ * Exposes 13 video production tools via MCP.
+ * Works with IBM Bob, Cursor, Windsurf, Kiro, or any MCP-capable IDE.
+ * Primary connection: Cloudflare Remote MCP (cloudflare-mcp/).
+ * Alternative: stdio (src/mcp-server/stdio.js) or HTTP (this file).
  *
- * Tools:
- *   research_topic       — multi-source fact-checked research
- *   write_script         — 55-scene structured JSON (schema v1.0.0)
- *   generate_scene_image — pluggable image backend
- *   render_tts           — pluggable TTS backend
- *   assemble_video       — FFmpeg master + quality gate
- *   publish_video        — multi-channel delivery (Telegram, YouTube)
+ * Primary path for agentic IDEs:
+ *   create_video_from_script — IDE writes scenes, FrameForge renders (no internal LLM)
+ *   multi_voice_tts          — per-call TTS platform override
+ *
+ * Full pipeline path (FrameForge does the research + scripting):
+ *   research_topic, write_script, generate_scene_image, render_tts,
+ *   assemble_video, publish_video
+ *
+ * Edit path:
+ *   ingest_media, edit_scenes, render_from_scenes, external_platform_call
  *
  * Start: node src/mcp-server/server.js   (or: npm start)
  * Port:  MCP_PORT env (default 3210)
  *
- * Env required:
- *   GROQ_API_KEY (or OPENAI_API_KEY / WATSONX_API_KEY)
- *   TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID  (for Telegram delivery)
- *
- * Env optional:
- *   PROVIDER_LLM=groq|openai|watsonx|ollama    (default: groq)
- *   PROVIDER_TTS=edge-tts|elevenlabs|azure|openai (default: edge-tts)
- *   PROVIDER_IMAGE=pollinations|falai|replicate|dalle (default: pollinations)
+ * Env (optional — only needed for pipeline-internal LLM calls):
+ *   PROVIDER_LLM=groq|cerebras|openrouter|anthropic|gemini|mistral|together|openai|ollama|webhook
+ *   PROVIDER_TTS=edge-tts|elevenlabs|azure|openai|webhook
+ *   PROVIDER_IMAGE=pollinations|falai|replicate|dalle|webhook
  *   MCP_PORT=3210
  */
 

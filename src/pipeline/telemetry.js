@@ -17,9 +17,14 @@ const path = require('path');
 
 // Approximate pricing (USD per unit)
 const COST_TABLE = {
-  groq:        { tokens:     0.00000059 },  // $0.59/1M tokens (llama-3.3-70b)
-  openai:      { tokens:     0.00000015 },  // $0.15/1M input tokens (gpt-4o-mini)
-  watsonx:     { tokens:     0.00000020 },  // estimate
+  groq:        { tokens:     0.00000059 },  // $0.59/1M tokens (llama-3.3-70b-versatile)
+  cerebras:    { tokens:     0.00000060 },  // $0.60/1M tokens (llama3.3-70b)
+  openrouter:  { tokens:     0.00000300 },  // varies by model — rough estimate
+  anthropic:   { tokens:     0.00000300 },  // $3/1M tokens (claude-sonnet-4-5)
+  gemini:      { tokens:     0.00000010 },  // $0.10/1M tokens (gemini-2.0-flash)
+  mistral:     { tokens:     0.00000200 },  // $2/1M tokens (mistral-large-latest)
+  together:    { tokens:     0.00000090 },  // $0.90/1M tokens (Llama-3.3-70B-Turbo)
+  openai:      { tokens:     0.00000250 },  // $2.50/1M input tokens (gpt-4o)
   ollama:      { tokens:     0           },  // local
   pollinations:{ images:     0           },  // free tier
   falai:       { images:     0.003       },  // ~$0.003/image
