@@ -221,7 +221,7 @@ publish_video(productionId="prod-001",
 ```
 
 Sends to Telegram via curl (works in Docker / n8n without Node FormData).
-YouTube upload is manual — see `docs/youtube-upload.md`.
+YouTube upload via Data API v3 (OAuth2 resumable upload). See `docs/youtube-upload.md` for token setup.
 
 ---
 

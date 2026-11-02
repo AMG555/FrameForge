@@ -1,17 +1,17 @@
 {
-  "name": "auto-vid-gen",
-  "owner": { "name": "auto-vid-gen" },
+  "name": "frameforge",
+  "owner": { "name": "AMG555" },
   "metadata": {
-    "description": "Autonomous AI video production pipeline: research → script → TTS → animation → render → publish. Works in IBM Bob, Claude Code, Cursor, Windsurf, Kiro — any IDE that supports Claude skills.",
-    "version": "1.0.0"
+    "description": "FrameForge — Enterprise AI video production engine. Localhost-first, any agentic IDE (IBM Bob, Cursor, Windsurf, Kiro, Claude Code). Cloudflare Remote MCP for ~80% token savings.",
+    "version": "1.2.0"
   },
   "plugins": [
     {
       "name": "video-pipeline",
       "source": "./plugins/video-pipeline",
-      "description": "End-to-end overnight video production: topic research with fact-checking, script writing, voice synthesis (ElevenLabs/edge-tts/Azure), HTML+Playwright animation or n8n workflow rendering, quality gates, Telegram/YouTube delivery.",
-      "version": "1.0.0",
-      "keywords": ["video", "automation", "n8n", "mcp", "tts", "ffmpeg", "ibm-bob", "enterprise"]
+      "description": "End-to-end overnight video production: topic research with real fact-checking (Tavily/Brave/SearXNG), script writing, voice synthesis (ElevenLabs/edge-tts/Azure/OpenAI), FFmpeg animation, quality gates, Telegram delivery, YouTube Data API v3 upload.",
+      "version": "1.2.0",
+      "keywords": ["frameforge", "video", "automation", "n8n", "mcp", "tts", "ffmpeg", "ibm-bob", "enterprise", "youtube", "cloudflare"]
     }
   ]
 }
