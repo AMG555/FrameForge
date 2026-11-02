@@ -35,7 +35,7 @@ How to run the full autonomous video pipeline on a Raspberry Pi, Linux server, o
 git clone <your-repo-url> auto-vid-gen
 cd auto-vid-gen
 npm install          # no dependencies currently — safe no-op
-cp .kiro/config/production-secrets.env.template .env
+cp docs/env.template .env
 ```
 
 Edit `.env` and fill in at minimum:
@@ -138,19 +138,6 @@ Then from your IDE: `n8n_webhook_trigger({ topic: "How GPS works" })`
       "env": {
         "GROQ_API_KEY": "${GROQ_API_KEY}"
       }
-    }
-  }
-}
-```
-
-### Kiro IDE (`.kiro/mcp.json`)
-```json
-{
-  "servers": {
-    "video-pipeline": {
-      "command": "node",
-      "args": ["src/mcp-server/server.js"],
-      "cwd": "/absolute/path/to/auto-vid-gen"
     }
   }
 }

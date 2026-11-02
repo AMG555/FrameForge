@@ -3,113 +3,121 @@
 # ⚡ FrameForge
 
 ### AI Video Production Engine for Any Agentic IDE
+
 **Any IDE. Any topic. Any style. 1080p broadcast-quality videos from a single tool call.**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
+[![Version](https://img.shields.io/badge/version-2.0.1-blue.svg)](CHANGELOG.md)
 [![MCP Spec](https://img.shields.io/badge/MCP-2024--11--05-blue.svg)](https://modelcontextprotocol.io/)
-[![Token Saver](https://img.shields.io/badge/Context%20Tokens--80%25-orange.svg)](#-cloudflare-remote-mcp--recommended)
-[![FFmpeg](https://img.shields.io/badge/Engine-FFmpeg%20Native-red.svg)](https://ffmpeg.org/)
+[![Tests](https://img.shields.io/badge/tests-272%20passing-brightgreen.svg)](#-testing)
+[![FFmpeg](https://img.shields.io/badge/engine-FFmpeg%20native-red.svg)](https://ffmpeg.org/)
 
-[Quickstart](#-60-second-quickstart) • [Connect IDE](#-connect-your-agentic-ide) • [Cloudflare Remote MCP](#-cloudflare-remote-mcp--recommended) • [Add Your Own Media](#-bring-your-own-media) • [All Tools](#-mcp-tools-reference) • [Architecture](#-architecture)
+[Quickstart](#-60-second-quickstart) · [Connect Your IDE](#-connect-your-ide) · [13 MCP Tools](#-mcp-tools-reference) · [Architecture](#-architecture) · [Deploy](#-deployment)
 
 ---
 
 </div>
 
-## 💡 What is FrameForge?
+## What is FrameForge?
 
-**FrameForge is a rendering execution engine controlled by your agentic IDE.**
+**FrameForge is a rendering execution engine. Your IDE is the intelligence.**
 
-Connect your IDE (Codex, opencode, Cursor, or any MCP-capable tool) via the Cloudflare Remote MCP endpoint. The IDE writes the video script — FrameForge handles TTS synthesis, AI image generation, FFmpeg compositing, audio mastering, and delivery.
+Connect IBM Bob, Codex, opencode, Cursor, Windsurf, Claude Code, or any MCP-capable tool via the Cloudflare Remote MCP endpoint. The IDE agent writes the video script — FrameForge handles TTS synthesis, AI image generation, FFmpeg compositing, audio mastering, quality gating, and delivery.
 
-No locked-in workflow. No hardcoded topics or styles. You describe what you want to make; the IDE structures it; FrameForge renders it.
+No hardcoded topics, styles, or characters. Any format, any language, any visual aesthetic.
 
----
-
-## 🔥 Key Features
-
-* ☁️ **Cloudflare Remote MCP (Recommended)**: One HTTPS URL works in every IDE, every device. ~80% fewer context tokens vs local stdio. Deploy once, use everywhere.
-* 🤖 **Agent-First Path**: `create_video_from_script` — your IDE agent writes the scenes, FrameForge renders. Zero internal LLM needed. Works for any topic, any language, any style.
-* 🎙️ **Multi-Platform Voice**: Switch between ElevenLabs, Azure, OpenAI TTS, and edge-tts per video — or per scene — without touching `.env`.
-* 🎬 **Bring Your Own Media**: Mix AI visuals with your own clips, images, and pre-recorded voiceovers per scene.
-* 🎚️ **Broadcast-Grade Audio**: Voice compression, sidechain music ducking, EBU R128 (`-14 LUFS ± 1.5`) normalization.
-* 📱 **Vertical Shorts**: Silence-detecting boundary clustering + focal-point-aware 9:16 cropping for Reels/TikTok/Shorts.
-* 🛡️ **Hard Quality Gates**: Resolution, codec, LUFS, black frames, frozen frames — broken output never ships.
-* 🔌 **Universal IDE Support**: Codex, opencode, Cursor, Windsurf, IBM Bob, Claude Code, VS Code + Copilot, JetBrains AI, and any MCP-capable tool.
+```
+Your IDE agent writes this:              FrameForge renders this:
+──────────────────────────               ─────────────────────────
+scenes: [                                final_video_1080p.mp4 ✓
+  { narration: "...",                    short_1_vertical.mp4  ✓
+    caption: "OVERLAY",                  video_meta.json       ✓
+    visual_description: "..." }          → Telegram / YouTube
+]
+```
 
 ---
 
-## 🚀 60-Second Quickstart
+## Key Features
 
-### 1. Clone & Pre-flight Check
+| | Feature | Detail |
+|--|---------|--------|
+| ☁️ | **Cloudflare Remote MCP** | One HTTPS URL, every IDE. ~80% fewer context tokens vs local stdio. |
+| 🤖 | **Agent-first path** | `create_video_from_script` — your IDE writes scenes, FrameForge renders. Zero internal LLM. |
+| 🎙️ | **Multi-platform voice** | Switch between ElevenLabs, Azure, OpenAI TTS, and edge-tts **per call** — no `.env` change needed. |
+| 🎬 | **Bring your own media** | Mix AI visuals with your own clips, images, and pre-recorded voiceovers per scene. |
+| 🎚️ | **Broadcast-grade audio** | Voice compression, sidechain music ducking, EBU R128 −14 LUFS normalization. |
+| 📱 | **Vertical Shorts** | Silence-detecting boundary clustering + focal-point-aware 9:16 crop. |
+| 🛡️ | **Hard quality gates** | Resolution, codec, LUFS, black frames, frozen frames — broken output never ships. |
+| 🔁 | **Resume-safe pipeline** | Content-addressed artifact manifest; re-runs skip already-rendered scenes. |
+| 💰 | **Cost tracking** | NDJSON usage log with USD estimates per LLM / TTS / image call. |
+
+---
+
+## 60-Second Quickstart
+
+### 1. Install prerequisites
+
+```bash
+node --version    # need ≥ 18
+ffmpeg -version   # need ≥ 5.0   (brew install ffmpeg / apt install ffmpeg)
+npm install -g edge-tts   # free offline TTS — no account needed
+```
+
+### 2. Clone and configure
 
 ```bash
 git clone https://github.com/AMG555/FrameForge.git
 cd FrameForge
-npm install
-npm run doctor
+npm run doctor        # pre-flight check — tells you what's missing
+npm run setup         # interactive key wizard (~2 min)
 ```
 
-### 2. Configure Environment
-
-Use the interactive wizard (recommended):
-
-```bash
-npm run setup
-```
-
-Or copy the template and edit manually:
-
-```bash
-cp docs/env.template .env
-```
-
-Minimum config:
+Minimum `.env` for a free, zero-cost run:
 
 ```env
-# Free LLM (Groq free tier — no credit card)
-GROQ_API_KEY=gsk_...
+GROQ_API_KEY=gsk_...         # free tier — console.groq.com
 PROVIDER_LLM=groq
-
-# Free offline voice (no account needed)
-PROVIDER_TTS=edge-tts
-
-# Free images (no account needed)
-PROVIDER_IMAGE=pollinations
+PROVIDER_TTS=edge-tts        # free, offline — no key needed
+PROVIDER_IMAGE=pollinations  # free — no key needed
 ```
 
-### 3. Generate a Video
+### 3. Generate your first video
 
 ```bash
 npm run make -- --topic "How does GPS actually work?"
 ```
 
-Outputs saved to `.frameforge-files/`:
-* `final_video.mp4` — 1080p landscape master
-* `short_1.mp4`, `short_2.mp4` — auto-extracted 9:16 vertical Shorts
-* `video_meta.json` — title, description, tags, chapter markers
+Output in `.frameforge-files/`:
+
+```
+final_video_<id>.mp4    1080p landscape master
+short_1_<id>.mp4        auto-extracted 9:16 vertical Short
+video_meta.json         title, description, tags, chapter markers
+usage.ndjson            per-call cost log
+```
 
 ---
 
-## 🤖 Connect Your Agentic IDE
+## Connect Your IDE
 
-### ☁️ Cloudflare Remote MCP (Recommended)
+### ☁️ Cloudflare Remote MCP (recommended)
 
-The primary connection method. One URL works in every IDE — no local server process, no port forwarding, ~80% fewer context tokens.
+One URL works everywhere. No local server process, no port forwarding, ~80% fewer context tokens than stdio.
 
-**Deploy once:**
+**Deploy once (< 2 minutes):**
 
 ```bash
 cd cloudflare-mcp
 npm install
-wrangler secret put WORKER_API_URL     # https://your-render-app.onrender.com
-wrangler secret put MCP_AUTH_TOKEN     # 32-byte hex — your IDE auth
-wrangler secret put INTERNAL_API_TOKEN # 32-byte hex — worker↔render auth
+wrangler secret put WORKER_API_URL      # https://your-render-app.onrender.com
+wrangler secret put MCP_AUTH_TOKEN      # any 32-byte hex string
+wrangler secret put INTERNAL_API_TOKEN  # different 32-byte hex string
 wrangler deploy
 ```
 
-**Add to any IDE's MCP config:**
+**Add to any IDE:**
 
 ```json
 {
@@ -122,13 +130,11 @@ wrangler deploy
 }
 ```
 
-That's it. The same config block works in Codex, opencode, Cursor, Windsurf, IBM Bob, Claude Code, and any other MCP-capable IDE. See [`cloudflare-mcp/`](cloudflare-mcp/) for the full 2-minute deployment guide.
+Same block works in IBM Bob, Codex, opencode, Cursor, Windsurf, Claude Code, VS Code + Copilot, JetBrains AI, and any MCP-capable tool. See [`cloudflare-mcp/`](cloudflare-mcp/) for the full deployment guide.
 
 ---
 
-### 💻 Local Stdio (Alternative — No Cloudflare Account)
-
-If you prefer local-only with no Cloudflare setup:
+### 💻 Local stdio (alternative — no cloud account needed)
 
 ```json
 {
@@ -149,222 +155,313 @@ If you prefer local-only with no Cloudflare setup:
 
 ---
 
-## ☁️ Cloudflare Remote MCP — Recommended
+## Using FrameForge from Your IDE
 
-Traditional stdio MCP spawns a local process that floods your IDE's active context with tool schemas and JSON buffers on every cycle. With enough tools and large schemas, this becomes significant overhead.
+### Agent-first path (recommended)
 
-FrameForge's Cloudflare Workers proxy solves this:
-
-```
-Your IDE (Codex / opencode / Cursor / Windsurf / IBM Bob / Claude Code / any MCP tool)
-         │
-         │  HTTPS POST + SSE streaming
-         ▼
-[Cloudflare Workers Edge]  ← Caches tool schemas, streams responses
-         │
-         │  HTTP  (internal token)
-         ▼
-[FrameForge Render Node]   ← FFmpeg rendering, TTS, image gen
-         │
-         ▼
-[Your Machine / VPS / Pi]  ← Final output files
-```
-
-* **~60–80% fewer context tokens** per tool call — schemas cached, binary results stay server-side
-* **Zero local server required** — works on any device, any network
-* **Free tier** — Cloudflare Workers: 100,000 requests/day free
-
----
-
-## 🎬 Using FrameForge from Your IDE
-
-Once connected via MCP, your IDE agent can produce videos by calling tools directly.
-
-### Agent-First Path (Recommended)
-
-Your IDE writes the script. FrameForge renders it. No internal LLM needed inside FrameForge.
+Your IDE agent writes the `scenes[]` array. FrameForge renders it. No internal LLM needed.
 
 ```
-Agent prompt: "Make a 3-scene explainer about how WiFi works, flat design style"
-
-Agent calls: create_video_from_script({
+create_video_from_script({
   scenes: [
-    { narration: "WiFi sends data as radio waves...", caption: "RADIO WAVES", visual_description: "router emitting waves, flat illustration" },
-    { narration: "Your device picks up the signal...", caption: "YOUR DEVICE", visual_description: "laptop receiving signal" },
-    { narration: "Data travels at 2.4 or 5 gigahertz...", caption: "FREQUENCY BANDS", visual_description: "frequency spectrum diagram" }
+    {
+      narration: "WiFi sends data as invisible radio waves at 2.4 or 5 GHz.",
+      caption: "RADIO WAVES",
+      visual_description: "router emitting concentric waves, flat design, bold colors"
+    },
+    {
+      narration: "Your laptop picks up the signal and decodes the packets instantly.",
+      caption: "YOUR DEVICE",
+      visual_description: "laptop with signal bars, white background, minimal illustration"
+    }
   ],
-  imageStyle: "flat design, white background, bold colors"
+  imageStyle: "flat design, white background, bold primary colors"
 })
-
-FrameForge: generates TTS + images → renders → returns masterPath
+→ { masterPath: "/files/final_video_abc123.mp4", passed: true, sceneCount: 2 }
 ```
 
-### Auto-Research Path
+### Auto-research path
 
-Let FrameForge handle research and scripting too:
+Let FrameForge handle research and scripting internally:
 
 ```
-1. research_topic({ topic: "...", style: "educational", format: "YouTube short" })
-2. write_script({ ...claims, persona: "tech reviewer", language: "en", targetDuration: 60 })
+1. research_topic({ topic: "How GPS works", style: "educational", format: "YouTube short" })
+2. write_script({ ...claims, persona: "tech explainer", language: "en", targetDuration: 60 })
 3. render_from_scenes({ productionId, skipImages: false })
 ```
 
-### Add Your Own Media
+### Bring your own media
 
-Per-scene: pass `image_path`, `video_path`, or `audio_path` to skip AI generation for that scene.
-
----
-
-## 🎙️ Bring Your Own Media
-
-FrameForge works with your own files at the scene level.
-
-### Your Own Video Clips (B-roll, gameplay, screen recordings)
+Pass per-scene paths to skip AI generation for any scene:
 
 ```json
 {
-  "narration": "Here is how the sorting algorithm works step by step.",
+  "narration": "Here is the sorting algorithm running step by step.",
   "caption": "ALGORITHM",
-  "video_path": "/path/to/screen_recording.mp4"
+  "video_path": "/recordings/screen_capture.mp4",
+  "audio_path": "/recordings/my_voice.mp3"
 }
 ```
 
-FrameForge loops or trims your clip to match narration duration, scales to 1080p with Lanczos, and renders captions on top.
-
-### Your Own Voice Recording
-
-```json
-{
-  "narration": "This text is shown as caption but your audio file is used",
-  "audio_path": "/recordings/my_voice_scene3.mp3"
-}
-```
-
-### Your Own Images
-
-```json
-{
-  "narration": "The temperature has risen 1.2 degrees since 1880.",
-  "image_path": "/photos/climate_chart.png"
-}
-```
-
-### Voice Cloning (ElevenLabs per-call)
-
-Use `multi_voice_tts` to call ElevenLabs with your cloned voice ID for a specific scene, without changing your global TTS config:
-
-```
-multi_voice_tts({
-  text: "Your narration text",
-  outputPath: "/path/to/output.m4a",
-  platform: "elevenlabs",
-  voice: "your_cloned_voice_id",
-  apiKey: "sk_..."
-})
-```
+Any combination of `image_path`, `video_path`, `audio_path` works. FrameForge generates only what you don't supply.
 
 ---
 
-## 🛠️ MCP Tools Reference
+## MCP Tools Reference
 
-| # | Tool | What it does |
+| # | Tool | Description |
 |---|------|-------------|
-| 1 | `research_topic` | Research any topic, extract + fact-check claims. Pass `persona`, `style`, `format`, `audience`. |
-| 2 | `write_script` | Generate a video script from claims. Any style, language, scene count, or visual aesthetic. |
-| 3 | `generate_scene_image` | Generate one scene image. Pass `imageStyle` for full aesthetic control. |
-| 4 | `render_tts` | Synthesize narration audio using the configured TTS provider. |
-| 5 | `assemble_video` | FFmpeg render + quality gate → master MP4. |
-| 6 | `publish_video` | Deliver to Telegram / YouTube. |
-| 7 | `ingest_media` | Import your own clips/images/audio into a scenes manifest. |
-| 8 | `edit_scenes` | Read and patch an existing scenes manifest. |
-| 9 | `render_from_scenes` | Render from a scenes manifest — skips research and scripting. |
-| 10 | `external_platform_call` | Bridge to VoxForge, Runway, ElevenLabs, or any external platform via HTTP. |
-| 11 | `create_video_from_script` | **Agent-first path.** Your IDE writes scenes, FrameForge renders. Zero internal LLM. |
-| 12 | `multi_voice_tts` | Call any voice platform per-request (ElevenLabs/Azure/OpenAI/edge-tts/webhook) without changing `.env`. |
-| 13 | `n8n_webhook_trigger` | Trigger an n8n workflow for a full async pipeline run. |
+| 1 | `research_topic` | Research any topic. Extracts + fact-checks claims. Accepts `persona`, `style`, `format`, `audience`. |
+| 2 | `write_script` | Generate a video script from claims. Any style, language, persona, duration, or visual aesthetic. |
+| 3 | `generate_scene_image` | Generate one scene image using the configured image provider. `imageStyle` controls the aesthetic. |
+| 4 | `render_tts` | Synthesize narration audio for one scene using the configured TTS provider. |
+| 5 | `assemble_video` | FFmpeg render + 7-point quality gate → master MP4. |
+| 6 | `publish_video` | Deliver finished video to Telegram and/or YouTube. |
+| 7 | `ingest_media` | Import your own clips, images, and audio into a scenes manifest. |
+| 8 | `edit_scenes` | Read and patch an existing scenes manifest — update captions, swap files, append scenes. |
+| 9 | `render_from_scenes` | Render directly from a scenes manifest, skipping research and scripting. |
+| 10 | `external_platform_call` | HTTP bridge to VoxForge, Runway, ElevenLabs, Remotion, or any external platform. |
+| 11 | `create_video_from_script` | **Agent-first.** Your IDE writes the scenes, FrameForge renders. No internal LLM. |
+| 12 | `multi_voice_tts` | Call any TTS platform per-request (ElevenLabs / Azure / OpenAI / edge-tts / webhook) without touching `.env`. |
+| 13 | `n8n_webhook_trigger` | Trigger an n8n webhook to start an async pipeline run. Returns `{ jobId, status }` immediately. |
 
 ---
 
-## 🏗️ Architecture
+## Providers
+
+Switch any provider by setting the corresponding env var — no code changes.
+
+### LLM (10 providers)
+
+| `PROVIDER_LLM=` | Default model | Key env var | Free tier |
+|-----------------|--------------|-------------|-----------|
+| `groq` | `llama-3.3-70b-versatile` | `GROQ_API_KEY` | ✅ |
+| `cerebras` | `llama3.3-70b` (2000+ tok/s) | `CEREBRAS_API_KEY` | ✅ |
+| `openrouter` | `anthropic/claude-sonnet-4-5` | `OPENROUTER_API_KEY` | ✅ credits |
+| `anthropic` | `claude-sonnet-4-5` | `ANTHROPIC_API_KEY` | — |
+| `gemini` | `gemini-2.0-flash` | `GEMINI_API_KEY` | ✅ |
+| `mistral` | `mistral-large-latest` | `MISTRAL_API_KEY` | — |
+| `together` | `Llama-3.3-70B-Instruct-Turbo` | `TOGETHER_API_KEY` | ✅ credits |
+| `openai` | `gpt-4o` | `OPENAI_API_KEY` | — |
+| `ollama` | `llama3.3` (local) | — | ✅ local |
+| `webhook` | any OpenAI-compat endpoint | `WEBHOOK_LLM_URL` | depends |
+
+Override model: `LLM_MODEL=your-model-id` · Override endpoint: `LLM_BASE_URL=https://...`
+
+### TTS (5 providers)
+
+| `PROVIDER_TTS=` | Notes | Key |
+|-----------------|-------|-----|
+| `edge-tts` | Free, offline, 300+ voices | — |
+| `elevenlabs` | Voice cloning, highest quality | `ELEVENLABS_API_KEY` |
+| `azure` | Natural voices, multilingual | `AZURE_SPEECH_KEY` |
+| `openai` | Fast, clean narration | `OPENAI_API_KEY` |
+| `webhook` | Any HTTP TTS endpoint | `WEBHOOK_TTS_URL` |
+
+Use `multi_voice_tts` to override the provider per call without changing `.env`.
+
+### Image generation (5 providers)
+
+| `PROVIDER_IMAGE=` | Notes | Key |
+|-------------------|-------|-----|
+| `pollinations` | Free, no account | — |
+| `falai` | Fast, high quality | `FALAI_API_KEY` |
+| `replicate` | 1000+ models | `REPLICATE_API_KEY` |
+| `dalle` | DALL-E 3 | `OPENAI_API_KEY` |
+| `webhook` | Any HTTP image endpoint | `CUSTOM_IMAGE_URL` |
+
+---
+
+## Architecture
 
 ```
-INPUT
-  IDE agent tool call (create_video_from_script)
-  CLI (npm run make -- --topic "...")
-  Research → Script → Assets path
-       │
-       ▼
-┌─────────────────────────────────────────────────────┐
-│  PIPELINE                                           │
-│                                                     │
-│  research.js    → Any topic, any persona, any style │
-│  script.js      → Generic scene schema v2.0.0       │
-│  assets.js      → Image gen + TTS (parallel batch)  │
-│    ├─ video_path → use your clip (skip AI)          │
-│    ├─ image_path → use your image (skip AI)         │
-│    └─ audio_path → use your audio (skip TTS)        │
-│  render.js      → FFmpeg zoompan + captions         │
-│  shorts.js      → Silence segmentation + 9:16 crop  │
-│  packaging.js   → Manifest + metadata               │
-│  publishing.js  → Telegram + YouTube                │
-└─────────────────────────────────────────────────────┘
-       │
-       ▼
-┌─────────────────────────────────────────────────────┐
-│  PROVIDERS (providers.js) — switch via .env         │
-│                                                     │
-│  LLM: groq | cerebras | openrouter | anthropic      │
-│       gemini | mistral | together | openai          │
-│       ollama | webhook                              │
-│                                                     │
-│  TTS: edge-tts | elevenlabs | azure | openai        │
-│       webhook                                       │
-│                                                     │
-│  Image: pollinations | falai | replicate | dalle    │
-│         webhook                                     │
-└─────────────────────────────────────────────────────┘
+YOUR IDE (IBM Bob / Codex / opencode / Cursor / Windsurf / Claude Code)
+         │
+         │  HTTPS + SSE  (Cloudflare Remote MCP)
+         ▼
+[Cloudflare Workers]   ← caches schemas, proxies tool calls, keeps IDE context lean
+         │
+         │  HTTP + INTERNAL_API_TOKEN
+         ▼
+[FrameForge Node]  ← runs on Render free / VPS / Pi / your machine
+         │
+         ├─ src/pipeline/
+         │   ├─ providers.js        10 LLM + 5 TTS + 5 Image providers
+         │   ├─ state-machine.js    file + PostgreSQL production state
+         │   ├─ retry-policy.js     exponential backoff, FATAL/NON_RETRYABLE/RETRYABLE
+         │   ├─ telemetry.js        NDJSON cost tracking per provider
+         │   ├─ artifact-manifest.js  content-addressed idempotency manifest
+         │   └─ artifact-retention.js permanent / 30-day / temp sweep
+         │
+         ├─ src/workflows/
+         │   ├─ research.js   research + fact extraction
+         │   ├─ script.js     scene schema v2.0.0 generation + normalisation
+         │   ├─ assets.js     parallel image gen + TTS (configurable concurrency)
+         │   ├─ render.js     FFmpeg zoompan + captions + quality gate
+         │   ├─ shorts.js     silence segmentation + focal-point 9:16 crop
+         │   ├─ packaging.js  manifest + metadata JSON
+         │   └─ publishing.js Telegram + YouTube OAuth2
+         │
+         ├─ src/mcp-server/
+         │   ├─ server.js   HTTP MCP (port 3210) — 13 tools
+         │   └─ stdio.js    stdio MCP — same 13 tools
+         │
+         └─ src/worker/
+             ├─ server.js              full worker (local / VPS)
+             └─ server-render-free.js  Render.com free tier (api_only mode)
+                                       delegates FFmpeg to LOCAL_RENDER_URL
 ```
 
 ---
 
-## 📊 Quality Gates
+## Quality Gates
 
-Every video must pass automated inspection before delivery:
+Every video passes 7 automated checks before delivery. Any failure blocks the output.
 
-| Gate | Requirement | On Failure |
-|------|------------|-----------|
-| **Resolution** | 1920×1080 (landscape) / 1080×1920 (short) | Blocked |
-| **Encoding** | H.264, high profile, level 4.1, yuv420p | Blocked |
-| **Integrated Loudness** | −14 LUFS ± 1.5 LU | Blocked |
-| **True Peak** | ≤ −0.5 dBTP | Blocked |
-| **Black Frames** | None > 0.5s | Blocked |
-| **Frozen Frames** | None > 0.5s | Blocked |
-| **File Integrity** | > 1 MB, valid video + audio streams | Blocked |
+| Gate | Requirement |
+|------|-------------|
+| Resolution | 1920×1080 (landscape) or 1080×1920 (shorts) |
+| Video codec | H.264, high profile, level 4.1, yuv420p |
+| Integrated loudness | −14 LUFS ± 1.5 LU |
+| True peak | ≤ −0.5 dBTP |
+| Black frames | None longer than 0.5 s |
+| Frozen frames | None longer than 0.5 s |
+| File integrity | > 1 MB, valid video + audio streams |
 
 ---
 
-## 🛠️ CLI Reference
+## Deployment
 
-| Command | Description |
-|---------|-------------|
-| `npm run doctor` | Pre-flight environment check |
-| `npm run setup` | Interactive provider key wizard |
-| `npm run make -- --topic "..."` | Standalone full pipeline |
-| `npm run mcp:stdio` | Local stdio MCP server |
-| `npm run mcp` | Local HTTP MCP server (port 3210) |
+### Render.com free tier + local render (recommended)
+
+FrameForge has a split-worker design. Network-bound work (LLM, TTS, image APIs) runs on the Render free tier (512 MB RAM). FFmpeg render jobs are delegated to your local machine, Pi, or VPS.
+
+```
+Render free tier  ← research, script, assets, packaging, publishing
+Your local machine ← render, shorts (FFmpeg, ~800 MB RAM peak)
+```
+
+See [`render.yaml`](render.yaml) for the Render deploy config and [`docs/deployment.md`](docs/deployment.md) for the full step-by-step guide.
+
+### Environment variables
+
+```bash
+cp docs/env.template .env
+# then edit .env — minimum:
+GROQ_API_KEY=gsk_...
+PROVIDER_LLM=groq
+PROVIDER_TTS=edge-tts
+PROVIDER_IMAGE=pollinations
+```
+
+Full reference: [`docs/env.template`](docs/env.template)
+
+### systemd (Linux VPS / Pi)
+
+```ini
+[Unit]
+Description=FrameForge MCP Server
+After=network.target
+
+[Service]
+User=node
+WorkingDirectory=/home/node/FrameForge
+EnvironmentFile=/home/node/FrameForge/.env
+ExecStart=/usr/bin/node src/mcp-server/server.js
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+sudo systemctl enable frameforge
+sudo systemctl start  frameforge
+sudo journalctl -fu   frameforge
+```
+
+---
+
+## CLI Reference
+
+| Command | What it does |
+|---------|--------------|
+| `npm run doctor` | Pre-flight check — Node, FFmpeg, edge-tts, env vars |
+| `npm run setup` | Interactive provider key wizard (writes `.env`) |
+| `npm run setup:check` | Validate an existing `.env` |
+| `npm run make -- --topic "..."` | Full pipeline: research → render → deliver |
+| `npm run mcp` | HTTP MCP server on port 3210 |
+| `npm run mcp:stdio` | stdio MCP server |
 | `npm run start:worker` | Background queue worker |
+| `npm run start:worker:render` | Render-optimised worker (api_only mode) |
+| `npm run start:local-render` | Local full-render worker (RENDER_MODE=full) |
+| `npm run validate` | Deep structural validation (113 checks) |
+| `npm test` | Unit test suite (272 tests, 47 suites) |
+
+**`npm run make` flags:**
+
+```bash
+npm run make -- \
+  --topic "How GPS works" \
+  --style educational \       # educational | comedic | documentary | vlog | tutorial
+  --format "YouTube short" \  # YouTube video | YouTube short | Instagram reel | explainer
+  --language en \             # BCP-47 code
+  --no-publish \              # render only, skip delivery
+  --no-shorts \               # skip vertical crop
+  --channels telegram,youtube
+```
 
 ---
 
-## 🤝 Contributing
+## Testing
 
-Contributions welcome. Please ensure:
-1. `npm run doctor` passes on Windows, macOS, and Linux.
-2. FFmpeg commands preserve `-nostdin` and cross-platform font resolution.
-3. PRs maintain clean separation between CLI, worker, and MCP transport.
+272 tests across 11 modules — run with:
+
+```bash
+npm test
+```
+
+| Module | Tests | Covers |
+|--------|-------|--------|
+| `retry-policy` | 30 | Error classification, retry/dead-letter/FATAL, backoff math |
+| `telemetry` | 15 | `estimateCost` all providers, NDJSON round-trip, cost aggregation |
+| `artifact-manifest` | 22 | create/load/resume/overwrite, scene updates, idempotency checks |
+| `artifact-retention` | 21 | All 4 retention categories, tagging, sweep, dryRun |
+| `external-adapter` | 23 | `isConfigured`, 5 platform presets, auth headers, MIME, poll logic |
+| `script` | 34 | `normaliseScene` all fields, clamping, legacy compat, free-form character_id |
+| `animation-system` | 40 | All 11 camera hints, MAX_ZOOM constraint, transitions, auto quadrant |
+| `review-gate` | 22 | All risk × status combos, `formatReviewRequest`, `recordHumanDecision` |
+| `log-redaction` | 30 | 14 credential patterns, nested object redaction, safe logger |
+| `server-render-free` | 18 | `timingSafeEqual`, 4 MB body limit, path traversal guard |
+| `mcp-server` | 17 | `readBodyLimited`, `LLMProvider.parseJson`, TTSProvider overrides, outputPath guard |
 
 ---
 
-## 📄 License
+## Security
 
-Distributed under the MIT License. See `LICENSE` for details.
+- **Timing-safe auth** — All token comparisons use `crypto.timingSafeEqual` (no timing oracle)
+- **Body size limits** — All three HTTP servers reject requests > 4 MB with HTTP 413
+- **Path traversal guards** — `productionId` and `outputPath` validated before any file operation
+- **Credential redaction** — 14 regex patterns strip keys from all logs at the source
+- **No secrets in code** — All keys via `.env`; `.gitignore` covers it
+
+Report vulnerabilities: [SECURITY.md](SECURITY.md)
+
+---
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide.
+
+Quick checklist:
+1. `npm run doctor` passes on your OS
+2. `npm test` passes (272/272)
+3. `npm run validate` passes (113/113 checks)
+4. FFmpeg commands keep `-nostdin` and cross-platform font paths
+5. Commit messages: plain imperative sentences — no `feat:`/`fix:` prefixes
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE).
