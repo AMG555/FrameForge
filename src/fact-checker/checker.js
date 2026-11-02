@@ -45,13 +45,33 @@ class FactChecker {
   }
 
   /**
+   * Validate a single claim. Returns standardized decision object.
+   * @param {string|object} claim
+   * @param {object} [options]
+   * @returns {Promise<{ decision: string, riskLevel: string, requiresHumanReview: boolean, evidence: Array }>}
+   */
+  async checkClaim(claim, options = {}) {
+    const rawText = typeof claim === 'object' && claim !== null ? (claim.claim || claim.text || JSON.stringify(claim)) : String(claim);
+    const report = await this.checkClaims([rawText]);
+    const res = (report.results && report.results[0]) || {};
+    const pass = this._gatePass(res);
+    return {
+      decision: pass ? 'APPROVED' : 'REQUIRES_REVIEW',
+      riskLevel: res.claim_risk || 'TRIVIAL',
+      requiresHumanReview: !pass,
+      evidence: res.sources || [],
+      ...res,
+    };
+  }
+
+  /**
    * Validate all claims in a script. Returns { approved, flaggedClaims, report }.
    * @param {string[]} claims — plain text claim strings
    * @returns {Promise<FactCheckReport>}
    */
   async checkClaims(claims) {
     const results = [];
-    for (const rawClaim of claims) {
+    for (const rawClaim of (claims || [])) {
       const normalized = this._normalizeClaim(rawClaim);
       const cacheKey   = this._hash(normalized);
 
@@ -81,7 +101,8 @@ class FactChecker {
   // ── Claim normalization ───────────────────────────────────────────────────
 
   _normalizeClaim(raw) {
-    return raw
+    const str = typeof raw === 'object' && raw !== null ? (raw.claim || raw.text || JSON.stringify(raw)) : String(raw || '');
+    return str
       .toLowerCase()
       .replace(/\b(approximately|about|around|roughly|nearly|over|under|at least|more than|less than)\b/g, '')
       .replace(/\b\d{1,3}(,\d{3})+\b/g, n => n.replace(/,/g, ''))  // 1,000 → 1000

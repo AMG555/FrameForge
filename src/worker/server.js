@@ -278,6 +278,8 @@ async function start() {
   });
 }
 
-start().catch(err => { console.error('[Worker] startup failed:', err); process.exit(1); });
+if (require.main === module) {
+  start().catch(err => { console.error('[Worker] startup failed:', err); process.exit(1); });
+}
 
-module.exports = { _submitJob, jobs }; // for testing
+module.exports = { _submitJob, jobs, runFullPipeline, start };

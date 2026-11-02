@@ -43,9 +43,11 @@ async function runRender({ productionId, sceneAssets, withMusic = true, musicVol
       const scenePath = renderer.renderScene({
         sceneIndex: idx,
         imagePath:  asset.imagePath,
+        videoPath:  asset.videoPath,
         voicePath:  asset.voicePath,
         caption:    asset.caption || '',
         camera:     asset.camera  || 'static',
+        focalPoint: asset.focalPoint || null,
       });
       sceneFiles.push(scenePath);
     } catch (err) {

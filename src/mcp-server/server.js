@@ -435,4 +435,8 @@ async function start() {
   });
 }
 
-start().catch(err => { console.error('[video-agent MCP] startup failed:', err); process.exit(1); });
+if (require.main === module) {
+  start().catch(err => { console.error('[video-agent MCP] startup failed:', err); process.exit(1); });
+}
+
+module.exports = { handleMCPRequest, TOOLS, SERVER_INFO, start };
