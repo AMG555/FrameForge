@@ -5,8 +5,8 @@
  *   - Valid video + audio streams
  *   - Resolution 1920x1080 (master) or 1080x1920 (short)
  *   - H.264 codec, yuv420p pixel format, 30fps
- *   - Integrated loudness: -14 LUFS ±1.0 LU
- *   - True peak: ≤ -1.0 dBTP
+ *   - Integrated loudness: -14 LUFS ±1.5 LU
+ *   - True peak: ≤ -0.5 dBTP
  *   - No black frames > 0.5s
  *   - No frozen frames > 0.5s
  *   - File size > 1MB

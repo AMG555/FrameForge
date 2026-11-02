@@ -2,8 +2,8 @@
 
 **Project:** FrameForge — Enterprise AI Video Production Engine
 **Last Updated:** 2026-11-02
-**Version:** v1.3.0
-**Status:** Production-ready — all P0/P1 gaps closed, 122/122 deep-validate checks pass
+**Version:** v1.3.1
+**Status:** Production-ready — all P0/P1 gaps closed, 122/122 deep-validate checks pass, 9 bug-fixes applied
 
 ---
 

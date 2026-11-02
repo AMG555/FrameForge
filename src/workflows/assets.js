@@ -104,8 +104,10 @@ async function runAssets({ productionId, scenes, parallelism = 4 }) {
     }
   }
 
+  // Use stable scene IDs + voicePaths for the hash instead of imagePaths,
+  // because video_path scenes have imagePath=null which produces unstable hashes.
   const outputHash = crypto.createHash('sha256')
-    .update(results.map(r => r.imagePath).join(','))
+    .update(results.map(r => `${r.sceneId}:${r.voicePath}`).join(','))
     .digest('hex').slice(0, 16);
 
   await sm.completeStage(productionId, 'Asset_Generation', { outputHash, metrics: { sceneCount: results.length } });

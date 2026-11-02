@@ -115,7 +115,10 @@ const hasLLM = Boolean(
   process.env.GROQ_API_KEY ||
   process.env.OPENAI_API_KEY ||
   process.env.WATSONX_API_KEY ||
-  process.env.LLM_BASE_URL
+  process.env.LLM_BASE_URL ||
+  process.env.WEBHOOK_LLM_URL ||
+  process.env.OLLAMA_BASE_URL ||
+  (process.env.PROVIDER_LLM || '').toLowerCase() === 'ollama'
 );
 
 if (hasLLM) {

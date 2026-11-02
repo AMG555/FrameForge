@@ -18,7 +18,9 @@
 // Stage timeouts in milliseconds
 const STAGE_TIMEOUTS_MS = {
   Research:         5  * 60 * 1000,
-  Script:           3  * 60 * 1000,
+  // Script with 32k max-token LLM calls can exceed 3 min on slower providers —
+  // raised to 5 min to match Research.
+  Script:           5  * 60 * 1000,
   Asset_Generation: 10 * 60 * 1000,
   Video_Rendering:  30 * 60 * 1000,
   Shorts_Extraction:10 * 60 * 1000,

@@ -4,6 +4,46 @@ All notable changes to FrameForge are documented here.
 
 ---
 
+## [1.3.1] — 2026-11-02
+
+### Fixed
+
+- **`server.js` `publish_video` tool — double Telegram delivery** (#bug): The handler sent
+  the video inline via `spawnSync('curl')` and then immediately called `runPublishing()`,
+  which also sends to Telegram when `channels` includes `'telegram'`. Removed the redundant
+  inline curl block; the tool now delegates entirely to `runPublishing()`.
+- **`server.js` `n8n_webhook_trigger` — dead destructure** (#cleanup): `const { https: _https,
+  http: _http } = require('https')` was a no-op (the `https` module has no `http` export) and
+  the variables were unused. Removed the dead line.
+- **`fact-checker/checker.js` `_searchBrave` — gzip decode corruption** (#bug): The Brave Search
+  request included `Accept-Encoding: gzip` but `_httpsGet` collects raw Buffer chunks and decodes
+  them as UTF-8 directly. A gzip-compressed response would produce garbled JSON and a parse error.
+  Removed the `Accept-Encoding: gzip` header so the server responds with plain JSON.
+- **`renderer.js` `_captionFilter` — dead re-escape** (#cleanup): The caption was already stripped
+  of `:` and `%` characters by the preceding regex, making the subsequent `.replace(/:/g, '\\:')` and
+  `.replace(/%/g, '\\%')` calls unreachable no-ops. Removed the dead replacements.
+- **`quality-gate/gate.js` — comment/code mismatch** (#docs): The file header said
+  `Integrated loudness: -14 LUFS ±1.0 LU` and `True peak: ≤ -1.0 dBTP`, but the actual
+  enforcement thresholds in code are ±1.5 LU and -0.5 dBTP. Corrected the comments.
+- **`animation-system.js` `_zoomIn`/`_zoomOut` — frames param unused** (#bug): Both functions
+  accepted a `frames` argument but always used a fixed step constant regardless of duration.
+  The zoom step is now proportional to `frames` so a 2-second scene zooms at the same visual
+  speed as a 10-second scene. A 2× cap prevents snapping on very short scenes.
+- **`retry-policy.js` Script timeout too short** (#bug): The `Script` stage timeout was 3 min,
+  but LLM calls with `maxTokens: 32000` on slower providers routinely exceed that, causing
+  spurious retries and dead-letters. Raised to 5 min (matching `Research`).
+- **`workflows/assets.js` — null imagePaths in output hash** (#bug): For scenes with a
+  user-supplied `video_path`, `imagePath` is `null`. The hash was computed from
+  `results.map(r => r.imagePath).join(',')` which included literal `null` strings, making the
+  hash content-unstable across runs. Hash is now computed from `sceneId:voicePath` pairs which
+  are always populated.
+- **`cli/doctor.js` — incomplete LLM detection** (#bug): The LLM provider check only tested for
+  `LLM_BASE_URL` but missed `WEBHOOK_LLM_URL` and `OLLAMA_BASE_URL` / `PROVIDER_LLM=ollama`.
+  Ollama users with only `PROVIDER_LLM=ollama` set would receive a false warning. All three
+  env-var shapes are now detected.
+
+---
+
 ## [1.2.0] — 2026-11-02
 
 ### Added

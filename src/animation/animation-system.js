@@ -129,7 +129,10 @@ function selectCameraHint(sceneIndex, { focalX = 0.5, focalY = 0.35 } = {}) {
 
 function _zoomIn(frames, step = ZOOM_STEP_IN) {
   const maxZ = MAX_ZOOM.toFixed(4);
-  const s    = step.toFixed(6);
+  // Scale step to spread the full zoom range over exactly `frames` frames so
+  // motion speed is constant regardless of scene duration.
+  const rangeStep = frames > 0 ? (MAX_ZOOM - BASE_ZOOM) / frames : step;
+  const s = Math.min(rangeStep, step * 2).toFixed(6); // never faster than 2× default
   return (
     `zoompan=` +
     `z='min(zoom+${s},${maxZ})':` +
@@ -141,7 +144,9 @@ function _zoomIn(frames, step = ZOOM_STEP_IN) {
 
 function _zoomOut(frames, step = ZOOM_STEP_OUT) {
   const maxZ = MAX_ZOOM.toFixed(4);
-  const s    = step.toFixed(6);
+  // Scale step to spread the full zoom range over exactly `frames` frames.
+  const rangeStep = frames > 0 ? (MAX_ZOOM - BASE_ZOOM) / frames : step;
+  const s = Math.min(rangeStep, step * 2).toFixed(6);
   return (
     `zoompan=` +
     `z='if(lte(zoom,1.0),${maxZ},max(zoom-${s},1.0))':` +

@@ -252,12 +252,14 @@ class FactChecker {
   /** GET https://api.search.brave.com/res/v1/web/search */
   async _searchBrave(claim, count) {
     const qs  = new URLSearchParams({ q: claim, count: String(Math.max(count, 5)) });
+    // Do NOT request gzip: _httpsGet collects raw Buffer chunks and decodes as utf8.
+    // Sending Accept-Encoding: gzip would cause a binary gzip body to be decoded
+    // as utf8, making JSON.parse fail. Let the server respond with plain JSON.
     const raw = await this._httpsGet(
       'api.search.brave.com',
       `/res/v1/web/search?${qs}`,
       {
-        'Accept':            'application/json',
-        'Accept-Encoding':   'gzip',
+        'Accept':               'application/json',
         'X-Subscription-Token': SEARCH_API_KEY,
       }
     );

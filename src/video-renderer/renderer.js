@@ -223,7 +223,9 @@ class VideoRenderer {
 
   _captionFilter(caption) {
     if (!caption || !this.font) return '';
-    // Sanitize caption for ffmpeg drawtext
+    // Sanitize caption for ffmpeg drawtext.
+    // Strip all characters that need ffmpeg escaping or that break the drawtext
+    // filter syntax. After stripping : and %, re-escaping them is a no-op — removed.
     const safe = caption
       .replace(/['"\\:;|<>{}[\]()!@#$%^&*+=]/g, '')
       .replace(/\s+/g, ' ')
@@ -231,10 +233,9 @@ class VideoRenderer {
       .slice(0, 45)
       .toUpperCase();
     if (!safe) return '';
-    const escaped = safe.replace(/:/g, '\\:').replace(/%/g, '\\%');
     const safeFont = this.font.replace(/\\/g, '/').replace(/:/g, '\\:');
     // Bottom-center, safe zone: 100px from bottom + UI button zone
-    return `drawtext=fontfile='${safeFont}':text='${escaped}':fontsize=68:fontcolor=white:bordercolor=black:borderw=4:x=(w-text_w)/2:y=h-180:line_spacing=10`;
+    return `drawtext=fontfile='${safeFont}':text='${safe}':fontsize=68:fontcolor=white:bordercolor=black:borderw=4:x=(w-text_w)/2:y=h-180:line_spacing=10`;
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────

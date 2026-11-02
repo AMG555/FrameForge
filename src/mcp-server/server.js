@@ -273,39 +273,17 @@ const TOOLS = {
     },
     handler: async ({ productionId, masterPath, channels = ['telegram'], youtubeTitle = '', youtubeDescription = '' }) => {
       await sm.startStage(productionId, 'Publishing');
-      const results = {};
 
-      if (channels.includes('telegram')) {
-        const botToken = process.env.TELEGRAM_BOT_TOKEN;
-        const chatId   = process.env.TELEGRAM_CHAT_ID;
-        const apiBase  = process.env.TELEGRAM_API_BASE || 'https://api.telegram.org';
-        if (!botToken || !chatId) throw new Error('TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID required');
-        results.telegram = await retryPol.executeStage('Publishing', async () => {
-          // spawnSync array form — no shell injection risk from token/chatId/path values
-          const { spawnSync } = require('child_process');
-          const caption = `🎬 ${youtubeTitle}\n\n${youtubeDescription}`.slice(0, 1024);
-          const result = spawnSync('curl', [
-            '-sS', '-X', 'POST',
-            `${apiBase}/bot${botToken}/sendDocument`,
-            '-F', `chat_id=${chatId}`,
-            '-F', `document=@${masterPath}`,
-            '-F', `caption=${caption}`,
-          ], { timeout: 10 * 60 * 1000, maxBuffer: 10 * 1024 * 1024, encoding: 'utf8' });
-          if (result.error) throw result.error;
-          const resp = JSON.parse(result.stdout || '{}');
-          if (!resp.ok) throw new Error(`Telegram error: ${resp.description}`);
-          return { ok: true, messageId: resp.result?.message_id };
-        });
-      }
-
-      // Delegate the full publishing workflow (handles YouTube OAuth2, Telegram, etc.)
+      // Delegate entirely to runPublishing — it handles Telegram, YouTube, and shorts.
+      // Previously had an inline Telegram send here which caused double-delivery when
+      // channels included 'telegram', since runPublishing also sends to Telegram.
       const manifest = {
         master: { path: masterPath },
         metadata: { youtubeTitle, youtubeDescription },
         shorts: [],
       };
       const pubResult = await runPublishing({ productionId, manifest, channels });
-      Object.assign(results, pubResult.results || {});
+      const results = pubResult.results || {};
 
       await sm.completeStage(productionId, 'Publishing', {});
       await sm.transitionProduction(productionId, 'SUCCEEDED').catch(() => {});
@@ -337,7 +315,7 @@ const TOOLS = {
         throw new Error('N8N_WEBHOOK_URL not set. Add it to your .env file.');
       }
       const body = JSON.stringify({ topic, channels, style, language, ...payload, _source: 'frameforge-mcp' });
-      const { https: _https, http: _http } = require('https'), isHttps = webhookUrl.startsWith('https');
+      const isHttps = webhookUrl.startsWith('https');
       const client = require(isHttps ? 'https' : 'http');
       const result = await new Promise((resolve, reject) => {
         const url = new URL(webhookUrl);
