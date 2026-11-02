@@ -1,44 +1,36 @@
 /**
- * FactChecker Human Review Gates — Task #21
+ * FactChecker Human Review Gate
  *
- * Classifies claims by expected_decision, generates Telegram-formatted review
- * requests for high-risk claims, and records human decisions back to state.
+ * Classifies claims, generates review summaries, and records human decisions.
  *
  * Three gates:
- *
  *   1. AUTO_APPROVE — evidence_strength STRONG or MODERATE, risk TRIVIAL/NUMERICAL,
  *      no DISPUTED status. Pipeline proceeds without human input.
- *
- *   2. HUMAN_REVIEW — CONTROVERSIAL risk, DISPUTED status, or weak evidence on
- *      NUMERICAL claims. Pipeline pauses, sends Telegram notification, waits
- *      for approval or rejection (timeout → escalate).
- *
- *   3. REJECT — Dangerous misinformation (e.g. vaccines cause autism, flat Earth).
- *      Pipeline halts immediately; script stage is marked FAILED.
+ *   2. HUMAN_REVIEW — CONTROVERSIAL risk, DISPUTED status, or weak evidence.
+ *      Pipeline pauses, sends a webhook notification, waits for approval.
+ *   3. REJECT — Dangerous misinformation. Pipeline halts immediately.
  *
  * Review workflow:
- *   - Producer calls classifyDecisions(factCheckReport) → { autoApproved, needsReview, rejected }
- *   - If needsReview is non-empty → sendReviewRequest(claims) → wait for webhook
- *   - Human responds via Telegram /approve or /reject command
- *   - recordHumanDecision(claimHash, decision, reviewer) persists to state machine
+ *   - classifyDecisions(factCheckReport) → { autoApproved, needsReview, rejected }
+ *   - If needsReview non-empty → sends webhook notification → polls for decision files
+ *   - Operator calls recordHumanDecision({ claimHash, decision, reviewer, productionId })
  *
- * Integration with state machine:
- *   - WAITING_REVIEW state set when needsReview.length > 0
- *   - SUCCEEDED set when all claims resolved (auto or human)
- *   - FAILED set when any REJECT decision
+ * Notification:
+ *   Set REVIEW_NOTIFY_URL to receive a POST with the review summary JSON.
+ *   Any webhook receiver works — n8n, Make, Zapier, a custom bot, etc.
  *
  * Usage:
- *   const { FactCheckerReviewGate } = require('./review-gate');
- *   const gate = new FactCheckerReviewGate({ stateMachine, telegramToken, chatId });
- *   const { allApproved, needsReview, rejected } = await gate.evaluate(factCheckReport, productionId);
+ *   const gate = new FactCheckerReviewGate({ stateMachine, notifyUrl, reviewsDir });
+ *   const { allApproved, needsReview, rejected } = await gate.evaluate(report, productionId);
  */
 
 'use strict';
 
-const { spawnSync } = require('child_process');
 const crypto = require('crypto');
 const fs     = require('fs');
 const path   = require('path');
+const https  = require('https');
+const http   = require('http');
 
 // Max time to wait for human review before escalation (ms)
 const REVIEW_TIMEOUT_MS = parseInt(process.env.FACTCHECK_REVIEW_TIMEOUT_MS || String(4 * 60 * 60 * 1000), 10); // 4h
@@ -48,16 +40,14 @@ const POLL_INTERVAL_MS  = parseInt(process.env.FACTCHECK_POLL_INTERVAL_MS || '15
 class FactCheckerReviewGate {
   /**
    * @param {{
-   *   stateMachine?:  object,   // StateMachine instance — optional for standalone use
-   *   telegramToken?: string,   // override env TELEGRAM_BOT_TOKEN
-   *   chatId?:        string,   // override env TELEGRAM_CHAT_ID
-   *   reviewsDir?:    string,   // directory for persisting review decisions
+   *   stateMachine?: object,  // StateMachine instance — optional for standalone use
+   *   notifyUrl?:    string,  // override REVIEW_NOTIFY_URL env var
+   *   reviewsDir?:   string,  // directory for persisting review decisions
    * }} opts
    */
-  constructor({ stateMachine = null, telegramToken, chatId, reviewsDir = '/home/node/.n8n-files/reviews' } = {}) {
+  constructor({ stateMachine = null, notifyUrl, reviewsDir = '/home/node/.n8n-files/reviews' } = {}) {
     this.stateMachine = stateMachine;
-    this.token        = telegramToken || process.env.TELEGRAM_BOT_TOKEN;
-    this.chatId       = chatId        || process.env.TELEGRAM_CHAT_ID;
+    this.notifyUrl    = notifyUrl || process.env.REVIEW_NOTIFY_URL || '';
     this.reviewsDir   = reviewsDir;
     fs.mkdirSync(reviewsDir, { recursive: true });
   }
@@ -224,31 +214,56 @@ class FactCheckerReviewGate {
   }
 
   async _sendReviewRequest(claims, productionId) {
-    if (!this.token || !this.chatId) {
-      console.warn('[FactCheckerReviewGate] Telegram not configured — review request not sent');
+    if (!this.notifyUrl) {
+      console.warn('[FactCheckerReviewGate] REVIEW_NOTIFY_URL not configured — review request not sent. Set it in .env to receive notifications.');
       return;
     }
-    const message = this.formatReviewRequest(claims, productionId);
-    // Use spawnSync with curl array args — no shell string interpolation.
-    // Send as plain text (parse_mode omitted) so unescaped markdown doesn't
-    // cause Telegram 400 "Bad Request: can't parse entities" errors.
-    spawnSync('curl', [
-      '-s', '-X', 'POST',
-      `https://api.telegram.org/bot${this.token}/sendMessage`,
-      '-H', 'Content-Type: application/json',
-      '-d', JSON.stringify({ chat_id: this.chatId, text: message }),
-    ], { timeout: 15000 });
+    const payload = {
+      event:       'HUMAN_REVIEW_REQUIRED',
+      productionId,
+      claimCount:  claims.length,
+      message:     this.formatReviewRequest(claims, productionId),
+      claims:      claims.map(c => ({
+        rawClaim:          c.rawClaim || c.normalized,
+        claim_risk:        c.claim_risk,
+        status:            c.status,
+        evidence_strength: c.evidence_strength,
+        hash:              this._claimHash(c.rawClaim || c.normalized),
+      })),
+    };
+    await this._httpPost(this.notifyUrl, payload).catch(err => {
+      console.warn(`[FactCheckerReviewGate] Notify failed: ${err.message}`);
+    });
   }
 
   async _notifyReject(claims, productionId) {
-    if (!this.token || !this.chatId) return;
-    const text = `🚫 *Production REJECTED by FactChecker*\nID: \`${productionId}\`\n\nDangerous claims detected:\n${claims.map(c => `• ${c.rawClaim}`).join('\n')}`;
-    spawnSync('curl', [
-      '-s', '-X', 'POST',
-      `https://api.telegram.org/bot${this.token}/sendMessage`,
-      '-H', 'Content-Type: application/json',
-      '-d', JSON.stringify({ chat_id: this.chatId, text, parse_mode: 'Markdown' }),
-    ], { timeout: 15000 });
+    if (!this.notifyUrl) return;
+    const payload = {
+      event:       'PRODUCTION_REJECTED',
+      productionId,
+      reason:      'FactChecker rejected dangerous claims',
+      claims:      claims.map(c => c.rawClaim || c.normalized),
+    };
+    await this._httpPost(this.notifyUrl, payload).catch(() => {});
+  }
+
+  _httpPost(url, body) {
+    return new Promise((resolve, reject) => {
+      const parsed  = new URL(url);
+      const lib     = parsed.protocol === 'https:' ? https : http;
+      const payload = JSON.stringify(body);
+      const req     = lib.request({
+        hostname: parsed.hostname,
+        port:     parsed.port || (parsed.protocol === 'https:' ? 443 : 80),
+        path:     parsed.pathname + parsed.search,
+        method:   'POST',
+        headers:  { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) },
+      }, (res) => { res.resume(); resolve(res.statusCode); });
+      req.on('error', reject);
+      req.setTimeout(15000, () => { req.destroy(); reject(new Error('Notify timeout')); });
+      req.write(payload);
+      req.end();
+    });
   }
 
   async _waitForDecisions(claims, productionId) {

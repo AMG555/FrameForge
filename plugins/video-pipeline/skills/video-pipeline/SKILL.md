@@ -3,8 +3,8 @@ name: video-pipeline
 description: >
   Autonomous AI video production pipeline. Given a topic, this skill
   researches, fact-checks, writes the script, synthesises voice, renders
-  with FFmpeg, runs quality gates, and delivers to Telegram or YouTube —
-  all without human intervention.
+  with FFmpeg, runs quality gates, and saves the output locally or POSTs
+  to any webhook — all without human intervention.
   Works in IBM Bob, Codex, opencode, Cursor, Windsurf, Claude Code,
   or any IDE that loads skills from ~/.claude/skills/ or .claude/skills/.
   Trigger phrases: "make a video about", "produce a reel on", "overnight
@@ -30,7 +30,7 @@ IDE Agent (IBM Bob / Codex / opencode / Cursor / Windsurf / Claude Code)
     │            publish_video · ingest_media · edit_scenes
     │            render_from_scenes · external_platform_call
     │            create_video_from_script · multi_voice_tts
-    │            n8n_webhook_trigger · get_job_status · queue_full_pipeline
+    │            queue_full_pipeline · get_job_status
     │
     ▼  OR — Local stdio / HTTP MCP ────────────────────────────────────
     │  node src/mcp-server/stdio.js   (stdio)
@@ -43,8 +43,8 @@ IDE Agent (IBM Bob / Codex / opencode / Cursor / Windsurf / Claude Code)
     │  TTS provider:   PROVIDER_TTS=edge-tts|elevenlabs|azure|openai|webhook
     │  Image provider: PROVIDER_IMAGE=pollinations|falai|replicate|dalle|webhook
     │
-    ▼  Optional: n8n webhook trigger
-       n8n_webhook_trigger MCP tool → POST to any n8n webhook URL
+    ▼  Optional: queue_full_pipeline
+       queue_full_pipeline MCP tool → POST job to worker API (WORKER_API_URL)
 ```
 
 All secrets come from environment variables — **never** hardcoded.
@@ -123,9 +123,9 @@ PROVIDER_TTS=edge-tts
 # Image (pollinations is free, no key)
 PROVIDER_IMAGE=pollinations
 
-# Delivery
-TELEGRAM_BOT_TOKEN=...
-TELEGRAM_CHAT_ID=...
+# Delivery (optional — default is 'file' which copies to N8N_FILES_DIR/published/)
+# PUBLISH_WEBHOOK_URL=https://hooks.example.com/frameforge
+# REVIEW_NOTIFY_URL=https://hooks.example.com/review-gate
 ```
 
 Run the interactive wizard for guided setup:
@@ -162,7 +162,7 @@ Let FrameForge handle research + scripting:
 1. research_topic({ topic: "...", style: "educational", format: "YouTube short" })
 2. write_script({ productionId, claims, topic, persona: "tech reviewer" })
 3. render_from_scenes({ productionId })
-4. publish_video({ productionId, masterPath, channels: ["telegram", "youtube"] })
+4. publish_video({ productionId, masterPath, channels: ["file"] })
 ```
 
 ### Voice Synthesis (per call)
@@ -188,7 +188,7 @@ Topics (queue them all):
 
 Rules:
 - Strong hook, double-verify every fact.
-- After each video: run the quality gate, then publish to Telegram.
+- After each video: run the quality gate, then publish to the output directory.
 - Leave me a summary when done.
 ```
 

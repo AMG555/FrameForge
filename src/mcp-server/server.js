@@ -2,7 +2,7 @@
  * FrameForge MCP Server — MCP 2024-11-05 spec compliant
  *
  * Exposes 13 video production tools via MCP.
- * Works with IBM Bob, Cursor, Windsurf, Kiro, or any MCP-capable IDE.
+ * Works with IBM Bob, Cursor, Windsurf, Codex, opencode, or any MCP-capable IDE.
  * Primary connection: Cloudflare Remote MCP (cloudflare-mcp/).
  * Alternative: stdio (src/mcp-server/stdio.js) or HTTP (this file).
  *
@@ -604,51 +604,57 @@ Example scene:
     },
   },
 
-  // ── Tool 13: n8n webhook trigger ─────────────────────────────────────────
-  n8n_webhook_trigger: {
-    description: 'Trigger an n8n webhook to start a video pipeline workflow. Returns {jobId, status} immediately. Requires N8N_WEBHOOK_URL env var.',
+  // ── Tool 13: Queue full pipeline ──────────────────────────────────────────
+  // Trigger a full pipeline job on the worker API or a generic HTTP endpoint.
+  queue_full_pipeline: {
+    description: 'Queue a full video pipeline job (research → script → render → publish) on the worker API or any HTTP endpoint. Returns {jobId, status} immediately — poll get_job_status for completion. Set WORKER_API_URL to target the worker, or pass webhookUrl for any custom endpoint.',
     inputSchema: {
       type: 'object',
       required: ['topic'],
       properties: {
-        topic:    { type: 'string', description: 'Video topic to produce' },
-        channels: { type: 'array', items: { type: 'string' }, default: ['telegram'], description: 'Delivery channels' },
-        style:    { type: 'string', default: 'informative', description: 'Narrative style' },
-        language: { type: 'string', default: 'en', description: 'BCP-47 language code for TTS voice selection' },
-        payload:  { type: 'object', description: 'Additional fields forwarded to the n8n workflow' },
+        topic:      { type: 'string', description: 'Video topic to produce' },
+        style:      { type: 'string', default: 'informative', description: 'Narrative style, e.g. "educational", "comedic"' },
+        language:   { type: 'string', default: 'en', description: 'BCP-47 language code for TTS voice selection' },
+        channels:   { type: 'array', items: { type: 'string' }, default: ['file'], description: 'Delivery channels for the publish step: file | webhook' },
+        webhookUrl: { type: 'string', description: 'HTTP endpoint to POST the job to. Overrides WORKER_API_URL env var.' },
+        payload:    { type: 'object', description: 'Additional fields forwarded to the worker' },
       },
     },
-    handler: async ({ topic, channels = ['telegram'], style = 'informative', language = 'en', payload = {} }) => {
-      const webhookUrl = process.env.N8N_WEBHOOK_URL;
-      if (!webhookUrl) {
-        throw new Error('N8N_WEBHOOK_URL not set. Add it to your .env file.');
+    handler: async ({ topic, style = 'informative', language = 'en', channels = ['file'], webhookUrl, payload = {} }) => {
+      const targetUrl = webhookUrl || process.env.WORKER_API_URL;
+      if (!targetUrl) {
+        throw new Error('Set WORKER_API_URL in .env (the worker HTTP endpoint, e.g. http://localhost:3211) or pass webhookUrl.');
       }
-      const body = JSON.stringify({ topic, channels, style, language, ...payload, _source: 'frameforge-mcp' });
-      const isHttps = webhookUrl.startsWith('https');
-      const client = require(isHttps ? 'https' : 'http');
+
+      const isHttps = targetUrl.startsWith('https');
+      const client  = require(isHttps ? 'https' : 'http');
+      const body    = JSON.stringify({ type: 'full_pipeline', payload: { topic, style, language, channels, ...payload } });
+
       const result = await new Promise((resolve, reject) => {
-        const url = new URL(webhookUrl);
+        const url = new URL(`${targetUrl.replace(/\/$/, '')}/jobs`);
         const req = client.request({
-          host: url.hostname, port: url.port || (isHttps ? 443 : 80),
-          path: url.pathname + url.search,
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
+          hostname: url.hostname,
+          port:     url.port || (isHttps ? 443 : 80),
+          path:     url.pathname + url.search,
+          method:   'POST',
+          headers:  { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
         }, (res) => {
           const chunks = [];
           res.on('data', d => chunks.push(d));
           res.on('end', () => {
-            if (res.statusCode >= 400) return reject(new Error(`n8n webhook returned HTTP ${res.statusCode}`));
+            if (res.statusCode >= 400) return reject(new Error(`Worker returned HTTP ${res.statusCode}`));
             const text = Buffer.concat(chunks).toString('utf8');
             try { resolve(JSON.parse(text)); } catch { resolve({ raw: text }); }
           });
         });
         req.on('error', reject);
-        req.setTimeout(30000, () => { req.destroy(); reject(new Error('n8n webhook timeout')); });
+        req.setTimeout(30000, () => { req.destroy(); reject(new Error('Worker request timeout')); });
         req.write(body);
         req.end();
       });
-      const jobId = result.jobId || result.executionId || result.id || crypto.randomUUID?.() || crypto.randomBytes(8).toString('hex');
-      return { jobId, status: result.status || 'triggered', topic, n8nResponse: result };
+
+      const jobId = result.id || result.jobId || crypto.randomBytes(8).toString('hex');
+      return { jobId, status: result.status || 'QUEUED', topic, workerResponse: result };
     },
   },
 };
@@ -657,7 +663,7 @@ Example scene:
 
 const SERVER_INFO = {
   name:    'video-pipeline',
-  version: '2.0.0',
+  version: '2.2.0',
 };
 
 const CAPABILITIES = {

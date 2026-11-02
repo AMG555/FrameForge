@@ -8,9 +8,9 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
-[![Version](https://img.shields.io/badge/version-2.0.1-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.2.0-blue.svg)](CHANGELOG.md)
 [![MCP Spec](https://img.shields.io/badge/MCP-2024--11--05-blue.svg)](https://modelcontextprotocol.io/)
-[![Tests](https://img.shields.io/badge/tests-272%20passing-brightgreen.svg)](#-testing)
+[![Tests](https://img.shields.io/badge/tests-375%20passing-brightgreen.svg)](#-testing)
 [![FFmpeg](https://img.shields.io/badge/engine-FFmpeg%20native-red.svg)](https://ffmpeg.org/)
 
 [Quickstart](#-60-second-quickstart) · [Connect Your IDE](#-connect-your-ide) · [13 MCP Tools](#-mcp-tools-reference) · [Architecture](#-architecture) · [Deploy](#-deployment)
@@ -33,7 +33,7 @@ Your IDE agent writes this:              FrameForge renders this:
 scenes: [                                final_video_1080p.mp4 ✓
   { narration: "...",                    short_1_vertical.mp4  ✓
     caption: "OVERLAY",                  video_meta.json       ✓
-    visual_description: "..." }          → Telegram / YouTube
+    visual_description: "..." }          → file output / webhook
 ]
 ```
 
@@ -216,14 +216,14 @@ Any combination of `image_path`, `video_path`, `audio_path` works. FrameForge ge
 | 3 | `generate_scene_image` | Generate one scene image using the configured image provider. `imageStyle` controls the aesthetic. |
 | 4 | `render_tts` | Synthesize narration audio for one scene using the configured TTS provider. |
 | 5 | `assemble_video` | FFmpeg render + 7-point quality gate → master MP4. |
-| 6 | `publish_video` | Deliver finished video to Telegram and/or YouTube. |
+| 6 | `publish_video` | Deliver finished video via file copy or HTTP webhook. |
 | 7 | `ingest_media` | Import your own clips, images, and audio into a scenes manifest. |
 | 8 | `edit_scenes` | Read and patch an existing scenes manifest — update captions, swap files, append scenes. |
 | 9 | `render_from_scenes` | Render directly from a scenes manifest, skipping research and scripting. |
 | 10 | `external_platform_call` | HTTP bridge to VoxForge, Runway, ElevenLabs, Remotion, or any external platform. |
 | 11 | `create_video_from_script` | **Agent-first.** Your IDE writes the scenes, FrameForge renders. No internal LLM. |
 | 12 | `multi_voice_tts` | Call any TTS platform per-request (ElevenLabs / Azure / OpenAI / edge-tts / webhook) without touching `.env`. |
-| 13 | `n8n_webhook_trigger` | Trigger an n8n webhook to start an async pipeline run. Returns `{ jobId, status }` immediately. |
+| 13 | `queue_full_pipeline` | Queue a full pipeline run via the Worker API. Returns `{ jobId, status }` immediately. |
 
 ---
 
@@ -300,7 +300,7 @@ YOUR IDE (IBM Bob / Codex / opencode / Cursor / Windsurf / Claude Code)
          │   ├─ render.js     FFmpeg zoompan + captions + quality gate
          │   ├─ shorts.js     silence segmentation + focal-point 9:16 crop
          │   ├─ packaging.js  manifest + metadata JSON
-         │   └─ publishing.js Telegram + YouTube OAuth2
+         │   └─ publishing.js file copy + HTTP webhook delivery
          │
          ├─ src/mcp-server/
          │   ├─ server.js   HTTP MCP (port 3210) — 13 tools
@@ -396,7 +396,7 @@ sudo journalctl -fu   frameforge
 | `npm run start:worker:render` | Render-optimised worker (api_only mode) |
 | `npm run start:local-render` | Local full-render worker (RENDER_MODE=full) |
 | `npm run validate` | Deep structural validation (113 checks) |
-| `npm test` | Unit test suite (272 tests, 47 suites) |
+| `npm test` | Unit test suite (375 tests, 80 suites) |
 
 **`npm run make` flags:**
 
@@ -408,14 +408,14 @@ npm run make -- \
   --language en \             # BCP-47 code
   --no-publish \              # render only, skip delivery
   --no-shorts \               # skip vertical crop
-  --channels telegram,youtube
+  --channels file,webhook
 ```
 
 ---
 
 ## Testing
 
-272 tests across 11 modules — run with:
+375 tests across 16 modules — run with:
 
 ```bash
 npm test
@@ -434,6 +434,11 @@ npm test
 | `log-redaction` | 30 | 14 credential patterns, nested object redaction, safe logger |
 | `server-render-free` | 18 | `timingSafeEqual`, 4 MB body limit, path traversal guard |
 | `mcp-server` | 17 | `readBodyLimited`, `LLMProvider.parseJson`, TTSProvider overrides, outputPath guard |
+| `quality-gate` | 9 | instantiation, result schema, ffprobe/ffmpeg helpers |
+| `extractor` | 30 | focal point math, segment scoring, silence boundaries |
+| `mixer` | 14 | detectPauses, mixWithDucking, mixVideo error handling |
+| `renderer` | 23 | captionFilter, discoverScenes, findMusicFile, renderScene errors |
+| `checker` | 27 | claim normalization, risk classification, gate pass logic, cache |
 
 ---
 
@@ -455,7 +460,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide.
 
 Quick checklist:
 1. `npm run doctor` passes on your OS
-2. `npm test` passes (272/272)
+2. `npm test` passes (375/375)
 3. `npm run validate` passes (113/113 checks)
 4. FFmpeg commands keep `-nostdin` and cross-platform font paths
 5. Commit messages: plain imperative sentences — no `feat:`/`fix:` prefixes

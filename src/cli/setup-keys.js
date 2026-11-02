@@ -128,8 +128,7 @@ function checkEnv(envPath) {
     { key: 'PROVIDER_IMAGE', label: 'Image provider',  optional: false },
     { key: 'FALAI_API_KEY',  label: 'fal.ai key',      optional: true,  needs: env.PROVIDER_IMAGE === 'falai' },
     { key: 'REPLICATE_API_KEY', label: 'Replicate key', optional: true, needs: env.PROVIDER_IMAGE === 'replicate' },
-    { key: 'TELEGRAM_BOT_TOKEN', label: 'Telegram token', optional: true },
-    { key: 'TELEGRAM_CHAT_ID',   label: 'Telegram chat ID', optional: true },
+    { key: 'PUBLISH_WEBHOOK_URL', label: 'Publish webhook URL', optional: true },
   ];
 
   let issues = 0;
@@ -267,27 +266,20 @@ Press Enter to accept a default. Ctrl+C to cancel.
     cfg.WEBHOOK_IMAGE_RESPONSE_PATH = await ask('  JSON path to image URL', 'url');
   }
 
-  // ── Telegram ───────────────────────────────────────────────────────────────
-  section('4 / 5  —  Telegram Publishing  (optional)');
-  console.log('  Used for: sending finished videos to a Telegram channel/group.');
-  console.log('  Create a bot: t.me/BotFather → /newbot\n');
+  // ── Publish webhook ────────────────────────────────────────────────────────
+  section('4 / 4  —  Publish Webhook  (optional)');
+  console.log('  Used for: receiving a JSON summary after each video is published.');
+  console.log('  POST is sent to PUBLISH_WEBHOOK_URL with productionId, masterPath, title, etc.');
+  console.log('  Works with n8n, Make, Zapier, or any HTTP endpoint.\n');
 
-  const wantTelegram = await ask('  Enable Telegram publishing? (y/n)', 'n');
-  if (wantTelegram.toLowerCase() === 'y') {
-    cfg.TELEGRAM_BOT_TOKEN = await askSecret('  Bot token (from BotFather)');
-    cfg.TELEGRAM_CHAT_ID   = await ask('  Chat ID (negative for groups, e.g. -1001234567890)');
+  const wantWebhook = await ask('  Enable publish webhook? (y/n)', 'n');
+  if (wantWebhook.toLowerCase() === 'y') {
+    cfg.PUBLISH_WEBHOOK_URL = await ask('  Webhook URL');
   }
 
-  // ── YouTube ────────────────────────────────────────────────────────────────
-  section('5 / 5  —  YouTube Publishing  (optional)');
-  console.log('  Used for: uploading finished videos to YouTube.');
-  console.log('  Requires OAuth2 credentials from Google Cloud Console.\n');
-
-  const wantYouTube = await ask('  Enable YouTube publishing? (y/n)', 'n');
-  if (wantYouTube.toLowerCase() === 'y') {
-    cfg.YOUTUBE_CLIENT_ID     = await ask('  OAuth2 Client ID');
-    cfg.YOUTUBE_CLIENT_SECRET = await askSecret('  OAuth2 Client Secret');
-    cfg.YOUTUBE_REFRESH_TOKEN = await askSecret('  OAuth2 Refresh Token');
+  const wantReviewNotify = await ask('  Enable fact-check review notifications? (y/n)', 'n');
+  if (wantReviewNotify.toLowerCase() === 'y') {
+    cfg.REVIEW_NOTIFY_URL = await ask('  Review notify URL');
   }
 
   // ── External adapter (VoxForge / amg555 / any platform) ────────────────────
@@ -319,8 +311,7 @@ Press Enter to accept a default. Ctrl+C to cancel.
     '# ── LLM ─────────────────────────────────────────────────────────': ['PROVIDER_LLM','GROQ_API_KEY','CEREBRAS_API_KEY','OPENROUTER_API_KEY','ANTHROPIC_API_KEY','GEMINI_API_KEY','MISTRAL_API_KEY','TOGETHER_API_KEY','OPENAI_API_KEY','OLLAMA_BASE_URL','OLLAMA_MODEL','WEBHOOK_LLM_URL','WEBHOOK_LLM_HEADERS','WEBHOOK_LLM_RESPONSE_PATH','LLM_MODEL'],
     '# ── TTS ─────────────────────────────────────────────────────────': ['PROVIDER_TTS','ELEVENLABS_API_KEY','ELEVENLABS_VOICE_ID','AZURE_SPEECH_KEY','AZURE_SPEECH_REGION','WEBHOOK_TTS_URL','WEBHOOK_TTS_RESPONSE','WEBHOOK_TTS_RESPONSE_PATH','TTS_VOICE','TTS_RATE'],
     '# ── Image generation ─────────────────────────────────────────────': ['PROVIDER_IMAGE','FALAI_API_KEY','REPLICATE_API_KEY','WEBHOOK_IMAGE_URL','WEBHOOK_IMAGE_RESPONSE','WEBHOOK_IMAGE_RESPONSE_PATH','POLLINATIONS_MODEL'],
-    '# ── Telegram ─────────────────────────────────────────────────────': ['TELEGRAM_BOT_TOKEN','TELEGRAM_CHAT_ID'],
-    '# ── YouTube ──────────────────────────────────────────────────────': ['YOUTUBE_CLIENT_ID','YOUTUBE_CLIENT_SECRET','YOUTUBE_REFRESH_TOKEN'],
+    '# ── Delivery webhooks ────────────────────────────────────────────': ['PUBLISH_WEBHOOK_URL','REVIEW_NOTIFY_URL'],
     '# ── External platform adapter ────────────────────────────────────': ['EXTERNAL_PLATFORM_NAME','EXTERNAL_PLATFORM_URL','EXTERNAL_PLATFORM_KEY','EXTERNAL_PLATFORM_INGEST_PATH','EXTERNAL_PLATFORM_RENDER_PATH','EXTERNAL_PLATFORM_STATUS_PATH'],
   };
 

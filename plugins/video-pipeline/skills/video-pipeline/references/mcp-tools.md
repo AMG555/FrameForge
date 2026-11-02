@@ -1,225 +1,166 @@
-# MCP Tool Schemas & Examples
+# MCP Tool Reference
 
-The MCP server runs on `http://localhost:3210` and exposes 6 tools.
-Any MCP-compatible client (IBM Bob, Claude Code, Cursor, Windsurf, Kiro) can call them.
-
----
-
-## research_topic
-
-Research a topic, fact-check all claims, and return structured talking points.
-
-**Input**
-```json
-{
-  "productionId": "prod-001",
-  "topic": "Why you should never Google customer-care numbers",
-  "targetDuration": 60
-}
-```
-
-**Output**
-```json
-{
-  "productionId": "prod-001",
-  "topic": "...",
-  "facts": [
-    { "claim": "...", "source": "https://...", "verified": true }
-  ],
-  "hookIdeas": ["...", "...", "..."],
-  "talkingPoints": ["...", "..."]
-}
-```
+FrameForge exposes 13 tools on the HTTP MCP server (`http://localhost:3210`)
+and via the Cloudflare Remote MCP proxy. Any MCP-compatible client works:
+IBM Bob, Claude Code, Codex, opencode, Cursor, Windsurf.
 
 ---
 
-## write_script
+## Agent-first path (recommended)
 
-Turn research into a timed scene-by-scene script.
+The IDE writes the scenes array; FrameForge renders it.
 
-**Input**
+### create_video_from_script
+
 ```json
 {
-  "productionId": "prod-001",
-  "topic": "...",
-  "researchJson": { "...": "..." },
-  "style": "educational explainer, 55-65s, simple language",
-  "targetDuration": 60
-}
-```
-
-**Output**
-```json
-{
-  "productionId": "prod-001",
   "scenes": [
     {
-      "index": 0,
-      "label": "hook",
-      "voiceText": "Did you know...",
-      "captionLines": ["Did you know", "₹47 crore was stolen"],
-      "visualPrompt": "Person looking at phone shocked, simple ink doodle style",
-      "durationEstSec": 5
+      "narration": "WiFi sends data as invisible radio waves.",
+      "caption": "RADIO WAVES",
+      "visual_description": "router emitting waves, flat illustration",
+      "camera_hint": "slow_zoom_in",
+      "music_mood": "calm"
     }
   ],
-  "fullVoiceText": "Did you know... [full script]",
-  "estimatedDurationSec": 58
+  "title": "How WiFi Works",
+  "skipImages": false,
+  "withMusic": true
+}
+```
+
+Returns: `{ productionId, masterPath, passed, sizeBytes, sceneCount }`
+
+---
+
+## Full pipeline path
+
+### research_topic
+
+```json
+{ "topic": "How does GPS work?", "claimCount": 10, "style": "educational" }
+```
+
+### write_script
+
+```json
+{
+  "productionId": "prod-001",
+  "claims": ["..."],
+  "topic": "How does GPS work?",
+  "persona": "tech explainer",
+  "sceneCount": 15
+}
+```
+
+Returns: `{ productionId, scenes, title, description, tags, sceneCount }`
+
+### render_from_scenes
+
+```json
+{ "productionId": "prod-001", "skipImages": false, "withMusic": true }
+```
+
+### publish_video
+
+```json
+{
+  "productionId": "prod-001",
+  "masterPath": "/path/to/final_video.mp4",
+  "channels": ["file"],
+  "outputDir": "/path/to/output"
+}
+```
+
+Channels:
+- `file` — copy master + shorts to `outputDir` (or `N8N_FILES_DIR/published/`)
+- `webhook` — POST JSON summary to `PUBLISH_WEBHOOK_URL`
+
+---
+
+## Edit path
+
+### ingest_media
+
+```json
+{ "files": ["/path/to/clip1.mp4", "/path/to/clip2.mp4"], "title": "My Video" }
+```
+
+### edit_scenes
+
+```json
+{
+  "productionId": "prod-001",
+  "edits": [{ "sceneIndex": 0, "field": "caption", "value": "NEW CAPTION" }]
 }
 ```
 
 ---
 
-## generate_scene_image
+## TTS
 
-Generate a 1920×1080 scene image from a visual prompt.
+### multi_voice_tts
 
-**Input**
 ```json
 {
-  "productionId": "prod-001",
-  "sceneIndex": 0,
-  "prompt": "Person looking at phone shocked, Simple History ink doodle style, high contrast black on white",
-  "style": "Simple History ink doodle",
-  "width": 1920,
-  "height": 1080
-}
-```
-
-**Output**
-```json
-{
-  "productionId": "prod-001",
-  "sceneIndex": 0,
-  "imagePath": "/home/node/.n8n-files/video_tmp/scene_0.png",
-  "provider": "pollinations"
+  "text": "The text to speak aloud.",
+  "outputPath": "/files-dir/voice_0.m4a",
+  "platform": "elevenlabs",
+  "voice": "your_cloned_voice_id",
+  "apiKey": "sk_..."
 }
 ```
 
 ---
 
-## render_tts
+## Async job control
 
-Synthesise voice for one scene.
+### queue_full_pipeline
 
-**Input**
 ```json
 {
-  "productionId": "prod-001",
-  "sceneIndex": 0,
-  "text": "Did you know ₹47 crore was stolen last year just from fake customer-care numbers?",
-  "voice": "en-US-GuyNeural",
-  "rate": "-5%"
+  "topic": "Why planes avoid straight lines",
+  "style": "educational",
+  "channels": ["file"]
 }
 ```
-Common voices: `en-US-GuyNeural` (male), `en-US-JennyNeural` (female),
-`en-IN-NeerjaNeural` (Indian English female).
 
-**Output**
+Returns `{ jobId, status }` immediately. Poll `get_job_status` for completion.
+
+### get_job_status
+
 ```json
-{
-  "productionId": "prod-001",
-  "sceneIndex": 0,
-  "audioPath": "/home/node/.n8n-files/video_tmp/voice_0.m4a",
-  "sizeBytes": 48312
-}
+{ "jobId": "job_1234567890_abc123" }
 ```
+
+Returns `{ status: "RUNNING"|"SUCCEEDED"|"FAILED", result, error }`
 
 ---
 
-## assemble_video
+## External platform
 
-Assemble all rendered scenes into a master MP4, run quality gate.
+### external_platform_call
 
-**Input**
 ```json
-{
-  "productionId": "prod-001",
-  "sceneCount": 6,
-  "musicPath": "/home/node/.n8n-files/music/background.mp3",
-  "musicVolume": 0.08
-}
+{ "action": "ingest", "files": ["/path/to/clip.mp4"] }
 ```
-`musicPath` is optional. `musicVolume` range: 0.01–0.5 (default 0.08).
 
-**Output**
-```json
-{
-  "productionId": "prod-001",
-  "masterPath": "/home/node/.n8n-files/video_tmp/master.mp4",
-  "qualityGate": {
-    "passed": true,
-    "checks": [
-      { "name": "integrated_loudness", "type": "HARD_GATE", "passed": true,
-        "expected": "-14 ±1.5 LU", "actual": "-13.8 LUFS" }
-    ],
-    "diagnostics": [
-      { "metric": "duration_seconds", "value": 58.2, "unit": "s" }
-    ]
-  }
-}
-```
+Actions: `ingest` | `render` | `status` | `download`.
+Configure with `EXTERNAL_PLATFORM_URL` + `EXTERNAL_PLATFORM_KEY` in `.env`.
 
 ---
 
-## publish_video
+## Calling from any IDE
 
-Deliver the master to Telegram and/or YouTube.
-
-**Input**
-```json
-{
-  "productionId": "prod-001",
-  "masterPath": "/home/node/.n8n-files/video_tmp/master.mp4",
-  "channels": ["telegram"],
-  "youtubeTitle": "Never Google This Number — Here's Why",
-  "youtubeDescription": "..."
-}
-```
-
-**Output**
-```json
-{
-  "productionId": "prod-001",
-  "results": {
-    "telegram": { "ok": true, "messageId": 12345 }
-  }
-}
-```
-
----
-
-## Calling from IBM Bob
-
-Bob calls MCP tools directly. Example conversation:
-
-> **You:** Make a video about SIM swap scams. Keep it under 60 seconds.
->
-> **Bob:** I'll run the video pipeline. Starting research...
-> `research_topic(topic="SIM swap scams", productionId="prod-sim-001", targetDuration=60)`
-> ...
-> `write_script(...)`
-> ...
-> (for each scene) `generate_scene_image(...)`, `render_tts(...)`
-> ...
-> `assemble_video(productionId="prod-sim-001", sceneCount=5)`
-> Quality gate passed. Master at `/home/node/.n8n-files/video_tmp/master.mp4`
-> `publish_video(..., channels=["telegram"])`
-> ✅ Delivered to Telegram (message 12345).
-
-## Calling from n8n
-
-n8n calls the MCP server via HTTP POST to `http://localhost:3210`:
+Any IDE that supports MCP calls these tools via JSON-RPC:
 
 ```json
-POST /
+POST http://localhost:3210
 {
   "method": "tools/call",
   "params": {
-    "name": "research_topic",
-    "arguments": {
-      "productionId": "{{ $json.productionId }}",
-      "topic": "{{ $json.topic }}"
-    }
+    "name": "create_video_from_script",
+    "arguments": { "scenes": [...] }
   },
   "id": 1
 }

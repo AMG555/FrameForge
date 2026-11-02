@@ -9,7 +9,7 @@
  *     - LLM calls (Groq API)        — ~50ms response time
  *     - Image generation (Pollinations) — network fetch
  *     - TTS synthesis (edge-tts API or ElevenLabs) — network
- *     - Telegram delivery (curl via fetch) — network
+ *     - Webhook/file delivery       — network / disk
  *
  *   CPU/MEMORY-BOUND (runs locally or on Pi/Hetzner — needs FFmpeg):
  *     - FFmpeg zoompan rendering     — ~800 MB RAM peak

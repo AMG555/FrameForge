@@ -1,7 +1,7 @@
 /**
- * Worker HTTP API — Task #35
+ * Worker HTTP API
  *
- * Single-worker job executor. Receives pipeline jobs from n8n (or any HTTP caller),
+ * Single-worker job executor. Receives pipeline jobs from the MCP server or any HTTP caller,
  * runs them sequentially through the workflow chain, tracks state via StateMachine,
  * enforces stage timeouts, and returns structured results.
  *
@@ -114,7 +114,7 @@ async function _persistJob(job) {
 // ── Full pipeline ─────────────────────────────────────────────────────────
 
 async function runFullPipeline(payload, jobId) {
-  const { topic, channels = ['telegram'], force = false } = payload;
+  const { topic, channels = ['file'], force = false } = payload;
   if (!topic) throw new Error('full_pipeline requires { topic }');
 
   console.log(`[Worker/${jobId}] Starting full pipeline: "${topic}"`);

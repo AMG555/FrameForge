@@ -7,10 +7,10 @@ This document provides detailed step-by-step procedures for rotating all credent
 | Credential | Rotation Frequency | Priority |
 |-----------|-------------------|----------|
 | Groq API Key | Every 90 days | HIGH |
-| Telegram Bot Token | Every 180 days | HIGH |
 | Gemini API Key | Every 90 days | MEDIUM |
 | PostgreSQL Password | Every 180 days | HIGH |
 | Worker API Token | Every 90 days | MEDIUM |
+| Publish Webhook URL | On provider change | LOW |
 
 ## General Rotation Process
 
@@ -97,65 +97,46 @@ For all credentials, follow this sequence:
    - Confirm deletion
 
 9. **Document:**
-   - Update `.kiro/security/credential-inventory.md`
+   - Update credential inventory
    - Add rotation date, new key name (not value)
    - Note any issues encountered
 
 ---
 
-### 2. Telegram Bot Token Rotation
+### 2. Publish Webhook URL Rotation
 
-**Services affected:** Publishing workflow, notifications
+**Services affected:** `publish_video` tool (webhook channel), `REVIEW_NOTIFY_URL`
 
-**Downtime risk:** HIGH (cannot publish videos)
+**Downtime risk:** LOW (file delivery continues; only webhook channel is affected)
 
 **Procedure:**
 
-1. **Generate new token:**
-   - Open Telegram, message @BotFather
-   - Send: `/revoke`
-   - Select your bot from the list
-   - Confirm revocation (THIS IMMEDIATELY BREAKS OLD TOKEN)
-   - Send: `/newbot` or `/token` to get new token
-   - Copy the new token
+1. **Generate new endpoint at your webhook receiver** (n8n, Make, Zapier, or custom):
+   - Create or re-configure the webhook node
+   - Copy the new URL
 
 2. **Update environment variable:**
    ```bash
-   export TELEGRAM_BOT_TOKEN=1234567890:ABC-NEW-TOKEN
+   export PUBLISH_WEBHOOK_URL=https://your-receiver.example.com/new-webhook-path
+   # And if used:
+   export REVIEW_NOTIFY_URL=https://your-receiver.example.com/review-notify
    ```
 
-3. **Update n8n credential:**
-   - n8n → Settings → Credentials
-   - Edit `telegram_bot_credentials`
-   - Update Access Token: `{{$env.TELEGRAM_BOT_TOKEN}}`
-   - Save
-
-4. **Restart n8n:**
+3. **Restart the MCP / Worker service:**
    ```bash
-   sudo systemctl restart n8n
+   sudo systemctl restart video-mcp video-worker
    ```
 
-5. **Test authentication:**
+4. **Test:**
    ```bash
-   curl "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/getMe"
-   # Expected: {"ok":true,"result":{"id":...,"is_bot":true,...}}
+   curl -s -X POST http://127.0.0.1:3210 \
+     -H 'Content-Type: application/json' \
+     -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"publish_video","arguments":{"productionId":"test","channels":["webhook"]}}}'
    ```
 
-6. **Test message sending:**
-   - Send test message to your channel
-   - Verify delivery
-   - Check message formatting
-
-7. **Update webhook (if used):**
-   ```bash
-   curl "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook?url=https://your-n8n-instance.com/webhook/telegram"
-   ```
-
-8. **Document:**
-   - Update credential inventory
-   - Note revocation date and reason
-
-**CRITICAL:** Telegram token rotation is immediate. Old token stops working as soon as you revoke. Plan rotation during maintenance window.
+5. **Document:**
+   - Update credential/config inventory
+   - Note rotation date
 
 ---
 
@@ -178,15 +159,9 @@ For all credentials, follow this sequence:
    export GEMINI_API_KEY=AIzaSy_new_key_here
    ```
 
-3. **Update n8n credential:**
-   - n8n → Settings → Credentials
-   - Edit `gemini_api_credentials`
-   - Update Header Value: `{{$env.GEMINI_API_KEY}}`
-   - Save
-
-4. **Restart n8n:**
+3. **Restart services:**
    ```bash
-   sudo systemctl restart n8n
+   sudo systemctl restart video-mcp video-worker
    ```
 
 5. **Test authentication:**
@@ -259,8 +234,7 @@ For all credentials, follow this sequence:
 
 6. **Restart all services:**
    ```bash
-   sudo systemctl restart n8n
-   sudo systemctl restart worker
+   sudo systemctl restart video-mcp video-worker
    ```
 
 7. **Test database connection:**
@@ -434,7 +408,7 @@ Future improvements:
 
 ## References
 
-- Security documentation: `.kiro/security/`
-- Credential inventory: `.kiro/security/credential-inventory.md`
-- n8n credential guide: `.kiro/config/n8n-credentials-config.md`
+- Environment template: `docs/env.template`
+- Deployment guide: `docs/deployment.md`
+- Security policy: `SECURITY.md`
 - Emergency contacts: (add team contacts here)

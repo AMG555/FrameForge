@@ -17,7 +17,7 @@ The pipeline divides cleanly into two execution tiers:
 | Render (D) | FFmpeg zoompan 1920×1080, zoompan | ~800 MB peak | ❌ No (512 MB limit) |
 | Shorts (D2) | FFmpeg 16:9→9:16 crop | ~400 MB | ❌ No |
 | Package (E) | File ops + manifest | ~30 MB | ✅ Yes |
-| Publish (F) | HTTP to Telegram/YouTube | ~30 MB | ✅ Yes |
+| Publish (F) | file copy / HTTP webhook | ~30 MB | ✅ Yes |
 
 **Conclusion**: Render free is fine for 5 out of 7 stages. Only FFmpeg render needs more.
 
@@ -27,7 +27,7 @@ The pipeline divides cleanly into two execution tiers:
 
 ```
 Your Machine (Windows/Mac/Linux)
-  ├── IBM Bob / Kiro / Cursor / Windsurf        ← agentic IDE
+  ├── IBM Bob / Codex / Cursor / Windsurf       ← agentic IDE
   ├── Local Render Worker (node server-render-free.js  RENDER_MODE=full)
   │     FFmpeg rendering here (no limits)
   └── Tunnel (Tailscale or ngrok)
@@ -54,8 +54,8 @@ cached once. Results stream as SSE. ~60-80% fewer tokens vs local stdio MCP.
 
 # Clone and configure
 git clone <repo> ~/auto-vid-gen && cd ~/auto-vid-gen
-cp .kiro/config/production-secrets.env.template .env
-# Fill in GROQ_API_KEY, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
+cp docs/env.template .env
+# Fill in GROQ_API_KEY at minimum; optionally PUBLISH_WEBHOOK_URL
 
 # Start local render worker (handles FFmpeg)
 RENDER_MODE=full node src/worker/server-render-free.js
@@ -70,8 +70,7 @@ RENDER_MODE=full node src/worker/server-render-free.js
 3. Uses `render.yaml` automatically — click Deploy
 4. Set these environment variables in Render dashboard:
    - `GROQ_API_KEY` = your key
-   - `TELEGRAM_BOT_TOKEN` = your bot token
-   - `TELEGRAM_CHAT_ID` = your chat ID
+   - `PUBLISH_WEBHOOK_URL` = your webhook URL (optional — file delivery works without this)
    - `LOCAL_RENDER_URL` = `http://100.x.y.z:3211` (your Tailscale IP from above)
 5. Note your Render URL: `https://video-pipeline-worker.onrender.com`
 
@@ -121,19 +120,7 @@ For Claude Code / Cursor, edit `.mcp.json`:
 }
 ```
 
-For Kiro IDE, edit `.kiro/mcp.json`:
-```json
-{
-  "servers": {
-    "video-pipeline": {
-      "url": "https://video-pipeline-mcp.YOUR_NAME.workers.dev/mcp",
-      "headers": { "Authorization": "Bearer YOUR_MCP_AUTH_TOKEN" }
-    }
-  }
-}
-```
-
-**That's it.** IBM Bob now has 6 video tools that run on zero-cost infrastructure.
+**That's it.** IBM Bob now has 13 video tools that run on zero-cost infrastructure.
 
 ---
 
@@ -279,7 +266,7 @@ R2 public buckets serve at `https://pub-xxx.r2.dev/` — free CDN for your video
 
 | Layer | Service | Cost |
 |-------|---------|------|
-| Agentic IDE | IBM Bob / Cursor / Kiro on your machine | $0 |
+| Agentic IDE | IBM Bob / Codex / Cursor on your machine | $0 |
 | Remote MCP | Cloudflare Workers free (100k req/day) | $0 |
 | API orchestration | Render Free (research, script, assets, publish) | $0 |
 | FFmpeg rendering | Your machine (delegated via Tailscale) | $0 |
@@ -288,7 +275,7 @@ R2 public buckets serve at `https://pub-xxx.r2.dev/` — free CDN for your video
 | LLM | Groq free tier (dev quota) | $0 |
 | Image generation | Pollinations (unlimited free) | $0 |
 | TTS | edge-tts (free, runs locally) | $0 |
-| Delivery | Telegram bot (free) | $0 |
+| Delivery | file copy / webhook (free) | $0 |
 | **TOTAL** | | **$0/month** |
 
 To scale up when you outgrow this: add Render Starter ($7) for always-on rendering,
@@ -300,7 +287,7 @@ or migrate FFmpeg render to Oracle Always Free ARM for zero-cost high performanc
 
 - [ ] Set `MCP_AUTH_TOKEN` in Cloudflare Workers secrets (not env vars)
 - [ ] Set `GROQ_API_KEY` in Render dashboard secrets (not committed to git)
-- [ ] Set `TELEGRAM_BOT_TOKEN` in Render dashboard secrets
+- [ ] Set `PUBLISH_WEBHOOK_URL` in Render dashboard secrets (only if using webhook delivery)
 - [ ] Restrict Worker API to accept connections only from Cloudflare Workers IP ranges
       (or add a shared secret header: `X-Internal-Token`)
 - [ ] Tailscale: only allow your machine's Tailscale IP in `LOCAL_RENDER_URL`

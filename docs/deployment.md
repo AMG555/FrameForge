@@ -45,9 +45,9 @@ Edit `.env` and fill in at minimum:
 PROVIDER_LLM=groq
 GROQ_API_KEY=gsk_...
 
-# Required for delivery
-TELEGRAM_BOT_TOKEN=...
-TELEGRAM_CHAT_ID=...
+# Optional — file delivery is default (no key needed)
+# For webhook delivery:
+# PUBLISH_WEBHOOK_URL=https://your-webhook-receiver/hook
 
 # Optional — free providers work without keys
 PROVIDER_TTS=edge-tts
@@ -91,18 +91,18 @@ curl -s http://127.0.0.1:3211/jobs/<jobId> | python3 -m json.tool
 
 ---
 
-## Step 4 — (Optional) Trigger via n8n
+## Step 4 — (Optional) Trigger via Worker API
 
-FrameForge exposes an `n8n_webhook_trigger` MCP tool. Call it from your IDE agent
-and it POSTs to any n8n webhook URL — no workflow import required.
+FrameForge exposes a `queue_full_pipeline` MCP tool. Call it from your IDE agent
+and it POSTs a job to the Worker API — no external workflow engine required.
 
-Set the webhook URL in your `.env`:
+Set the Worker API URL in your `.env`:
 
 ```env
-N8N_WEBHOOK_URL=http://localhost:5678/webhook/your-webhook-id
+WORKER_API_URL=http://localhost:3211
 ```
 
-Then from your IDE: `n8n_webhook_trigger({ topic: "How GPS works" })`
+Then from your IDE: `queue_full_pipeline({ topic: "How GPS works" })`
 
 ---
 
@@ -120,15 +120,14 @@ Then from your IDE: `n8n_webhook_trigger({ topic: "How GPS works" })`
         "GROQ_API_KEY": "${GROQ_API_KEY}",
         "PROVIDER_TTS": "edge-tts",
         "PROVIDER_IMAGE": "pollinations",
-        "TELEGRAM_BOT_TOKEN": "${TELEGRAM_BOT_TOKEN}",
-        "TELEGRAM_CHAT_ID": "${TELEGRAM_CHAT_ID}"
+        "PUBLISH_WEBHOOK_URL": "${PUBLISH_WEBHOOK_URL}"
       }
     }
   }
 }
 ```
 
-### Claude Code / Cursor / Windsurf (`.mcp.json` in project root)
+### Codex / Cursor / Windsurf (`.mcp.json` in project root)
 ```json
 {
   "mcpServers": {
@@ -224,7 +223,7 @@ I'm going to sleep. Queue these topics and produce a video for each one:
 2. How ancient humans dealt with heartbreak
 3. What ancient humans did for fun at night
 
-Use Telegram delivery. Double-verify every fact. Leave me a summary of results.
+Use file delivery. Double-verify every fact. Leave me a summary of results.
 ```
 
 Bob will call `research_topic` → `write_script` → `generate_scene_image` × N → `render_tts` × N → `assemble_video` → `publish_video` for each topic in sequence, reporting progress.

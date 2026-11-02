@@ -20,7 +20,7 @@ check('batch handling',              code.includes('Array.isArray(body)'));
 check('ping handler',                code.includes("method === 'ping'"));
 check('notifications/init',          code.includes("notifications/initialized"));
 check('body size limit',             code.includes('MAX_BODY_BYTES'));
-check('SERVER_INFO version 2.0.0',   code.includes("version: '2.0.0'"));
+check('SERVER_INFO version 2.2.0',   code.includes("version: '2.2.0'"));
 check('13 tools defined',            Object.keys(
   (code.match(/^\s{2}(\w+):\s*\{/gm)||[])).length >= 0 || code.includes('n8n_webhook_trigger'));
 
@@ -178,21 +178,20 @@ check('v1.0.0: camera_hint preserved',     n2.camera_hint, 'zoom_out');
 check('v1.0.0: hook_potential',            n2.metadata?.hook_potential, 0.8);
 check('v1.0.0: standalone',               n2.metadata?.standalone, true);
 
-// ── publishing.js — YouTube OAuth2 ───────────────────────────────────────
-console.log('\n=== publishing.js YouTube OAuth2 ===');
+// ── publishing.js — file + webhook delivery ──────────────────────────────
+console.log('\n=== publishing.js file+webhook delivery ===');
 const pubjs = fs.readFileSync('./src/workflows/publishing.js', 'utf8');
-check('publishing.js has _refreshAccessToken',      pubjs.includes('_refreshAccessToken'));
-check('publishing.js has _initiateResumableUpload', pubjs.includes('_initiateResumableUpload'));
-check('publishing.js has _uploadChunked',           pubjs.includes('_uploadChunked'));
-check('publishing.js has YT_MAX_CHUNK_BYTES',       pubjs.includes('YT_MAX_CHUNK_BYTES'));
-check('publishing.js sends Telegram shorts',        pubjs.includes('telegramShorts'));
-check('publishing.js checks YOUTUBE_PRIVACY',       pubjs.includes('YOUTUBE_PRIVACY'));
+check('publishing.js file channel present',    pubjs.includes("channels.includes('file')"));
+check('publishing.js webhook channel present', pubjs.includes("channels.includes('webhook')"));
+check('publishing.js has PUBLISH_WEBHOOK_URL', pubjs.includes('PUBLISH_WEBHOOK_URL'));
+check('publishing.js no Telegram curl',        !pubjs.includes('telegramShorts') && !pubjs.includes('TELEGRAM_BOT_TOKEN'));
+check('publishing.js no YouTube OAuth2',       !pubjs.includes('_refreshAccessToken') && !pubjs.includes('YOUTUBE_CLIENT_ID'));
 
-// ── server.js — n8n webhook + no stale tool count ─────────────────────────
+// ── server.js — queue_full_pipeline + tool completeness ──────────────────
 console.log('\n=== server.js tool completeness ===');
 const serverjs = fs.readFileSync('./src/mcp-server/server.js', 'utf8');
 check('server.js publish_video calls runPublishing', serverjs.includes("require('../workflows/publishing')"));
-check('server.js has n8n_webhook_trigger tool',      serverjs.includes('n8n_webhook_trigger'));
+check('server.js has queue_full_pipeline tool',      serverjs.includes('queue_full_pipeline'));
 check('server.js has create_video_from_script',      serverjs.includes('create_video_from_script'));
 check('server.js has multi_voice_tts',               serverjs.includes('multi_voice_tts'));
 check('server.js body size limit present',           serverjs.includes('MAX_BODY_BYTES'));

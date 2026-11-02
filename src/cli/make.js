@@ -88,7 +88,7 @@ function parseArgs(argv) {
   const args = {
     mode: 'full-auto',
     topic: '', topicsFile: '', language: 'en',
-    style: 'educational comedy', channels: ['telegram'],
+    style: 'educational comedy', channels: ['file'],
     scenesFile: '', scriptFile: '', mediaDir: '',
     shorts: true, dryRun: false,
     noResearch: false, noScript: false, noImages: false, noTts: false, noPublish: false,
@@ -104,7 +104,7 @@ function parseArgs(argv) {
       case '--media-dir':     args.mediaDir    = argv[++i] || '';  break;
       case '--language':      args.language    = (argv[++i] || 'en').toLowerCase(); break;
       case '--style':         args.style       = argv[++i] || args.style; break;
-      case '--channels':      args.channels    = (argv[++i] || 'telegram').split(',').map(s => s.trim()); break;
+      case '--channels':      args.channels    = (argv[++i] || 'file').split(',').map(s => s.trim()); break;
       case '--no-research':   args.noResearch  = true; break;
       case '--no-script':     args.noScript    = true; break;
       case '--no-images':     args.noImages    = true; break;
@@ -141,7 +141,7 @@ MODES:
 
 USAGE (full-auto):
   npm run make -- --topic "Your Topic"
-  npm run make -- --topic "Your Topic" --language ml --channels telegram,youtube
+  npm run make -- --topic "Your Topic" --language ml --channels file,webhook
   npm run make -- --topics-file topics.txt
 
 USAGE (edit-only — your own media):
@@ -163,7 +163,7 @@ OPTIONS:
   --media-dir     Auto-discover clips from a directory (edit-only)
   --language      BCP-47 code: en (default), ml, hi, ta, te, kn, es, fr, de, pt, it, ja, ko, zh, ar, ru, tr, id
   --style         Narrative style (default: "educational comedy")
-  --channels      Delivery: telegram,youtube  (default: telegram)
+  --channels      Delivery: file,webhook  (default: file)
   --no-research   Skip research (use --topic text directly as context)
   --no-script     Skip script generation (requires --scenes-file)
   --no-images     Skip AI image generation (supply image_path / video_path in scenes)
@@ -631,23 +631,6 @@ async function main() {
       const detail = r.status === 'ok' ? r.youtubeTitle || r.masterPath : r.error;
       console.log(`  ${icon} [${r.index}] ${r.topic} — ${detail}`);
     });
-
-    // Send Telegram summary if configured
-    const botToken = process.env.TELEGRAM_BOT_TOKEN;
-    const chatId   = process.env.TELEGRAM_CHAT_ID;
-    const apiBase  = process.env.TELEGRAM_API_BASE || 'https://api.telegram.org';
-    if (botToken && chatId) {
-      const lines = batchResults.map(r =>
-        `${r.status === 'ok' ? '✅' : '❌'} ${r.topic}` + (r.youtubeTitle ? `\n   → ${r.youtubeTitle}` : r.error ? `\n   Error: ${r.error}` : '')
-      );
-      const summary = `🎬 FrameForge Batch Complete\n\n${lines.join('\n\n')}\n\n⏱️ ${Math.floor(elapsed / 60)}m ${elapsed % 60}s`;
-      const { spawnSync } = require('child_process');
-      spawnSync('curl', [
-        '-sS', '-X', 'POST', `${apiBase}/bot${botToken}/sendMessage`,
-        '-H', 'Content-Type: application/json',
-        '-d', JSON.stringify({ chat_id: chatId, text: summary.slice(0, 4096) }),
-      ], { timeout: 30000, encoding: 'utf8' });
-    }
 
     // Exit with error code if any topic failed
     if (failed > 0) process.exit(1);

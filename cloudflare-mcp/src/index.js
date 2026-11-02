@@ -278,7 +278,9 @@ const TOOL_DEFINITIONS = [
       type: 'object', required: ['topic'],
       properties: {
         topic:    { type: 'string' },
-        channels: { type: 'array', items: { type: 'string' }, default: ['telegram'] },
+        style:    { type: 'string', default: 'informative' },
+        language: { type: 'string', default: 'en' },
+        channels: { type: 'array', items: { type: 'string' }, default: ['file'] },
       },
     },
   },
@@ -306,15 +308,15 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: 'publish_video',
-    description: 'Deliver master MP4 to Telegram/YouTube. SLOW (1-5 min upload). If result contains jobId, call get_job_status to confirm delivery.',
+    description: 'Deliver master MP4 to output channels. file: copy to output dir. webhook: POST summary to PUBLISH_WEBHOOK_URL. SLOW (1-5 min).',
     inputSchema: {
       type: 'object', required: ['productionId', 'masterPath'],
       properties: {
-        productionId:       { type: 'string' },
-        masterPath:         { type: 'string' },
-        channels:           { type: 'array', default: ['telegram'] },
-        youtubeTitle:       { type: 'string' },
-        youtubeDescription: { type: 'string' },
+        productionId: { type: 'string' },
+        masterPath:   { type: 'string' },
+        channels:     { type: 'array', default: ['file'], description: 'file | webhook' },
+        outputDir:    { type: 'string', description: 'Destination directory for file channel' },
+        webhookUrl:   { type: 'string', description: 'Endpoint for webhook channel' },
       },
     },
   },
@@ -383,7 +385,7 @@ const TOOL_DEFINITIONS = [
         productionId:{ type: 'string' },
         title:       { type: 'string' },
         withMusic:   { type: 'boolean', default: true },
-        channels:    { type: 'array', items: { type: 'string' }, default: ['telegram'] },
+        channels:    { type: 'array', items: { type: 'string' }, default: ['file'] },
       },
     },
   },
@@ -400,20 +402,6 @@ const TOOL_DEFINITIONS = [
         rate:       { type: 'string' },
         apiKey:     { type: 'string' },
         webhookUrl: { type: 'string' },
-      },
-    },
-  },
-  {
-    name: 'n8n_webhook_trigger',
-    description: 'Trigger an n8n webhook to start a video pipeline workflow. Returns {jobId, status} immediately. Requires N8N_WEBHOOK_URL env var.',
-    inputSchema: {
-      type: 'object', required: ['topic'],
-      properties: {
-        topic:    { type: 'string' },
-        channels: { type: 'array', items: { type: 'string' }, default: ['telegram'] },
-        style:    { type: 'string', default: 'informative' },
-        language: { type: 'string', default: 'en' },
-        payload:  { type: 'object' },
       },
     },
   },
@@ -436,8 +424,6 @@ const TOOL_HANDLERS = {
   external_platform_call: (args, env) => proxyJob('external_platform_call', args, env),
   create_video_from_script: (args, env) => proxyJob('create_video_from_script', args, env),
   multi_voice_tts:     (args, env) => proxyJob('multi_voice_tts', args, env),
-  n8n_webhook_trigger: (args, env) => proxyJob('n8n_webhook_trigger', args, env),
-
   queue_full_pipeline: async (args, env) => {
     // Submit async job — returns immediately with jobId
     const resp = await callWorkerAPI('/jobs', 'POST', { type: 'full_pipeline', payload: args }, env);

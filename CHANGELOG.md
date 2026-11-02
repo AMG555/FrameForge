@@ -4,6 +4,38 @@ All notable changes to FrameForge are documented here.
 
 ---
 
+## [2.2.0] — 2026-11-02
+
+### Changed
+
+- **Delivery channels** — Telegram and YouTube removed from `publishing.js`. Replaced with two platform-agnostic channels:
+  - `file` — copy master + shorts to `N8N_FILES_DIR/published/` (default)
+  - `webhook` — POST JSON delivery summary to `PUBLISH_WEBHOOK_URL`
+- **Review notifications** — `review-gate.js` no longer uses Telegram `sendMessage`. Now POSTs structured JSON events (`HUMAN_REVIEW_REQUIRED`, `PRODUCTION_REJECTED`) to `REVIEW_NOTIFY_URL` — compatible with any HTTP receiver (n8n, Make, Zapier, custom)
+- **Tool 13 renamed** — `n8n_webhook_trigger` → `queue_full_pipeline`. POSTs `{ type: "full_pipeline", payload }` to `WORKER_API_URL/jobs`. All three server variants updated (HTTP, stdio, Cloudflare Worker)
+- **`src/cli/make.js`** — `--channels` default changed from `telegram` to `file`; Telegram batch-summary curl block removed
+- **`src/cli/setup-keys.js`** — Telegram + YouTube setup sections replaced with `PUBLISH_WEBHOOK_URL` and `REVIEW_NOTIFY_URL` sections
+- **`docs/env.template`** — Telegram and YouTube env vars removed; `PUBLISH_WEBHOOK_URL`, `REVIEW_NOTIFY_URL`, `WORKER_API_URL` added
+- **`scripts/deep-validate.js`** — stale YouTube OAuth2 + Telegram + n8n checks replaced with file/webhook delivery checks; `SERVER_INFO version` updated to `2.2.0`
+- **`package.json`** — version bumped to `2.2.0`
+- **`README.md`** — delivery description, Tool 13 name, test counts, badge versions updated
+
+### Removed
+
+- **`docs/youtube-upload.md`** — YouTube OAuth2 upload guide. YouTube delivery removed from the core pipeline; external delivery via `external_platform_call` or a webhook receiver handles it.
+- **`TELEGRAM_BOT_TOKEN`**, **`TELEGRAM_CHAT_ID`**, **`YOUTUBE_CLIENT_ID`**, **`YOUTUBE_CLIENT_SECRET`**, **`YOUTUBE_REFRESH_TOKEN`**, **`N8N_WEBHOOK_URL`** — all env vars no longer read by any source file.
+
+### New env vars
+
+| Var | Purpose |
+|-----|---------|
+| `PUBLISH_WEBHOOK_URL` | HTTP endpoint that receives delivery summary JSON on publish |
+| `REVIEW_NOTIFY_URL` | HTTP endpoint that receives fact-check review request events |
+| `WORKER_API_URL` | Worker API base URL for `queue_full_pipeline` (default: `http://localhost:3211`) |
+
+---
+
+
 ## [2.1.0] — 2026-11-02
 
 ### Added

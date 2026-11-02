@@ -2,7 +2,7 @@
  * FrameForge MCP Server — Local Stdio Transport
  *
  * Implements standard stdio JSON-RPC transport for MCP 2024-11-05.
- * Used for zero-config integration with Claude Code, Cursor, Windsurf, Kiro IDE:
+ * Used for zero-config integration with Claude Code, Cursor, Windsurf, Codex, opencode:
  *
  * {
  *   "mcpServers": {
