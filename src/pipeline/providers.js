@@ -287,8 +287,29 @@ class TTSProvider {
       case 'elevenlabs': return this._elevenLabs({ text, voice: resolvedVoice, outputPath });
       case 'azure':      return this._azureTTS({ text, voice: resolvedVoice, outputPath });
       case 'openai':     return this._openaiTTS({ text, voice: resolvedVoice, outputPath });
+      case 'custom':
+      case 'webhook':    return this._customTTS({ text, voice: resolvedVoice, outputPath });
       default:           return this._edgeTTS({ text, voice: resolvedVoice, outputPath });
     }
+  }
+
+  async _customTTS({ text, voice, outputPath }) {
+    const url = process.env.CUSTOM_TTS_URL || process.env.TTS_WEBHOOK_URL;
+    if (!url) throw new Error('CUSTOM_TTS_URL or TTS_WEBHOOK_URL not set for custom/webhook TTS provider');
+    const apiKey = process.env.CUSTOM_TTS_KEY || '';
+    const headers = { 'Content-Type': 'application/json' };
+    if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
+
+    const isSpeechEndpoint = /\/v1\/audio\/speech/i.test(url);
+    const body = isSpeechEndpoint
+      ? { model: process.env.TTS_MODEL || 'tts-1', input: text, voice: voice || 'alloy' }
+      : { text, voice, rate: process.env.TTS_RATE || '+0%' };
+
+    return withRetry(async () => {
+      const audio = await httpPost(url, body, headers);
+      await fs.writeFile(outputPath, Buffer.isBuffer(audio) ? audio : Buffer.from(audio, 'binary'));
+      return outputPath;
+    }, { maxAttempts: 3, baseDelayMs: 3000, label: 'TTS(custom)' });
   }
 
   async _edgeTTS({ text, voice, outputPath }) {
@@ -383,8 +404,42 @@ class ImageProvider {
       case 'falai':        return this._falai({ prompt, negativePrompt, outputPath, width, height });
       case 'replicate':    return this._replicate({ prompt, negativePrompt, outputPath, width, height });
       case 'dalle':        return this._dalle({ prompt, outputPath });
+      case 'custom':
+      case 'webhook':      return this._customImage({ prompt, negativePrompt, outputPath, width, height });
       default:             return this._pollinations({ prompt, negativePrompt, outputPath, width, height, seed });
     }
+  }
+
+  async _customImage({ prompt, negativePrompt, outputPath, width, height }) {
+    const url = process.env.CUSTOM_IMAGE_URL || process.env.IMAGE_WEBHOOK_URL;
+    if (!url) throw new Error('CUSTOM_IMAGE_URL or IMAGE_WEBHOOK_URL not set for custom/webhook image provider');
+    const apiKey = process.env.CUSTOM_IMAGE_KEY || '';
+    const headers = { 'Content-Type': 'application/json' };
+    if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
+
+    const isDalleFormat = /\/v1\/images\/generations/i.test(url);
+    const body = isDalleFormat
+      ? { prompt, n: 1, size: `${width}x${height}` }
+      : { prompt, negative_prompt: negativePrompt, width, height };
+
+    return withRetry(async () => {
+      const resp = await httpPost(url, body, headers);
+      const imageUrl = resp?.data?.[0]?.url || resp?.images?.[0]?.url || resp?.url;
+      const b64Data  = resp?.data?.[0]?.b64_json || resp?.b64_json;
+      if (b64Data) {
+        await fs.writeFile(outputPath, Buffer.from(b64Data, 'base64'));
+        return outputPath;
+      }
+      if (imageUrl) {
+        await this._download(imageUrl, outputPath, 60);
+        return outputPath;
+      }
+      if (Buffer.isBuffer(resp)) {
+        await fs.writeFile(outputPath, resp);
+        return outputPath;
+      }
+      throw new Error(`Custom image endpoint returned unrecognized payload format: ${JSON.stringify(resp).slice(0, 100)}`);
+    }, { maxAttempts: 3, baseDelayMs: 3000, label: 'Image(custom)' });
   }
 
   async _pollinations({ prompt, negativePrompt, outputPath, width, height, seed }) {
@@ -477,5 +532,185 @@ class ImageProvider {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// GENERIC WEBHOOK / EXTERNAL API ADAPTER
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Allows users to plug in ANY external HTTP endpoint for LLM, TTS, or Image
+// without modifying core code. Configure entirely through environment variables.
+//
+// LLM webhook:
+//   PROVIDER_LLM=webhook
+//   WEBHOOK_LLM_URL=https://your-api.example.com/v1/chat
+//   WEBHOOK_LLM_METHOD=POST                  (default: POST)
+//   WEBHOOK_LLM_HEADERS={"Authorization":"Bearer TOKEN","X-Custom":"value"}
+//   WEBHOOK_LLM_BODY_TEMPLATE={"messages":[{"role":"user","content":"{{user}}"}],"system":"{{system}}"}
+//     Template vars: {{system}}, {{user}}, {{temperature}}, {{maxTokens}}
+//   WEBHOOK_LLM_RESPONSE_PATH=choices.0.message.content
+//     Dot-path into JSON response to extract the text content
+//
+// TTS webhook:
+//   PROVIDER_TTS=webhook
+//   WEBHOOK_TTS_URL=https://your-tts-api.example.com/synthesize
+//   WEBHOOK_TTS_METHOD=POST
+//   WEBHOOK_TTS_HEADERS={"Authorization":"Bearer TOKEN"}
+//   WEBHOOK_TTS_BODY_TEMPLATE={"text":"{{text}}","voice":"{{voice}}","format":"mp3"}
+//   WEBHOOK_TTS_RESPONSE=binary   (binary = save raw bytes; json_url = follow URL in response body)
+//   WEBHOOK_TTS_RESPONSE_PATH=audio_url  (only when WEBHOOK_TTS_RESPONSE=json_url)
+//
+// Image webhook:
+//   PROVIDER_IMAGE=webhook
+//   WEBHOOK_IMAGE_URL=https://your-image-api.example.com/generate
+//   WEBHOOK_IMAGE_METHOD=POST
+//   WEBHOOK_IMAGE_HEADERS={"Authorization":"Bearer TOKEN"}
+//   WEBHOOK_IMAGE_BODY_TEMPLATE={"prompt":"{{prompt}}","width":{{width}},"height":{{height}}}
+//   WEBHOOK_IMAGE_RESPONSE=binary | json_url
+//   WEBHOOK_IMAGE_RESPONSE_PATH=url
 
-module.exports = { LLMProvider, TTSProvider, ImageProvider, withRetry };
+/** Resolve a dot-path like "choices.0.message.content" against an object */
+function _resolvePath(obj, dotPath) {
+  if (!dotPath) return obj;
+  return dotPath.split('.').reduce((cur, key) => (cur != null ? cur[key] : undefined), obj);
+}
+
+/** Fill a template string with values, e.g. {{user}} → actual user text */
+function _fillTemplate(template, vars) {
+  return Object.entries(vars).reduce((s, [k, v]) => {
+    // Handles both quoted "{{key}}" and bare {{key}} (for numbers/booleans)
+    return s.replace(new RegExp(`"{{${k}}}"`, 'g'), JSON.stringify(v))
+            .replace(new RegExp(`{{${k}}}`, 'g'), String(v));
+  }, template);
+}
+
+class WebhookLLMProvider {
+  constructor() {
+    this.name = 'webhook';
+    this.url  = process.env.WEBHOOK_LLM_URL;
+    if (!this.url) throw new Error('WEBHOOK_LLM_URL must be set when PROVIDER_LLM=webhook');
+  }
+
+  async chat({ system = '', user = '', temperature = 0.7, maxTokens = 4000 }) {
+    const method   = process.env.WEBHOOK_LLM_METHOD || 'POST';
+    const headers  = JSON.parse(process.env.WEBHOOK_LLM_HEADERS || '{}');
+    const template = process.env.WEBHOOK_LLM_BODY_TEMPLATE
+      || '{"messages":[{"role":"system","content":"{{system}}"},{"role":"user","content":"{{user}}"}],"temperature":{{temperature}},"max_tokens":{{maxTokens}}}';
+    const bodyStr  = _fillTemplate(template, { system, user, temperature, maxTokens });
+    const respPath = process.env.WEBHOOK_LLM_RESPONSE_PATH || 'choices.0.message.content';
+
+    return withRetry(async () => {
+      const resp = await httpPost(this.url, JSON.parse(bodyStr), headers);
+      const content = _resolvePath(resp, respPath);
+      if (!content) throw new Error(`Webhook LLM response has no content at path "${respPath}". Response: ${JSON.stringify(resp).slice(0, 200)}`);
+      return String(content);
+    }, { maxAttempts: 3, baseDelayMs: 5000, label: 'LLM(webhook)' });
+  }
+
+  static parseJson(raw) { return LLMProvider.parseJson(raw); }
+}
+
+class WebhookTTSProvider {
+  constructor() {
+    this.name = 'webhook';
+    this.url  = process.env.WEBHOOK_TTS_URL;
+    if (!this.url) throw new Error('WEBHOOK_TTS_URL must be set when PROVIDER_TTS=webhook');
+  }
+
+  async synthesize({ text, voice, outputPath }) {
+    const method      = process.env.WEBHOOK_TTS_METHOD || 'POST';
+    const headers     = JSON.parse(process.env.WEBHOOK_TTS_HEADERS || '{}');
+    const resolvedVoice = voice || process.env.TTS_VOICE || 'default';
+    const template    = process.env.WEBHOOK_TTS_BODY_TEMPLATE
+      || '{"text":"{{text}}","voice":"{{voice}}"}';
+    const bodyStr     = _fillTemplate(template, { text, voice: resolvedVoice });
+    const responseMode = process.env.WEBHOOK_TTS_RESPONSE || 'binary';
+
+    return withRetry(async () => {
+      if (responseMode === 'binary') {
+        const audio = await httpPost(this.url, JSON.parse(bodyStr), headers);
+        await fs.writeFile(outputPath, Buffer.isBuffer(audio) ? audio : Buffer.from(audio, 'binary'));
+      } else {
+        // json_url: response is JSON containing a URL to the audio file
+        const resp    = await httpPost(this.url, JSON.parse(bodyStr), headers);
+        const respPath = process.env.WEBHOOK_TTS_RESPONSE_PATH || 'audio_url';
+        const audioUrl = _resolvePath(resp, respPath);
+        if (!audioUrl) throw new Error(`Webhook TTS: no audio URL at path "${respPath}"`);
+        const lib  = audioUrl.startsWith('https') ? https : http;
+        await new Promise((resolve, reject) => {
+          const file = require('fs').createWriteStream(outputPath);
+          lib.get(audioUrl, res => {
+            res.pipe(file);
+            file.on('finish', () => { file.close(); resolve(); });
+          }).on('error', reject);
+        });
+      }
+      return outputPath;
+    }, { maxAttempts: 3, baseDelayMs: 5000, label: 'TTS(webhook)' });
+  }
+}
+
+class WebhookImageProvider {
+  constructor() {
+    this.name = 'webhook';
+    this.url  = process.env.WEBHOOK_IMAGE_URL;
+    if (!this.url) throw new Error('WEBHOOK_IMAGE_URL must be set when PROVIDER_IMAGE=webhook');
+  }
+
+  async generate({ prompt, negativePrompt = '', outputPath, width = 1920, height = 1080, seed = null }) {
+    const headers     = JSON.parse(process.env.WEBHOOK_IMAGE_HEADERS || '{}');
+    const template    = process.env.WEBHOOK_IMAGE_BODY_TEMPLATE
+      || '{"prompt":"{{prompt}}","negative_prompt":"{{negativePrompt}}","width":{{width}},"height":{{height}}}';
+    const bodyStr     = _fillTemplate(template, { prompt, negativePrompt, width, height, seed: seed ?? 0 });
+    const responseMode = process.env.WEBHOOK_IMAGE_RESPONSE || 'json_url';
+
+    return withRetry(async () => {
+      if (responseMode === 'binary') {
+        const data = await httpPost(this.url, JSON.parse(bodyStr), headers);
+        await fs.writeFile(outputPath, Buffer.isBuffer(data) ? data : Buffer.from(data, 'binary'));
+      } else {
+        const resp     = await httpPost(this.url, JSON.parse(bodyStr), headers);
+        const respPath = process.env.WEBHOOK_IMAGE_RESPONSE_PATH || 'url';
+        const imageUrl = _resolvePath(resp, respPath);
+        if (!imageUrl) throw new Error(`Webhook Image: no URL at path "${respPath}"`);
+        const lib = imageUrl.startsWith('https') ? https : http;
+        await new Promise((resolve, reject) => {
+          const file = require('fs').createWriteStream(outputPath);
+          lib.get(imageUrl, res => {
+            res.pipe(file);
+            file.on('finish', () => { file.close(); resolve(); });
+          }).on('error', reject);
+        });
+      }
+      return outputPath;
+    }, { maxAttempts: 3, baseDelayMs: 5000, label: 'Image(webhook)' });
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FACTORY — instantiate the right provider class based on env vars
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Returns the configured LLMProvider (or WebhookLLMProvider if PROVIDER_LLM=webhook) */
+function createLLMProvider() {
+  const name = (process.env.PROVIDER_LLM || 'groq').toLowerCase();
+  if (name === 'webhook') return new WebhookLLMProvider();
+  return new LLMProvider();
+}
+
+/** Returns the configured TTSProvider (or WebhookTTSProvider if PROVIDER_TTS=webhook) */
+function createTTSProvider() {
+  const name = (process.env.PROVIDER_TTS || 'edge-tts').toLowerCase();
+  if (name === 'webhook') return new WebhookTTSProvider();
+  return new TTSProvider();
+}
+
+/** Returns the configured ImageProvider (or WebhookImageProvider if PROVIDER_IMAGE=webhook) */
+function createImageProvider() {
+  const name = (process.env.PROVIDER_IMAGE || 'pollinations').toLowerCase();
+  if (name === 'webhook') return new WebhookImageProvider();
+  return new ImageProvider();
+}
+
+module.exports = {
+  LLMProvider, TTSProvider, ImageProvider, withRetry,
+  WebhookLLMProvider, WebhookTTSProvider, WebhookImageProvider,
+  createLLMProvider, createTTSProvider, createImageProvider,
+};

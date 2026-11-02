@@ -66,7 +66,7 @@ async function runResearch(topic, { claimCount = 10, productionId = null } = {})
   const checkedClaims = await Promise.all(
     research.claims.map(async c => {
       try {
-        const result = await checker.checkClaim(c.claim, { context: topic });
+        const result = await checker.checkClaim(c, { context: topic });
         return {
           ...c,
           factCheckResult: result.decision,

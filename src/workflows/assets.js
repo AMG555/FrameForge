@@ -53,26 +53,49 @@ async function runAssets({ productionId, scenes, parallelism = 4 }) {
       const idx  = scene.scene_id - 1;
       const seed = 42 + idx * 37; // deterministic seed per scene
 
-      // ── Image ──────────────────────────────────────────────────────────
-      const imagePath = path.join(VDIR, `scene_${idx}.png`);
-      const prompt    = `${(scene.visual_description || scene.visual_action || '').replace(/\[[A-Z]+\]/g, '').trim()}, ${STYLE_SUFFIX}`;
+      // ── Image / User Video Clip ────────────────────────────────────────
+      // If scene.video_path is set, use user-supplied clip directly (B-roll, stock footage).
+      // If scene.image_path is set, use user-supplied image directly.
+      // Otherwise generate image from visual_description.
+      let imagePath;
+      if (scene.video_path) {
+        // User-supplied video clip — used directly by renderer as input
+        imagePath = null; // renderer handles video_path specially
+      } else if (scene.image_path) {
+        imagePath = scene.image_path;
+      } else {
+        imagePath = path.join(VDIR, `scene_${idx}.png`);
+        const prompt = `${(scene.visual_description || scene.visual_action || '').replace(/\[[A-Z]+\]/g, '').trim()}, ${STYLE_SUFFIX}`;
+        await retryPol.executeStage('Asset_Generation', async () =>
+          imageGen.generate({ prompt, negativePrompt: NEG_PROMPT, outputPath: imagePath, width: 1920, height: 1080, seed })
+        );
+        await telemetry.track({ productionId, stage: 'Asset_Generation', provider: process.env.PROVIDER_IMAGE || 'pollinations', operation: 'scene_image', units: 1 });
+      }
 
-      await retryPol.executeStage('Asset_Generation', async () =>
-        imageGen.generate({ prompt, negativePrompt: NEG_PROMPT, outputPath: imagePath, width: 1920, height: 1080, seed })
-      );
+      // ── TTS / User Audio ───────────────────────────────────────────────
+      // If scene.audio_path is set, use user-supplied audio directly (pre-recorded voiceover).
+      // Otherwise synthesize TTS from narration text.
+      let voicePath;
+      if (scene.audio_path) {
+        voicePath = scene.audio_path;
+      } else {
+        voicePath = path.join(VDIR, `voice_${idx}.m4a`);
+        // voice is read from TTS_VOICE env inside TTSProvider.synthesize(); rate via TTS_RATE
+        await retryPol.executeStage('TTS', async () =>
+          ttsGen.synthesize({ text: scene.narration, outputPath: voicePath })
+        );
+        await telemetry.track({ productionId, stage: 'TTS', provider: process.env.PROVIDER_TTS || 'edge-tts', operation: 'tts_synthesis', units: scene.narration.length });
+      }
 
-      // ── TTS ────────────────────────────────────────────────────────────
-      const voicePath = path.join(VDIR, `voice_${idx}.m4a`);
-      const voice     = process.env.DEFAULT_VOICE || 'en-US-GuyNeural';
-
-      await retryPol.executeStage('TTS', async () =>
-        ttsGen.synthesize({ text: scene.narration, voice, outputPath: voicePath, rate: '-5%' })
-      );
-
-      await telemetry.track({ productionId, stage: 'Asset_Generation', provider: process.env.PROVIDER_IMAGE || 'pollinations', operation: 'scene_image', units: 1 });
-      await telemetry.track({ productionId, stage: 'TTS', provider: process.env.PROVIDER_TTS || 'edge-tts', operation: 'tts_synthesis', units: scene.narration.length });
-
-      return { sceneId: scene.scene_id, imagePath, voicePath, caption: scene.caption, camera: scene.camera_hint || scene.camera || 'static' };
+      return {
+        sceneId:   scene.scene_id,
+        imagePath,
+        videoPath: scene.video_path || null,   // user clip — non-null means renderer uses this
+        voicePath,
+        caption:   scene.caption,
+        camera:    scene.camera_hint || scene.camera || 'static',
+        focalPoint: scene.focal_point || null,
+      };
     }));
     results.push(...batchResults);
     if (i + parallelism < scenes.length) {

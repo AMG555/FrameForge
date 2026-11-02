@@ -1,30 +1,36 @@
 {
-  "name": "video-agent",
-  "version": "1.0.0",
-  "description": "Autonomous AI video production pipeline — MCP server + n8n workflow",
+  "name": "frameforge",
+  "version": "1.1.0",
+  "description": "FrameForge — Enterprise AI video production engine. Localhost-first. Any agentic IDE. Cloudflare Remote MCP for 80% token savings.",
   "main": "src/mcp-server/server.js",
+  "bin": {
+    "frameforge": "src/cli/make.js",
+    "frameforge-doctor": "src/cli/doctor.js"
+  },
   "scripts": {
+    "make":                 "node src/cli/make.js",
+    "doctor":               "node src/cli/doctor.js",
+    "mcp":                  "node src/mcp-server/server.js",
+    "mcp:stdio":            "node src/mcp-server/stdio.js",
     "start":                "node src/mcp-server/server.js",
     "start:worker":         "node src/worker/server.js",
-    "start:worker:render":  "RENDER_MODE=api_only node src/worker/server-render-free.js",
-    "start:worker:local":   "RENDER_MODE=full node src/worker/server-render-free.js",
-    "start:all":            "node src/mcp-server/server.js & node src/worker/server-render-free.js",
-    "start:local-render":   "RENDER_MODE=full PORT=3211 node src/worker/server-render-free.js",
+    "start:worker:render":  "node src/worker/server-render-free.js",
+    "start:worker:local":   "cross-env RENDER_MODE=full node src/worker/server-render-free.js",
+    "start:local-render":   "cross-env RENDER_MODE=full WORKER_PORT=3211 node src/worker/server-render-free.js",
     "validate":             "node scripts/deep-validate.js",
     "test":                 "node --test src/**/*.test.js src/asset-library/test-asset-library.js",
     "lint":                 "echo 'No linter configured — add eslint for production'",
     "check-credentials":    "node -e \"require('./src/utils/n8n-log-redaction').runCredentialAudit()\"",
     "generate-assets":      "node scripts/generate-initial-assets.js",
     "pipeline:research":    "node src/workflows/research.js",
-    "pipeline:script":      "node src/workflows/script.js",
-    "patch:workflow":       "node scripts/patch-script-prompt.js && node scripts/patch-validate-script.js"
+    "pipeline:script":      "node src/workflows/script.js"
   },
   "engines": {
     "node": ">=18.0.0"
   },
   "dependencies": {},
   "devDependencies": {},
-  "keywords": ["video", "ai", "mcp", "n8n", "automation"],
+  "keywords": ["frameforge", "video", "ai", "mcp", "cloudflare", "n8n", "automation", "ibm-bob", "cursor", "windsurf", "kiro"],
   "license": "MIT",
   "repository": {
     "type": "git",

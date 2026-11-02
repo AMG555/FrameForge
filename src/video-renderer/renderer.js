@@ -27,29 +27,62 @@ const fs    = require('fs');
 const { buildCameraFilter, selectCameraHint } = require('../animation/animation-system');
 const { AudioMixer }                          = require('../audio-mixer/mixer');
 
+// ── Cross-platform font resolver ──────────────────────────────────────────────
+// Checked in priority order. First existing file wins. Covers:
+//   Windows 10/11: C:\Windows\Fonts
+//   macOS:         /System/Library/Fonts, /Library/Fonts, ~/Library/Fonts
+//   Linux (Debian/Ubuntu/Alpine/RHEL): various truetype/opentype paths
 const FONTS = [
+  // Windows
+  'C:\\Windows\\Fonts\\arialbd.ttf',
+  'C:\\Windows\\Fonts\\Arial Bold.ttf',
+  'C:\\Windows\\Fonts\\calibrib.ttf',
+  'C:\\Windows\\Fonts\\segoeui.ttf',
+  'C:\\Windows\\Fonts\\tahoma.ttf',
+  // macOS system
+  '/System/Library/Fonts/Helvetica.ttc',
+  '/System/Library/Fonts/Arial Bold.ttf',
+  '/System/Library/Fonts/Supplemental/Arial Bold.ttf',
+  '/Library/Fonts/Arial Bold.ttf',
+  // macOS user
+  `${process.env.HOME || ''}/Library/Fonts/Arial Bold.ttf`,
+  // Linux Debian/Ubuntu
   '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf',
   '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
   '/usr/share/fonts/truetype/freefont/FreeSansBold.ttf',
+  // Linux RedHat/Alpine
   '/usr/share/fonts/liberation/LiberationSans-Bold.ttf',
   '/usr/share/fonts/opentype/noto/NotoSans-Bold.ttf',
   '/usr/share/fonts/noto/NotoSans-Bold.ttf',
+  '/usr/share/fonts/TTF/DejaVuSans-Bold.ttf',
 ];
+
+/** Return the first font file that exists, or '' if none found. */
+function resolveFont() {
+  // Allow explicit override via FFMPEG_FONT env var
+  const override = process.env.FFMPEG_FONT;
+  if (override && fs.existsSync(override)) return override;
+  return FONTS.find(f => f && fs.existsSync(f)) || '';
+}
 
 class VideoRenderer {
   constructor({ filesDir = '/home/node/.n8n-files' } = {}) {
     this.filesDir = filesDir;
     this.vdir     = path.join(filesDir, 'video_tmp');
-    this.font     = FONTS.find(f => fs.existsSync(f)) || '';
+    this.font     = resolveFont();
     this.mixer    = new AudioMixer({ filesDir });
+    if (!this.font) {
+      console.warn('[Renderer] WARNING: no font file found — captions will be disabled. Set FFMPEG_FONT=/path/to/font.ttf or install liberation-fonts.');
+    }
   }
 
   /**
-   * Render a single scene: image + voice → scene_N_out.mp4
+   * Render a single scene: image or video clip + voice → scene_N_out.mp4
    *
    * @param {{
    *   sceneIndex:  number,
-   *   imagePath:   string,
+   *   imagePath?:  string,
+   *   videoPath?:  string,   // optional user clip / B-roll
    *   voicePath:   string,
    *   caption?:    string,
    *   camera?:     string,   // camera_hint from scene schema v1.0.0
@@ -58,7 +91,7 @@ class VideoRenderer {
    * }} opts
    * @returns {string} outputPath
    */
-  renderScene({ sceneIndex, imagePath, voicePath, caption = '', camera, focalPoint, manifest } = {}) {
+  renderScene({ sceneIndex, imagePath, videoPath, voicePath, caption = '', camera, focalPoint, manifest } = {}) {
     const outputPath = path.join(this.vdir, `scene_${sceneIndex}_out.mp4`);
 
     // Idempotency: skip if already rendered and manifest says so
@@ -73,19 +106,34 @@ class VideoRenderer {
     const dur        = this._getAudioDuration(voicePath);
     const clampedDur = Math.max(2, Math.min(60, dur + 0.15));
 
-    // Camera movement from AnimationSystem
-    const hint        = camera || selectCameraHint(sceneIndex, focalPoint || {});
-    const fx          = focalPoint ? { focalX: focalPoint.x, focalY: focalPoint.y } : {};
-    const cameraFilter = buildCameraFilter(hint, { duration: clampedDur, ...fx });
+    const mediaSource = videoPath || imagePath;
+    if (!mediaSource) throw new Error(`Scene ${sceneIndex} has neither imagePath nor videoPath`);
+
+    const isVideoInput = Boolean(videoPath) || /\.(mp4|mov|webm|mkv|m4v)$/i.test(mediaSource);
 
     // Caption filter
     const captionFilter = this._captionFilter(caption);
-    const vf = [cameraFilter, captionFilter].filter(Boolean).join(',');
+
+    let inputArgs = [];
+    let vf = '';
+
+    if (isVideoInput) {
+      // Loop video clip if shorter than duration, scale to 1920:1080 lanczos
+      inputArgs = ['-stream_loop', '-1', '-i', mediaSource, '-i', voicePath];
+      const scaleFilter = 'scale=1920:1080:force_original_aspect_ratio=increase:flags=lanczos,crop=1920:1080';
+      vf = [scaleFilter, captionFilter].filter(Boolean).join(',');
+    } else {
+      // Image input with AnimationSystem camera motion
+      inputArgs = ['-loop', '1', '-i', mediaSource, '-i', voicePath];
+      const hint = camera || selectCameraHint(sceneIndex, focalPoint || {});
+      const fx   = focalPoint ? { focalX: focalPoint.x, focalY: focalPoint.y } : {};
+      const cameraFilter = buildCameraFilter(hint, { duration: clampedDur, ...fx });
+      vf = [cameraFilter, captionFilter].filter(Boolean).join(',');
+    }
 
     const result = spawnSync('ffmpeg', [
       '-nostdin', '-y', '-threads', '2',
-      '-loop', '1', '-i', imagePath,
-      '-i', voicePath,
+      ...inputArgs,
       '-vf', vf || `scale=1920:1080,format=yuv420p`,
       '-af', 'apad',
       '-t', String(clampedDur),
@@ -184,8 +232,9 @@ class VideoRenderer {
       .toUpperCase();
     if (!safe) return '';
     const escaped = safe.replace(/:/g, '\\:').replace(/%/g, '\\%');
+    const safeFont = this.font.replace(/\\/g, '/').replace(/:/g, '\\:');
     // Bottom-center, safe zone: 100px from bottom + UI button zone
-    return `drawtext=fontfile='${this.font}':text='${escaped}':fontsize=68:fontcolor=white:bordercolor=black:borderw=4:x=(w-text_w)/2:y=h-180:line_spacing=10`;
+    return `drawtext=fontfile='${safeFont}':text='${escaped}':fontsize=68:fontcolor=white:bordercolor=black:borderw=4:x=(w-text_w)/2:y=h-180:line_spacing=10`;
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
