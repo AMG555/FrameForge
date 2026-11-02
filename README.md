@@ -278,20 +278,7 @@ Switch any provider by setting the corresponding env var — no code changes.
 
 ### LLM providers
 
-| `PROVIDER_LLM=` | Default model | Key env var | Free tier |
-|-----------------|--------------|-------------|-----------|
-| `groq` | `llama-3.3-70b-versatile` | `GROQ_API_KEY` | ✅ |
-| `cerebras` | `llama3.3-70b` (2000+ tok/s) | `CEREBRAS_API_KEY` | ✅ |
-| `openrouter` | `anthropic/claude-sonnet-4-5` | `OPENROUTER_API_KEY` | ✅ credits |
-| `anthropic` | `claude-sonnet-4-5` | `ANTHROPIC_API_KEY` | — |
-| `gemini` | `gemini-2.0-flash` | `GEMINI_API_KEY` | ✅ |
-| `mistral` | `mistral-large-latest` | `MISTRAL_API_KEY` | — |
-| `together` | `Llama-3.3-70B-Instruct-Turbo` | `TOGETHER_API_KEY` | ✅ credits |
-| `openai` | `gpt-4o` | `OPENAI_API_KEY` | — |
-| `ollama` | `llama3.3` (local) | — | ✅ local |
-| `webhook` | any OpenAI-compat endpoint | `WEBHOOK_LLM_URL` | depends |
-
-Override model: `LLM_MODEL=your-model-id` · Override endpoint: `LLM_BASE_URL=https://...`
+Set `PROVIDER_LLM=` to any supported provider. Override the model with `LLM_MODEL=your-model-id` and the endpoint with `LLM_BASE_URL=https://...` — any OpenAI-compatible API works.
 
 ### TTS providers
 
