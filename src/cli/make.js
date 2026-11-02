@@ -1,29 +1,51 @@
 #!/usr/bin/env node
 /**
- * FrameForge Make — Standalone One-Command Video Generator
+ * FrameForge Make — Standalone Video Generator
  *
- * Usage:
- *   node src/cli/make.js --topic "The Roman Empire"
- *   npm run make -- --topic "The Roman Empire"
- *   npm run make -- --topics-file topics.txt            (batch queue)
- *   npm run make -- --topic "Topic" --language ml       (Malayalam)
- *   npm run make -- --topic "Topic" --channels telegram,youtube
- *   npm run make -- --topic "Topic" --dry-run
+ * ┌─────────────────────────────────────────────────────────────────────────────┐
+ * │  MODES                                                                      │
+ * │                                                                             │
+ * │  full-auto (default)                                                        │
+ * │    Research → Script → AI Images → TTS → Render → Publish                  │
+ * │    node src/cli/make.js --topic "Your Topic"                                │
+ * │                                                                             │
+ * │  edit-only                                                                  │
+ * │    Bring your own clips, images, audio — skip all AI generation             │
+ * │    node src/cli/make.js --mode edit-only --scenes-file ./scenes.json        │
+ * │    node src/cli/make.js --mode edit-only --media-dir  ./my-clips            │
+ * │                                                                             │
+ * │  script-only                                                                │
+ * │    Research → Script → stop. Review/edit the JSON before continuing.        │
+ * │    node src/cli/make.js --mode script-only --topic "Your Topic"             │
+ * │                                                                             │
+ * │  custom (mix-and-match — skip individual stages you don't need)             │
+ * │    node src/cli/make.js --topic "X" --no-research --script-file s.json      │
+ * │    node src/cli/make.js --topic "X" --no-images --no-tts (use your own)    │
+ * │    node src/cli/make.js --script-file script.json --no-publish              │
+ * └─────────────────────────────────────────────────────────────────────────────┘
  *
- * Options:
- *   --topic        <string>  Video topic (required unless --topics-file given)
- *   --topics-file  <path>    Batch: text file, one topic per line
- *   --language     <code>    BCP-47 language code — auto-selects edge-tts voice
- *                            Examples: en (default), ml (Malayalam), hi, es, fr, de, ja, zh
- *   --style        <string>  Tone/style (default: "educational comedy")
- *   --channels     <string>  Comma-separated: telegram,youtube (default: telegram)
+ * All options:
+ *   --mode          <mode>   full-auto|edit-only|script-only|custom  (default: full-auto)
+ *   --topic         <text>   Video topic (required for full-auto/script-only)
+ *   --topics-file   <path>   Batch mode: text file, one topic per line
+ *   --scenes-file   <path>   Skip research+script, load scenes JSON directly
+ *   --script-file   <path>   Skip research, load approved script JSON directly
+ *   --media-dir     <path>   Auto-discover clips from a directory (edit-only)
+ *   --language      <code>   BCP-47 language code for TTS voice (default: en)
+ *   --style         <text>   Narrative style (default: "educational comedy")
+ *   --channels      <list>   telegram,youtube  (default: telegram)
+ *   --no-research            Skip research stage (use --topic as raw facts)
+ *   --no-script              Skip script stage (requires --scenes-file)
+ *   --no-images              Skip AI image generation (use video/image_path in scenes)
+ *   --no-tts                 Skip TTS synthesis (use audio_path in scenes)
  *   --no-shorts              Skip Shorts extraction
- *   --dry-run                Run research + script only, skip assets/render/publish
- *   --out-dir      <path>    Output directory (default: ./output)
- *   --env          <path>    Path to .env file (default: ./.env)
+ *   --no-publish             Skip publishing (render only)
+ *   --dry-run                Research + script only, stop before render
+ *   --out-dir       <path>   Output directory (default: ./output)
+ *   --env           <path>   Path to .env file (default: ./.env)
  *   --help                   Print this help
  *
- * No n8n, no IDE, no Docker required.
+ * No n8n, no IDE, no Docker required. Run 'node src/cli/setup-keys.js' to configure.
  */
 
 'use strict';
@@ -64,56 +86,112 @@ const LANGUAGE_VOICES = {
 
 function parseArgs(argv) {
   const args = {
+    mode: 'full-auto',
     topic: '', topicsFile: '', language: 'en',
     style: 'educational comedy', channels: ['telegram'],
-    shorts: true, dryRun: false, outDir: './output', env: '.env',
+    scenesFile: '', scriptFile: '', mediaDir: '',
+    shorts: true, dryRun: false,
+    noResearch: false, noScript: false, noImages: false, noTts: false, noPublish: false,
+    outDir: './output', env: '.env',
   };
   for (let i = 2; i < argv.length; i++) {
     switch (argv[i]) {
-      case '--topic':        args.topic       = argv[++i] || '';  break;
-      case '--topics-file':  args.topicsFile  = argv[++i] || '';  break;
-      case '--language':     args.language    = (argv[++i] || 'en').toLowerCase(); break;
-      case '--style':        args.style       = argv[++i] || args.style; break;
-      case '--channels':     args.channels    = (argv[++i] || 'telegram').split(',').map(s => s.trim()); break;
-      case '--no-shorts':    args.shorts      = false; break;
-      case '--dry-run':      args.dryRun      = true;  break;
-      case '--out-dir':      args.outDir      = argv[++i] || args.outDir; break;
-      case '--env':          args.env         = argv[++i] || args.env; break;
+      case '--mode':          args.mode        = (argv[++i] || 'full-auto').toLowerCase(); break;
+      case '--topic':         args.topic       = argv[++i] || '';  break;
+      case '--topics-file':   args.topicsFile  = argv[++i] || '';  break;
+      case '--scenes-file':   args.scenesFile  = argv[++i] || '';  break;
+      case '--script-file':   args.scriptFile  = argv[++i] || '';  break;
+      case '--media-dir':     args.mediaDir    = argv[++i] || '';  break;
+      case '--language':      args.language    = (argv[++i] || 'en').toLowerCase(); break;
+      case '--style':         args.style       = argv[++i] || args.style; break;
+      case '--channels':      args.channels    = (argv[++i] || 'telegram').split(',').map(s => s.trim()); break;
+      case '--no-research':   args.noResearch  = true; break;
+      case '--no-script':     args.noScript    = true; break;
+      case '--no-images':     args.noImages    = true; break;
+      case '--no-tts':        args.noTts       = true; break;
+      case '--no-shorts':     args.shorts      = false; break;
+      case '--no-publish':    args.noPublish   = true; break;
+      case '--dry-run':       args.dryRun      = true; break;
+      case '--out-dir':       args.outDir      = argv[++i] || args.outDir; break;
+      case '--env':           args.env         = argv[++i] || args.env; break;
       case '--help': case '-h': printHelp(); process.exit(0); break;
     }
   }
+
+  // Mode shorthands → set stage flags
+  if (args.mode === 'edit-only') {
+    args.noResearch = true;
+    args.noScript   = true;
+  } else if (args.mode === 'script-only') {
+    args.dryRun = true;
+  }
+
   return args;
 }
 
 function printHelp() {
   console.log(`
-FrameForge Make — Standalone Video Generator
+FrameForge Make — Flexible Video Generator
 
-Usage:
-  node src/cli/make.js --topic "Your Topic"
+MODES:
+  full-auto    (default) Research → Script → AI Images → TTS → Render → Publish
+  edit-only    Bring your own clips/images/audio — skip all AI generation
+  script-only  Research + Script only — review JSON before continuing
+  custom       Use --no-* flags to skip individual stages
+
+USAGE (full-auto):
   npm run make -- --topic "Your Topic"
-  npm run make -- --topics-file topics.txt      (batch: one topic per line)
+  npm run make -- --topic "Your Topic" --language ml --channels telegram,youtube
+  npm run make -- --topics-file topics.txt
 
-Options:
-  --topic        <text>   Video topic (required unless --topics-file given)
-  --topics-file  <path>   Batch mode: text file with one topic per line
-  --language     <code>   BCP-47 language (default: en). Auto-selects voice.
-                          Supported: en, ml, hi, ta, te, kn, es, fr, de, pt,
-                                     it, ja, ko, zh, ar, ru, tr, id
-  --style        <text>   Narrative style (default: "educational comedy")
-  --channels     <list>   Delivery channels: telegram,youtube (default: telegram)
-  --no-shorts             Skip Shorts extraction
-  --dry-run               Research + script only — no render, no publish
-  --out-dir      <path>   Output directory (default: ./output)
-  --env          <path>   Path to .env file (default: ./.env)
-  --help                  Show this message
+USAGE (edit-only — your own media):
+  npm run make -- --mode edit-only --scenes-file ./my-scenes.json
+  npm run make -- --mode edit-only --media-dir   ./my-clips
 
-Examples:
-  npm run make -- --topic "How WiFi actually works"
-  npm run make -- --topic "The Fall of Rome" --style "documentary" --channels telegram
-  npm run make -- --topic "ഗണേശ ചതുർഥി" --language ml
-  npm run make -- --topics-file topics.txt --channels telegram
-  npm run make -- --topic "Bitcoin" --dry-run
+USAGE (custom — mix AI + your media):
+  npm run make -- --topic "X" --script-file approved-script.json --no-research
+  npm run make -- --topic "X" --no-images   (generate TTS but skip AI images)
+  npm run make -- --topic "X" --no-tts      (use your own voice files)
+  npm run make -- --topic "X" --no-publish  (render only, don't upload)
+
+OPTIONS:
+  --mode          full-auto|edit-only|script-only|custom  (default: full-auto)
+  --topic         Video topic text (required for full-auto / script-only)
+  --topics-file   Batch mode: text file, one topic per line
+  --scenes-file   Load a scenes.json directly (skips research + script)
+  --script-file   Load an approved script.json (skips research stage only)
+  --media-dir     Auto-discover clips from a directory (edit-only)
+  --language      BCP-47 code: en (default), ml, hi, ta, te, kn, es, fr, de, pt, it, ja, ko, zh, ar, ru, tr, id
+  --style         Narrative style (default: "educational comedy")
+  --channels      Delivery: telegram,youtube  (default: telegram)
+  --no-research   Skip research (use --topic text directly as context)
+  --no-script     Skip script generation (requires --scenes-file)
+  --no-images     Skip AI image generation (supply image_path / video_path in scenes)
+  --no-tts        Skip TTS synthesis (supply audio_path in scenes)
+  --no-shorts     Skip 9:16 Shorts extraction
+  --no-publish    Skip publishing (produce master video only)
+  --dry-run       Research + script only, stop before render
+  --out-dir       Output directory (default: ./output)
+  --env           Path to .env file (default: ./.env)
+  --help          Show this message
+
+FIRST TIME SETUP:
+  node src/cli/setup-keys.js        Interactive API key wizard
+  node src/cli/setup-keys.js --check  Validate existing .env
+  npm run doctor                    System dependency check
+
+SCENES FILE FORMAT (for --scenes-file / --mode edit-only):
+  [
+    {
+      "narration":   "Voice-over text (used for TTS if no audio_path)",
+      "caption":     "ON-SCREEN TEXT",
+      "video_path":  "./clips/scene1.mp4",   (optional)
+      "image_path":  "./images/scene1.png",  (optional, used if no video_path)
+      "audio_path":  "./audio/scene1.mp3",   (optional, used instead of TTS)
+      "camera_hint": "zoom_in",
+      "music_mood":  "energetic"
+    }
+  ]
 `);
 }
 
@@ -228,58 +306,137 @@ function _downloadFile(url, destPath) {
 // ── Single video runner (used by both single-topic and batch modes) ───────────
 
 async function runSingleVideo(args, topic, outDir, workflows) {
-  const { runResearch, runScript, runAssets, runRender, runShorts, runPackaging, runPublishing } = workflows;
+  const { runResearch, runScript, runAssets, runRender, runShorts, runPackaging, runPublishing, runIngest } = workflows;
 
   console.log(`\n🎬  FrameForge — Starting Production`);
-  console.log(`    Topic:    "${topic}"`);
+  console.log(`    Mode:     ${args.mode}`);
+  if (topic)             console.log(`    Topic:    "${topic}"`);
+  if (args.scenesFile)   console.log(`    Scenes:   ${args.scenesFile}`);
+  if (args.scriptFile)   console.log(`    Script:   ${args.scriptFile}`);
+  if (args.mediaDir)     console.log(`    Media:    ${args.mediaDir}`);
   console.log(`    Style:    ${args.style}`);
   console.log(`    Language: ${args.language}`);
   console.log(`    Channels: ${args.channels.join(', ')}`);
   console.log(`    Output:   ${outDir}`);
-  if (args.dryRun) console.log(`    Mode:     DRY RUN (no render/publish)`);
+  const skipFlags = ['noResearch','noScript','noImages','noTts','noPublish'].filter(f => args[f]).map(f => '--' + f.replace(/([A-Z])/g, '-$1').toLowerCase());
+  if (args.dryRun)        skipFlags.push('--dry-run');
+  if (skipFlags.length)   console.log(`    Skipping: ${skipFlags.join(', ')}`);
 
   const startTime = Date.now();
 
-  // ── Stage A: Research ──────────────────────────────────────────────────────
-  logSection('Stage A: Research');
-  const researchResult = await runResearch(topic, { claimCount: 10 });
-  log('Research', `✅  ${researchResult.claims.length} claims extracted (production: ${researchResult.productionId})`);
+  let scenes = null;
+  let productionId = null;
+  let youtubeTitle = topic || 'Video';
+  let youtubeDescription = '';
+  let youtubeTags = [];
+  let thumbnailPrompt = null;
+  let totalWords = 0;
 
-  // ── Stage B: Script ────────────────────────────────────────────────────────
-  logSection('Stage B: Script');
-  const scriptResult = await runScript({
-    productionId: researchResult.productionId,
-    claims:       researchResult.claims,
-    topic,
-    style:        args.style,
-  });
-  log('Script', `✅  ${scriptResult.sceneCount || scriptResult.scenes?.length} scenes, ~${scriptResult.totalWords} words`);
-  log('Script', `    Title: "${scriptResult.youtubeTitle}"`);
+  // ── Stage A: Research (skip if --no-research / --scenes-file / --script-file) ─
+  if (!args.noResearch && !args.scenesFile && !args.scriptFile) {
+    logSection('Stage A: Research');
+    const researchResult = await runResearch(topic, { claimCount: 10 });
+    productionId = researchResult.productionId;
+    log('Research', `✅  ${researchResult.claims.length} claims extracted (production: ${productionId})`);
 
-  if (args.dryRun) {
-    logSection('Dry Run Complete');
-    console.log(`\n📄  Script saved. Skipping assets/render/publish (--dry-run).\n`);
-    const scriptPath = path.join(outDir, `${researchResult.productionId}-script.json`);
-    fs.writeFileSync(scriptPath, JSON.stringify({ research: researchResult, script: scriptResult }, null, 2));
-    log('Output', `Script written to: ${scriptPath}`);
-    summarise(startTime);
-    return { productionId: researchResult.productionId, topic, dryRun: true, youtubeTitle: scriptResult.youtubeTitle };
+    // ── Stage B: Script (uses research output) ──────────────────────────────
+    if (!args.noScript) {
+      logSection('Stage B: Script');
+      const scriptResult = await runScript({
+        productionId,
+        claims:       researchResult.claims,
+        topic,
+        style:        args.style,
+      });
+      scenes          = scriptResult.scenes;
+      youtubeTitle    = scriptResult.youtubeTitle || topic;
+      youtubeDescription = scriptResult.youtubeDescription || '';
+      youtubeTags     = scriptResult.youtubeTags || [];
+      thumbnailPrompt = scriptResult.thumbnailPrompt;
+      totalWords      = scriptResult.totalWords || 0;
+      log('Script', `✅  ${scenes.length} scenes, ~${totalWords} words`);
+      log('Script', `    Title: "${youtubeTitle}"`);
+
+      if (args.dryRun) {
+        logSection('Script-Only / Dry Run Complete');
+        console.log(`\n📄  Script saved. Skipping assets/render/publish.\n`);
+        const scriptPath = path.join(outDir, `${productionId}-script.json`);
+        fs.writeFileSync(scriptPath, JSON.stringify({ research: researchResult, script: scriptResult }, null, 2));
+        log('Output', `Script written to: ${scriptPath}`);
+        log('TIP', `Resume with: npm run make -- --script-file ${scriptPath}`);
+        summarise(startTime);
+        return { productionId, topic, dryRun: true, youtubeTitle, scriptPath };
+      }
+    }
   }
 
-  // ── Stage C: Assets ────────────────────────────────────────────────────────
+  // ── Script file bypass (--script-file): skip research, load approved JSON ──
+  if (args.scriptFile && !scenes) {
+    logSection('Loading Approved Script');
+    const absScript = path.resolve(process.cwd(), args.scriptFile);
+    if (!fs.existsSync(absScript)) throw new Error(`Script file not found: ${absScript}`);
+    const raw = JSON.parse(fs.readFileSync(absScript, 'utf8'));
+    const scriptData = raw.script || raw;
+    scenes          = scriptData.scenes;
+    productionId    = scriptData.productionId || raw.productionId || `script_${Date.now()}`;
+    youtubeTitle    = scriptData.youtubeTitle || topic || 'Video';
+    youtubeDescription = scriptData.youtubeDescription || '';
+    youtubeTags     = scriptData.youtubeTags || [];
+    thumbnailPrompt = scriptData.thumbnailPrompt || null;
+    totalWords      = scriptData.totalWords || scenes?.reduce((n, s) => n + (s.narration || '').split(/\s+/).filter(Boolean).length, 0) || 0;
+    log('Script', `✅  Loaded ${scenes?.length} scenes from: ${absScript}`);
+
+    if (args.dryRun) {
+      logSection('Dry Run Complete');
+      summarise(startTime);
+      return { productionId, topic, dryRun: true, youtubeTitle };
+    }
+  }
+
+  // ── Scenes file bypass (--scenes-file / --media-dir / edit-only) ──────────
+  if ((args.scenesFile || args.mediaDir) && !scenes) {
+    logSection('Stage A: Media Ingest (edit-only)');
+    const ingestResult = await runIngest({
+      productionId,
+      scenesFile: args.scenesFile || undefined,
+      mediaDir:   args.mediaDir   || undefined,
+      outDir,
+    });
+    scenes       = ingestResult.scenes;
+    productionId = ingestResult.productionId;
+    log('Ingest', `✅  ${scenes.length} scene(s) ingested`);
+  }
+
+  if (!scenes || scenes.length === 0) {
+    throw new Error('No scenes available. Use --topic, --scenes-file, --script-file, or --media-dir.');
+  }
+
+  // ── Stage C: Assets (images + TTS) ────────────────────────────────────────
   logSection('Stage C: Assets (images + TTS)');
+
+  // Pass stage-skip flags into scenes so runAssets can honour them
+  const preparedScenes = scenes.map(s => ({
+    ...s,
+    // --no-images: mark scene as if it has a placeholder image path → renderer skips generation
+    _skipImageGen: args.noImages,
+    // --no-tts: mark scene as if it has pre-recorded audio → renderer skips TTS
+    _skipTts:      args.noTts,
+  }));
+
   const assetsResult = await runAssets({
-    productionId: scriptResult.productionId,
-    scenes:       scriptResult.scenes,
+    productionId,
+    scenes:       preparedScenes,
     parallelism:  4,
+    skipImages:   args.noImages,
+    skipTts:      args.noTts,
   });
-  log('Assets', `✅  ${assetsResult.sceneCount} scenes rendered`);
+  log('Assets', `✅  ${assetsResult.sceneCount} scenes prepared`);
 
   // ── Stage D: Render ────────────────────────────────────────────────────────
   logSection('Stage D: Video Render (FFmpeg)');
   const renderResult = await runRender({
-    productionId: scriptResult.productionId,
-    sceneAssets:  assetsResult.sceneAssets,
+    productionId,
+    sceneAssets: assetsResult.sceneAssets,
   });
   if (!renderResult.passed) {
     throw new Error(`Quality gate FAILED: ${JSON.stringify(renderResult.qcReport?.checks?.filter(c => !c.passed).map(c => c.name))}`);
@@ -292,9 +449,9 @@ async function runSingleVideo(args, topic, outDir, workflows) {
   if (args.shorts) {
     logSection('Stage D2: Shorts Extraction (9:16)');
     shortsResult = await runShorts({
-      productionId: scriptResult.productionId,
-      masterPath:   renderResult.masterPath,
-      scenes:       scriptResult.scenes,
+      productionId,
+      masterPath: renderResult.masterPath,
+      scenes,
     }).catch(err => {
       log('Shorts', `⚠️  Shorts extraction failed (non-blocking): ${err.message}`);
       return { shorts: [] };
@@ -305,32 +462,39 @@ async function runSingleVideo(args, topic, outDir, workflows) {
   // ── Stage E: Packaging ────────────────────────────────────────────────────
   logSection('Stage E: Packaging');
   const packageResult = await runPackaging({
-    productionId:       scriptResult.productionId,
+    productionId,
     masterPath:         renderResult.masterPath,
     shorts:             shortsResult.shorts || [],
-    scenes:             scriptResult.scenes,
-    youtubeTitle:       scriptResult.youtubeTitle,
-    youtubeDescription: scriptResult.youtubeDescription,
-    youtubeTags:        scriptResult.youtubeTags,
-    thumbnailPrompt:    scriptResult.thumbnailPrompt,
+    scenes,
+    youtubeTitle,
+    youtubeDescription,
+    youtubeTags,
+    thumbnailPrompt,
     qcReport:           renderResult.qcReport,
-    totalWords:         scriptResult.totalWords,
+    totalWords,
   });
   log('Package', `✅  Manifest: ${packageResult.manifestPath || 'saved'}`);
 
   // ── Thumbnail ─────────────────────────────────────────────────────────────
   logSection('Thumbnail');
   const thumbPath = await generateThumbnail({
-    thumbnailPrompt: scriptResult.thumbnailPrompt,
-    youtubeTitle:    scriptResult.youtubeTitle,
+    thumbnailPrompt,
+    youtubeTitle,
     outDir,
   });
   if (thumbPath) log('Thumbnail', `✅  Saved: ${thumbPath}`);
 
   // ── Stage F: Publish ──────────────────────────────────────────────────────
+  if (args.noPublish) {
+    logSection('Publish Skipped (--no-publish)');
+    log('Output', `Master video: ${renderResult.masterPath}`);
+    summarise(startTime);
+    return { productionId, topic, masterPath: renderResult.masterPath, thumbnailPath: thumbPath, youtubeTitle, shorts: shortsResult.shorts || [] };
+  }
+
   logSection('Stage F: Publish');
   const publishResult = await runPublishing({
-    productionId: scriptResult.productionId,
+    productionId,
     manifest:     packageResult.manifest,
     channels:     args.channels,
   });
@@ -341,7 +505,7 @@ async function runSingleVideo(args, topic, outDir, workflows) {
   // ── Done ───────────────────────────────────────────────────────────────────
   logSection('Production Complete');
   console.log(`\n🎉  Video ready!`);
-  console.log(`    Production ID: ${scriptResult.productionId}`);
+  console.log(`    Production ID: ${productionId}`);
   console.log(`    Master:        ${renderResult.masterPath}`);
   if (thumbPath) console.log(`    Thumbnail:     ${thumbPath}`);
   if (shortsResult.shorts?.length) {
@@ -349,11 +513,11 @@ async function runSingleVideo(args, topic, outDir, workflows) {
   }
   summarise(startTime);
   return {
-    productionId:  scriptResult.productionId,
+    productionId,
     topic,
     masterPath:    renderResult.masterPath,
     thumbnailPath: thumbPath,
-    youtubeTitle:  scriptResult.youtubeTitle,
+    youtubeTitle,
     shorts:        shortsResult.shorts || [],
     publishResult,
   };
@@ -364,9 +528,18 @@ async function runSingleVideo(args, topic, outDir, workflows) {
 async function main() {
   const args = parseArgs(process.argv);
 
-  // Validate: must have --topic OR --topics-file
-  if (!args.topic && !args.topicsFile) {
-    console.error('\n❌  --topic or --topics-file is required.\n    Run: npm run make -- --topic "Your Topic"\n    Or:  npm run make -- --topics-file topics.txt\n');
+  // Validate: must have a topic source OR a media source
+  const hasTopic    = args.topic || args.topicsFile;
+  const hasMedia    = args.scenesFile || args.scriptFile || args.mediaDir;
+  if (!hasTopic && !hasMedia) {
+    console.error(
+      '\n❌  A content source is required. Examples:\n' +
+      '    npm run make -- --topic "Your Topic"\n' +
+      '    npm run make -- --mode edit-only --scenes-file ./scenes.json\n' +
+      '    npm run make -- --mode edit-only --media-dir  ./my-clips\n' +
+      '    npm run make -- --script-file approved-script.json\n' +
+      '\n    Run: npm run make -- --help   for all options\n'
+    );
     process.exit(1);
   }
 
@@ -394,6 +567,7 @@ async function main() {
   const workflows = {
     runResearch:   require('../workflows/research').runResearch,
     runScript:     require('../workflows/script').runScript,
+    runIngest:     require('../workflows/ingest').runIngest,
     runAssets:     require('../workflows/assets').runAssets,
     runRender:     require('../workflows/render').runRender,
     runShorts:     require('../workflows/shorts').runShorts,

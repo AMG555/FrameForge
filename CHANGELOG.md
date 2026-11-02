@@ -4,6 +4,69 @@ All notable changes to FrameForge are documented here.
 
 ---
 
+## [1.4.0] — 2026-11-02
+
+### Added — Flexible Pipeline Modes
+
+**Pipeline mode system (`--mode` flag)**
+FrameForge is no longer all-or-nothing. Every stage is now independently skippable.
+
+| Mode | What it does |
+|---|---|
+| `full-auto` (default) | Research → Script → AI Images → TTS → Render → Publish |
+| `edit-only` | Skip all AI generation. Supply your own clips/images/audio. |
+| `script-only` | Research + Script only. Review/edit the JSON, then resume. |
+| `custom` | Mix and match with `--no-*` flags. |
+
+**New CLI flags**
+- `--mode full-auto|edit-only|script-only|custom`
+- `--scenes-file <path>` — Load a scenes JSON directly, skip research + script
+- `--script-file <path>` — Load an approved script JSON, skip research only
+- `--media-dir <path>` — Auto-discover video/image/audio clips from a directory
+- `--no-research` — Use `--topic` as raw context instead of running the research stage
+- `--no-script` — Skip script generation (requires `--scenes-file`)
+- `--no-images` — Skip AI image generation (use `video_path`/`image_path` in scenes)
+- `--no-tts` — Skip TTS synthesis (use `audio_path` in scenes)
+- `--no-publish` — Render only, skip all delivery channels
+- `--dry-run` now prints a resume hint: `npm run make -- --script-file <path>`
+
+**Interactive key setup wizard (`src/cli/setup-keys.js`)**
+Walk through every provider in ~2 minutes. Writes a ready-to-use `.env` file.
+- `npm run setup` — Launch the wizard
+- `npm run setup:check` — Validate existing `.env`
+- `node src/cli/setup-keys.js --out .env.production` — Write to a named file
+- Covers: Groq / OpenAI / WatsonX / Ollama / webhook LLM, edge-tts / ElevenLabs (voice cloning) / Azure / OpenAI TTS / webhook TTS, Pollinations / fal.ai / Replicate / DALL-E / webhook image, Telegram, YouTube OAuth2, external platform adapter
+
+**Media ingest workflow (`src/workflows/ingest.js`)**
+Build a production-ready `scenes.json` from user-supplied media — no LLM needed.
+- File-based: `--scenes-file ./my-scenes.json`
+- Directory auto-discovery: `--media-dir ./clips` (pairs `scene01.mp4` + `scene01.mp3` + `scene01.txt` automatically)
+- Scenes format: `{ narration, caption, video_path, image_path, audio_path, camera_hint, music_mood }`
+- Reports how many scenes need AI images vs pre-supplied, TTS vs pre-recorded audio
+
+**External platform adapter (`src/pipeline/external-adapter.js`)**
+Connect FrameForge to any external platform via HTTP — VoxForge, ElevenLabs, Remotion, Runway, Pika, n8n, Make, or any REST API.
+- Configure with 5 env vars: `EXTERNAL_PLATFORM_NAME`, `EXTERNAL_PLATFORM_URL`, `EXTERNAL_PLATFORM_KEY`, `EXTERNAL_PLATFORM_INGEST_PATH`, `EXTERNAL_PLATFORM_RENDER_PATH`
+- Built-in presets for: `elevenlabs`, `remotion`, `voxforge`, `runway`, `pika`
+- Operations: `ingestMedia()`, `renderScenes()`, `checkStatus()`, `downloadOutput()`
+- Polls job status automatically until completion
+
+**4 new MCP tools** (accessible from Cursor, Claude Code, Kiro, Windsurf, IBM Bob)
+- `ingest_media` — Upload clips/images/audio, get a scenes manifest back
+- `edit_scenes` — Read and patch a scenes manifest (update captions, swap files, append scenes)
+- `render_from_scenes` — Render directly from a manifest, skipping research/script
+- `external_platform_call` — Bridge to VoxForge/Runway/ElevenLabs/Remotion/any platform
+
+**`assets.js` `skipImages`/`skipTts` flags**
+`runAssets({ skipImages: true, skipTts: true })` now skips generation stages cleanly. Scenes with `_skipImageGen` or `_skipTts` fields (set by `--no-images` / `--no-tts`) are respected.
+
+**New npm scripts**
+- `npm run setup` — Key setup wizard
+- `npm run setup:check` — Validate `.env`
+- New `frameforge-setup` CLI binary
+
+---
+
 ## [1.3.2] — 2026-11-02
 
 ### Fixed

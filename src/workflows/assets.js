@@ -27,7 +27,7 @@ const NEG_PROMPT   = 'photorealistic, 3D render, CGI, painting, dark background,
  * @param {{ productionId: string, scenes: object[], parallelism?: number }} opts
  * @returns {Promise<AssetsResult>}
  */
-async function runAssets({ productionId, scenes, parallelism = 4 }) {
+async function runAssets({ productionId, scenes, parallelism = 4, skipImages = false, skipTts = false }) {
   const imageGen  = new ImageProvider();
   const ttsGen    = new TTSProvider();
   const sm        = new StateMachine({ mode: 'file', stateDir: STATE_DIR });
@@ -54,15 +54,16 @@ async function runAssets({ productionId, scenes, parallelism = 4 }) {
       const seed = 42 + idx * 37; // deterministic seed per scene
 
       // ── Image / User Video Clip ────────────────────────────────────────
-      // If scene.video_path is set, use user-supplied clip directly (B-roll, stock footage).
-      // If scene.image_path is set, use user-supplied image directly.
-      // Otherwise generate image from visual_description.
+      // Priority: video_path (user clip) > image_path (user image) > AI generate.
+      // --no-images / skipImages: skip AI generation entirely (renderer uses placeholder).
       let imagePath;
       if (scene.video_path) {
-        // User-supplied video clip — used directly by renderer as input
-        imagePath = null; // renderer handles video_path specially
+        imagePath = null; // renderer handles video_path directly
       } else if (scene.image_path) {
         imagePath = scene.image_path;
+      } else if (skipImages || scene._skipImageGen) {
+        // Caller opted out of AI generation — no image; renderer will show blank/color bg
+        imagePath = null;
       } else {
         imagePath = path.join(VDIR, `scene_${idx}.png`);
         const prompt = `${(scene.visual_description || scene.visual_action || '').replace(/\[[A-Z]+\]/g, '').trim()}, ${STYLE_SUFFIX}`;
@@ -73,14 +74,16 @@ async function runAssets({ productionId, scenes, parallelism = 4 }) {
       }
 
       // ── TTS / User Audio ───────────────────────────────────────────────
-      // If scene.audio_path is set, use user-supplied audio directly (pre-recorded voiceover).
-      // Otherwise synthesize TTS from narration text.
+      // Priority: audio_path (pre-recorded) > TTS synthesis.
+      // --no-tts / skipTts: skip synthesis (scene must have audio_path or silence is used).
       let voicePath;
       if (scene.audio_path) {
         voicePath = scene.audio_path;
+      } else if (skipTts || scene._skipTts) {
+        // No TTS — renderer will use silence for this scene
+        voicePath = null;
       } else {
         voicePath = path.join(VDIR, `voice_${idx}.m4a`);
-        // voice is read from TTS_VOICE env inside TTSProvider.synthesize(); rate via TTS_RATE
         await retryPol.executeStage('TTS', async () =>
           ttsGen.synthesize({ text: scene.narration, outputPath: voicePath })
         );

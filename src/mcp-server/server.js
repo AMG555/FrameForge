@@ -293,7 +293,198 @@ const TOOLS = {
     },
   },
 
-  // ── Tool 7: n8n webhook trigger ───────────────────────────────────────────
+  // ── Tool 7: Ingest media (edit-only entry point) ──────────────────────────
+  // Lets an IDE agent supply video clips, images, and audio without any LLM.
+  // Returns a scenes manifest JSON ready for render_from_scenes.
+  ingest_media: {
+    description: 'Ingest user-supplied video clips, images, and/or audio files into a scenes manifest. No AI generation — edit-only entry point. Returns { productionId, scenesFile, sceneCount }.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        scenes:      { type: 'array',  description: 'Inline scene array. Each scene: { narration, caption, video_path, image_path, audio_path, camera_hint, music_mood }' },
+        scenesFile:  { type: 'string', description: 'Path to a scenes.json file on disk' },
+        mediaDir:    { type: 'string', description: 'Directory to auto-discover clips from' },
+        productionId:{ type: 'string', description: 'Reuse an existing productionId (optional)' },
+      },
+    },
+    handler: async ({ scenes, scenesFile, mediaDir, productionId } = {}) => {
+      const { runIngest } = require('../workflows/ingest');
+      const result = await runIngest({
+        productionId,
+        rawScenes:  scenes,
+        scenesFile,
+        mediaDir,
+        outDir: FILES_DIR,
+      });
+      return { productionId: result.productionId, scenesFile: result.scenesFile, sceneCount: result.sceneCount, stats: result.stats };
+    },
+  },
+
+  // ── Tool 8: Edit scenes (modify a scenes manifest) ────────────────────────
+  // Lets an IDE agent read, modify, or annotate an existing scenes manifest.
+  edit_scenes: {
+    description: 'Read and optionally modify an existing scenes manifest. Use to add/update narration, captions, camera hints, or swap media files before rendering.',
+    inputSchema: {
+      type: 'object',
+      required: ['productionId'],
+      properties: {
+        productionId: { type: 'string' },
+        edits:        { type: 'array', description: 'Array of { sceneIndex: number, field: string, value: any } patches to apply' },
+        appendScenes: { type: 'array', description: 'New scenes to append to the manifest' },
+      },
+    },
+    handler: async ({ productionId, edits = [], appendScenes = [] }) => {
+      const fsp       = require('fs').promises;
+      const syncFs    = require('fs');
+      // Find the scenes manifest for this productionId
+      const scenesPath = path.join(FILES_DIR, `${productionId}-scenes.json`);
+      if (!syncFs.existsSync(scenesPath)) {
+        throw new Error(`No scenes manifest found for productionId: ${productionId}. Run ingest_media first.`);
+      }
+      const manifest = JSON.parse(syncFs.readFileSync(scenesPath, 'utf8'));
+      const scenes   = manifest.scenes || [];
+
+      // Apply field-level edits
+      for (const { sceneIndex, field, value } of edits) {
+        if (sceneIndex >= 0 && sceneIndex < scenes.length && field) {
+          scenes[sceneIndex][field] = value;
+        }
+      }
+
+      // Append new scenes
+      for (const s of appendScenes) {
+        scenes.push({ scene_id: scenes.length + 1, schema_version: '1.0.0', ...s });
+      }
+
+      manifest.scenes    = scenes;
+      manifest.sceneCount = scenes.length;
+      manifest.updatedAt  = new Date().toISOString();
+
+      const tmpPath = scenesPath + '.tmp';
+      syncFs.writeFileSync(tmpPath, JSON.stringify(manifest, null, 2), 'utf8');
+      syncFs.renameSync(tmpPath, scenesPath);
+
+      return { productionId, scenesFile: scenesPath, sceneCount: scenes.length, message: `Applied ${edits.length} edit(s), appended ${appendScenes.length} scene(s)` };
+    },
+  },
+
+  // ── Tool 9: Render from scenes (edit-only render path) ────────────────────
+  // Renders a scenes manifest directly — skipping research and script stages.
+  render_from_scenes: {
+    description: 'Render a video directly from a scenes manifest, skipping research and script generation. Supply a productionId from ingest_media, or pass scenes inline.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        productionId: { type: 'string', description: 'From ingest_media / edit_scenes' },
+        scenes:       { type: 'array',  description: 'Inline scenes array (alternative to productionId)' },
+        skipImages:   { type: 'boolean', default: false, description: 'Skip AI image generation (use video_path / image_path in scenes)' },
+        skipTts:      { type: 'boolean', default: false, description: 'Skip TTS synthesis (use audio_path in scenes)' },
+        withMusic:    { type: 'boolean', default: true },
+        musicVolume:  { type: 'number',  default: 0.07 },
+      },
+    },
+    handler: async ({ productionId, scenes, skipImages = false, skipTts = false, withMusic = true, musicVolume = 0.07 }) => {
+      const syncFs = require('fs');
+      const { runAssets }   = require('../workflows/assets');
+      const { runRender }   = require('../workflows/render');
+      const { runIngest }   = require('../workflows/ingest');
+
+      // Resolve scenes
+      let resolvedScenes = scenes;
+      let resolvedPid    = productionId;
+
+      if (!resolvedScenes && productionId) {
+        const scenesPath = path.join(FILES_DIR, `${productionId}-scenes.json`);
+        if (!syncFs.existsSync(scenesPath)) throw new Error(`No scenes manifest for: ${productionId}. Run ingest_media first.`);
+        const m = JSON.parse(syncFs.readFileSync(scenesPath, 'utf8'));
+        resolvedScenes = m.scenes;
+      }
+
+      if (!resolvedScenes || resolvedScenes.length === 0) {
+        throw new Error('No scenes to render. Provide productionId or inline scenes.');
+      }
+
+      if (!resolvedPid) {
+        const crypto = require('crypto');
+        resolvedPid = `render_${crypto.randomBytes(4).toString('hex')}_${Date.now()}`;
+      }
+
+      // Run assets stage (respecting skip flags)
+      const assetsResult = await runAssets({
+        productionId: resolvedPid,
+        scenes:       resolvedScenes,
+        parallelism:  4,
+        skipImages,
+        skipTts,
+      });
+
+      // Run render stage
+      const renderResult = await runRender({
+        productionId: resolvedPid,
+        sceneAssets:  assetsResult.sceneAssets,
+        withMusic,
+        musicVolume,
+      });
+
+      if (!renderResult.passed) {
+        return { productionId: resolvedPid, passed: false, qcReport: renderResult.qcReport };
+      }
+
+      return {
+        productionId: resolvedPid,
+        masterPath:   renderResult.masterPath,
+        passed:       true,
+        sizeBytes:    renderResult.sizeBytes,
+        sceneCount:   renderResult.sceneCount,
+        qcReport:     renderResult.qcReport,
+      };
+    },
+  },
+
+  // ── Tool 10: External platform call ────────────────────────────────────────
+  // Bridge to VoxForge, Runway, ElevenLabs, Remotion, or any external platform.
+  external_platform_call: {
+    description: 'Send media or scenes to an external platform (VoxForge, Runway, ElevenLabs, Remotion, etc.). Configured via EXTERNAL_PLATFORM_* env vars or setup-keys wizard.',
+    inputSchema: {
+      type: 'object',
+      required: ['action'],
+      properties: {
+        action:      { type: 'string', enum: ['ingest','render','status','download'], description: 'ingest: upload media files | render: send scenes for rendering | status: poll job | download: fetch output' },
+        files:       { type: 'array',  items: { type: 'string' }, description: 'Local file paths (for action=ingest)' },
+        scenes:      { type: 'array',  description: 'Scene array (for action=render)' },
+        productionId:{ type: 'string', description: 'productionId (for action=render)' },
+        jobId:       { type: 'string', description: 'Job ID to poll (for action=status)' },
+        outputUrl:   { type: 'string', description: 'URL to download (for action=download)' },
+        outputPath:  { type: 'string', description: 'Local path to save download (for action=download)' },
+        metadata:    { type: 'object', description: 'Extra fields forwarded to the platform' },
+      },
+    },
+    handler: async ({ action, files, scenes, productionId, jobId, outputUrl, outputPath, metadata }) => {
+      const { ExternalAdapter } = require('../pipeline/external-adapter');
+      const adapter = new ExternalAdapter();
+      if (!adapter.isConfigured()) {
+        throw new Error('External platform not configured. Run: node src/cli/setup-keys.js to set EXTERNAL_PLATFORM_URL and EXTERNAL_PLATFORM_KEY.');
+      }
+
+      switch (action) {
+        case 'ingest':
+          return adapter.ingestMedia({ files: files || [], metadata: metadata || {} });
+        case 'render':
+          return adapter.renderScenes({ scenes: scenes || [], productionId, options: metadata || {} });
+        case 'status':
+          if (!jobId) throw new Error('action=status requires jobId');
+          return adapter.checkStatus(jobId);
+        case 'download':
+          if (!outputUrl || !outputPath) throw new Error('action=download requires outputUrl and outputPath');
+          await adapter.downloadOutput(outputUrl, outputPath);
+          return { outputPath, downloaded: true };
+        default:
+          throw new Error(`Unknown action: ${action}. Use ingest|render|status|download`);
+      }
+    },
+  },
+
+  // ── Tool 11 (was 7): n8n webhook trigger ─────────────────────────────────
   // Bridges the MCP protocol with n8n workflows — fires an n8n webhook to
   // trigger a full pipeline run without requiring direct n8n access.
   n8n_webhook_trigger: {
