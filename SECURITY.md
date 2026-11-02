@@ -4,7 +4,8 @@
 
 | Version | Supported |
 |:--- |:---: |
-| 1.x (current) | ✅ |
+| 2.x (current) | ✅ |
+| 1.x | ✅ security fixes only |
 | < 1.0 | ❌ |
 
 ---
@@ -48,7 +49,7 @@ prefer to remain anonymous.
 
 ### Network
 - FFmpeg calls use `-nostdin` to prevent interactive prompts from blocking.
-- All outbound HTTP calls (Pollinations, YouTube, Telegram, search APIs) use
+- All outbound HTTP calls (Pollinations, search APIs, webhook endpoints) use
   Node.js `https` with explicit timeouts and no silent redirects beyond 5 hops.
 
 ### Cloudflare Workers
@@ -60,10 +61,11 @@ prefer to remain anonymous.
 
 ## Known Limitations
 
-- YouTube OAuth2 refresh tokens are long-lived. Rotate them if you suspect
-  compromise by revoking access at <https://myaccount.google.com/permissions>.
 - The LLM fallback in `FactChecker._querySources()` produces synthesized
   sources when no `SEARCH_API_KEY` is set. These are not real citations and
   should not be presented as authoritative without a real search provider.
-- `POLLINATIONS_MODEL` and Pollinations.ai requests are unauthenticated — do
-  not include private/sensitive content in image prompts.
+- Pollinations.ai image requests are unauthenticated — do not include
+  private or sensitive content in image prompts.
+- `PUBLISH_WEBHOOK_URL` and `REVIEW_NOTIFY_URL` receivers are trusted
+  endpoints; ensure they are authenticated on your side before deploying
+  to production.

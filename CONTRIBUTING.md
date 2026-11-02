@@ -75,7 +75,7 @@ change needs more explanation.
 2. Export it from the factory function (`createLLMProvider` / `createTTSProvider` /
    `createImageProvider`).
 3. Add the env var to [`docs/env.template`](docs/env.template).
-4. Document it in [`AGENT.md`](AGENT.md) Section 4 and in [`README.md`](README.md).
+4. Document it in [`README.md`](README.md) and [`docs/user-guide.md`](docs/user-guide.md).
 5. Run `node scripts/deep-validate.js` — all checks must pass.
 
 ---

@@ -1,6 +1,6 @@
-# Deployment Guide — Task #36
+# Deployment Guide
 
-How to run the full autonomous video pipeline on a Raspberry Pi, Linux server, or Docker container alongside n8n.
+How to run FrameForge on a Raspberry Pi, Linux server, Render free tier, or Docker container.
 
 ---
 
@@ -9,8 +9,7 @@ How to run the full autonomous video pipeline on a Raspberry Pi, Linux server, o
 ```
                     ┌─────────────────────────────────┐
   IDE (Bob/Cursor)  │  MCP Server  :3210              │
-  n8n Code nodes ──▶│  Worker API  :3211              │ ← this machine
-                    │  n8n         :5678              │
+  Any HTTP caller ──▶  Worker API  :3211              │ ← this machine
                     │  PostgreSQL  :5432 (optional)   │
                     └─────────────────────────────────┘
 ```
@@ -23,9 +22,8 @@ How to run the full autonomous video pipeline on a Raspberry Pi, Linux server, o
 |------|---------|---------|
 | Node.js | ≥ 18 | `nvm install 18` |
 | FFmpeg | ≥ 5.0 | `apt install ffmpeg` |
-| edge-tts | any | `npm install -g edge-tts` |
+| edge-tts | any | `pip install edge-tts` |
 | curl | ≥ 7.68 | pre-installed on most Linux |
-| n8n | ≥ 1.x | `npm install -g n8n` (optional) |
 
 ---
 

@@ -1,5 +1,5 @@
 {
-  "_comment": "MCP configuration for FrameForge — Claude Code, Cursor, Windsurf, Kiro IDE, and IBM Bob.",
+  "_comment": "MCP configuration for FrameForge — Claude Code, Cursor, Windsurf, Codex, opencode, and IBM Bob.",
   "_modes": {
     "stdio":  "ZERO-PORT STDIO: Recommended for Cursor & Claude Code. Spawns node process directly via stdin/stdout.",
     "local":  "HTTP SERVER: Runs local server on port 3210. Good for web apps or multi-client sharing.",
