@@ -4,6 +4,27 @@ All notable changes to FrameForge are documented here.
 
 ---
 
+## [2.0.1] — 2026-11-02
+
+### Security
+
+- **Timing-safe token comparison** — `cloudflare-mcp` and `server-render-free.js` both used plain `===` to compare auth tokens. Replaced with `crypto.subtle.timingSafeEqual` (Worker) and `crypto.timingSafeEqual` (Node) to eliminate token-oracle timing attacks.
+- **Request body size limits** — All three HTTP servers (`server.js`, `server-render-free.js`, `src/mcp-server/server.js`) now reject bodies > 4 MB with HTTP 413, preventing OOM from oversized payloads.
+- **Path traversal guards** — `edit_scenes` and `render_from_scenes` now reject any `productionId` containing `/` or `\`. `multi_voice_tts` now validates `outputPath` is inside `FILES_DIR`.
+- **`multi_voice_tts` env-mutation race fixed** — The tool previously mutated `process.env` and restored it in `finally`, which was a race condition under concurrent MCP calls. `TTSProvider` now accepts per-call constructor options `{platform, voice, rate, apiKey, webhookUrl}` that override `process.env` without mutation. All `_edgeTTS`/`_elevenLabs`/`_azureTTS`/`_openaiTTS`/`_customTTS` methods read `this._overrides` first.
+- **Startup warnings** — Both `server.js` and `server-render-free.js` now print a `WARNING` on startup when `MCP_AUTH_TOKEN` / `INTERNAL_API_TOKEN` is not set.
+- **Health endpoint hardened** — `src/mcp-server/server.js` health check no longer leaks the full tool list.
+
+### Fixed
+
+- **Stale `youtubeTitle` field names** — `runFullPipeline` in both `server-render-free.js` and `src/worker/server.js` was passing `scr.youtubeTitle` / `scr.youtubeDescription` / `scr.youtubeTags` to `runPackaging`. Script schema v2.0.0 renamed these fields to `title` / `description` / `tags`. The pipeline now uses the correct names.
+- **Cloudflare Worker tool list was stale** — `cloudflare-mcp/src/index.js` only advertised 6 tools. All 13 tools are now exposed (`ingest_media`, `edit_scenes`, `render_from_scenes`, `external_platform_call`, `create_video_from_script`, `multi_voice_tts`, `n8n_webhook_trigger` added).
+- **`write_script` description updated** — Removed "55-scene" and "educational comedy" from the tool description (stale since v2.0.0).
+- **Cloudflare Worker `serverInfo.version` updated** to `2.0.0` (was `1.1.0`).
+- **`SERVER_INFO.version` in `server.js`** updated to `2.0.0` (was `1.0.0`).
+
+---
+
 ## [2.0.0] — 2026-11-02
 
 ### Breaking Changes
