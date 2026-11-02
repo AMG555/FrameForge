@@ -13,7 +13,7 @@
 [![Tests](https://img.shields.io/badge/tests-439%20passing-brightgreen.svg)](#-testing)
 [![FFmpeg](https://img.shields.io/badge/engine-FFmpeg%20native-red.svg)](https://ffmpeg.org/)
 
-[Quickstart](#-60-second-quickstart) · [Connect Your IDE](#-connect-your-ide) · [14 MCP Tools](#-mcp-tools-reference) · [HTML Renderer](#-html-renderer) · [Architecture](#-architecture) · [Deploy](#-deployment)
+[Quickstart](#-60-second-quickstart) · [Connect Your IDE](#-connect-your-ide) · [14 MCP Tools](#-mcp-tools-reference) · [HTML Renderer](#-html-renderer) · [Architecture](#-architecture) · [Deploy](#-deployment) · [User Guide](docs/user-guide.md)
 
 ---
 
@@ -413,8 +413,8 @@ sudo journalctl -fu   frameforge
 | `npm run start:worker` | Background queue worker |
 | `npm run start:worker:render` | Render-optimised worker (api_only mode) |
 | `npm run start:local-render` | Local full-render worker (RENDER_MODE=full) |
-| `npm run validate` | Deep structural validation (113 checks) |
-| `npm test` | Unit test suite (375 tests, 80 suites) |
+| `npm run validate` | Deep structural validation |
+| `npm test` | Unit test suite (439 tests, 93 suites) |
 
 **`npm run make` flags:**
 
@@ -433,7 +433,7 @@ npm run make -- \
 
 ## Testing
 
-375 tests across 16 modules — run with:
+439 tests across 18 modules — run with:
 
 ```bash
 npm test
@@ -457,6 +457,8 @@ npm test
 | `mixer` | 14 | detectPauses, mixWithDucking, mixVideo error handling |
 | `renderer` | 23 | captionFilter, discoverScenes, findMusicFile, renderScene errors |
 | `checker` | 27 | claim normalization, risk classification, gate pass logic, cache |
+| `engine` | 36 | lerp, easeIn/Out/InOut, spring (underdamped/overdamped), faceAt layouts, stagger |
+| `integration` | 22 | Stage A→E pipeline data flow dry-run, caption filter, assembleMain guard |
 
 ---
 
@@ -478,8 +480,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide.
 
 Quick checklist:
 1. `npm run doctor` passes on your OS
-2. `npm test` passes (375/375)
-3. `npm run validate` passes (113/113 checks)
+2. `npm test` passes (439/439)
+3. `npm run validate` passes (all checks)
 4. FFmpeg commands keep `-nostdin` and cross-platform font paths
 5. Commit messages: plain imperative sentences — no `feat:`/`fix:` prefixes
 
