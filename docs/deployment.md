@@ -91,15 +91,18 @@ curl -s http://127.0.0.1:3211/jobs/<jobId> | python3 -m json.tool
 
 ---
 
-## Step 4 — (Optional) Import n8n workflow
+## Step 4 — (Optional) Trigger via n8n
 
-1. Open n8n at `http://localhost:5678`
-2. Import → Upload file → select `workflow.json`
-3. Set n8n environment variables in n8n Settings → Variables:
-   - `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `TELEGRAM_API_BASE`
-   - `GEMINI_API_KEY`, `GROQ_API_KEY`
-4. Configure the `Header Auth account` credential with your Groq API key
-5. Activate the workflow
+FrameForge exposes an `n8n_webhook_trigger` MCP tool. Call it from your IDE agent
+and it POSTs to any n8n webhook URL — no workflow import required.
+
+Set the webhook URL in your `.env`:
+
+```env
+N8N_WEBHOOK_URL=http://localhost:5678/webhook/your-webhook-id
+```
+
+Then from your IDE: `n8n_webhook_trigger({ topic: "How GPS works" })`
 
 ---
 

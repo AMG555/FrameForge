@@ -43,9 +43,8 @@ IDE Agent (IBM Bob / Codex / opencode / Cursor / Windsurf / Claude Code)
     │  TTS provider:   PROVIDER_TTS=edge-tts|elevenlabs|azure|openai|webhook
     │  Image provider: PROVIDER_IMAGE=pollinations|falai|replicate|dalle|webhook
     │
-    ▼  Optional: n8n workflow orchestration
-       workflow.json            — full pipeline (import into n8n)
-       daily-video-workflow.json — simpler variant
+    ▼  Optional: n8n webhook trigger
+       n8n_webhook_trigger MCP tool → POST to any n8n webhook URL
 ```
 
 All secrets come from environment variables — **never** hardcoded.
@@ -256,7 +255,5 @@ src/fact-checker/checker.js       Claim risk classification + evidence gates
 src/video-renderer/renderer.js    Scene render + master assembly
 src/worker/server-render-free.js  Render-optimised worker API (Render free)
 src/worker/server.js              Full worker API
-workflow.json                     n8n full pipeline (optional)
-daily-video-workflow.json         n8n simpler variant (optional)
 docs/env.template                 Environment variable reference
 ```
