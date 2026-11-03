@@ -5,28 +5,28 @@
     "local":  "HTTP SERVER: Runs local server on port 3210. Good for web apps or multi-client sharing.",
     "remote": "CLOUDFLARE REMOTE MCP: Connects via edge URL. Saves ~80% prompt context tokens in your IDE."
   },
+  "_paths": {
+    "agent-first": "Path 1 — your IDE writes scenes, FrameForge renders. Only TTS + image keys needed. No LLM key.",
+    "auto-research": "Path 2 — FrameForge researches and scripts autonomously. Requires PROVIDER_LLM + its key."
+  },
 
   "mcpServers": {
 
     "frameforge": {
-      "_comment": "RECOMMENDED LOCAL: Stdio mode (zero port conflicts).",
+      "_comment": "RECOMMENDED — Path 1 agent-first (no LLM key). Add PROVIDER_LLM + key only for research_topic/write_script/queue_full_pipeline.",
       "command": "node",
       "args": ["src/mcp-server/stdio.js"],
       "env": {
-        "PROVIDER_LLM":   "groq",
-        "GROQ_API_KEY":   "${GROQ_API_KEY}",
         "PROVIDER_TTS":   "edge-tts",
         "PROVIDER_IMAGE": "pollinations"
       }
     },
 
     "frameforge-http": {
-      "_comment": "LOCAL HTTP: Listens on port 3210.",
+      "_comment": "LOCAL HTTP on port 3210 — same Path 1 defaults. Add LLM vars only for auto-research path.",
       "command": "node",
       "args": ["src/mcp-server/server.js"],
       "env": {
-        "PROVIDER_LLM":   "groq",
-        "GROQ_API_KEY":   "${GROQ_API_KEY}",
         "PROVIDER_TTS":   "edge-tts",
         "PROVIDER_IMAGE": "pollinations",
         "MCP_PORT":       "3210"

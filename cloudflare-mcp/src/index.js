@@ -32,9 +32,11 @@
  * Deploy:
  *   cd cloudflare-mcp
  *   npm install
- *   wrangler secret put WORKER_API_URL   # https://your-render-app.onrender.com
- *   wrangler secret put MCP_AUTH_TOKEN   # random 32-byte hex for auth
- *   wrangler secret put GROQ_API_KEY
+ *   wrangler secret put WORKER_API_URL      # https://your-render-app.onrender.com
+ *   wrangler secret put MCP_AUTH_TOKEN      # random 32-byte hex for auth
+ *   wrangler secret put INTERNAL_API_TOKEN  # shared with Render API worker
+ *   # Only needed for auto-research path (research_topic/write_script/queue_full_pipeline):
+ *   # wrangler secret put GROQ_API_KEY
  *   wrangler deploy
  *
  * IDE config (IBM Bob ~/.bob/mcp.json):
