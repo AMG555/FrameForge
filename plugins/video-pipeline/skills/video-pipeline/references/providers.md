@@ -106,17 +106,16 @@ OPENAI_API_KEY=sk-...
 
 ## Delivery
 
-### Telegram
+### Webhook
 ```bash
-TELEGRAM_BOT_TOKEN=...        # from @BotFather
-TELEGRAM_CHAT_ID=...          # your personal or channel chat ID
-TELEGRAM_API_BASE=https://api.telegram.org   # or local proxy
+PUBLISH_WEBHOOK_URL=https://your-receiver.example.com/webhook
+REVIEW_NOTIFY_URL=https://your-receiver.example.com/review
 ```
 
-### n8n
+### Local File (default)
 ```bash
-N8N_WEBHOOK_URL=http://localhost:5678
-N8N_API_KEY=...               # if n8n auth is enabled
+# Copies master and shorts to output folder
+# No external credentials needed
 ```
 
 ---

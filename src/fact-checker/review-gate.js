@@ -84,7 +84,7 @@ class FactCheckerReviewGate {
       return { allApproved: true, autoApproved, needsReview, rejected, decision: 'AUTO_APPROVE' };
     }
 
-    // Some claims need review — send Telegram notification and wait
+    // Some claims need review — send review notification and wait
     if (this.stateMachine && productionId) {
       await this.stateMachine.waitReview(productionId).catch(() => {});
     }
@@ -132,7 +132,7 @@ class FactCheckerReviewGate {
 
   /**
    * Record a human review decision for a claim.
-   * Called by the Telegram webhook handler when reviewer responds.
+   * Called by the review webhook handler when reviewer responds.
    *
    * @param {{ claimHash: string, decision: 'APPROVE'|'REJECT', reviewer: string, productionId: string }} opts
    */
@@ -151,7 +151,7 @@ class FactCheckerReviewGate {
 
   /**
    * Generate a formatted review summary for a list of flagged claims.
-   * Returns a plain-text string suitable for Telegram messages.
+   * Returns a plain-text string suitable for review notifications.
    *
    * @param {object[]} claims
    * @param {string}   productionId

@@ -155,8 +155,13 @@ export function seek(t) {
   if (_captionData) _tickCaptions(t);
 }
 
-// Expose globally for the virtual-clock renderer
-window.seek = seek;
+// Expose globally for the virtual-clock renderer.
+// Also set window.__seek and window.renderFrame so that the virtual-clock
+// shim (injected as an initScript before the module loads) delegates to the
+// engine's seek() regardless of which alias the render script calls.
+window.seek       = seek;
+window.__seek     = (t) => seek(t);   // render.mjs calls __seek(t)
+window.renderFrame = (t) => seek(t);  // virtual-clock.js's seek() calls renderFrame
 
 // ── Math utilities ────────────────────────────────────────────────────────────
 

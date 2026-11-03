@@ -23,9 +23,10 @@ services:
         value: edge-tts
       - key: PROVIDER_IMAGE
         value: pollinations
-      - key: TELEGRAM_BOT_TOKEN
+      # Delivery webhook (optional):
+      - key: PUBLISH_WEBHOOK_URL
         sync: false
-      - key: TELEGRAM_CHAT_ID
+      - key: REVIEW_NOTIFY_URL
         sync: false
       # Point to your local machine / Pi for FFmpeg rendering:
       - key: LOCAL_RENDER_URL

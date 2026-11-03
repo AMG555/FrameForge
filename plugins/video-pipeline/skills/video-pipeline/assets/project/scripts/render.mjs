@@ -170,6 +170,8 @@ function getChromiumLaunchArgs() {
     '--disable-checker-imaging',
     '--enable-webgl',
     '--ignore-gpu-blocklist',
+    '--allow-file-access-from-files',
+    '--disable-web-security',
     isMac ? '--use-gl=angle' : '--use-gl=angle',
     isMac ? '--use-angle=metal' : '--use-angle=default',
   ];
