@@ -20,6 +20,7 @@
     "start:worker:render":  "node src/worker/server-render-free.js",
     "start:worker:local":   "cross-env RENDER_MODE=full node src/worker/server-render-free.js",
     "start:local-render":   "cross-env RENDER_MODE=full WORKER_PORT=3211 node src/worker/server-render-free.js",
+    "db:migrate":           "node scripts/db-migrate.js",
     "validate":             "node scripts/deep-validate.js",
     "test":                 "node --test src/pipeline/retry-policy.test.js src/pipeline/telemetry.test.js src/pipeline/artifact-manifest.test.js src/pipeline/artifact-retention.test.js src/pipeline/external-adapter.test.js src/workflows/script.test.js src/animation/animation-system.test.js src/fact-checker/review-gate.test.js src/fact-checker/checker.test.js src/utils/log-redaction.test.js src/worker/server-render-free.test.js src/mcp-server/server.test.js src/quality-gate/gate.test.js src/shorts-extractor/extractor.test.js src/audio-mixer/mixer.test.js src/video-renderer/renderer.test.js plugins/video-pipeline/skills/video-pipeline/assets/project/reel/engine.test.js src/integration.test.js",
     "lint":                 "echo 'No linter configured — add eslint for production'",
@@ -33,7 +34,7 @@
   },
   "dependencies": {},
   "devDependencies": {},
-  "keywords": ["frameforge", "video", "ai", "mcp", "cloudflare", "n8n", "automation", "ibm-bob", "cursor", "windsurf", "codex", "opencode"],
+  "keywords": ["frameforge", "video", "ai", "mcp", "cloudflare", "automation", "ibm-bob", "cursor", "windsurf", "codex", "opencode"],
   "license": "MIT",
   "repository": {
     "type": "git",
