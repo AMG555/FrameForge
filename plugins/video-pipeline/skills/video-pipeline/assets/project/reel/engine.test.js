@@ -83,6 +83,60 @@ function stagger(t, dt, elements) {
   return result;
 }
 
+// hash helper (pure deterministic PRNG)
+function hash(i) {
+  let x = Math.sin(i + 1) * 43758.5453123;
+  return x - Math.floor(x);
+}
+
+// cuePhrase pure matching logic
+function cuePhrasePure(captionData, targetPhrase, offset = 0) {
+  if (!captionData || !Array.isArray(captionData) || captionData.length === 0) {
+    throw new Error(`FATAL SYNC ERROR: Cannot cue "${targetPhrase}" — no captions loaded yet!`);
+  }
+  const targetWords = targetPhrase.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  if (targetWords.length === 0) return offset;
+
+  const tokens = [];
+  for (const seg of captionData) {
+    if (Array.isArray(seg.words)) {
+      for (const w of seg.words) {
+        tokens.push({
+          word: (w.word || w.text || '').toLowerCase().replace(/[^a-z0-9]/g, ''),
+          start: w.start !== undefined ? w.start : seg.start,
+          end: w.end !== undefined ? w.end : seg.end
+        });
+      }
+    } else {
+      const segWords = (seg.text || '').trim().split(/\s+/).filter(Boolean);
+      const segDur = Math.max(0.1, (seg.end - seg.start) || 1);
+      const wordDur = segDur / Math.max(1, segWords.length);
+      for (let i = 0; i < segWords.length; i++) {
+        tokens.push({
+          word: segWords[i].toLowerCase().replace(/[^a-z0-9]/g, ''),
+          start: seg.start + i * wordDur,
+          end: seg.start + (i + 1) * wordDur
+        });
+      }
+    }
+  }
+
+  for (let i = 0; i <= tokens.length - targetWords.length; i++) {
+    let match = true;
+    for (let j = 0; j < targetWords.length; j++) {
+      if (tokens[i + j].word !== targetWords[j]) {
+        match = false;
+        break;
+      }
+    }
+    if (match) {
+      return tokens[i].start + offset;
+    }
+  }
+
+  throw new Error(`FATAL SYNC ERROR: Phrase "${targetPhrase}" not found in captions track!`);
+}
+
 // ── lerp ─────────────────────────────────────────────────────────────────────
 
 describe('lerp', () => {
@@ -209,5 +263,57 @@ describe('stagger', () => {
     const result = stagger(3, 0, ['x', 'y']);
     assert.equal(result[0].t, 3);
     assert.equal(result[1].t, 3);
+  });
+});
+
+// ── hash deterministic PRNG ───────────────────────────────────────────────────
+
+describe('hash', () => {
+  it('returns value between 0 and 1', () => {
+    for (let i = 0; i < 50; i++) {
+      const v = hash(i);
+      assert.ok(v >= 0 && v < 1, `expected 0<=v<1, got ${v}`);
+    }
+  });
+
+  it('is completely deterministic for identical inputs', () => {
+    assert.equal(hash(42), hash(42));
+    assert.equal(hash(100), hash(100));
+  });
+
+  it('12 fps boil wobble steps at 1/12s interval', () => {
+    const t0 = 0.01;
+    const t1 = 0.05; // same 12 fps bucket (0)
+    const t2 = 0.10; // next 12 fps bucket (1)
+    const b0 = Math.floor(t0 * 12);
+    const b1 = Math.floor(t1 * 12);
+    const b2 = Math.floor(t2 * 12);
+    assert.equal(hash(b0), hash(b1));
+    assert.notEqual(hash(b0), hash(b2));
+  });
+});
+
+// ── cuePhrase caption synchronization ─────────────────────────────────────────
+
+describe('cuePhrase', () => {
+  const captionsSample = [
+    { start: 0.0, end: 1.5, text: 'welcome to the demonstration' },
+    { start: 1.5, end: 3.0, text: 'neural network architecture' }
+  ];
+
+  it('finds start of phrase in caption track', () => {
+    const t = cuePhrasePure(captionsSample, 'neural network');
+    assert.equal(t, 1.5);
+  });
+
+  it('applies offset accurately', () => {
+    const t = cuePhrasePure(captionsSample, 'neural network', 0.25);
+    assert.equal(t, 1.75);
+  });
+
+  it('throws fatal error if phrase does not exist', () => {
+    assert.throws(() => {
+      cuePhrasePure(captionsSample, 'quantum computer');
+    }, /FATAL SYNC ERROR/);
   });
 });

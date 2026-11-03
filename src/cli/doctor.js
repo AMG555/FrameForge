@@ -52,7 +52,7 @@ if (major >= 18) {
 }
 
 // 2. FFmpeg
-const ffmpeg = spawnSync('ffmpeg', ['-version'], { encoding: 'utf8' });
+const ffmpeg = spawnSync('ffmpeg', ['-version'], { encoding: 'utf8', timeout: 5000, shell: process.platform === 'win32' });
 if (ffmpeg.status === 0) {
   const firstLine = (ffmpeg.stdout || '').split('\n')[0] || '';
   pass('FFmpeg', firstLine.slice(0, 45));
@@ -62,7 +62,7 @@ if (ffmpeg.status === 0) {
 }
 
 // 3. FFprobe
-const ffprobe = spawnSync('ffprobe', ['-version'], { encoding: 'utf8' });
+const ffprobe = spawnSync('ffprobe', ['-version'], { encoding: 'utf8', timeout: 5000, shell: process.platform === 'win32' });
 if (ffprobe.status === 0) {
   const firstLine = (ffprobe.stdout || '').split('\n')[0] || '';
   pass('FFprobe', firstLine.slice(0, 45));
@@ -72,7 +72,7 @@ if (ffprobe.status === 0) {
 }
 
 // 4. Voice Engine (edge-tts or Cloud API)
-const edgeTts = spawnSync('edge-tts', ['--version'], { encoding: 'utf8' });
+const edgeTts = spawnSync('edge-tts', ['--version'], { encoding: 'utf8', timeout: 5000, shell: process.platform === 'win32' });
 const hasCloudTts = Boolean(process.env.ELEVENLABS_API_KEY || process.env.AZURE_SPEECH_KEY || process.env.OPENAI_API_KEY || process.env.CUSTOM_TTS_URL);
 
 if (edgeTts.status === 0) {

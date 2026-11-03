@@ -94,6 +94,10 @@ const indexHtml = `<!DOCTYPE html>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${escapeHtml(title)}</title>
+  <!-- Preload primary typeface — must resolve before frame 0 (fonts.ready gate) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="reel/engine.css">
   <style>
     /* Project-level overrides — edit here */
@@ -101,6 +105,7 @@ const indexHtml = `<!DOCTYPE html>
       --primary: #ffffff;
       --accent:  #3b82f6;
       --bg:      #0d1117;
+      --font:    'Archivo', system-ui, sans-serif;
     }
   </style>
 </head>
@@ -208,12 +213,23 @@ function copyAsset(srcRel, dstRel) {
 
 copyAsset('reel/engine.js',           'reel/engine.js');
 copyAsset('reel/engine.css',          'reel/engine.css');
+copyAsset('reel/virtual-clock.js',    'reel/virtual-clock.js');
 copyAsset('scripts/render.mjs',       'scripts/render.mjs');
+copyAsset('scripts/look.mjs',         'scripts/look.mjs');
+copyAsset('scripts/storyboard-validator.mjs', 'scripts/storyboard-validator.mjs');
 copyAsset('scripts/mix_audio.py',     'scripts/mix_audio.py');
 copyAsset('scripts/verify.py',        'scripts/verify.py');
 copyAsset('scripts/transcribe.py',    'scripts/transcribe.py');
 copyAsset('scripts/capture.mjs',      'scripts/capture.mjs');
 copyAsset('scripts/stock.py',         'scripts/stock.py');
+copyAsset('scripts/video_job.py',     'scripts/video_job.py');
+copyAsset('STORYBOARD.md',            'STORYBOARD.md');
+copyAsset('ANIMATION_GUIDE.md',       'ANIMATION_GUIDE.md');
+
+// Pipeline briefings (on-disk agent rules for orchestrator + subagents)
+for (const briefing of ['orchestrator.md', 'scene-author.md', 'diagram-author.md']) {
+  copyAsset(`pipeline/briefings/${briefing}`, `pipeline/briefings/${briefing}`);
+}
 
 // ── Write package.json for the project ───────────────────────────────────────
 
@@ -222,15 +238,26 @@ const pkg = {
   version: '0.1.0',
   type:    'module',
   scripts: {
-    'render:sheet':  'node scripts/render.mjs sheet',
-    'render:full':   'node scripts/render.mjs full',
-    'render:mux':    'node scripts/render.mjs mux',
-    'mix':           'uv run scripts/mix_audio.py',
-    'transcribe':    'uv run scripts/transcribe.py',
-    'verify':        'uv run scripts/verify.py',
-    'capture':       'node scripts/capture.mjs',
-    'stock':         'uv run scripts/stock.py',
+    'look':                'node scripts/look.mjs',
+    'validate:storyboard': 'node scripts/storyboard-validator.mjs STORYBOARD.md',
+    'render:sheet':        'node scripts/render.mjs sheet',
+    'render:storyboard':   'node scripts/render.mjs storyboard',
+    'render:strip':        'node scripts/render.mjs strip',
+    'render:crop':         'node scripts/render.mjs crop 9:16',
+    'render:full':         'node scripts/render.mjs full',
+    'render:mux':          'node scripts/render.mjs mux',
+    'mix':                 'uv run scripts/mix_audio.py',
+    'transcribe':          'uv run scripts/transcribe.py',
+    'verify':              'uv run scripts/verify.py',
+    'capture':             'node scripts/capture.mjs',
+    'stock':               'uv run scripts/stock.py',
+    'job:submit':          'python scripts/video_job.py submit',
+    'job:status':          'python scripts/video_job.py list',
+    'job:estimate':        'python scripts/video_job.py estimate',
   },
+  dependencies: {
+    'playwright': '^1.40.0'
+  }
 };
 fs.writeFileSync(path.join(outDir, 'package.json'), JSON.stringify(pkg, null, 2), 'utf8');
 
@@ -255,10 +282,8 @@ All animation is in \`edit.js\`. Every style must be a pure function of \`t\` (s
 
 ## Engine
 
-Replace \`reel/engine.js\` stub with the full engine from:
-  https://github.com/sunithvs/video-agent-skill (Apache 2.0)
-
-Then run: \`npx playwright install chromium\`
+The compositor runtime is included at \`reel/engine.js\`.
+To install browser renderer dependencies: \`npx playwright install chromium\`
 
 ## Scene map
 
@@ -278,11 +303,14 @@ console.log(`    Scenes:    ${scenes.length}`);
 console.log(`    Duration:  ${totalDuration.toFixed(1)}s`);
 console.log(`    Title:     "${title}"`);
 console.log(`\nNext steps:`);
-console.log(`  1. Install Playwright:   npx playwright install chromium`);
-console.log(`  2. Check visuals:        node scripts/render.mjs sheet`);
-console.log(`  3. Mix audio (TTS):      uv run scripts/mix_audio.py`);
-console.log(`  4. Full render:          node scripts/render.mjs full`);
-console.log(`  5. Verify quality gates: uv run scripts/verify.py\n`);
+console.log(`  1. Install Playwright:      npx playwright install chromium`);
+console.log(`  2. Edit STORYBOARD.md:      fill in shots, events, reads, transitions`);
+console.log(`  3. Validate storyboard:     node scripts/storyboard-validator.mjs STORYBOARD.md`);
+console.log(`  4. Pre-flight check:        node scripts/look.mjs`);
+console.log(`  5. Check visuals:           node scripts/render.mjs sheet`);
+console.log(`  6. Mix audio (TTS):         uv run scripts/mix_audio.py`);
+console.log(`  7. Full render:             node scripts/render.mjs full`);
+console.log(`  8. Verify quality gates:    uv run scripts/verify.py\n`);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

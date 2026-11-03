@@ -1,228 +1,235 @@
 #!/usr/bin/env python3
 """
-scripts/stock.py — Stock footage and image downloader for FrameForge HTML renderer
+stock.py — Pexels stock footage/image downloader for FrameForge HTML renderer.
 
-Downloads royalty-free stock media from Pexels (free API) for use as b-roll
-or background footage in HTML compositor projects.
+Downloads free stock footage or images from Pexels and saves them to assets/.
+Falls back to Pollinations AI image generation (no API key) for images when
+no Pexels API key is configured.
 
 Usage:
-  uv run scripts/stock.py video "ancient cooking fire"
-  uv run scripts/stock.py video "city skyline timelapse" --portrait
-  uv run scripts/stock.py image "forest foggy morning"
-  uv run scripts/stock.py image "code screen dark" --count 3
-  python scripts/stock.py video "space nebula"
+  uv run scripts/stock.py video "ancient cooking fire"      # download video
+  uv run scripts/stock.py image "satellite orbiting earth"  # download image
+  uv run scripts/stock.py video "ocean waves" --portrait    # vertical video
+  uv run scripts/stock.py image "neural network" --ai       # force AI generation
 
-  # Limit to specific resolution
-  uv run scripts/stock.py video "ocean waves" --hd
+Environment:
+  PEXELS_API_KEY   — optional; get free at https://www.pexels.com/api/
+                     Without it, video falls back to search stub; image uses Pollinations.
 
 Output:
-  assets/stock_<query_slug>_1.mp4  (video)
-  assets/stock_<query_slug>_1.jpg  (image)
-
-Requirements:
-  pip install requests  (usually pre-installed with uv)
-  PEXELS_API_KEY in .env or PEXELS_API_KEY env var
-    → Free key: https://www.pexels.com/api/  (no credit card required)
-
-If no API key is present, falls back to Pollinations AI image generation
-(always free, no account) for images, and skips video download with a warning.
+  assets/<slug>.mp4 or assets/<slug>.jpg
 """
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#   "requests>=2.28",
+# ]
+# ///
 
 import sys
 import os
 import re
-import argparse
 import json
+import time
+import pathlib
+import argparse
+import hashlib
 import urllib.request
 import urllib.parse
 import urllib.error
 
+# ── Config ────────────────────────────────────────────────────────────────────
 
-def slugify(text):
-    return re.sub(r"[^a-z0-9]+", "_", text.lower()).strip("_")[:40]
+ROOT       = pathlib.Path(__file__).parent.parent
+ASSETS_DIR = ROOT / "assets"
 
+PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY", "")
+PEXELS_VIDEO_URL = "https://api.pexels.com/videos/search"
+PEXELS_IMAGE_URL = "https://api.pexels.com/v1/search"
+POLLINATIONS_URL = "https://image.pollinations.ai/prompt/{prompt}?width={w}&height={h}&nologo=true&seed={seed}"
 
-def load_env(root):
-    """Load PEXELS_API_KEY from .env in the FrameForge root."""
-    env_file = os.path.join(root, ".env")
-    if not os.path.exists(env_file):
-        return
-    with open(env_file, encoding="utf-8") as f:
-        for line in f:
-            stripped = line.strip()
-            if not stripped or stripped.startswith("#"):
-                continue
-            eq = stripped.find("=")
-            if eq < 1:
-                continue
-            key = stripped[:eq].strip()
-            val = stripped[eq + 1:].strip().strip("\"'")
-            if key and val and key not in os.environ:
-                os.environ[key] = val
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def slugify(text: str) -> str:
+    return re.sub(r'[^a-z0-9]+', '-', text.lower()).strip('-')[:40]
 
 
-def pexels_search_video(query, orientation="landscape", count=1, hd=False):
-    """Search Pexels for videos. Returns list of download URLs."""
-    api_key = os.environ.get("PEXELS_API_KEY", "")
-    if not api_key:
-        return []
-
-    params = urllib.parse.urlencode({
-        "query":       query,
-        "orientation": orientation,
-        "size":        "large" if hd else "medium",
-        "per_page":    count,
-    })
-    url = f"https://api.pexels.com/videos/search?{params}"
-    req = urllib.request.Request(url, headers={"Authorization": api_key})
+def download(url: str, dest: pathlib.Path, label: str = "") -> bool:
+    """Download a URL to dest. Returns True on success."""
+    ASSETS_DIR.mkdir(parents=True, exist_ok=True)
+    headers = {"User-Agent": "FrameForgeBot/1.0"}
+    req = urllib.request.Request(url, headers=headers)
     try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-    except urllib.error.URLError as e:
-        print(f"[stock] Pexels API error: {e}", file=sys.stderr)
-        return []
-
-    results = []
-    for video in data.get("videos", [])[:count]:
-        files = video.get("video_files", [])
-        # Pick the best quality file that isn't too huge (prefer 1080p or 720p)
-        ranked = sorted(
-            [f for f in files if f.get("file_type") == "video/mp4"],
-            key=lambda f: abs(f.get("height", 0) - (1080 if hd else 720)),
-        )
-        if ranked:
-            results.append(ranked[0]["link"])
-    return results
-
-
-def pexels_search_image(query, orientation="landscape", count=1, hd=False):
-    """Search Pexels for images. Returns list of download URLs."""
-    api_key = os.environ.get("PEXELS_API_KEY", "")
-    if not api_key:
-        return []
-
-    params = urllib.parse.urlencode({
-        "query":       query,
-        "orientation": orientation,
-        "size":        "large" if hd else "medium",
-        "per_page":    count,
-    })
-    url = f"https://api.pexels.com/v1/search?{params}"
-    req = urllib.request.Request(url, headers={"Authorization": api_key})
-    try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-    except urllib.error.URLError as e:
-        print(f"[stock] Pexels API error: {e}", file=sys.stderr)
-        return []
-
-    return [
-        photo.get("src", {}).get("large2x" if hd else "large", "")
-        for photo in data.get("photos", [])[:count]
-        if photo.get("src")
-    ]
-
-
-def pollinations_image(query, width=1920, height=1080):
-    """Generate an image via Pollinations (free fallback, no API key needed)."""
-    encoded = urllib.parse.quote(query[:500])
-    return f"https://image.pollinations.ai/prompt/{encoded}?width={width}&height={height}&model=flux&nologo=true"
-
-
-def download_file(url, dest_path, label=""):
-    """Download a URL to dest_path with progress reporting."""
-    print(f"[stock] Downloading{' ' + label if label else ''}: {url[:80]}…")
-    try:
-        req = urllib.request.Request(url, headers={"User-Agent": "FrameForge/2.3"})
-        with urllib.request.urlopen(req, timeout=60) as resp, open(dest_path, "wb") as f:
+        with urllib.request.urlopen(req, timeout=60) as resp, open(dest, "wb") as f:
             total = int(resp.headers.get("Content-Length", 0))
-            downloaded = 0
+            done  = 0
             while True:
                 chunk = resp.read(65536)
                 if not chunk:
                     break
                 f.write(chunk)
-                downloaded += len(chunk)
+                done += len(chunk)
                 if total > 0:
-                    pct = downloaded / total * 100
-                    sys.stdout.write(f"\r  {pct:.0f}% ({downloaded // 1024} KB)")
-                    sys.stdout.flush()
-        sys.stdout.write("\n")
+                    pct = done * 100 // total
+                    print(f"\r  {label}: {pct}%", end="", flush=True)
+        print(f"\r  {label}: done ({done//1024}KB)" + " " * 10)
         return True
     except Exception as e:
-        print(f"\n[stock] Download failed: {e}", file=sys.stderr)
-        if os.path.exists(dest_path):
-            os.unlink(dest_path)
+        print(f"\n  ⚠  Download failed: {e}")
         return False
 
 
+def pexels_request(url: str, params: dict) -> dict:
+    """Make a Pexels API request."""
+    qs     = urllib.parse.urlencode(params)
+    full   = f"{url}?{qs}"
+    req    = urllib.request.Request(full, headers={"Authorization": PEXELS_API_KEY})
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        return json.loads(resp.read().decode())
+
+
+# ── Video download ────────────────────────────────────────────────────────────
+
+def download_video(query: str, portrait: bool = False, page: int = 1) -> bool:
+    slug     = slugify(query)
+    out_path = ASSETS_DIR / f"{slug}.mp4"
+
+    print(f"[stock] Searching Pexels videos: '{query}'")
+
+    if not PEXELS_API_KEY:
+        print("[stock] No PEXELS_API_KEY set.")
+        print("  Get a free key at: https://www.pexels.com/api/")
+        print(f"  Then run: PEXELS_API_KEY=<key> uv run scripts/stock.py video '{query}'")
+
+        # Create a placeholder
+        placeholder = {
+            "source": "pexels",
+            "query": query,
+            "note": "Set PEXELS_API_KEY to download real footage",
+        }
+        placeholder_path = ASSETS_DIR / f"{slug}.json"
+        ASSETS_DIR.mkdir(parents=True, exist_ok=True)
+        with open(placeholder_path, "w") as f:
+            json.dump(placeholder, f, indent=2)
+        print(f"  Placeholder: {placeholder_path}")
+        return False
+
+    orientation = "portrait" if portrait else "landscape"
+    data = pexels_request(PEXELS_VIDEO_URL, {
+        "query":       query,
+        "per_page":    5,
+        "page":        page,
+        "orientation": orientation,
+        "min_duration": 3,
+        "max_duration": 30,
+    })
+
+    videos = data.get("videos", [])
+    if not videos:
+        print(f"[stock] No videos found for '{query}'")
+        return False
+
+    # Pick the best resolution available (prefer HD/FHD)
+    best_url  = None
+    best_res  = 0
+
+    for video in videos[:3]:
+        for vf in video.get("video_files", []):
+            w = vf.get("width", 0)
+            h = vf.get("height", 0)
+            res = w * h
+            if res > best_res:
+                best_res  = res
+                best_url  = vf.get("link")
+
+    if not best_url:
+        print("[stock] No downloadable video files found")
+        return False
+
+    print(f"[stock] Found: {best_res // (1920 * 1080) or best_res // (1280 * 720) or 1}×  {best_url[:80]}…")
+    ok = download(best_url, out_path, slug)
+    if ok:
+        print(f"[stock] ✅  {out_path}")
+        print(f"         Use in edit.js: at(T, imageCard('assets/{slug}.mp4', {{ width: 1920, height: 1080 }}))")
+    return ok
+
+
+# ── Image download ────────────────────────────────────────────────────────────
+
+def download_image(query: str, portrait: bool = False, force_ai: bool = False, w: int = 1920, h: int = 1080) -> bool:
+    slug     = slugify(query)
+    out_path = ASSETS_DIR / f"{slug}.jpg"
+
+    if portrait:
+        w, h = 1080, 1920
+
+    if force_ai or not PEXELS_API_KEY:
+        return download_ai_image(query, out_path, w, h, slug)
+
+    # Try Pexels first
+    print(f"[stock] Searching Pexels images: '{query}'")
+    try:
+        orientation = "portrait" if portrait else "landscape"
+        data  = pexels_request(PEXELS_IMAGE_URL, {
+            "query":       query,
+            "per_page":    5,
+            "orientation": orientation,
+        })
+        photos = data.get("photos", [])
+        if photos:
+            img_url = photos[0]["src"].get("original") or photos[0]["src"].get("large2x")
+            ok = download(img_url, out_path, slug)
+            if ok:
+                print(f"[stock] ✅  {out_path}")
+                return True
+    except Exception as e:
+        print(f"[stock] Pexels error: {e} — falling back to AI generation")
+
+    return download_ai_image(query, out_path, w, h, slug)
+
+
+def download_ai_image(query: str, out_path: pathlib.Path, w: int, h: int, slug: str) -> bool:
+    """Generate an image via Pollinations (free, no API key)."""
+    print(f"[stock] Generating AI image via Pollinations: '{query}'")
+    seed  = int(hashlib.md5(query.encode()).hexdigest()[:8], 16) % 1000000
+    url   = POLLINATIONS_URL.format(
+        prompt=urllib.parse.quote(query),
+        w=w, h=h, seed=seed,
+    )
+    ok = download(url, out_path, slug)
+    if ok:
+        print(f"[stock] ✅  {out_path}")
+        print(f"         Use in edit.js: at(T, imageCard('assets/{slug}.jpg', {{ width: {w}, height: {h} }}))")
+    return ok
+
+
+# ── Main ──────────────────────────────────────────────────────────────────────
+
 def main():
-    parser = argparse.ArgumentParser(description="Download stock media for FrameForge HTML renderer")
-    parser.add_argument("media_type",  choices=["video", "image"], help="video or image")
-    parser.add_argument("query",       help="Search query, e.g. 'ancient cooking fire'")
-    parser.add_argument("--portrait",  action="store_true", help="Portrait orientation (9:16)")
-    parser.add_argument("--count",     type=int, default=1, help="Number of results (default: 1)")
-    parser.add_argument("--hd",        action="store_true", help="Prefer higher resolution (1080p/large)")
-    parser.add_argument("--out",       default=None, help="Output directory (default: assets/)")
-    args = parser.parse_args()
+    p = argparse.ArgumentParser(description="Download stock footage or images for FrameForge")
+    p.add_argument("type",    choices=["video", "image"], help="Asset type")
+    p.add_argument("query",   help="Search query or image description")
+    p.add_argument("--portrait", action="store_true", help="Portrait/vertical orientation")
+    p.add_argument("--ai",       action="store_true", help="Force AI image generation")
+    p.add_argument("--width",    type=int, default=1920, help="Image width (default 1920)")
+    p.add_argument("--height",   type=int, default=1080, help="Image height (default 1080)")
+    p.add_argument("--page",     type=int, default=1,    help="Pexels results page (default 1)")
+    args = p.parse_args()
 
-    root      = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    load_env(root)
-    out_dir   = args.out or os.path.join(root, "assets")
-    os.makedirs(out_dir, exist_ok=True)
+    ASSETS_DIR.mkdir(parents=True, exist_ok=True)
 
-    orientation = "portrait" if args.portrait else "landscape"
-    slug        = slugify(args.query)
-    api_key     = os.environ.get("PEXELS_API_KEY", "")
-
-    if not api_key:
-        print(
-            "[stock] PEXELS_API_KEY not set. Free key at: https://www.pexels.com/api/\n"
-            "  Add to .env: PEXELS_API_KEY=your_key\n"
+    if args.type == "video":
+        ok = download_video(args.query, portrait=args.portrait, page=args.page)
+    else:
+        ok = download_image(
+            args.query,
+            portrait=args.portrait,
+            force_ai=args.ai,
+            w=args.width,
+            h=args.height,
         )
 
-    # ── Video ─────────────────────────────────────────────────────────────────
-    if args.media_type == "video":
-        urls = pexels_search_video(args.query, orientation, args.count, args.hd)
-        if not urls:
-            print(
-                "[stock] No video results (missing PEXELS_API_KEY or no matches).\n"
-                "  Tip: images are available via Pollinations (free, no key):\n"
-                f"  uv run scripts/stock.py image \"{args.query}\""
-            )
-            sys.exit(1)
-
-        for i, url in enumerate(urls, 1):
-            ext  = ".mp4"
-            dest = os.path.join(out_dir, f"stock_{slug}_{i}{ext}")
-            if download_file(url, dest, f"video {i}/{len(urls)}"):
-                size = os.path.getsize(dest)
-                print(f"[stock] ✅  {dest} ({size // 1024 // 1024:.1f} MB)")
-                print(f"[stock] Use in edit.js:\n  layer('bg').on(t => ({{ position:'absolute', inset:0, background:'url(assets/stock_{slug}_{i}.mp4)', backgroundSize:'cover' }}));")
-
-    # ── Image ─────────────────────────────────────────────────────────────────
-    elif args.media_type == "image":
-        w = 1080 if args.portrait else 1920
-        h = 1920 if args.portrait else 1080
-
-        if api_key:
-            urls = pexels_search_image(args.query, orientation, args.count, args.hd)
-        else:
-            # Pollinations fallback: one image per count
-            urls = [pollinations_image(f"{args.query}, {orientation}", w, h) for _ in range(args.count)]
-            source = "Pollinations (free)"
-            print(f"[stock] Using {source} (no Pexels key) — generating AI image…")
-
-        if not urls:
-            print("[stock] No results found.")
-            sys.exit(1)
-
-        for i, url in enumerate(urls, 1):
-            dest = os.path.join(out_dir, f"stock_{slug}_{i}.jpg")
-            if download_file(url, dest, f"image {i}/{len(urls)}"):
-                size = os.path.getsize(dest)
-                print(f"[stock] ✅  {dest} ({size // 1024:.0f} KB)")
-                print(f"[stock] Use in edit.js:\n  at(T, imageCard('assets/stock_{slug}_{i}.jpg', {{ width: {w}, height: {h} }}));")
+    sys.exit(0 if ok else 1)
 
 
 if __name__ == "__main__":

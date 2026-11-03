@@ -1,70 +1,140 @@
-/* reel/engine.css — Base reset and type scale for HTML compositor */
+/**
+ * engine.css — FrameForge HTML Compositor Base Reset + Design Tokens
+ *
+ * Loaded by index.html before edit.js.
+ * No animation or transition rules — every visual state is driven by engine.js seek(t).
+ */
 
-/* ── Reset ─────────────────────────────────────────────────────────────────── */
+/* ── Design tokens ─────────────────────────────────────────────────────────── */
+
+:root {
+  /* Colours */
+  --bg:        #0d1117;
+  --surface:   #161b22;
+  --border:    rgba(255, 255, 255, 0.08);
+  --primary:   #ffffff;
+  --secondary: rgba(255, 255, 255, 0.6);
+  --accent:    #3b82f6;
+  --accent2:   #7c5cd8;
+  --success:   #22c55e;
+  --warning:   #f59e0b;
+  --danger:    #ef4444;
+
+  /* Typography scale */
+  --font-body:    -apple-system, "Segoe UI", system-ui, sans-serif;
+  --font-mono:    "Fira Code", "Cascadia Code", "Consolas", monospace;
+  --font-display: "Archivo", "Segoe UI", system-ui, sans-serif;
+
+  /* Spacing */
+  --gap-sm:  8px;
+  --gap-md:  16px;
+  --gap-lg:  32px;
+  --gap-xl:  64px;
+
+  /* Safe zones (match FFmpeg drawtext safe area) */
+  --safe-top:    120px;
+  --safe-bottom: 120px;
+  --safe-left:   80px;
+  --safe-right:  80px;
+}
+
+/* ── Full reset ─────────────────────────────────────────────────────────────── */
+
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-body {
+html, body {
+  width:    100%;
+  height:   100%;
   overflow: hidden;
-  background: #0d1117;
-  font-family: "Archivo", "Segoe UI", system-ui, sans-serif;
-  -webkit-font-smoothing: antialiased;
+  background: var(--bg);
 }
+
+body {
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: var(--primary);
+  /* Disable ALL browser animations — seek(t) owns every frame */
+  animation: none !important;
+  transition: none !important;
+}
+
+/* ── Stage ─────────────────────────────────────────────────────────────────── */
 
 #stage {
   position: relative;
   overflow: hidden;
-  /* Size is set inline by the scaffolder to match reel() config */
+  background: var(--bg);
+  /* No transform on the stage itself — Playwright screenshots the viewport */
 }
 
-/* ── Design tokens ─────────────────────────────────────────────────────────── */
-:root {
-  /* Override any of these in index.html <style> */
-  --primary:      #ffffff;
-  --accent:       #3b82f6;
-  --accent-warm:  #f59e0b;
-  --accent-green: #22c55e;
-  --bg:           #0d1117;
-  --surface:      rgba(13, 17, 23, 0.72);
-  --muted:        rgba(255, 255, 255, 0.55);
+/* ── Layer base ─────────────────────────────────────────────────────────────── */
 
-  --font-sans:  "Archivo", "Segoe UI", system-ui, sans-serif;
-  --font-mono:  "Fira Code", "Cascadia Code", Consolas, monospace;
-
-  /* Type scale */
-  --text-xs:    18px;
-  --text-sm:    24px;
-  --text-base:  32px;
-  --text-lg:    48px;
-  --text-xl:    64px;
-  --text-2xl:   80px;
-  --text-hero:  96px;
-}
-
-/* ── Layer defaults ─────────────────────────────────────────────────────────── */
 [data-layer] {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  will-change: opacity, transform;
 }
 
-/* ── Caption baseline ───────────────────────────────────────────────────────── */
-#reel-captions {
-  pointer-events: none;
-  user-select: none;
-  /* JS drives all other properties via seek() */
+/* ── Typography utilities ───────────────────────────────────────────────────── */
+
+.text-display {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.02em;
 }
 
-/* ── Google Fonts load (optional — remove if offline) ──────────────────────── */
-/* Uncomment to load Archivo from Google Fonts: */
-/*
-@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700;800;900&display=swap');
-*/
+.text-body {
+  font-family: var(--font-body);
+  font-weight: 400;
+  line-height: 1.6;
+}
 
-/* ── Scrollbar hide (Playwright screenshots) ───────────────────────────────── */
+.text-mono {
+  font-family: var(--font-mono);
+}
+
+/* ── Utility classes ────────────────────────────────────────────────────────── */
+
+.center-x {
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.center-y {
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.center-xy {
+  top:  50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* ── Image defaults ─────────────────────────────────────────────────────────── */
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+/* ── Scrollbar hide (for overflow containers) ───────────────────────────────── */
+
 ::-webkit-scrollbar { display: none; }
 * { scrollbar-width: none; }
+
+/* ── Font imports — loaded from CDN in index.html; this is a fallback stack ── */
+
+/* Archivo (display) */
+@font-face {
+  font-family: 'Archivo';
+  font-style:  normal;
+  font-weight: 400 900;
+  font-display: block;
+  /* Served by index.html via Google Fonts; this block avoids FOUT in preview */
+}

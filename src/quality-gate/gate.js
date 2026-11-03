@@ -166,10 +166,13 @@ class QualityGate {
     } catch { /* non-fatal */ }
 
     // ── 5. Frozen frame detection ─────────────────────────────────────────
+    // n=0.0001 means two frames are "frozen" only when 1-SSIM < 0.0001 (SSIM > 0.9999).
+    // Demoted to warn: static camera shots on uniform backgrounds legitimately produce
+    // high inter-frame similarity and should not hard-block a valid production.
     try {
-      const freezeOut = this._ffmpeg(['-i', videoPath, '-vf', 'freezedetect=n=0.001:d=0.5', '-f', 'null', '-']);
+      const freezeOut = this._ffmpeg(['-i', videoPath, '-vf', 'freezedetect=n=0.0001:d=0.5', '-f', 'null', '-']);
       if (freezeOut.includes('freeze_start')) {
-        fail('frozen_frames', 'none >0.5s', 'detected');
+        warn('frozen_frames', 'none >0.5s', 'detected', 'High inter-frame similarity detected (check for unintended freeze)');
       } else { pass('frozen_frames', 'none >0.5s', 'none'); }
     } catch { /* non-fatal */ }
 

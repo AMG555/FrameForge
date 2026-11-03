@@ -199,10 +199,16 @@ describe('VideoRenderer._findRandomMusicFile', () => {
 
 describe('VideoRenderer.renderScene — error handling', () => {
   it('throws when neither imagePath nor videoPath is supplied', () => {
+    // When no media is provided the renderer falls back to a solid-colour background
+    // and runs ffmpeg with the supplied voicePath. If that path doesn't exist ffmpeg
+    // exits non-zero → renderer throws the no-image-fallback error.
     const renderer = new VideoRenderer({ filesDir: os.tmpdir() });
     assert.throws(
       () => renderer.renderScene({ sceneIndex: 0, voicePath: '/tmp/__fake_voice.m4a' }),
-      (err) => err instanceof Error && /neither imagePath nor videoPath/.test(err.message)
+      (err) => err instanceof Error && (
+        /neither imagePath nor videoPath/.test(err.message) ||
+        /no-image fallback/.test(err.message)
+      )
     );
   });
 });

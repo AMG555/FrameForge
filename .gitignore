@@ -85,3 +85,14 @@ AGENT.md
 agent.md
 [Aa][Gg][Ee][Nn][Tt].[Mm][Dd]
 
+
+# ── FrameForge video output & working directories ────────────────────────────
+output/
+test-output/
+.frameforge-files/
+# Test / scratch assets generated locally
+test-scene-bg.png
+test-scenes.json
+# Pipeline working directories (written inside any --out-dir)
+video_tmp/
+state/

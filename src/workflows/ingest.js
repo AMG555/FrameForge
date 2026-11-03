@@ -49,7 +49,6 @@ const fs      = require('fs');
 const fsp     = require('fs').promises;
 const path    = require('path');
 const crypto  = require('crypto');
-
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const VIDEO_EXTS = new Set(['.mp4','.mov','.avi','.mkv','.webm','.m4v','.flv','.ts']);
@@ -239,8 +238,30 @@ async function runIngest({ productionId, scenesFile, mediaDir, rawScenes, outDir
     throw new Error('All scenes are empty — each scene needs at least narration, a video, an image, or an audio file');
   }
 
-  // ── Step 3: Assign productionId ───────────────────────────────────────────
+  // ── Step 3: Assign productionId and register with state machine ──────────
   const pid = productionId || `ingest_${crypto.randomBytes(4).toString('hex')}_${Date.now()}`;
+
+  // Register with the state machine so downstream stages (Assets, Render) can
+  // call startStage() without hitting "Production not found".
+  const stateDir = path.join(filesDir, 'state');
+  await fsp.mkdir(stateDir, { recursive: true });
+  const stateFile = path.join(stateDir, `${pid}.json`);
+  if (!fs.existsSync(stateFile)) {
+    const record = {
+      productionId: pid,
+      status: 'QUEUED',
+      pipelineVersion: '2.0.0',
+      schemaVersion:   '1.0.0',
+      topic:      scenesFile || mediaDir || 'ingest',
+      createdAt:  new Date().toISOString(),
+      startedAt:  null,
+      completedAt: null,
+      configHash: crypto.createHash('sha256').update(pid).digest('hex').slice(0, 16),
+      stages: {},
+      metadata: {},
+    };
+    fs.writeFileSync(stateFile, JSON.stringify(record, null, 2), 'utf8');
+  }
 
   // ── Step 4: Write scenes manifest ────────────────────────────────────────
   const outPath = path.join(filesDir, `${pid}-scenes.json`);

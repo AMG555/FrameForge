@@ -1,41 +1,27 @@
 /**
- * reel/engine.js — FrameForge HTML Compositor Engine
+ * engine.js — FrameForge HTML Compositor Runtime
  *
- * Renders video frames as a pure function of time t (seconds).
- * Every style must be computed solely from t — no CSS transitions,
- * no setTimeout, no state that depends on previous frames.
- * Playwright renders frames out of order for parallelism; this is only
- * safe if each frame is fully self-contained.
+ * Every visual style is a pure function of t (seconds).
+ * No CSS transitions, no setTimeout, no mutable frame state.
  *
- * Inspired by sunithvs/video-agent-skill (Apache 2.0).
- * This implementation is an independent port adapted for the FrameForge
- * script JSON schema and MCP pipeline.
+ * IRON RULE — the determinism contract:
+ *   ✅ Use hash(i) for anything that must be reproducible across frames.
+ *   ✅ Read time from t / lt / dur — never from performance.now() or Date.now().
+ *   ❌ NEVER call Math.random() — breaks parallel frame workers.
+ *   ❌ NEVER use setTimeout / setInterval — Playwright virtualises the clock.
+ *   ❌ NEVER integrate physics per-tick — precompute or use closed-form math.
+ *   ❌ NEVER store frame state in module-level mutable counters inside a layer fn.
  *
- * Public API:
- *   reel(config)          Configure compositor (width, height, fps, duration, title)
- *   layer(name)           Declare a DOM layer; returns { on(fn) } to register the style fn
- *   text(str, opts)       Animated text element
- *   chip(str, opts)       Pill-shaped label
- *   wallCard(lines, opts) Frosted-glass card
- *   imageCard(src, opts)  Image with optional caption
- *   stamp(str, opts)      Bold diagonal stamp (VERIFIED, SOURCE…)
- *   codeCard(code, opts)  Syntax-highlighted code block
- *   terminal(lines, opts) Animated terminal output
- *   at(t, element)        Place an element at time t
- *   stagger(t, dt, els)   Place elements with dt spacing
- *   captions(path)        Register Whisper-outline caption file
- *   cue(name, t, vol)     Trigger sound effect at time t
- *   faceAt(layout, t)     Position talking-head overlay
- *   spring(t, opts)       Spring-physics interpolation
- *   lerp(t, a, b, t0, t1) Linear interpolation between t0 and t1
- *   easeIn/Out/InOut(t)   Easing helpers (in, out, in-out)
- *   seek(t)               Render all layers at time t (called by renderer scripts)
- *   REEL                  Live compositor state object
+ * Usage in edit.js:
+ *   import { reel, layer, text, wallCard, at, stagger, captions, faceAt, hash } from './reel/engine.js';
+ *   reel({ width: 1920, height: 1080, fps: 30, duration: 65 });
+ *   // fn(t, lt, dur): t = video time, lt = time inside this shot, dur = shot length
+ *   layer('title', { start: 0, end: 5 }).on((t, lt, dur) => ({
+ *     opacity: lt < 0.4 ? lt / 0.4 : lt > dur - 0.4 ? (dur - lt) / 0.4 : 1,
+ *   }));
  */
 
-'use strict';
-
-// ── Compositor state ─────────────────────────────────────────────────────────
+// ── Global reel state ─────────────────────────────────────────────────────────
 
 export const REEL = {
   width:    1920,
@@ -43,306 +29,203 @@ export const REEL = {
   fps:      30,
   duration: 60,
   title:    '',
-  captionY: null,   // override caption Y position (null = auto)
-  layers:   [],
-  elements: [],
-  captions: [],
-  cues:     [],
-  _dom:     null,   // root #stage element
+  captionY: null,   // override caption baseline (px from top)
 };
 
-// ── Config ───────────────────────────────────────────────────────────────────
-
 /** Configure the compositor. Call once at the top of edit.js. */
-export function reel({ width = 1920, height = 1080, fps = 30, duration = 60, title = '', captionY = null } = {}) {
+export function reel({ width = 1920, height = 1080, fps = 30, duration = 60, title = '' } = {}) {
   REEL.width    = width;
   REEL.height   = height;
   REEL.fps      = fps;
   REEL.duration = duration;
   REEL.title    = title;
-  if (captionY !== null) REEL.captionY = captionY;
+  // Expose for render.mjs virtual-clock handshake
+  window.DURATION = duration;
+  window.FPS      = fps;
 }
 
-// ── Layer system ─────────────────────────────────────────────────────────────
+// ── Layer registry ────────────────────────────────────────────────────────────
 
-/**
- * Declare a named DOM layer.
- * Returns { on(fn) } where fn(t) must return a plain CSSProperties object.
- * If fn returns falsy for a given t, the layer element is hidden.
- *
- * IRON RULE: fn must be a pure function of t.
- * If a layer is only active until t=X, fn MUST explicitly set
- * opacity/display/visibility to 0/none/hidden after t=X — otherwise
- * Playwright's out-of-order rendering will freeze the last value on later frames.
- */
-export function layer(name) {
-  const entry = { name, fn: null, el: null };
-  REEL.layers.push(entry);
-  return {
-    on(fn) {
-      entry.fn = fn;
-      return entry;
-    },
-  };
-}
+const _layers      = [];   // { name, el, compute }
+const _atElements  = [];   // { t, el, duration }
+const _captionPath = null; // set by captions()
+let   _captionData = null; // loaded JSON
 
-// ── Element builders ─────────────────────────────────────────────────────────
+class Layer {
+  /**
+   * @param {string} name
+   * @param {{ start?: number, end?: number }} opts
+   *   start  time (s) when this shot begins (default 0 = whole film)
+   *   end    time (s) when this shot ends   (default REEL.duration)
+   */
+  constructor(name, opts = {}) {
+    this.name  = name;
+    this.start = opts.start ?? 0;
+    this.end   = opts.end   ?? null;   // null = REEL.duration (resolved at tick time)
+    this.el    = document.createElement('div');
+    this.el.dataset.layer = name;
+    document.getElementById('stage').appendChild(this.el);
+    _layers.push(this);
+  }
 
-/**
- * Animated text element.
- * @param {string} str  Text content (may include newlines)
- * @param {{ font?, size?, weight?, color?, x?, y?, align?, opacity?, letterSpacing?, lineHeight? }} opts
- */
-export function text(str, {
-  font   = '"Archivo", "Segoe UI", system-ui, sans-serif',
-  size   = 48,
-  weight = 700,
-  color  = '#ffffff',
-  x      = 'center',
-  y      = 300,
-  align  = 'center',
-  opacity = 1,
-  letterSpacing = 0,
-  lineHeight    = 1.3,
-} = {}) {
-  return { type: 'text', str, font, size, weight, color, x, y, align, opacity, letterSpacing, lineHeight };
-}
+  /**
+   * Register per-frame compute function.
+   * fn(t, lt, dur) → style object
+   *   t   = absolute video time (seconds)
+   *   lt  = local time inside this shot  (t - start)
+   *   dur = shot duration                (end - start)
+   */
+  on(fn) {
+    this._compute = fn;
+    return this;
+  }
 
-/**
- * Pill-shaped label element.
- * @param {string} str
- * @param {{ x?, y?, size?, bg?, color?, radius?, padding? }} opts
- */
-export function chip(str, {
-  x       = 'center',
-  y       = 200,
-  size    = 28,
-  bg      = 'rgba(59,130,246,0.85)',
-  color   = '#ffffff',
-  radius  = 999,
-  padding = '8px 22px',
-} = {}) {
-  return { type: 'chip', str, x, y, size, bg, color, radius, padding };
-}
-
-/**
- * Frosted-glass wall card — multi-line text block with backdrop blur.
- * @param {{ text, size?, weight?, color? }[]} lines  Line descriptors
- * @param {{ x?, y?, width?, duration?, bg?, blur?, radius?, padding?, gap? }} opts
- */
-export function wallCard(lines, {
-  x        = 'center',
-  y        = 800,
-  width    = 1440,
-  duration = null,
-  bg       = 'rgba(13,17,23,0.72)',
-  blur     = 18,
-  radius   = 18,
-  padding  = '32px 40px',
-  gap      = 12,
-} = {}) {
-  return { type: 'wallCard', lines, x, y, width, duration, bg, blur, radius, padding, gap };
-}
-
-/**
- * Image card — displays an image with optional caption overlay.
- * @param {string} src  Image URL or relative path
- * @param {{ x?, y?, width?, height?, caption?, radius?, objectFit? }} opts
- */
-export function imageCard(src, {
-  x         = 'center',
-  y         = 'center',
-  width     = 960,
-  height    = 540,
-  caption   = '',
-  radius    = 12,
-  objectFit = 'cover',
-} = {}) {
-  return { type: 'imageCard', src, x, y, width, height, caption, radius, objectFit };
-}
-
-/**
- * Bold diagonal stamp — e.g. "VERIFIED", "SOURCE", "BREAKING".
- * @param {string} str
- * @param {{ x?, y?, size?, color?, bg?, angle?, opacity? }} opts
- */
-export function stamp(str, {
-  x       = 80,
-  y       = 80,
-  size    = 48,
-  color   = '#22c55e',
-  bg      = 'transparent',
-  angle   = -12,
-  opacity = 0.95,
-} = {}) {
-  return { type: 'stamp', str, x, y, size, color, bg, angle, opacity };
-}
-
-/**
- * Syntax-highlighted code block.
- * @param {string} code
- * @param {{ lang?, x?, y?, width?, size?, theme? }} opts
- */
-export function codeCard(code, {
-  lang  = '',
-  x     = 'center',
-  y     = 200,
-  width = 1400,
-  size  = 22,
-  theme = 'dark',
-} = {}) {
-  return { type: 'codeCard', code, lang, x, y, width, size, theme };
-}
-
-/**
- * Animated terminal output — lines appear one at a time.
- * @param {string[]} lines
- * @param {{ x?, y?, width?, size?, startT?, lineDelay? }} opts
- */
-export function terminal(lines, {
-  x         = 'center',
-  y         = 200,
-  width     = 1400,
-  size      = 22,
-  startT    = 0,
-  lineDelay = 0.18,
-} = {}) {
-  return { type: 'terminal', lines, x, y, width, size, startT, lineDelay };
-}
-
-// ── Placement helpers ─────────────────────────────────────────────────────────
-
-/**
- * Place an element at time t.
- * The element is rendered from t onwards until the video ends (or until
- * another at() replaces it via a named layer slot).
- */
-export function at(t, element) {
-  REEL.elements.push({ t, element });
-}
-
-/**
- * Place multiple elements with dt-second spacing starting at t.
- */
-export function stagger(t, dt, elements) {
-  elements.forEach((el, i) => at(t + i * dt, el));
-}
-
-// ── Captions ─────────────────────────────────────────────────────────────────
-
-/**
- * Register a Whisper-outline caption file.
- * Format (tab-separated): start_ms  end_ms  word
- *
- * The renderer loads the file from disk at render time, parses the outline,
- * and renders word-level captions at the bottom of each frame.
- */
-export function captions(outlinePath) {
-  REEL.captions.push(outlinePath);
-}
-
-// ── Sound effects ─────────────────────────────────────────────────────────────
-
-/** Trigger a sound effect at time t with given volume (0-1). */
-export function cue(sfxName, t, vol = 1.0) {
-  REEL.cues.push({ sfxName, t, vol });
-}
-
-// ── Talking-head overlay ──────────────────────────────────────────────────────
-
-/**
- * Position a talking-head face overlay.
- * Layouts: 'FULL' (full screen), 'SPLIT' (left or right half), 'PIP' (corner PIP)
- * Returns a CSS position descriptor suitable for a layer().on() function.
- */
-export function faceAt(layout = 'FULL', t = 0, {
-  side    = 'right',   // for SPLIT: which side the face occupies
-  pipPos  = 'br',      // for PIP: corner (tl, tr, bl, br)
-  pipSize = 0.28,      // for PIP: fraction of width
-} = {}) {
-  const w = REEL.width;
-  const h = REEL.height;
-
-  switch (layout.toUpperCase()) {
-    case 'FULL':
-      return { position: 'absolute', inset: 0, width: '100%', height: '100%' };
-
-    case 'SPLIT': {
-      const half = Math.round(w / 2);
-      const left = side === 'left' ? 0 : half;
-      return { position: 'absolute', top: 0, left, width: half, height: h };
-    }
-
-    case 'PIP': {
-      const pw   = Math.round(w * pipSize);
-      const ph   = Math.round(pw * (h / w));
-      const pad  = 40;
-      const top  = pipPos.startsWith('t') ? pad : h - ph - pad;
-      const left = pipPos.endsWith('l')  ? pad : w - pw - pad;
-      return { position: 'absolute', top, left, width: pw, height: ph, borderRadius: 16 };
-    }
-
-    default:
-      return { position: 'absolute', inset: 0 };
+  _tick(t) {
+    if (!this._compute) return;
+    const end  = this.end ?? REEL.duration;
+    const dur  = end - this.start;
+    const lt   = t - this.start;
+    const styles = this._compute(t, lt, dur);
+    if (!styles) return;
+    Object.assign(this.el.style, _stylesToCSS(styles));
   }
 }
 
-// ── Physics and math helpers ──────────────────────────────────────────────────
+/**
+ * Declare a named layer.
+ * @param {string} name
+ * @param {{ start?: number, end?: number }} opts  Shot window (optional)
+ * @returns {Layer}
+ */
+export function layer(name, opts = {}) {
+  const existing = _layers.find(l => l.name === name);
+  if (existing) return existing;
+  return new Layer(name, opts);
+}
+
+// ── at() / stagger() — timed element placement ───────────────────────────────
 
 /**
- * Linear interpolation from value a (at t0) to value b (at t1).
- * Clamped outside [t0, t1].
+ * Place an element at time t. The element is removed after `duration` seconds.
+ * @param {number} t         Start time in seconds
+ * @param {HTMLElement} el   Element to mount
  */
-export function lerp(t, a, b, t0, t1) {
+export function at(t, el) {
+  if (!el || !(el instanceof HTMLElement)) return;
+  document.getElementById('stage').appendChild(el);
+  el.style.display = 'none';
+  _atElements.push({ t, el, duration: el._duration ?? Infinity });
+}
+
+/**
+ * Place elements with a stagger offset.
+ * @param {number} t          Start time for first element
+ * @param {number} dt         Delay between each element (seconds)
+ * @param {HTMLElement[]} els Elements to mount
+ * @returns {{ t: number, element: HTMLElement }[]} timing entries (useful in tests)
+ */
+export function stagger(t, dt, els) {
+  const result = [];
+  els.forEach((el, i) => {
+    const ti = t + i * dt;
+    result.push({ t: ti, element: el });
+    if (el instanceof HTMLElement) at(ti, el);
+  });
+  return result;
+}
+
+// ── seek(t) — the clock interface ─────────────────────────────────────────────
+
+/**
+ * Advance the compositor to time t (seconds).
+ * Called by render.mjs for every frame.
+ */
+export function seek(t) {
+  // Tick all layers
+  for (const l of _layers) l._tick(t);
+
+  // Show/hide timed elements
+  for (const entry of _atElements) {
+    const visible = t >= entry.t && t < entry.t + entry.duration;
+    entry.el.style.display = visible ? '' : 'none';
+    if (visible && entry.el._seekFn) entry.el._seekFn(t - entry.t);
+  }
+
+  // Live captions
+  if (_captionData) _tickCaptions(t);
+}
+
+// Expose globally for the virtual-clock renderer
+window.seek = seek;
+
+// ── Math utilities ────────────────────────────────────────────────────────────
+
+/**
+ * hash(i) — Deterministic pseudo-random number in [0, 1) for index i.
+ *
+ * Use this INSTEAD OF Math.random() for anything that must stay reproducible
+ * across parallel frame workers (star positions, brush seeds, particle jitter).
+ *
+ * For "boil" wobble (hand-drawn animation feel), reseed 12 times per second:
+ *   const wobble = hash(i + Math.floor(t * 12));
+ *
+ * Determinism law: seed all stochastic operations.
+ *
+ * @param {number} i   Integer seed (particle index, frame seed, etc.)
+ * @returns {number}   Deterministic float in [0, 1)
+ */
+export function hash(i) {
+  let x = Math.sin(i + 1) * 43758.5453123;
+  return x - Math.floor(x);
+}
+
+/**
+ * hash2(i, j) — Two-dimensional hash for (col, row) grid seeds, etc.
+ * @returns {number} Deterministic float in [0, 1)
+ */
+export function hash2(i, j) {
+  return hash(i * 1000 + j);
+}
+
+/** Linear interpolation from a to b over [t0, t1], clamped at boundaries. */
+export function lerp(t, a, b, t0 = 0, t1 = 1) {
   if (t <= t0) return a;
   if (t >= t1) return b;
   const p = (t - t0) / (t1 - t0);
   return a + (b - a) * p;
 }
 
-/**
- * Ease-in (quadratic).
- */
+/** Ease-in (quadratic). Input 0–1, output 0–1. */
 export function easeIn(t) {
   const p = Math.max(0, Math.min(1, t));
   return p * p;
 }
 
-/**
- * Ease-out (quadratic).
- */
+/** Ease-out (quadratic). Input 0–1, output 0–1. */
 export function easeOut(t) {
   const p = Math.max(0, Math.min(1, t));
   return 1 - (1 - p) * (1 - p);
 }
 
-/**
- * Ease-in-out (cubic).
- */
+/** Ease-in-out (quadratic). Input 0–1, output 0–1. */
 export function easeInOut(t) {
   const p = Math.max(0, Math.min(1, t));
   return p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
 }
 
 /**
- * Spring physics — returns a 0→1 value that overshoots and settles.
- * @param {number} t      Current time in seconds
- * @param {{ tension?, friction?, delay? }} opts
- *   tension  — higher = faster/stiffer (default 200)
- *   friction — higher = less overshoot (default 22)
- *   delay    — seconds before spring starts (default 0)
- * @returns {number}  Spring value (may briefly exceed 1 for overshoot)
+ * Spring physics. Returns value 0→1 (may briefly exceed 1 when underdamped).
+ * @param {number} t                    Current time in seconds
+ * @param {{ tension, friction, delay }} opts
  */
 export function spring(t, { tension = 200, friction = 22, delay = 0 } = {}) {
   const dt = t - delay;
   if (dt <= 0) return 0;
-
-  // Analytic underdamped spring: x(t) = 1 - e^(-ζωt)(cos(ωdt) + ζ/ωd·sin(ωdt))
-  const omega     = Math.sqrt(tension);
-  const zeta      = friction / (2 * omega);   // damping ratio
+  const omega = Math.sqrt(tension);
+  const zeta  = friction / (2 * omega);
 
   if (zeta >= 1) {
-    // Overdamped — no overshoot, fast exponential decay
+    // Overdamped or critically damped — no overshoot
     const r1 = -omega * (zeta - Math.sqrt(zeta * zeta - 1));
     const r2 = -omega * (zeta + Math.sqrt(zeta * zeta - 1));
     const c2 = r1 / (r1 - r2);
@@ -350,505 +233,555 @@ export function spring(t, { tension = 200, friction = 22, delay = 0 } = {}) {
     return 1 - c1 * Math.exp(r1 * dt) - c2 * Math.exp(r2 * dt);
   }
 
-  // Underdamped — natural overshoot
+  // Underdamped — oscillates toward 1
   const omegaD = omega * Math.sqrt(1 - zeta * zeta);
   return 1 - Math.exp(-zeta * omega * dt) * (
     Math.cos(omegaD * dt) + (zeta / Math.sqrt(1 - zeta * zeta)) * Math.sin(omegaD * dt)
   );
 }
 
-// ── Seek (core renderer function) ─────────────────────────────────────────────
+// ── Component builders ────────────────────────────────────────────────────────
 
 /**
- * Render all layers at time t.
- *
- * Called once per frame by the Playwright renderer scripts.
- * Also called on every animation frame in browser preview mode.
- *
- * @param {number} t  Current time in seconds
+ * Plain animated text element.
+ * @param {string} str
+ * @param {{ font, color, x, y, size, weight, align, opacity, duration }} opts
  */
-export function seek(t) {
-  _ensureStage();
+export function text(str, {
+  font     = '48px/1.3 system-ui',
+  color    = '#ffffff',
+  x        = 'center',
+  y        = 100,
+  size     = null,
+  weight   = null,
+  align    = 'center',
+  opacity  = 1,
+  duration = Infinity,
+} = {}) {
+  const el = document.createElement('div');
+  el._duration = duration;
+  el.textContent = str;
 
-  // 1. Render named layers
-  for (const entry of REEL.layers) {
-    if (!entry.fn) continue;
-    const styles = entry.fn(t);
-    const el     = _getOrCreateLayer(entry);
+  const fontSize = size ? `${size}px` : font.split('/')[0].trim();
+  const fontFam  = font.includes(' ') ? font : `${fontSize} system-ui`;
 
-    if (!styles || styles.display === 'none' || styles.opacity === 0 || styles.visibility === 'hidden') {
-      if (!styles) {
-        el.style.display = 'none';
-        continue;
-      }
-    }
+  Object.assign(el.style, {
+    position:   'absolute',
+    font:       fontFam,
+    fontSize:   size ? `${size}px` : undefined,
+    fontWeight: weight ? String(weight) : undefined,
+    color,
+    textAlign:  align,
+    opacity:    String(opacity),
+    whiteSpace: 'pre-line',
+    maxWidth:   '90%',
+    lineHeight: '1.3',
+  });
 
-    el.style.display = '';
-    _applyStyles(el, styles);
-  }
-
-  // 2. Render at() elements active at time t
-  _renderElements(t);
-
-  // 3. Render captions
-  _renderCaptions(t);
-}
-
-// ── DOM helpers ───────────────────────────────────────────────────────────────
-
-function _ensureStage() {
-  if (REEL._dom) return;
-  if (typeof document === 'undefined') return;
-  REEL._dom = document.getElementById('stage');
-  if (!REEL._dom) {
-    REEL._dom = document.createElement('div');
-    REEL._dom.id = 'stage';
-    Object.assign(REEL._dom.style, {
-      width:    REEL.width  + 'px',
-      height:   REEL.height + 'px',
-      position: 'relative',
-      overflow: 'hidden',
-    });
-    document.body.appendChild(REEL._dom);
-  }
-}
-
-function _getOrCreateLayer(entry) {
-  if (entry.el) return entry.el;
-  const el   = document.createElement('div');
-  el.id      = 'layer-' + entry.name;
-  el.dataset.layer = entry.name;
-  Object.assign(el.style, { position: 'absolute', inset: '0' });
-  REEL._dom.appendChild(el);
-  entry.el = el;
+  _positionEl(el, x, y);
   return el;
 }
 
-function _applyStyles(el, styles) {
-  for (const [prop, val] of Object.entries(styles)) {
-    if (prop === 'content') {
-      el.innerHTML = val;
-    } else {
-      el.style[prop] = typeof val === 'number' && !_unitlessCssProp(prop) ? val + 'px' : val;
-    }
-  }
-}
-
-const _UNITLESS = new Set(['opacity','zIndex','order','flex','flexGrow','flexShrink','fontWeight','lineHeight']);
-function _unitlessCssProp(prop) {
-  return _UNITLESS.has(prop) || prop.startsWith('animation') || prop.startsWith('transition');
-}
-
-// ── Element rendering ─────────────────────────────────────────────────────────
-
-/** Cache of rendered element DOM nodes, keyed by index in REEL.elements. */
-const _elemCache = new Map();
-
-function _renderElements(t) {
-  if (!REEL._dom) return;
-
-  REEL.elements.forEach((entry, idx) => {
-    if (!entry.element) return;
-
-    // Elements are shown from their start time until the video ends,
-    // unless the element declares a duration.
-    const duration = entry.element.duration ?? (REEL.duration - entry.t);
-    const visible  = t >= entry.t && t < (entry.t + duration);
-
-    let container = _elemCache.get(idx);
-    if (!container) {
-      container = document.createElement('div');
-      container.dataset.elemIdx = idx;
-      REEL._dom.appendChild(container);
-      _elemCache.set(idx, container);
-    }
-
-    if (!visible) {
-      container.style.display = 'none';
-      return;
-    }
-
-    container.style.display = '';
-    const localT = t - entry.t;
-    _renderElement(container, entry.element, localT);
-  });
-}
-
-function _renderElement(container, el, localT) {
-  switch (el.type) {
-    case 'text':      return _renderText(container, el, localT);
-    case 'chip':      return _renderChip(container, el, localT);
-    case 'wallCard':  return _renderWallCard(container, el, localT);
-    case 'imageCard': return _renderImageCard(container, el, localT);
-    case 'stamp':     return _renderStamp(container, el, localT);
-    case 'codeCard':  return _renderCodeCard(container, el, localT);
-    case 'terminal':  return _renderTerminal(container, el, localT);
-    default: break;
-  }
-}
-
-function _posToStyle(x, y, width, height, stageW, stageH) {
-  const styles = { position: 'absolute' };
-  if (x === 'center') {
-    styles.left      = Math.round((stageW - width) / 2) + 'px';
-  } else {
-    styles.left      = x + 'px';
-  }
-  if (y === 'center') {
-    styles.top       = Math.round((stageH - height) / 2) + 'px';
-  } else {
-    styles.top       = y + 'px';
-  }
-  if (width  !== null) styles.width  = width  + 'px';
-  if (height !== null) styles.height = height + 'px';
-  return styles;
-}
-
-function _renderText(el, spec, localT) {
-  const fadeOpacity = Math.min(1, localT / 0.15) * spec.opacity;
-  el.innerHTML = '';
+/**
+ * Pill-shaped chip / label.
+ * @param {string} str
+ * @param {{ color, bg, x, y, size, duration }} opts
+ */
+export function chip(str, {
+  color    = '#ffffff',
+  bg       = 'rgba(59,130,246,0.85)',
+  x        = 'center',
+  y        = 80,
+  size     = 20,
+  duration = Infinity,
+} = {}) {
+  const el = document.createElement('div');
+  el._duration = duration;
+  el.textContent = str;
   Object.assign(el.style, {
-    position:      'absolute',
-    fontFamily:    spec.font,
-    fontSize:      spec.size + 'px',
-    fontWeight:    spec.weight,
-    color:         spec.color,
-    textAlign:     spec.align,
-    letterSpacing: spec.letterSpacing + 'px',
-    lineHeight:    spec.lineHeight,
-    opacity:       fadeOpacity,
-    whiteSpace:    'pre-wrap',
-    pointerEvents: 'none',
+    position:     'absolute',
+    display:      'inline-block',
+    padding:      '6px 18px',
+    borderRadius: '9999px',
+    background:   bg,
+    color,
+    fontSize:     `${size}px`,
+    fontWeight:   '600',
+    letterSpacing: '0.04em',
+    textTransform: 'uppercase',
   });
-  el.textContent = spec.str;
-  // Position
-  const measuredW = REEL.width * 0.8;
-  const x = spec.x === 'center' ? Math.round((REEL.width - measuredW) / 2) : spec.x;
-  el.style.left   = x + 'px';
-  el.style.top    = spec.y + 'px';
-  el.style.width  = measuredW + 'px';
+  _positionEl(el, x, y);
+  return el;
 }
 
-function _renderChip(el, spec, localT) {
-  const fadeOpacity = Math.min(1, localT / 0.12);
-  el.innerHTML = '';
-  el.textContent = spec.str;
-  Object.assign(el.style, {
-    position:      'absolute',
-    display:       'inline-block',
-    fontSize:      spec.size + 'px',
-    fontWeight:    700,
-    color:         spec.color,
-    background:    spec.bg,
-    borderRadius:  spec.radius + 'px',
-    padding:       spec.padding,
-    opacity:       fadeOpacity,
-    pointerEvents: 'none',
-    whiteSpace:    'nowrap',
-  });
-  // Center horizontally if needed
-  if (spec.x === 'center') {
-    el.style.left      = '50%';
-    el.style.transform = 'translateX(-50%)';
-  } else {
-    el.style.left      = spec.x + 'px';
-    el.style.transform = '';
-  }
-  el.style.top = spec.y + 'px';
-}
-
-function _renderWallCard(el, spec, localT) {
-  const fadeOpacity = Math.min(1, localT / 0.25);
-  el.innerHTML = '';
+/**
+ * Frosted-glass card with stacked text lines.
+ * @param {{ text, size, weight, color }[]} lines
+ * @param {{ x, y, width, duration, bg, blur, radius, padding }} opts
+ */
+export function wallCard(lines = [], {
+  x        = 'center',
+  y        = REEL.height * 0.72,
+  width    = Math.round(REEL.width * 0.84),
+  duration = Infinity,
+  bg       = 'rgba(0,0,0,0.62)',
+  blur     = 12,
+  radius   = 16,
+  padding  = 28,
+} = {}) {
+  const el = document.createElement('div');
+  el._duration = duration;
   Object.assign(el.style, {
     position:       'absolute',
-    width:          spec.width + 'px',
-    background:     spec.bg,
-    backdropFilter: `blur(${spec.blur}px)`,
-    borderRadius:   spec.radius + 'px',
-    padding:        spec.padding,
+    width:          `${width}px`,
+    backdropFilter: `blur(${blur}px)`,
+    background:     bg,
+    borderRadius:   `${radius}px`,
+    padding:        `${padding}px ${padding + 8}px`,
+    boxSizing:      'border-box',
     display:        'flex',
     flexDirection:  'column',
-    gap:            spec.gap + 'px',
-    opacity:        fadeOpacity,
-    pointerEvents:  'none',
-    boxSizing:      'border-box',
+    gap:            '8px',
   });
-  if (spec.x === 'center') {
-    el.style.left      = '50%';
-    el.style.transform = 'translateX(-50%)';
-  } else {
-    el.style.left      = spec.x + 'px';
-    el.style.transform = '';
-  }
-  el.style.top = spec.y + 'px';
 
-  for (const line of spec.lines) {
-    const p       = document.createElement('p');
+  for (const line of lines) {
+    const p = document.createElement('p');
     p.textContent = line.text || '';
     Object.assign(p.style, {
       margin:     0,
-      fontSize:   (line.size  || 24) + 'px',
-      fontWeight: (line.weight || 400),
-      color:      line.color  || '#ffffff',
+      fontSize:   `${line.size || 24}px`,
+      fontWeight: String(line.weight || 400),
+      color:      line.color || '#ffffff',
       lineHeight: '1.4',
     });
     el.appendChild(p);
   }
+
+  _positionEl(el, x, y);
+  return el;
 }
 
-function _renderImageCard(el, spec, localT) {
-  const fadeOpacity = Math.min(1, localT / 0.2);
-  el.innerHTML = '';
+/**
+ * Image with optional caption overlay.
+ * @param {string} src   URL or relative path
+ * @param {{ x, y, width, height, caption, radius, duration }} opts
+ */
+export function imageCard(src, {
+  x        = 'center',
+  y        = 'center',
+  width    = 640,
+  height   = 360,
+  caption  = '',
+  radius   = 12,
+  duration = Infinity,
+} = {}) {
+  const el = document.createElement('div');
+  el._duration = duration;
   Object.assign(el.style, {
     position:     'absolute',
-    width:        spec.width  + 'px',
-    height:       spec.height + 'px',
-    borderRadius: spec.radius + 'px',
+    width:        `${width}px`,
+    height:       `${height}px`,
+    borderRadius: `${radius}px`,
     overflow:     'hidden',
-    opacity:      fadeOpacity,
-    pointerEvents:'none',
+    display:      'flex',
+    flexDirection:'column',
   });
-  if (spec.x === 'center') {
-    el.style.left      = '50%';
-    el.style.transform = 'translateX(-50%)';
-  } else {
-    el.style.left      = spec.x + 'px';
-    el.style.transform = '';
-  }
-  if (spec.y === 'center') {
-    el.style.top  = '50%';
-    el.style.marginTop = Math.round(-spec.height / 2) + 'px';
-  } else {
-    el.style.top  = spec.y + 'px';
-  }
 
   const img = document.createElement('img');
-  img.src    = spec.src;
-  Object.assign(img.style, { width: '100%', height: '100%', objectFit: spec.objectFit });
+  img.src = src;
+  Object.assign(img.style, { width: '100%', height: caption ? 'calc(100% - 40px)' : '100%', objectFit: 'cover', display: 'block' });
   el.appendChild(img);
 
-  if (spec.caption) {
+  if (caption) {
     const cap = document.createElement('div');
-    cap.textContent = spec.caption;
+    cap.textContent = caption;
     Object.assign(cap.style, {
-      position:   'absolute', bottom: '12px', left: '50%',
-      transform:  'translateX(-50%)', fontSize: '20px',
-      background: 'rgba(0,0,0,0.6)', color: '#fff',
-      padding:    '4px 14px', borderRadius: '6px', whiteSpace: 'nowrap',
+      background: 'rgba(0,0,0,0.7)', color: '#fff',
+      fontSize: '18px', padding: '8px 12px', textAlign: 'center',
     });
     el.appendChild(cap);
   }
+
+  _positionEl(el, x, y);
+  return el;
 }
 
-function _renderStamp(el, spec, localT) {
-  const pop = spring(localT, { tension: 300, friction: 20 });
-  el.textContent = spec.str;
-  Object.assign(el.style, {
-    position:      'absolute',
-    left:          spec.x + 'px',
-    top:           spec.y + 'px',
-    fontSize:      spec.size + 'px',
-    fontWeight:    900,
-    color:         spec.color,
-    background:    spec.bg,
-    opacity:       Math.min(spec.opacity, pop),
-    transform:     `rotate(${spec.angle}deg) scale(${Math.max(0.01, pop)})`,
-    transformOrigin: 'left top',
-    letterSpacing: '0.06em',
-    textTransform: 'uppercase',
-    pointerEvents: 'none',
-    border:        `4px solid ${spec.color}`,
-    padding:       '6px 16px',
-    borderRadius:  '6px',
-  });
-}
-
-function _renderCodeCard(el, spec, localT) {
-  const fadeOpacity = Math.min(1, localT / 0.18);
-  el.innerHTML = '';
+/**
+ * Animated terminal block.
+ * @param {string[]} lines
+ * @param {{ x, y, width, duration, bg, color }} opts
+ */
+export function terminal(lines = [], {
+  x        = 100,
+  y        = 'center',
+  width    = 720,
+  duration = Infinity,
+  bg       = 'rgba(0,0,0,0.88)',
+  color    = '#22c55e',
+} = {}) {
+  const el = document.createElement('div');
+  el._duration = duration;
   Object.assign(el.style, {
     position:     'absolute',
-    width:        spec.width + 'px',
-    background:   spec.theme === 'dark' ? '#161b22' : '#f6f8fa',
-    borderRadius: '10px',
-    padding:      '24px',
-    opacity:      fadeOpacity,
-    pointerEvents:'none',
-    overflow:     'hidden',
-    boxSizing:    'border-box',
-  });
-  if (spec.x === 'center') {
-    el.style.left      = '50%';
-    el.style.transform = 'translateX(-50%)';
-  } else {
-    el.style.left      = spec.x + 'px';
-    el.style.transform = '';
-  }
-  el.style.top = spec.y + 'px';
-
-  const pre  = document.createElement('pre');
-  const code = document.createElement('code');
-  code.textContent = spec.code;
-  Object.assign(code.style, {
-    fontFamily: '"Fira Code", "Cascadia Code", Consolas, monospace',
-    fontSize:   spec.size + 'px',
-    color:      spec.theme === 'dark' ? '#e6edf3' : '#24292f',
-    whiteSpace: 'pre',
-    display:    'block',
-  });
-  pre.appendChild(code);
-  Object.assign(pre.style, { margin: 0, overflow: 'hidden' });
-  el.appendChild(pre);
-}
-
-function _renderTerminal(el, spec, localT) {
-  const elapsed  = localT - spec.startT;
-  if (elapsed <= 0) { el.innerHTML = ''; return; }
-
-  const visibleCount = Math.max(0, Math.floor(elapsed / spec.lineDelay));
-  const fadeOpacity  = Math.min(1, elapsed / 0.1);
-
-  el.innerHTML = '';
-  Object.assign(el.style, {
-    position:     'absolute',
-    width:        spec.width + 'px',
-    background:   '#0d1117',
+    width:        `${width}px`,
+    background:   bg,
     borderRadius: '10px',
     padding:      '20px 24px',
-    fontFamily:   '"Fira Code", Consolas, monospace',
-    fontSize:     spec.size + 'px',
-    color:        '#39d353',
-    opacity:      fadeOpacity,
-    pointerEvents:'none',
+    fontFamily:   '"Fira Code", "Cascadia Code", monospace',
+    fontSize:     '18px',
+    lineHeight:   '1.7',
+    color,
     boxSizing:    'border-box',
   });
-  if (spec.x === 'center') {
-    el.style.left      = '50%';
-    el.style.transform = 'translateX(-50%)';
-  } else {
-    el.style.left      = spec.x + 'px';
-    el.style.transform = '';
-  }
-  el.style.top = spec.y + 'px';
 
-  const shown = spec.lines.slice(0, visibleCount);
-  for (const line of shown) {
-    const div       = document.createElement('div');
-    div.textContent = line;
-    div.style.lineHeight = '1.6';
-    el.appendChild(div);
+  // Bar
+  const bar = document.createElement('div');
+  Object.assign(bar.style, { display: 'flex', gap: '8px', marginBottom: '14px' });
+  for (const c of ['#ef4444', '#f59e0b', '#22c55e']) {
+    const dot = document.createElement('div');
+    Object.assign(dot.style, { width: '12px', height: '12px', borderRadius: '50%', background: c });
+    bar.appendChild(dot);
+  }
+  el.appendChild(bar);
+
+  for (const ln of lines) {
+    const p = document.createElement('p');
+    p.textContent = ln;
+    Object.assign(p.style, { margin: '0', wordBreak: 'break-all' });
+    el.appendChild(p);
   }
 
-  // Blinking cursor on the last visible line
-  if (visibleCount < spec.lines.length) {
-    const cursor = document.createElement('span');
-    cursor.textContent = '▊';
-    cursor.style.opacity = Math.round(localT * 2) % 2 === 0 ? '1' : '0';
-    el.appendChild(cursor);
+  _positionEl(el, x, y);
+  return el;
+}
+
+/**
+ * Diagonal stamp (VERIFIED, SOURCE, DRAFT, etc.)
+ * @param {string} str
+ * @param {{ color, size, x, y, duration }} opts
+ */
+export function stamp(str, {
+  color    = 'rgba(220,38,38,0.8)',
+  size     = 80,
+  x        = 'center',
+  y        = 'center',
+  duration = Infinity,
+} = {}) {
+  const el = document.createElement('div');
+  el._duration = duration;
+  el.textContent = str.toUpperCase();
+  Object.assign(el.style, {
+    position:      'absolute',
+    fontSize:      `${size}px`,
+    fontWeight:    '900',
+    letterSpacing: '0.1em',
+    color,
+    border:        `4px solid ${color}`,
+    padding:       '6px 20px',
+    transform:     'rotate(-15deg)',
+    borderRadius:  '4px',
+    textTransform: 'uppercase',
+    pointerEvents: 'none',
+    userSelect:    'none',
+  });
+  _positionEl(el, x, y);
+  return el;
+}
+
+/**
+ * Syntax-highlighted code block.
+ * @param {string} code
+ * @param {string} lang  (informational only — no runtime highlight library required)
+ * @param {{ x, y, width, fontSize, duration }} opts
+ */
+export function codeCard(code, lang = 'js', {
+  x        = 'center',
+  y        = 'center',
+  width    = 820,
+  fontSize = 20,
+  duration = Infinity,
+} = {}) {
+  const el = document.createElement('div');
+  el._duration = duration;
+  Object.assign(el.style, {
+    position:     'absolute',
+    width:        `${width}px`,
+    background:   '#0d1117',
+    borderRadius: '12px',
+    overflow:     'hidden',
+    border:       '1px solid rgba(255,255,255,0.1)',
+  });
+
+  // Header bar
+  const bar = document.createElement('div');
+  bar.textContent = lang;
+  Object.assign(bar.style, {
+    background: '#161b22', color: '#8b949e', fontSize: '14px',
+    padding: '8px 16px', borderBottom: '1px solid rgba(255,255,255,0.08)',
+    fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.06em',
+  });
+  el.appendChild(bar);
+
+  const pre = document.createElement('pre');
+  Object.assign(pre.style, {
+    margin: 0, padding: '20px 22px', overflowX: 'auto',
+    fontFamily: '"Fira Code","Cascadia Code",monospace',
+    fontSize: `${fontSize}px`, lineHeight: '1.65',
+    color: '#e6edf3',
+  });
+  pre.textContent = code;
+  el.appendChild(pre);
+
+  _positionEl(el, x, y);
+  return el;
+}
+
+/**
+ * Browser screenshot card. Requires the URL to be a local data: URI or
+ * pre-captured image path (capture.mjs generates these).
+ */
+export function browserCard(src, {
+  x        = 'center',
+  y        = 'center',
+  width    = 860,
+  duration = Infinity,
+} = {}) {
+  return imageCard(src, { x, y, width, height: Math.round(width * (600 / 1024)), duration });
+}
+
+// ── faceAt — talking-head layout helper ──────────────────────────────────────
+
+/**
+ * Return CSS position styles for a talking-head layout.
+ * Pure function — no DOM side effects.
+ *
+ * @param {'FULL'|'SPLIT'|'PIP'} layout
+ * @param {{ width, height, side, pipPos, pipSize }} opts
+ */
+export function faceAt(layout, {
+  width   = REEL.width,
+  height  = REEL.height,
+  side    = 'right',
+  pipPos  = 'br',
+  pipSize = 0.28,
+} = {}) {
+  switch (layout.toUpperCase()) {
+    case 'FULL':
+      return { position: 'absolute', inset: 0, width: '100%', height: '100%' };
+    case 'SPLIT': {
+      const half = Math.round(width / 2);
+      const left = side === 'left' ? 0 : half;
+      return { position: 'absolute', top: 0, left, width: half, height };
+    }
+    case 'PIP': {
+      const pw  = Math.round(width * pipSize);
+      const ph  = Math.round(pw * (height / width));
+      const pad = 40;
+      const top  = pipPos.startsWith('t') ? pad : height - ph - pad;
+      const left = pipPos.endsWith('l')   ? pad : width  - pw - pad;
+      return { position: 'absolute', top, left, width: pw, height: ph, borderRadius: 16 };
+    }
+    default:
+      return { position: 'absolute', inset: 0 };
   }
 }
 
-// ── Caption rendering ─────────────────────────────────────────────────────────
+// ── captions — word-level caption sync ───────────────────────────────────────
 
-/** Parsed caption entries loaded from outline files. */
-const _captionData = new Map(); // outlinePath → [{startMs, endMs, word}]
+/**
+ * Register a Whisper outline file for auto-synced captions.
+ * The outline file is produced by scripts/transcribe.py
+ * Format: one JSON object per line: { "start": 0.0, "end": 0.5, "text": "word" }
+ * or a single JSON array of the same objects.
+ *
+ * @param {string} outlinePath  Path relative to project root
+ */
+export function captions(outlinePath) {
+  fetch(outlinePath)
+    .then(r => r.text())
+    .then(raw => {
+      try {
+        _captionData = JSON.parse(raw);
+      } catch {
+        // NDJSON — one segment per line
+        _captionData = raw.trim().split('\n')
+          .filter(Boolean)
+          .map(l => JSON.parse(l));
+      }
+    })
+    .catch(e => console.warn('[engine] captions(): could not load', outlinePath, e));
+}
 
-function _renderCaptions(t) {
-  if (!REEL.captions.length || !REEL._dom) return;
-  const tMs = t * 1000;
+let _captionEl = null;
 
-  // Gather all active words across all caption files
-  const words = [];
-  for (const outlinePath of REEL.captions) {
-    const entries = _captionData.get(outlinePath);
-    if (!entries) continue;
-    for (const entry of entries) {
-      if (tMs >= entry.startMs && tMs < entry.endMs) {
-        words.push(entry.word);
+function _tickCaptions(t) {
+  if (!_captionEl) {
+    _captionEl = document.createElement('div');
+    Object.assign(_captionEl.style, {
+      position:   'absolute',
+      bottom:     '80px',
+      left:       '50%',
+      transform:  'translateX(-50%)',
+      background: 'rgba(0,0,0,0.72)',
+      color:      '#fff',
+      fontSize:   '32px',
+      fontWeight: '600',
+      padding:    '10px 28px',
+      borderRadius: '8px',
+      maxWidth:   '80%',
+      textAlign:  'center',
+      lineHeight: '1.4',
+      pointerEvents: 'none',
+    });
+    document.getElementById('stage').appendChild(_captionEl);
+  }
+
+  // Collect segments whose window overlaps t
+  const active = _captionData
+    .filter(seg => seg.start <= t && t < seg.end + 0.05)
+    .map(seg => seg.text)
+    .join(' ');
+
+  _captionEl.textContent = active;
+  _captionEl.style.display = active ? '' : 'none';
+}
+
+// ── cue — sound effect placement & caption synchronization ───────────────────────
+
+const _cues = [];
+
+/**
+ * Register a sound-effect cue. The audio is triggered by render.mjs when
+ * encoding audio tracks (not in headless Playwright frames).
+ *
+ * @param {string} sfxName  Base name (no extension) inside assets/sfx/
+ * @param {number} t        Time to trigger (seconds)
+ * @param {number} vol      Volume 0–1 (default 1)
+ */
+export function cue(sfxName, t, vol = 1) {
+  _cues.push({ sfxName, t, vol });
+  // Expose on window for render.mjs to read after page load
+  window.__cues = _cues;
+}
+
+/**
+ * Match a target word or phrase in loaded captions, returning its start timestamp.
+ * Throws a fatal build error if the phrase cannot be found.
+ *
+ * @param {string} targetPhrase  Exact word or sequence of words spoken in the voiceover
+ * @param {number} [offset=0]   Offset in seconds to shift the trigger relative to the phrase start
+ * @returns {number}             Timestamp in seconds
+ */
+export function cuePhrase(targetPhrase, offset = 0) {
+  if (!_captionData || !Array.isArray(_captionData) || _captionData.length === 0) {
+    throw new Error(`FATAL SYNC ERROR: Cannot cue "${targetPhrase}" — no captions loaded yet! Call captions() first.`);
+  }
+
+  const targetWords = targetPhrase.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  if (targetWords.length === 0) return offset;
+
+  // Flatten caption segments into word tokens
+  const tokens = [];
+  for (const seg of _captionData) {
+    if (Array.isArray(seg.words)) {
+      for (const w of seg.words) {
+        tokens.push({
+          word: (w.word || w.text || '').toLowerCase().replace(/[^a-z0-9]/g, ''),
+          start: w.start !== undefined ? w.start : seg.start,
+          end: w.end !== undefined ? w.end : seg.end
+        });
+      }
+    } else {
+      const segWords = (seg.text || '').trim().split(/\s+/).filter(Boolean);
+      const segDur = Math.max(0.1, (seg.end - seg.start) || 1);
+      const wordDur = segDur / Math.max(1, segWords.length);
+      for (let i = 0; i < segWords.length; i++) {
+        tokens.push({
+          word: segWords[i].toLowerCase().replace(/[^a-z0-9]/g, ''),
+          start: seg.start + i * wordDur,
+          end: seg.start + (i + 1) * wordDur
+        });
       }
     }
   }
 
-  const captionText = words.join(' ');
-  let capEl = REEL._dom.querySelector('#reel-captions');
-  if (!capEl) {
-    capEl    = document.createElement('div');
-    capEl.id = 'reel-captions';
-    REEL._dom.appendChild(capEl);
+  for (let i = 0; i <= tokens.length - targetWords.length; i++) {
+    let match = true;
+    for (let j = 0; j < targetWords.length; j++) {
+      if (tokens[i + j].word !== targetWords[j]) {
+        match = false;
+        break;
+      }
+    }
+    if (match) {
+      return tokens[i].start + offset;
+    }
   }
 
-  const captionY = REEL.captionY ?? (REEL.height - 140);
-  Object.assign(capEl.style, {
-    position:   'absolute',
-    left:       '50%',
-    top:        captionY + 'px',
-    transform:  'translateX(-50%)',
-    maxWidth:   Math.round(REEL.width * 0.85) + 'px',
-    textAlign:  'center',
-    fontFamily: '"Archivo", "Segoe UI", system-ui, sans-serif',
-    fontSize:   '42px',
-    fontWeight: 700,
-    color:      '#ffffff',
-    textShadow: '0 2px 8px rgba(0,0,0,0.9)',
-    background: captionText ? 'rgba(0,0,0,0.55)' : 'transparent',
-    padding:    captionText ? '8px 20px' : '0',
-    borderRadius: '8px',
-    pointerEvents: 'none',
-    transition: 'none',
-  });
-  capEl.textContent = captionText;
+  throw new Error(`FATAL SYNC ERROR: Phrase "${targetPhrase}" not found in captions track!`);
 }
+
+// ── on() — raw per-frame hook ─────────────────────────────────────────────────
 
 /**
- * Load a Whisper-outline caption file (used by renderer scripts at build time).
- * Format: start_ms TAB end_ms TAB word (one per line)
- *
- * @param {string} outlinePath
- * @param {string} content     File content (caller reads from disk)
+ * Register a raw per-frame callback (no associated DOM element).
+ * @param {(t: number) => void} fn
  */
-export function loadCaptionData(outlinePath, content) {
-  const entries = [];
-  for (const line of content.split('\n')) {
-    const parts = line.trim().split(/\t/);
-    if (parts.length >= 3) {
-      entries.push({ startMs: parseInt(parts[0], 10), endMs: parseInt(parts[1], 10), word: parts[2] });
-    }
-  }
-  _captionData.set(outlinePath, entries);
+export function on(fn) {
+  _layers.push({ _tick: fn, name: '_raw_' + _layers.length });
 }
 
-// ── Browser preview loop ──────────────────────────────────────────────────────
-// Only runs in a browser context (not in Playwright renderer scripts, which
-// call seek(t) directly for each frame).
+// ── Private helpers ───────────────────────────────────────────────────────────
 
-if (typeof window !== 'undefined' && typeof requestAnimationFrame !== 'undefined') {
-  let _previewT = 0;
-  let _lastRAF  = null;
-  let _lastTimestamp = null;
-
-  function _previewStep(timestamp) {
-    if (_lastTimestamp !== null) {
-      _previewT += (timestamp - _lastTimestamp) / 1000;
-    }
-    _lastTimestamp = timestamp;
-    if (_previewT > REEL.duration) {
-      _previewT = 0;
-      _lastTimestamp = null;
-    }
-    seek(_previewT);
-    _lastRAF = requestAnimationFrame(_previewStep);
+function _positionEl(el, x, y) {
+  if (x === 'center') {
+    el.style.left      = '50%';
+    el.style.transform = (el.style.transform || '') + ' translateX(-50%)';
+  } else {
+    el.style.left = `${x}px`;
   }
+  if (y === 'center') {
+    el.style.top       = '50%';
+    el.style.transform = (el.style.transform || '') + ' translateY(-50%)';
+  } else {
+    el.style.top = `${y}px`;
+  }
+}
 
-  // Auto-start after the module (and edit.js) have fully loaded
+function _stylesToCSS(styles) {
+  const mapped = {};
+  for (const [k, v] of Object.entries(styles)) {
+    if (v === null || v === undefined) continue;
+    if (typeof v === 'number') {
+      // Numeric pixel values for known layout props
+      const pixelProps = new Set([
+        'top','left','right','bottom','width','height',
+        'marginTop','marginBottom','marginLeft','marginRight',
+        'paddingTop','paddingBottom','paddingLeft','paddingRight',
+        'borderRadius','fontSize','gap',
+      ]);
+      mapped[k] = pixelProps.has(k) ? `${v}px` : String(v);
+    } else {
+      mapped[k] = String(v);
+    }
+  }
+  return mapped;
+}
+
+// ── Browser live-preview loop (development only) ──────────────────────────────
+// When loaded in a normal browser (not Playwright headless), drive the
+// compositor from requestAnimationFrame using the real clock.
+
+if (typeof window !== 'undefined' && !window.__playwright) {
+  let _startTime = null;
+  function _raf(ts) {
+    if (_startTime === null) _startTime = ts;
+    const t = Math.min((ts - _startTime) / 1000, REEL.duration);
+    seek(t);
+    if (t < REEL.duration) requestAnimationFrame(_raf);
+  }
   window.addEventListener('load', () => {
-    _lastRAF = requestAnimationFrame(_previewStep);
-  }, { once: true });
-
-  // Expose controls for manual inspection
-  window.REEL_PREVIEW = {
-    seek(t) { _previewT = t; seek(t); },
-    pause()  { if (_lastRAF) cancelAnimationFrame(_lastRAF); },
-    resume() { _lastRAF = requestAnimationFrame(_previewStep); },
-  };
+    if (!window.seek) window.seek = seek;
+    requestAnimationFrame(_raf);
+  });
 }

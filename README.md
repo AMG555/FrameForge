@@ -39,6 +39,23 @@ scenes: [                                final_video_1080p.mp4 ✓
 
 ---
 
+## Do I need a separate LLM API key?
+
+**No — if you use FrameForge from an agentic IDE, you already have an LLM.**
+
+FrameForge has two usage paths with different requirements:
+
+| Path | How it works | LLM key needed? |
+|------|--------------|-----------------|
+| **Agent-first** `create_video_from_script` | Your IDE's model (Claude, GPT-4o, Gemini…) writes the scenes. FrameForge only runs FFmpeg + TTS + image gen. | **No** |
+| **Auto-research** `queue_full_pipeline` | FrameForge runs without an IDE — calls its own LLM for research and scripting. For overnight batch runs. | **Yes** — `PROVIDER_LLM` + key |
+
+**For the agent-first path:** the only keys you need are TTS and image generation — both have free options (`edge-tts` requires no account, `pollinations` requires no account).
+
+**For the auto-research path:** set `PROVIDER_LLM=groq` and `GROQ_API_KEY` (free), or `PROVIDER_LLM=ollama` to run completely local with zero keys.
+
+---
+
 ## Key Features
 
 | | Feature | Detail |
@@ -74,17 +91,43 @@ npm run doctor        # pre-flight check — tells you what's missing
 npm run setup         # interactive key wizard (~2 min)
 ```
 
-Minimum `.env` — **if you use `create_video_from_script` from your IDE, no LLM key is needed at all.** The IDE's model writes the script; FrameForge only handles rendering:
+**Minimum `.env` — agent-first path (no LLM key needed):**
 
 ```env
-# LLM key only needed for auto-research path (research_topic / write_script)
-# Skip this if your IDE writes the scenes via create_video_from_script
-GROQ_API_KEY=gsk_...         # free tier — console.groq.com (or set PROVIDER_LLM=ollama for fully local)
-PROVIDER_TTS=edge-tts        # free, offline — no key needed
-PROVIDER_IMAGE=pollinations  # free — no key needed
+# No LLM key required when your IDE writes the scenes via create_video_from_script
+PROVIDER_TTS=edge-tts        # free, offline — no account needed
+PROVIDER_IMAGE=pollinations  # free — no account needed
+```
+
+**Minimum `.env` — auto-research path (pipeline writes its own script):**
+
+```env
+# One of these — pick the cheapest/fastest for you:
+GROQ_API_KEY=gsk_...         # free tier — console.groq.com
+# GEMINI_API_KEY=...         # free tier — aistudio.google.com
+# OLLAMA_BASE_URL=http://localhost:11434/api  # fully local, zero cost
+
+PROVIDER_LLM=groq            # or: gemini | ollama | openrouter | anthropic | openai
+PROVIDER_TTS=edge-tts
+PROVIDER_IMAGE=pollinations
 ```
 
 ### 3. Generate your first video
+
+**From your IDE (agent-first — no LLM key):**
+
+```
+create_video_from_script({
+  scenes: [
+    { narration: "GPS works by triangulating signals from satellites.",
+      caption: "GPS TRIANGULATION",
+      visual_description: "satellite orbiting earth, flat illustration, bold colors" }
+  ],
+  title: "How GPS Works"
+})
+```
+
+**From the CLI (auto-research — needs LLM key):**
 
 ```bash
 npm run make -- --topic "How does GPS actually work?"
@@ -144,9 +187,7 @@ Same block works in IBM Bob, Codex, opencode, Cursor, Windsurf, Claude Code, VS 
       "command": "node",
       "args": ["/absolute/path/to/FrameForge/src/mcp-server/stdio.js"],
       "env": {
-        "GROQ_API_KEY": "gsk_...",
-        "PROVIDER_LLM": "groq",
-        "PROVIDER_TTS": "edge-tts",
+        "PROVIDER_TTS":   "edge-tts",
         "PROVIDER_IMAGE": "pollinations"
       }
     }
@@ -154,13 +195,15 @@ Same block works in IBM Bob, Codex, opencode, Cursor, Windsurf, Claude Code, VS 
 }
 ```
 
+> If you also want the auto-research tools (`research_topic`, `write_script`) to work, add `GROQ_API_KEY` and `PROVIDER_LLM=groq` to the `env` block above.
+
 ---
 
 ## Using FrameForge from Your IDE
 
-### Agent-first path (recommended for all agentic IDEs)
+### Path 1 — Agent-first (recommended for all agentic IDEs)
 
-**You are already running a model** (Claude, GPT-4o, Gemini, etc.) inside your IDE. Write the scenes yourself — FrameForge only handles rendering. No `GROQ_API_KEY` or `PROVIDER_LLM` needed at all.
+**You are already running a model** (Claude, GPT-4o, Gemini, etc.) inside your IDE — use it. Write the scenes yourself and hand them to FrameForge for rendering. FrameForge only runs FFmpeg, TTS, and image generation. **No `GROQ_API_KEY`, `PROVIDER_LLM`, or any other LLM config needed.**
 
 ```
 create_video_from_script({
@@ -181,9 +224,9 @@ create_video_from_script({
 → { masterPath: "/files/final_video_abc123.mp4", passed: true, sceneCount: 2 }
 ```
 
-### Auto-research path (for unattended / batch runs)
+### Path 2 — Auto-research (for unattended / batch runs)
 
-Use this when FrameForge runs **without** an IDE in the loop — overnight batch or `queue_full_pipeline`. The pipeline calls its own LLM, so `PROVIDER_LLM` + its API key are required:
+Use this when FrameForge runs **without** an IDE in the loop — overnight batch or `queue_full_pipeline`. The pipeline calls its own LLM for research and scripting, so `PROVIDER_LLM` + its API key are required. Use `PROVIDER_LLM=ollama` for zero-cost fully-local operation.
 
 ```
 1. research_topic({ topic: "How GPS works", style: "educational", format: "short-form reel" })
@@ -212,9 +255,9 @@ Any combination of `image_path`, `video_path`, `audio_path` works. FrameForge ge
 
 | # | Tool | Description |
 |---|------|-------------|
-| 1 | `research_topic` | Research any topic. Extracts + fact-checks claims. Accepts `persona`, `style`, `format`, `audience`. |
-| 2 | `write_script` | Generate a video script from claims. Any style, language, persona, duration, or visual aesthetic. |
-| 3 | `generate_scene_image` | Generate one scene image using the configured image provider. `imageStyle` controls the aesthetic. |
+| 1 | `research_topic` | Research any topic. Extracts + fact-checks claims. **Needs `PROVIDER_LLM`.** |
+| 2 | `write_script` | Generate a video script from claims. Any style, language, persona, duration. **Needs `PROVIDER_LLM`.** |
+| 3 | `generate_scene_image` | Generate one scene image using the configured image provider. |
 | 4 | `render_tts` | Synthesize narration audio for one scene using the configured TTS provider. |
 | 5 | `assemble_video` | FFmpeg render + 7-point quality gate → master MP4. |
 | 6 | `publish_video` | Deliver finished video via file copy or HTTP webhook. |
@@ -222,10 +265,12 @@ Any combination of `image_path`, `video_path`, `audio_path` works. FrameForge ge
 | 8 | `edit_scenes` | Read and patch an existing scenes manifest — update captions, swap files, append scenes. |
 | 9 | `render_from_scenes` | Render directly from a scenes manifest, skipping research and scripting. |
 | 10 | `external_platform_call` | HTTP bridge to VoxForge, Runway, ElevenLabs, Remotion, or any external platform. |
-| 11 | `create_video_from_script` | **Agent-first.** Your IDE writes the scenes, FrameForge renders. No internal LLM. |
+| 11 | `create_video_from_script` | **Agent-first. No `PROVIDER_LLM` needed.** Your IDE writes the scenes, FrameForge renders. |
 | 12 | `multi_voice_tts` | Call any TTS platform per-request (ElevenLabs / Azure / OpenAI / edge-tts / webhook) without touching `.env`. |
-| 13 | `queue_full_pipeline` | Queue a full pipeline run via the Worker API. Returns `{ jobId, status }` immediately. |
+| 13 | `queue_full_pipeline` | Queue a full pipeline run via the Worker API. **Needs `PROVIDER_LLM` on the worker.** Returns `{ jobId }` immediately. |
 | 14 | `get_job_status` | Poll a queued job by `jobId`. Returns `{ status, stage, result }`. Call every 30s until `SUCCEEDED`. |
+
+> **Tools 1, 2, and 13** make internal LLM calls. All others run deterministic code (FFmpeg, HTTP, file I/O).
 
 ---
 
@@ -279,15 +324,44 @@ Switch any provider by setting the corresponding env var — no code changes.
 
 ### LLM providers
 
-Set `PROVIDER_LLM=` to any supported provider. Override the model with `LLM_MODEL=your-model-id` and the endpoint with `LLM_BASE_URL=https://...` — any OpenAI-compatible API works.
+> Only needed for Tools 1, 2, and 13 (auto-research path). Skip entirely when using `create_video_from_script`.
+
+| Provider | Env var | Notes |
+|----------|---------|-------|
+| `groq` | `GROQ_API_KEY` | Free tier, fastest. [console.groq.com](https://console.groq.com) |
+| `gemini` | `GEMINI_API_KEY` | Free tier. [aistudio.google.com](https://aistudio.google.com) |
+| `cerebras` | `CEREBRAS_API_KEY` | Free tier, 2000+ tok/s. [cloud.cerebras.ai](https://cloud.cerebras.ai) |
+| `openrouter` | `OPENROUTER_API_KEY` | One key → any model (Claude, GPT-4o, Gemini, Llama…). [openrouter.ai](https://openrouter.ai) |
+| `anthropic` | `ANTHROPIC_API_KEY` | Claude direct. [console.anthropic.com](https://console.anthropic.com) |
+| `openai` | `OPENAI_API_KEY` | GPT-4o direct. [platform.openai.com](https://platform.openai.com) |
+| `ollama` | none | Fully local — any Ollama model, zero cost. Set `OLLAMA_MODEL`. |
+| `webhook` | `WEBHOOK_LLM_URL` | Any OpenAI-compatible endpoint (LM Studio, vLLM, LocalAI). |
+
+Set `PROVIDER_LLM=<name>` and override the model with `LLM_MODEL=<model-id>` or the endpoint with `LLM_BASE_URL=<url>`.
 
 ### TTS providers
 
 Set `PROVIDER_TTS=` to any supported voice provider. Use `multi_voice_tts` to override per call without touching `.env`.
 
+| Provider | Env var | Notes |
+|----------|---------|-------|
+| `edge-tts` | none | Free, offline, no account. Default. |
+| `elevenlabs` | `ELEVENLABS_API_KEY` | Best quality voice cloning. |
+| `azure` | `AZURE_SPEECH_KEY` + `AZURE_SPEECH_REGION` | Microsoft Neural voices. |
+| `openai` | `OPENAI_API_KEY` | OpenAI TTS (alloy, nova, shimmer…). |
+| `webhook` | `WEBHOOK_TTS_URL` | Any custom TTS endpoint. |
+
 ### Image generation providers
 
 Set `PROVIDER_IMAGE=` to any supported image provider.
+
+| Provider | Env var | Notes |
+|----------|---------|-------|
+| `pollinations` | none | Free, no account. Default. |
+| `falai` | `FALAI_API_KEY` | Fast, high quality. |
+| `replicate` | `REPLICATE_API_KEY` | Any Replicate model. |
+| `dalle` | `OPENAI_API_KEY` | DALL-E 3 via OpenAI. |
+| `webhook` | `WEBHOOK_IMAGE_URL` | Any custom image endpoint. |
 
 ---
 
@@ -313,8 +387,8 @@ YOUR IDE (IBM Bob / Codex / opencode / Cursor / Windsurf / Claude Code)
          │   └─ artifact-retention.js permanent / 30-day / temp sweep
          │
          ├─ src/workflows/
-         │   ├─ research.js   research + fact extraction
-         │   ├─ script.js     scene schema v2.0.0 generation + normalisation
+         │   ├─ research.js   research + fact extraction        ← uses LLM
+         │   ├─ script.js     scene schema v2.0.0 generation    ← uses LLM
          │   ├─ assets.js     parallel image gen + TTS (configurable concurrency)
          │   ├─ render.js     FFmpeg zoompan + captions + quality gate
          │   ├─ shorts.js     silence segmentation + focal-point 9:16 crop
@@ -366,9 +440,18 @@ See [`render.yaml`](render.yaml) for the Render deploy config and [`docs/deploym
 
 ```bash
 cp docs/env.template .env
-# then edit .env — minimum:
-GROQ_API_KEY=gsk_...
-PROVIDER_LLM=groq
+```
+
+**Agent-first path only** (no LLM key):
+```env
+PROVIDER_TTS=edge-tts
+PROVIDER_IMAGE=pollinations
+```
+
+**Auto-research path** (needs LLM):
+```env
+PROVIDER_LLM=groq            # or: gemini | ollama | openrouter | cerebras | openai
+GROQ_API_KEY=gsk_...         # free — console.groq.com
 PROVIDER_TTS=edge-tts
 PROVIDER_IMAGE=pollinations
 ```
@@ -423,7 +506,7 @@ sudo journalctl -fu   frameforge
 npm run make -- \
   --topic "How GPS works" \
   --style educational \       # educational | comedic | documentary | vlog | tutorial
-  --format "YouTube short" \  # YouTube video | YouTube short | Instagram reel | explainer
+  --format "short-form reel" \
   --language en \             # BCP-47 code
   --no-publish \              # render only, skip delivery
   --no-shorts \               # skip vertical crop

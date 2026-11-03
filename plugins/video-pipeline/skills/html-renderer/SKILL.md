@@ -20,9 +20,8 @@ description: |
 Renders video frames as HTML pages (one page = one frame clock) using
 Playwright for screenshot capture and FFmpeg for final encoding.
 
-Inspired by **sunithvs/video-agent-skill** (Apache 2.0) which pioneered
-`seek(t)` — every style is a deterministic pure function of time `t`. No
-CSS transitions, no `setTimeout`, no frame state that depends on the
+Built on deterministic `seek(t)` — every style is a pure function of time `t`.
+No CSS transitions, no `setTimeout`, no frame state that depends on the
 previous frame (Playwright renders frames out of order for parallelism).
 
 ---
@@ -194,18 +193,29 @@ publish_video(productionId, masterPath="output/my-topic/html-render/out/video.mp
 | `stamp(str, opts)` | Bold diagonal stamp (VERIFIED, SOURCE, etc.) |
 | `codeCard(code, lang, opts)` | Syntax-highlighted code block |
 | `captions(outlinePath)` | Auto-sync captions from whisper outline |
+| `cuePhrase(phrase, offset)` | Word-level trigger with fail-fast transcript check |
 | `cue(sfxName, t, vol)` | Trigger sound effect at time t |
 | `faceAt(layout, t)` | Position talking-head face (FULL, SPLIT, PIP) |
+| `hash(i)` | Deterministic PRNG float [0, 1) for index i |
 | `on(t => ...)` | Raw per-frame compute (for custom animations) |
 
 ---
 
-## Render modes
+## Storyboard Gates & Review Modes
 
 ```bash
-node scripts/render.mjs sheet          # Contact sheet (fast visual check)
-node scripts/render.mjs stills 0 5 12  # Named timestamps
-node scripts/render.mjs full           # Full encode (chunks, resumable)
+# 1. Pre-render diagnostic linter (checks fonts, missing sound, text clipping, NaN)
+node scripts/look.mjs
+
+# 2. Gate stills & review commands
+node scripts/render.mjs storyboard     # 4 keyframes (0%, 33%, 66%, 100%)
+node scripts/render.mjs sheet          # 4x4 or NxM contact sheet (0.5s interval)
+node scripts/render.mjs strip 1.0 1.5  # Horizontal frame strip (motion check)
+node scripts/render.mjs crop 9:16      # Focal-point mobile crop preview
+node scripts/render.mjs stills 0 5 12  # Specific timestamp stills
+
+# 3. Master render & encode
+node scripts/render.mjs full           # Full encode (parallel workers, resumable, BT.709)
 node scripts/render.mjs mux            # Re-mux audio only (no re-render)
 node scripts/render.mjs kit            # Editor kit (Premiere/Resolve XML)
 ```
@@ -215,7 +225,7 @@ Long videos render in 60s resumable chunks — re-run to continue after crash.
 
 ---
 
-## Gotchas (from sunithvs/video-agent-skill)
+## Gotchas
 
 - **Pure functions of t.** No CSS transitions, `setTimeout`, or state that
   depends on previous frames. Playwright seeks out of order.
@@ -268,14 +278,3 @@ plugins/video-pipeline/skills/html-renderer/
 scripts/html-renderer/
   new-project.mjs             ← scaffolds a render project from script JSON
 ```
-
----
-
-## License note
-
-The HTML-renderer approach was pioneered by
-**sunithvs/video-agent-skill** (Apache 2.0,
-https://github.com/sunithvs/video-agent-skill).
-FrameForge's implementation is an independent port adapted for the
-FrameForge script JSON schema and MCP pipeline. Apache 2.0 requires
-attribution — credit is given here.

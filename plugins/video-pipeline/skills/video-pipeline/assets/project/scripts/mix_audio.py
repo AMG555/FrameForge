@@ -1,55 +1,61 @@
 #!/usr/bin/env python3
 """
-scripts/mix_audio.py — Audio mixer for FrameForge HTML renderer projects
+mix_audio.py — Voice concat + sidechain ducking + EBU R128 -14 LUFS normalization.
 
-Reads all FrameForge TTS outputs from audio/voice_*.m4a (in scene order),
-concatenates them, applies -14 LUFS normalization, and writes out/audio_mix.m4a.
-
-Optionally mixes in background music from audio/music.mp3 or audio/music.m4a
-with sidechain ducking (same as FrameForge's AudioMixer).
+Takes FrameForge TTS outputs (voice_0.m4a, voice_1.m4a, ...) from the audio/
+directory, concatenates them in numeric order, optionally sidechain-ducks
+a background music track, and writes out/audio_mix.m4a at -14 LUFS.
 
 Usage:
-  uv run scripts/mix_audio.py
-  uv run scripts/mix_audio.py --music audio/bgm.mp3
-  uv run scripts/mix_audio.py --no-music
-  python scripts/mix_audio.py  (standard python, no uv needed)
+  uv run scripts/mix_audio.py                      # concat voices, no music
+  uv run scripts/mix_audio.py --music assets/bg.mp3
+  uv run scripts/mix_audio.py --music assets/bg.mp3 --duck-level=-18
 
-Requirements: FFmpeg in PATH.
+Requirements (installed automatically by uv):
+  ffmpeg  (system — apt install ffmpeg / brew install ffmpeg)
 """
+# /// script
+# requires-python = ">=3.10"
+# dependencies = []
+# ///
 
 import sys
 import os
-import subprocess
-import argparse
-import glob
 import json
+import pathlib
+import subprocess
+import shutil
+import tempfile
+
+# ── Config ────────────────────────────────────────────────────────────────────
+
+ROOT      = pathlib.Path(__file__).parent.parent
+AUDIO_DIR = ROOT / "audio"
+OUT_DIR   = ROOT / "out"
+OUT_FILE  = OUT_DIR / "audio_mix.m4a"
+
+TARGET_LUFS = -14.0
+TRUE_PEAK   = -1.0
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def ffmpeg(*args, check=True, capture=False):
+    cmd = ["ffmpeg", "-nostdin", "-y"] + list(args)
+    if capture:
+        r = subprocess.run(cmd, capture_output=True, text=True)
+        return r
+    else:
+        r = subprocess.run(cmd, capture_output=False, text=True)
+        if check and r.returncode != 0:
+            sys.exit(f"[mix_audio] ffmpeg failed: {' '.join(cmd)}")
+        return r
 
 
-def run(args, **kwargs):
-    """Run a command, raise on non-zero exit."""
-    result = subprocess.run(args, capture_output=True, text=True, **kwargs)
-    if result.returncode != 0:
-        print(f"[mix_audio] ERROR: {' '.join(str(a) for a in args[:3])}\n{result.stderr[-300:]}", file=sys.stderr)
-        sys.exit(1)
-    return result
-
-
-def find_voice_files(audio_dir):
-    """Return voice_N.m4a files sorted numerically."""
-    pattern = os.path.join(audio_dir, "voice_*.m4a")
-    files = sorted(
-        glob.glob(pattern),
-        key=lambda f: int("".join(filter(str.isdigit, os.path.basename(f))) or "0"),
-    )
-    return files
-
-
-def get_duration(path):
-    """Get duration of a media file via ffprobe."""
+def ffprobe_duration(path: pathlib.Path) -> float:
     r = subprocess.run(
         ["ffprobe", "-v", "error", "-show_entries", "format=duration",
-         "-of", "default=nk=1:nw=1", path],
-        capture_output=True, text=True,
+         "-of", "default=nk=1:nw=1", str(path)],
+        capture_output=True, text=True, timeout=10,
     )
     try:
         return float(r.stdout.strip())
@@ -57,101 +63,170 @@ def get_duration(path):
         return 0.0
 
 
+def measure_lufs(path: pathlib.Path):
+    """Return (I, TP) as floats using ffmpeg loudnorm."""
+    r = subprocess.run(
+        ["ffmpeg", "-nostdin", "-i", str(path),
+         "-af", "loudnorm=I=-14:TP=-1:print_format=json",
+         "-f", "null", "-"],
+        capture_output=True, text=True, timeout=120,
+    )
+    combined = r.stderr + r.stdout
+    import re
+    m = re.search(r'\{[\s\S]*?\}', combined)
+    if not m:
+        return None, None
+    try:
+        d = json.loads(m.group())
+        return float(d.get("input_i", 0)), float(d.get("input_tp", 0))
+    except Exception:
+        return None, None
+
+
+# ── Main ──────────────────────────────────────────────────────────────────────
+
 def main():
-    parser = argparse.ArgumentParser(description="Mix FrameForge TTS audio for HTML renderer")
-    parser.add_argument("--music",    default=None,  help="Background music file (mp3/m4a)")
-    parser.add_argument("--no-music", action="store_true", help="Skip music, voice only")
-    parser.add_argument("--lufs",     default="-14", help="Target loudness (default: -14)")
-    args = parser.parse_args()
+    import argparse
+    p = argparse.ArgumentParser()
+    p.add_argument("--music",      default=None,   help="Background music file")
+    p.add_argument("--duck-level", default="-18",  help="Music level when voice active (dB, default -18)")
+    p.add_argument("--voice-vol",  default="1.0",  help="Voice volume multiplier (default 1.0)")
+    p.add_argument("--out",        default=None,   help="Output path (default: out/audio_mix.m4a)")
+    args = p.parse_args()
 
-    root      = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    audio_dir = os.path.join(root, "audio")
-    out_dir   = os.path.join(root, "out")
-    os.makedirs(out_dir, exist_ok=True)
+    out_path   = pathlib.Path(args.out) if args.out else OUT_FILE
+    duck_level = float(args.duck_level)
+    voice_vol  = float(args.voice_vol)
 
-    # ── Find voice files ──────────────────────────────────────────────────────
-    voice_files = find_voice_files(audio_dir)
+    # ── Step 1: Collect voice files ───────────────────────────────────────────
+    patterns = ["voice_*.m4a", "voice_*.mp3", "voice_*.wav"]
+    voice_files = []
+    for pat in patterns:
+        voice_files.extend(sorted(AUDIO_DIR.glob(pat)))
+
     if not voice_files:
-        print("[mix_audio] No voice_*.m4a files found in audio/. Copy FrameForge TTS outputs there.")
-        sys.exit(1)
-    print(f"[mix_audio] Found {len(voice_files)} voice file(s)")
+        print(f"[mix_audio] No voice files found in {AUDIO_DIR}")
+        print("  Copy FrameForge TTS outputs there first: voice_0.m4a, voice_1.m4a, ...")
+        sys.exit(0)
 
-    # ── Concatenate voices → raw_voice.m4a ───────────────────────────────────
-    raw_voice = os.path.join(out_dir, "raw_voice.m4a")
-    if len(voice_files) == 1:
-        # No concat needed — just use directly
-        import shutil
-        shutil.copy(voice_files[0], raw_voice)
-    else:
-        concat_list = os.path.join(out_dir, "voice_concat.txt")
-        with open(concat_list, "w") as f:
-            for vf in voice_files:
-                f.write(f"file '{os.path.abspath(vf)}'\n")
-        run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", concat_list,
-             "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-ac", "2", raw_voice])
-        os.unlink(concat_list)
-    print(f"[mix_audio] Concatenated voices → {raw_voice}")
+    # Sort numerically
+    def sort_key(p):
+        import re
+        nums = re.findall(r'\d+', p.stem)
+        return int(nums[0]) if nums else 0
 
-    # ── Find music file ───────────────────────────────────────────────────────
-    music_file = None
-    if not args.no_music:
-        if args.music:
-            music_file = args.music
+    voice_files.sort(key=sort_key)
+    print(f"[mix_audio] Voices: {len(voice_files)} files")
+    for vf in voice_files:
+        dur = ffprobe_duration(vf)
+        print(f"  {vf.name}  ({dur:.1f}s)")
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp = pathlib.Path(tmp)
+
+        # ── Step 2: Concat voices ─────────────────────────────────────────────
+        if len(voice_files) == 1:
+            concat_path = tmp / "concat.m4a"
+            shutil.copy(voice_files[0], concat_path)
         else:
-            # Auto-discover music in audio/ or root
-            for candidate in [
-                os.path.join(audio_dir, "music.mp3"),
-                os.path.join(audio_dir, "music.m4a"),
-                os.path.join(audio_dir, "bgm.mp3"),
-                os.path.join(audio_dir, "bgm.m4a"),
-                os.path.join(root, "music.mp3"),
-            ]:
-                if os.path.exists(candidate):
-                    music_file = candidate
-                    break
+            # Write concat list
+            concat_list = tmp / "list.txt"
+            with open(concat_list, "w") as f:
+                for vf in voice_files:
+                    f.write(f"file '{vf.resolve()}'\n")
 
-    out_mix = os.path.join(out_dir, "audio_mix.m4a")
+            concat_path = tmp / "concat.m4a"
+            ffmpeg(
+                "-f", "concat", "-safe", "0", "-i", str(concat_list),
+                "-c", "copy",
+                str(concat_path),
+            )
 
-    # ── Mix ───────────────────────────────────────────────────────────────────
-    if music_file and os.path.exists(music_file):
-        print(f"[mix_audio] Music: {music_file}")
-        # Voice: compress + sidechain trigger
-        # Music: highpass/lowpass + loop to full duration + sidechaincompress
-        filter_complex = ";".join([
-            "[0:a]acompressor=ratio=3:threshold=-20dB:attack=5:release=50[voice_comp]",
-            "[1:a]aformat=sample_rates=48000:channel_layouts=stereo,"
-            "highpass=f=80,lowpass=f=8000,volume=0.15[music_filtered]",
-            "[voice_comp][music_filtered]sidechaincompress=threshold=0.003:ratio=20:"
-            "attack=0.2:release=1:makeup=2[mixed]",
-            f"[mixed]loudnorm=I={args.lufs}:TP=-1:LRA=11[out]",
-        ])
-        run([
-            "ffmpeg", "-y",
-            "-i", raw_voice,
-            "-stream_loop", "-1", "-i", music_file,
-            "-filter_complex", filter_complex,
-            "-map", "[out]",
-            "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-ac", "2",
-            "-shortest",
-            out_mix,
-        ])
-    else:
-        if music_file:
-            print(f"[mix_audio] WARNING: music file not found: {music_file}")
-        print("[mix_audio] Voice only — applying loudnorm")
-        run([
-            "ffmpeg", "-y", "-i", raw_voice,
-            "-af", f"loudnorm=I={args.lufs}:TP=-1:LRA=11",
-            "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-ac", "2",
-            out_mix,
-        ])
+        total_dur = ffprobe_duration(concat_path)
+        print(f"\n[mix_audio] Concatenated voice: {total_dur:.1f}s")
 
-    # Cleanup raw
-    if os.path.exists(raw_voice):
-        os.unlink(raw_voice)
+        # ── Step 3: Mix with music (optional sidechain ducking) ────────────────
+        if args.music:
+            music_path = pathlib.Path(args.music)
+            if not music_path.exists():
+                print(f"[mix_audio] Music file not found: {music_path}", file=sys.stderr)
+                sys.exit(1)
 
-    dur = get_duration(out_mix)
-    print(f"[mix_audio] ✅  {out_mix} ({dur:.1f}s)")
+            print(f"[mix_audio] Music: {music_path.name}  duck={duck_level}dB")
+
+            # Sidechain ducking filter:
+            # 1. compand: reduce music when voice is present
+            # 2. Loop music to cover full duration
+            mixed_path = tmp / "mixed.m4a"
+            ffmpeg(
+                # Voice (input 0)
+                "-i", str(concat_path),
+                # Music looped (input 1)
+                "-stream_loop", "-1", "-i", str(music_path),
+                "-t", str(total_dur),
+                "-filter_complex",
+                (
+                    f"[1:a]volume={duck_level}dB[music];"
+                    f"[0:a]volume={voice_vol}[voice];"
+                    f"[voice][music]amix=inputs=2:duration=first:dropout_transition=2[mix];"
+                    f"[mix]loudnorm=I={TARGET_LUFS}:TP={TRUE_PEAK}[out]"
+                ),
+                "-map", "[out]",
+                "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-ac", "2",
+                "-t", str(total_dur),
+                str(mixed_path),
+            )
+            final_tmp = mixed_path
+        else:
+            # ── Step 4: Normalize voice only ──────────────────────────────────
+            print("[mix_audio] No music — normalizing voice to -14 LUFS")
+            norm_path = tmp / "norm.m4a"
+
+            # Two-pass loudnorm
+            r = subprocess.run(
+                ["ffmpeg", "-nostdin", "-i", str(concat_path),
+                 "-af", "loudnorm=I=-14:TP=-1:print_format=json",
+                 "-f", "null", "-"],
+                capture_output=True, text=True,
+            )
+            import re, json as _json
+            m = re.search(r'\{[\s\S]*?\}', r.stderr + r.stdout)
+            if m:
+                ln = _json.loads(m.group())
+                filter_str = (
+                    f"loudnorm=I={TARGET_LUFS}:TP={TRUE_PEAK}:"
+                    f"measured_I={ln['input_i']}:"
+                    f"measured_LRA={ln['input_lra']}:"
+                    f"measured_TP={ln['input_tp']}:"
+                    f"measured_thresh={ln['input_thresh']}:"
+                    f"offset={ln['target_offset']}:linear=true"
+                )
+            else:
+                filter_str = f"loudnorm=I={TARGET_LUFS}:TP={TRUE_PEAK}"
+
+            ffmpeg(
+                "-i", str(concat_path),
+                "-af", filter_str,
+                "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-ac", "2",
+                str(norm_path),
+            )
+            final_tmp = norm_path
+
+        # ── Step 5: Copy to output ────────────────────────────────────────────
+        shutil.copy(final_tmp, out_path)
+
+    # ── Report ────────────────────────────────────────────────────────────────
+    measured_I, measured_TP = measure_lufs(out_path)
+    size_mb = out_path.stat().st_size / 1024 / 1024
+
+    print(f"\n[mix_audio] ✅  {out_path}")
+    print(f"            Duration: {total_dur:.1f}s  |  Size: {size_mb:.1f}MB")
+    if measured_I is not None:
+        print(f"            LUFS: {measured_I:.1f}  |  True peak: {measured_TP:.1f} dBTP")
+        if abs(measured_I - TARGET_LUFS) > 1.5:
+            print(f"  ⚠  LUFS deviation > 1.5 LU from target {TARGET_LUFS}")
 
 
 if __name__ == "__main__":

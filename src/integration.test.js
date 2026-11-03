@@ -294,3 +294,44 @@ describe('Integration — Stage E: full schema pipeline data flow', () => {
     assert.equal(normalised[0].audio_path, '/assets/voice1.m4a');
   });
 });
+
+
+// ── Stage F: runIngest state-file registration ────────────────────────────────
+
+describe('Integration — Stage F: runIngest registers state file', () => {
+  const { runIngest } = require('../src/workflows/ingest');
+
+  it('writes a state/<productionId>.json alongside the scenes manifest', async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ff-ingest-state-'));
+    const result = await runIngest({
+      rawScenes: [{ narration: 'Hello world, this is a test scene.' }],
+      outDir: tmpDir,
+    });
+
+    const stateFile = path.join(tmpDir, 'state', `${result.productionId}.json`);
+    assert.ok(fs.existsSync(stateFile), `state file should exist at ${stateFile}`);
+
+    const record = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+    assert.equal(record.productionId, result.productionId);
+    assert.equal(record.status, 'QUEUED');
+    assert.ok(typeof record.createdAt === 'string');
+    assert.ok('stages' in record);
+  });
+
+  it('does not overwrite an existing state file on re-run with same productionId', async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ff-ingest-idem-'));
+    const pid = 'test_idempotent_pid';
+
+    // First run
+    await runIngest({ rawScenes: [{ narration: 'Scene one.' }], outDir: tmpDir, productionId: pid });
+    const stateFile = path.join(tmpDir, 'state', `${pid}.json`);
+    const mtime1 = fs.statSync(stateFile).mtimeMs;
+
+    // Tiny delay then second run with same pid
+    await new Promise(r => setTimeout(r, 20));
+    await runIngest({ rawScenes: [{ narration: 'Scene one.' }], outDir: tmpDir, productionId: pid });
+    const mtime2 = fs.statSync(stateFile).mtimeMs;
+
+    assert.equal(mtime1, mtime2, 'state file must not be rewritten if it already exists');
+  });
+});

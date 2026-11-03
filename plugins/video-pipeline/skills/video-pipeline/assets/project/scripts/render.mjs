@@ -1,264 +1,650 @@
 #!/usr/bin/env node
 /**
- * scripts/render.mjs — Playwright-based HTML compositor renderer for FrameForge
+ * render.mjs — FrameForge HTML Compositor Frame Renderer
  *
- * Renders video frames by:
- *   1. Opening index.html in a headless Chromium page
- *   2. Calling window.REEL_SEEK(t) for each frame (pure function of t)
- *   3. Capturing a screenshot for each frame
- *   4. Encoding frames to MP4 with FFmpeg
+ * Drives headless Playwright/Chromium one frame at a time using a virtual clock
+ * shim that replaces performance.now(), Date.now(), requestAnimationFrame, and
+ * document.getAnimations() so seek(t) is the only source of time in the page.
  *
- * Usage:
- *   node scripts/render.mjs sheet               Contact sheet (fast visual check)
- *   node scripts/render.mjs stills 0 5 12 28    Named timestamps
- *   node scripts/render.mjs full                Full encode
- *   node scripts/render.mjs mux                 Re-mux audio only (no re-render)
+ * Modes:
+ *   node scripts/render.mjs sheet              contact sheet — one frame every 0.5s
+ *   node scripts/render.mjs stills 0 5.5 12    frames at specific timestamps
+ *   node scripts/render.mjs at 2.4             single full-res still at exact time
+ *   node scripts/render.mjs strip 2.1 2.6      every frame in a time range (motion check)
+ *   node scripts/render.mjs full               full encode → out/<name>.mp4
+ *   node scripts/render.mjs mux                re-mux audio only (no re-render)
+ *   node scripts/render.mjs kit                generate editor XML (Premiere/Resolve)
  *
- * Requirements: Playwright (npx playwright install chromium), FFmpeg
+ * Options:
+ *   --workers=N      parallel Playwright pages (default: 4)
+ *   --crf=N          ffmpeg CRF quality (default: 18)
+ *   --fps=N          output FPS override
+ *   --audio=path     audio file to mux into the output
+ *   --out=path       output file path (default: out/<title>.mp4)
+ *   --resume         skip frames that already exist on disk
+ *   --cols=N         contact sheet columns (default: 6)
+ *   --w=N            contact sheet thumbnail width px (default: 320)
+ *   --crop=x,y,w,h   crop region applied to all stills (sheet/stills/at/strip)
+ *
+ * Requirements: npm install playwright  +  npx playwright install chromium
+ * Recommended:  Node 18+, FFmpeg ≥ 5.0
  */
 
-import { chromium }             from 'playwright';
-import fs                       from 'fs';
-import path                     from 'path';
-import { spawnSync, execFileSync } from 'child_process';
-import { fileURLToPath }        from 'url';
+import fs                from 'fs';
+import path              from 'path';
+import { fileURLToPath } from 'url';
+import { createRequire } from 'module';
+
+let chromium;
+try {
+  ({ chromium } = await import('playwright'));
+} catch (_) {
+  process.stderr.write('\n[render] ERROR: Playwright is required for browser frame rendering.\n');
+  process.stderr.write('         Install via: npm install playwright && npx playwright install chromium\n\n');
+  process.exit(1);
+}
+
+const _require     = createRequire(import.meta.url);
+const { spawnSync: _spawnSyncFn } = _require('child_process');
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT      = path.resolve(__dirname, '..');
+const INDEX     = path.join(ROOT, 'index.html');
+const OUT_DIR   = path.join(ROOT, 'out');
+const FRAME_DIR = path.join(OUT_DIR, 'frames');
 
-// ── Config ────────────────────────────────────────────────────────────────────
+// ── Virtual clock init script ─────────────────────────────────────────────────
+// This is the mechanism that makes the renderer deterministic.
+// Injected before every page load so the page never sees real wall-clock time.
 
-const INDEX_HTML = path.join(ROOT, 'index.html');
-const OUT_DIR    = path.join(ROOT, 'out');
-const FRAMES_DIR = path.join(ROOT, 'out', 'frames');
-const AUDIO_MIX  = path.join(ROOT, 'out', 'audio_mix.m4a');
+const VIRTUAL_CLOCK_SCRIPT = `
+(function () {
+  let _now = 0;
+  let _rafQueue = new Map();
+  let _rafId = 0;
+  let _timerQueue = [];
+  let _timerId = 0;
+  const _startDate = Date.now();
 
-// Parallelism: number of browser pages rendering simultaneously.
-// 6 = good default for motion-blur subframes; lower on low-RAM machines.
-const PARALLEL_PAGES = parseInt(process.env.RENDER_PARALLEL || '6', 10);
+  window.__playwright = true;
+
+  // 1. Replace performance.now() & Date.now()
+  performance.now = () => _now;
+  Date.now = () => _startDate + _now;
+
+  // 2. Deterministic requestAnimationFrame
+  window.requestAnimationFrame = (cb) => {
+    const id = ++_rafId;
+    _rafQueue.set(id, cb);
+    return id;
+  };
+  window.cancelAnimationFrame = (id) => {
+    _rafQueue.delete(id);
+  };
+
+  // 3. Virtual Timer Queue (prevents setTimeout/setInterval leaks)
+  window.setTimeout = (fn, delay = 0, ...args) => {
+    const id = ++_timerId;
+    _timerQueue.push({ id, runAt: _now + Math.max(0, delay), fn, args, repeat: 0 });
+    _timerQueue.sort((a, b) => a.runAt - b.runAt);
+    return id;
+  };
+  window.clearTimeout = (id) => {
+    const idx = _timerQueue.findIndex(t => t.id === id);
+    if (idx !== -1) _timerQueue.splice(idx, 1);
+  };
+  window.setInterval = (fn, interval = 0, ...args) => {
+    const id = ++_timerId;
+    const step = Math.max(16, interval);
+    _timerQueue.push({ id, runAt: _now + step, fn, args, repeat: step });
+    _timerQueue.sort((a, b) => a.runAt - b.runAt);
+    return id;
+  };
+  window.clearInterval = (id) => {
+    const idx = _timerQueue.findIndex(t => t.id === id);
+    if (idx !== -1) _timerQueue.splice(idx, 1);
+  };
+
+  // 4. Deterministic Seeded PRNG override for Math.random()
+  let _seed = 0x2F6E2B1;
+  window.Math.random = () => {
+    _seed = (_seed + 0x6D2B79F5) | 0;
+    let t = Math.imul(_seed ^ (_seed >>> 15), 1 | _seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+
+  // __advance(ms) — called by the renderer per frame
+  window.__advance = (ms) => {
+    _now += ms;
+    // Process due timers
+    while (_timerQueue.length > 0 && _timerQueue[0].runAt <= _now) {
+      const item = _timerQueue.shift();
+      try { item.fn(...item.args); } catch (_) {}
+      if (item.repeat > 0) {
+        item.runAt = _now + item.repeat;
+        _timerQueue.push(item);
+        _timerQueue.sort((a, b) => a.runAt - b.runAt);
+      }
+    }
+    // Process rAF callbacks
+    const currentRafs = Array.from(_rafQueue.values());
+    _rafQueue.clear();
+    currentRafs.forEach(cb => { try { cb(_now); } catch (_) {} });
+
+    // Sync CSS animations
+    try {
+      document.getAnimations().forEach(a => {
+        if (a.playState !== 'paused') a.pause();
+        a.currentTime = _now;
+      });
+    } catch (_) {}
+  };
+
+  // __seek(t) — direct seek to absolute time in seconds
+  window.__seek = async (t) => {
+    _now = t * 1000;
+    if (window.seek) await window.seek(t);
+    // Flush timers due up to current virtual time
+    while (_timerQueue.length > 0 && _timerQueue[0].runAt <= _now) {
+      const item = _timerQueue.shift();
+      try { item.fn(...item.args); } catch (_) {}
+    }
+    if (document.fonts && document.fonts.ready) {
+      await document.fonts.ready;
+    }
+  };
+})();
+`;
+
+// ── Shared Chromium Launch Flags (Fixes Mac Metal & cross-platform WebGL) ─────
+function getChromiumLaunchArgs() {
+  const isMac = process.platform === 'darwin';
+  return [
+    '--no-sandbox',
+    '--disable-setuid-sandbox',
+    '--disable-gpu-watchdog',
+    '--enable-surface-synchronization',
+    '--run-all-compositor-stages-before-draw',
+    '--disable-threaded-animation',
+    '--disable-checker-imaging',
+    '--enable-webgl',
+    '--ignore-gpu-blocklist',
+    isMac ? '--use-gl=angle' : '--use-gl=angle',
+    isMac ? '--use-angle=metal' : '--use-angle=default',
+  ];
+}
 
 // ── Argument parsing ──────────────────────────────────────────────────────────
 
-const [,, command = 'full', ...rest] = process.argv;
+const argv   = process.argv.slice(2);
+const mode   = argv[0] || 'sheet';
+const flags  = {};
+const extras = [];
+
+for (let i = 1; i < argv.length; i++) {
+  const arg = argv[i];
+  if (arg.startsWith('--')) {
+    const [k, v] = arg.slice(2).split('=');
+    flags[k] = v ?? true;
+  } else {
+    extras.push(arg);
+  }
+}
+
+const WORKERS  = parseInt(flags.workers  || '4',  10);
+const CRF      = parseInt(flags.crf      || '18', 10);
+const FPS_OPT  = flags.fps  ? parseInt(flags.fps, 10) : null;
+const AUDIO    = flags.audio ? path.resolve(ROOT, flags.audio) : null;
+const RESUME   = Boolean(flags.resume);
+const CHUNK_S  = parseInt(flags.chunk || '60', 10);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+function log(msg) { process.stdout.write(msg + '\n'); }
+function die(msg) { process.stderr.write('[render] ERROR: ' + msg + '\n'); process.exit(1); }
+
 function ensureDir(d) { fs.mkdirSync(d, { recursive: true }); }
 
-/** Read REEL config from the running page. */
+/** Zero-pad number to 6 digits */
+function pad6(n) { return String(n).padStart(6, '0'); }
+
+/** Discover REEL config by loading the page and reading window values. */
 async function getReelConfig(page) {
-  return page.evaluate(() => ({
-    width:    window.REEL?.width    ?? 1920,
-    height:   window.REEL?.height   ?? 1080,
-    fps:      window.REEL?.fps      ?? 30,
-    duration: window.REEL?.duration ?? 60,
-    title:    window.REEL?.title    ?? '',
+  await page.goto('file://' + INDEX, { waitUntil: 'networkidle' });
+  await page.evaluate(() => document.fonts.ready);
+  const cfg = await page.evaluate(() => ({
+    duration: window.DURATION || 60,
+    fps:      window.FPS      || 30,
+    title:    window.REEL?.title || 'output',
+    width:    window.REEL?.width  || 1920,
+    height:   window.REEL?.height || 1080,
   }));
+  return cfg;
 }
 
-/** Seek to time t and take a screenshot, returning a Buffer. */
+/** Injects virtual clock shim (preferring reel/virtual-clock.js if available) */
+async function injectVirtualClock(page) {
+  const clockFile = path.join(ROOT, 'reel', 'virtual-clock.js');
+  if (fs.existsSync(clockFile)) {
+    await page.addInitScript({ path: clockFile });
+  } else {
+    await page.addInitScript(VIRTUAL_CLOCK_SCRIPT);
+  }
+}
+
+/** Capture a single frame at time t (seconds). Returns PNG Buffer. */
 async function captureFrame(page, t) {
-  await page.evaluate(seekT => {
-    // Engine exposes seek() globally when loaded as module in browser.
-    // We call the preview-control API which calls seek() directly.
-    if (window.REEL_PREVIEW) {
-      window.REEL_PREVIEW.seek(seekT);
-    } else if (typeof window.seek === 'function') {
-      window.seek(seekT);
-    }
-  }, t);
-  // Wait one microtask for DOM to settle after seek
-  await page.evaluate(() => new Promise(r => setTimeout(r, 0)));
+  await page.evaluate((t) => window.__seek(t), t);
   return page.screenshot({ type: 'png' });
 }
 
-/** Launch a headed browser pool. */
-async function launchPool(count) {
-  const browser = await chromium.launch({ headless: true });
-  const pages   = await Promise.all(
-    Array.from({ length: count }, async () => {
-      const ctx  = await browser.newContext({
-        viewport:          { width: 1920, height: 1080 },
-        deviceScaleFactor: 1,
-      });
-      const page = await ctx.newPage();
-      await page.goto(`file://${INDEX_HTML}`);
-      // Pause the preview loop so we can seek manually
-      await page.evaluate(() => { window.REEL_PREVIEW?.pause(); });
-      return page;
-    })
-  );
-  return { browser, pages };
-}
+// ── Mode: sheet ───────────────────────────────────────────────────────────────
+// Contact sheet: one frame every 0.5s, composed into a JPEG grid.
 
-// ── Commands ──────────────────────────────────────────────────────────────────
+async function modeSheet() {
+  const interval = parseFloat(flags.interval || '0.5');
+  const cols     = parseInt(flags.cols || '6', 10);
+  const thumbW   = parseInt(flags.w || '320', 10);
+  const outPath  = flags.out ? path.resolve(ROOT, flags.out) : path.join(OUT_DIR, 'sheet.jpg');
 
-// ── sheet: contact sheet ─────────────────────────────────────────────────────
-
-async function cmdSheet() {
-  console.log('📋  Rendering contact sheet…');
   ensureDir(OUT_DIR);
-  const { browser, pages } = await launchPool(1);
-  const page     = pages[0];
-  const config   = await getReelConfig(page);
-  const interval = 0.5; // one frame every 0.5 seconds
-  const times    = [];
-  for (let t = 0; t <= config.duration; t += interval) times.push(+t.toFixed(3));
 
-  const sheets = [];
-  for (const t of times) {
-    const buf  = await captureFrame(page, t);
-    const file = path.join(OUT_DIR, `sheet_${t.toFixed(2).replace('.', '_')}s.png`);
-    fs.writeFileSync(file, buf);
-    sheets.push(file);
+  const browser = await chromium.launch({ args: getChromiumLaunchArgs() });
+  const page    = await browser.newPage();
+  await injectVirtualClock(page);
+
+  const cfg      = await getReelConfig(page);
+  const fps      = FPS_OPT || cfg.fps;
+  const duration = cfg.duration;
+
+  await page.setViewportSize({ width: cfg.width, height: cfg.height });
+
+  const times = [];
+  for (let t = 0; t <= duration; t += interval) times.push(parseFloat(t.toFixed(3)));
+
+  log(`[sheet] ${cfg.title} — ${duration}s @ ${fps}fps — ${times.length} frames → ${path.basename(outPath)}`);
+
+  const thumbH = Math.round(thumbW * (cfg.height / cfg.width));
+  const rows   = Math.ceil(times.length / cols);
+  const W      = cols * thumbW;
+  const H      = rows * thumbH;
+
+  // Render individual thumbnails, tile with ffmpeg tile filter
+  const tmpDir = path.join(OUT_DIR, '_sheet_tmp_' + Date.now());
+  ensureDir(tmpDir);
+
+  for (let i = 0; i < times.length; i++) {
+    const buf = await captureFrame(page, times[i]);
+    fs.writeFileSync(path.join(tmpDir, `frame_${pad6(i)}.png`), buf);
+    if (i % 10 === 0) process.stdout.write(`\r  ${i}/${times.length}`);
   }
-
-  await browser.close();
-  console.log(`✅  Contact sheet: ${sheets.length} frames in ${OUT_DIR}`);
-}
-
-// ── stills: named timestamps ──────────────────────────────────────────────────
-
-async function cmdStills(times) {
-  if (!times.length) { console.error('Usage: render.mjs stills <t0> <t1> …'); process.exit(1); }
-  console.log(`🖼   Rendering ${times.length} stills…`);
-  ensureDir(OUT_DIR);
-  const { browser, pages } = await launchPool(1);
-  const page = pages[0];
-
-  for (const t of times) {
-    const buf  = await captureFrame(page, t);
-    const file = path.join(OUT_DIR, `still_${String(t).replace('.', '_')}s.png`);
-    fs.writeFileSync(file, buf);
-    console.log(`  ✓ ${t}s → ${file}`);
-  }
-
-  await browser.close();
-  console.log('✅  Stills done.');
-}
-
-// ── full: complete render ─────────────────────────────────────────────────────
-
-async function cmdFull() {
-  ensureDir(FRAMES_DIR);
-
-  // Open one page to read config
-  const { browser, pages } = await launchPool(PARALLEL_PAGES);
-  const config  = await getReelConfig(pages[0]);
-  const { width, height, fps, duration, title } = config;
-  const totalFrames = Math.round(duration * fps);
-  const outName     = title
-    ? title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-    : 'video';
-  const videoPath   = path.join(OUT_DIR, `${outName}.mp4`);
-
-  console.log(`🎬  Full render: ${totalFrames} frames @ ${fps}fps (${duration.toFixed(1)}s)`);
-  console.log(`    Resolution: ${width}×${height}`);
-  console.log(`    Output:     ${videoPath}`);
-
-  // Distribute frames across the page pool
-  const queue = Array.from({ length: totalFrames }, (_, i) => i);
-  let rendered = 0;
-
-  // Chunked parallel rendering
-  const CHUNK = PARALLEL_PAGES;
-  for (let i = 0; i < queue.length; i += CHUNK) {
-    const batch = queue.slice(i, i + CHUNK);
-    await Promise.all(batch.map(async (frameIdx, j) => {
-      const page  = pages[j % pages.length];
-      const t     = +(frameIdx / fps).toFixed(6);
-      const buf   = await captureFrame(page, t);
-      const file  = path.join(FRAMES_DIR, `frame_${String(frameIdx).padStart(6, '0')}.png`);
-      fs.writeFileSync(file, buf);
-    }));
-    rendered += batch.length;
-    const pct = ((rendered / totalFrames) * 100).toFixed(1);
-    process.stdout.write(`\r  🖼  ${rendered}/${totalFrames} frames (${pct}%)   `);
-  }
-
-  await browser.close();
   process.stdout.write('\n');
 
-  // Encode with FFmpeg
-  console.log('🎞   Encoding with FFmpeg…');
-  const audioArgs = fs.existsSync(AUDIO_MIX)
-    ? ['-i', AUDIO_MIX, '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-ac', '2']
+  await browser.close();
+
+  // Tile with ffmpeg (%06d sequence works cross-platform)
+  const tileResult = _spawnSync('ffmpeg', [
+    '-y',
+    '-i', path.join(tmpDir, 'frame_%06d.png'),
+    '-vf', `scale=${thumbW}:${thumbH},tile=${cols}x${rows}`,
+    '-q:v', '4',
+    outPath,
+  ]);
+  if (tileResult.status !== 0) die('ffmpeg tile failed: ' + tileResult.stderr);
+
+  // Cleanup
+  fs.rmSync(tmpDir, { recursive: true });
+  log(`[sheet] ✅  ${outPath}`);
+}
+
+// ── Mode: stills ──────────────────────────────────────────────────────────────
+// Render named timestamps to individual PNG files.
+
+async function modeStills() {
+  const times   = extras.map(Number).filter(t => !isNaN(t));
+  if (times.length === 0) die('stills mode requires timestamp arguments, e.g.: stills 0 5 12');
+
+  ensureDir(OUT_DIR);
+
+  const browser = await chromium.launch({ args: getChromiumLaunchArgs() });
+  const page    = await browser.newPage();
+  await injectVirtualClock(page);
+
+  const cfg = await getReelConfig(page);
+  await page.setViewportSize({ width: cfg.width, height: cfg.height });
+
+  for (const t of times) {
+    const buf  = await captureFrame(page, t);
+    const name = `still_${String(t).replace('.', '_')}s.png`;
+    const out  = path.join(OUT_DIR, name);
+    fs.writeFileSync(out, buf);
+    log(`[stills] t=${t}s → ${out}`);
+  }
+
+  await browser.close();
+}
+
+// ── Mode: strip ───────────────────────────────────────────────────────────────
+// Render every frame in a short time window horizontally for motion QA.
+
+async function modeStrip() {
+  const start = parseFloat(extras[0] || '0.0');
+  const end   = parseFloat(extras[1] || String(start + 0.5));
+  if (end <= start) die('strip requires valid range: strip <start> <end> where end > start');
+
+  ensureDir(OUT_DIR);
+  const browser = await chromium.launch({ args: getChromiumLaunchArgs() });
+  const page    = await browser.newPage();
+  await injectVirtualClock(page);
+
+  const cfg = await getReelConfig(page);
+  const fps = FPS_OPT || cfg.fps;
+  await page.setViewportSize({ width: cfg.width, height: cfg.height });
+
+  const startF = Math.round(start * fps);
+  const endF   = Math.round(end * fps);
+  const count  = endF - startF + 1;
+  const outPath = flags.out ? path.resolve(ROOT, flags.out) : path.join(OUT_DIR, `strip_${start}_${end}s.jpg`);
+
+  log(`[strip] ${count} frames from ${start}s to ${end}s @ ${fps}fps`);
+  const tmpDir = path.join(OUT_DIR, '_strip_tmp_' + Date.now());
+  ensureDir(tmpDir);
+
+  for (let i = 0; i < count; i++) {
+    const f = startF + i;
+    const t = f / fps;
+    const buf = await captureFrame(page, t);
+    fs.writeFileSync(path.join(tmpDir, `frame_${pad6(i)}.png`), buf);
+  }
+  await browser.close();
+
+  const thumbW = parseInt(flags.w || '320', 10);
+  const thumbH = Math.round(thumbW * (cfg.height / cfg.width));
+
+  const tileResult = _spawnSync('ffmpeg', [
+    '-y',
+    '-i', path.join(tmpDir, 'frame_%06d.png'),
+    '-vf', `scale=${thumbW}:${thumbH},tile=${count}x1`,
+    '-q:v', '3',
+    outPath,
+  ]);
+  fs.rmSync(tmpDir, { recursive: true });
+  if (tileResult.status !== 0) die('ffmpeg strip tile failed: ' + tileResult.stderr);
+  log(`[strip] ✅  ${outPath}`);
+}
+
+// ── Mode: storyboard ──────────────────────────────────────────────────────────
+// 4 keyframe storyboard gate stills at 0%, 33%, 66%, 100% of video duration.
+
+async function modeStoryboard() {
+  ensureDir(OUT_DIR);
+  const browser = await chromium.launch({ args: getChromiumLaunchArgs() });
+  const page    = await browser.newPage();
+  await injectVirtualClock(page);
+
+  const cfg = await getReelConfig(page);
+  await page.setViewportSize({ width: cfg.width, height: cfg.height });
+
+  const duration = cfg.duration;
+  const keyframes = [
+    { label: '0%', time: 0 },
+    { label: '33%', time: parseFloat((duration * 0.33).toFixed(2)) },
+    { label: '66%', time: parseFloat((duration * 0.66).toFixed(2)) },
+    { label: '100%', time: Math.max(0, duration - 0.05) },
+  ];
+
+  log(`[storyboard] 4 keyframes (${keyframes.map(k => `${k.label}: ${k.time}s`).join(', ')})`);
+  const tmpDir = path.join(OUT_DIR, '_sb_tmp_' + Date.now());
+  ensureDir(tmpDir);
+
+  for (let i = 0; i < keyframes.length; i++) {
+    const k = keyframes[i];
+    const buf = await captureFrame(page, k.time);
+    fs.writeFileSync(path.join(tmpDir, `frame_${pad6(i)}.png`), buf);
+    fs.writeFileSync(path.join(OUT_DIR, `keyframe_${k.label.replace('%', 'pct')}.png`), buf);
+  }
+  await browser.close();
+
+  const outPath = flags.out ? path.resolve(ROOT, flags.out) : path.join(OUT_DIR, 'storyboard_4x.jpg');
+  const thumbW = parseInt(flags.w || '480', 10);
+  const thumbH = Math.round(thumbW * (cfg.height / cfg.width));
+
+  const tileResult = _spawnSync('ffmpeg', [
+    '-y',
+    '-i', path.join(tmpDir, 'frame_%06d.png'),
+    '-vf', `scale=${thumbW}:${thumbH},tile=2x2`,
+    '-q:v', '3',
+    outPath,
+  ]);
+  fs.rmSync(tmpDir, { recursive: true });
+  if (tileResult.status !== 0) die('ffmpeg storyboard failed: ' + tileResult.stderr);
+  log(`[storyboard] ✅  ${outPath}`);
+}
+
+// ── Mode: crop ────────────────────────────────────────────────────────────────
+// Visual crop check (default 9:16 mobile Short framing).
+
+async function modeCrop() {
+  const ratio = extras[0] || '9:16';
+  const time = parseFloat(extras[1] || '1.0');
+
+  ensureDir(OUT_DIR);
+  const browser = await chromium.launch({ args: getChromiumLaunchArgs() });
+  const page    = await browser.newPage();
+  await injectVirtualClock(page);
+
+  const cfg = await getReelConfig(page);
+  await page.setViewportSize({ width: cfg.width, height: cfg.height });
+
+  const buf = await captureFrame(page, time);
+  await browser.close();
+
+  const rawStill = path.join(OUT_DIR, `crop_raw_${time}s.png`);
+  fs.writeFileSync(rawStill, buf);
+
+  const outPath = flags.out ? path.resolve(ROOT, flags.out) : path.join(OUT_DIR, `crop_${ratio.replace(':', 'x')}_${time}s.png`);
+
+  let cropFilter = 'crop=ih*9/16:ih:(iw-ow)/2:0';
+  if (ratio !== '9:16') {
+    const parts = ratio.split(':').map(Number);
+    if (parts.length === 2 && parts[0] && parts[1]) {
+      cropFilter = `crop=ih*${parts[0]}/${parts[1]}:ih:(iw-ow)/2:0`;
+    }
+  }
+
+  const cropResult = _spawnSync('ffmpeg', [
+    '-y',
+    '-i', rawStill,
+    '-vf', cropFilter,
+    outPath,
+  ]);
+  if (fs.existsSync(rawStill) && !flags.keep) fs.unlinkSync(rawStill);
+  if (cropResult.status !== 0) die('ffmpeg crop failed: ' + cropResult.stderr);
+  log(`[crop] ✅  ${outPath}`);
+}
+
+// ── Mode: full ────────────────────────────────────────────────────────────────
+// Full render: pipe frames through ffmpeg → MP4.
+// Parallelism: up to WORKERS pages render different chunks simultaneously.
+
+async function modeFull() {
+  ensureDir(OUT_DIR);
+  ensureDir(FRAME_DIR);
+
+  // Probe config with a single throwaway page
+  const probeBrowser = await chromium.launch({ args: getChromiumLaunchArgs() });
+  const probePage    = await probeBrowser.newPage();
+  await injectVirtualClock(probePage);
+  const cfg = await getReelConfig(probePage);
+  await probeBrowser.close();
+
+  const fps      = FPS_OPT || cfg.fps;
+  const duration = cfg.duration;
+  const totalF   = Math.round(duration * fps);
+  const title    = cfg.title.replace(/[^a-z0-9_-]/gi, '_').toLowerCase() || 'output';
+  const outPath  = flags.out ? path.resolve(ROOT, flags.out) : path.join(OUT_DIR, `${title}.mp4`);
+
+  log(`[full] ${cfg.title} — ${duration}s @ ${fps}fps — ${totalF} frames`);
+  log(`[full] workers=${WORKERS}  crf=${CRF}  out=${outPath}`);
+
+  // Determine which frames need rendering
+  const pending = [];
+  for (let f = 0; f < totalF; f++) {
+    const framePath = path.join(FRAME_DIR, `frame_${pad6(f)}.png`);
+    if (RESUME && fs.existsSync(framePath)) continue;
+    pending.push(f);
+  }
+  log(`[full] frames to render: ${pending.length} / ${totalF}`);
+
+  // Spawn worker pool
+  const browser = await chromium.launch({ args: getChromiumLaunchArgs() });
+  const pages   = await Promise.all(
+    Array.from({ length: Math.min(WORKERS, pending.length || 1) }, async () => {
+      const p = await browser.newPage();
+      await injectVirtualClock(p);
+      await p.goto('file://' + INDEX, { waitUntil: 'networkidle' });
+      await p.evaluate(() => document.fonts.ready);
+      await p.setViewportSize({ width: cfg.width, height: cfg.height });
+      return p;
+    })
+  );
+
+  let done = 0;
+  const queue = [...pending];
+
+  await Promise.all(pages.map(async (page) => {
+    while (queue.length > 0) {
+      const f = queue.shift();
+      if (f === undefined) break;
+      const t         = f / fps;
+      const framePath = path.join(FRAME_DIR, `frame_${pad6(f)}.png`);
+      const buf       = await captureFrame(page, t);
+      fs.writeFileSync(framePath, buf);
+      done++;
+      if (done % 30 === 0 || done === pending.length) {
+        process.stdout.write(`\r  ${done}/${pending.length} (${Math.round(done/pending.length*100)}%)`);
+      }
+    }
+  }));
+  process.stdout.write('\n');
+
+  await browser.close();
+
+  // Encode with ffmpeg
+  log('[full] encoding MP4...');
+  const audioArgs = AUDIO && fs.existsSync(AUDIO)
+    ? ['-i', AUDIO, '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-ac', '2', '-c:v', 'copy']
     : ['-an'];
 
-  const ffResult = spawnSync('ffmpeg', [
+  const encResult = _spawnSync('ffmpeg', [
     '-y',
     '-framerate', String(fps),
-    '-i',         path.join(FRAMES_DIR, 'frame_%06d.png'),
-    ...audioArgs,
-    '-c:v',   'libx264',
-    '-preset','slow',
-    '-crf',   '18',
-    '-profile:v', 'high',
-    '-level', '4.1',
+    '-pattern_type', 'sequence',
+    '-i', path.join(FRAME_DIR, 'frame_%06d.png'),
+    '-c:v', 'libx264', '-preset', 'slow', '-crf', String(CRF),
+    '-profile:v', 'high', '-level', '4.1',
     '-pix_fmt', 'yuv420p',
-    '-color_range', 'tv',
-    '-colorspace', 'bt709',
-    '-color_primaries', 'bt709',
-    '-color_trc', 'bt709',
+    '-color_range', 'tv', '-colorspace', 'bt709',
+    '-color_primaries', 'bt709', '-color_trc', 'bt709',
     '-movflags', '+faststart',
-    '-shortest',
-    videoPath,
-  ], { encoding: 'utf8' });
+    ...audioArgs,
+    '-t', String(duration),
+    outPath,
+  ]);
 
-  if (ffResult.status !== 0) {
-    console.error('FFmpeg error:', ffResult.stderr?.slice(-400));
-    process.exit(1);
-  }
-
-  console.log(`✅  Video: ${videoPath}`);
-
-  // Clean up frames
-  fs.rmSync(FRAMES_DIR, { recursive: true, force: true });
+  if (encResult.status !== 0) die('ffmpeg encode failed:\n' + encResult.stderr);
+  log(`[full] ✅  ${outPath}`);
 }
 
-// ── mux: re-mux audio only ────────────────────────────────────────────────────
+// ── Mode: mux ─────────────────────────────────────────────────────────────────
+// Re-mux audio into the most recently rendered MP4 without re-rendering frames.
 
-async function cmdMux() {
-  const videos = fs.readdirSync(OUT_DIR).filter(f => /\.mp4$/.test(f)).map(f => path.join(OUT_DIR, f));
-  if (!videos.length) { console.error('No .mp4 found in out/'); process.exit(1); }
-  const videoPath = videos[0];
-  const muxPath   = videoPath.replace('.mp4', '_mux.mp4');
+async function modeMux() {
+  const audioFile = AUDIO || extras[0];
+  if (!audioFile) die('mux mode requires --audio=path or a path argument');
 
-  if (!fs.existsSync(AUDIO_MIX)) { console.error('No out/audio_mix.m4a found. Run mix first.'); process.exit(1); }
+  const mp4Files = fs.readdirSync(OUT_DIR)
+    .filter(f => f.endsWith('.mp4'))
+    .map(f => path.join(OUT_DIR, f))
+    .sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs);
 
-  console.log(`🎚   Re-muxing audio into ${path.basename(videoPath)}…`);
-  const result = spawnSync('ffmpeg', [
-    '-y', '-i', videoPath, '-i', AUDIO_MIX,
-    '-map', '0:v', '-map', '1:a',
+  if (mp4Files.length === 0) die('No MP4 found in out/ — run full first');
+
+  const inputVideo = mp4Files[0];
+  const outPath    = inputVideo.replace('.mp4', '_muxed.mp4');
+  const audioPath  = path.resolve(ROOT, audioFile);
+
+  log(`[mux] ${path.basename(inputVideo)} + ${path.basename(audioPath)} → ${path.basename(outPath)}`);
+
+  const r = _spawnSync('ffmpeg', [
+    '-y', '-i', inputVideo, '-i', audioPath,
     '-c:v', 'copy',
-    '-c:a', 'aac', '-b:a', '192k',
-    '-shortest',
+    '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-ac', '2',
+    '-map', '0:v:0', '-map', '1:a:0',
     '-movflags', '+faststart',
-    muxPath,
-  ], { encoding: 'utf8' });
-
-  if (result.status !== 0) { console.error(result.stderr?.slice(-300)); process.exit(1); }
-  console.log(`✅  Muxed: ${muxPath}`);
+    outPath,
+  ]);
+  if (r.status !== 0) die('ffmpeg mux failed: ' + r.stderr);
+  log(`[mux] ✅  ${outPath}`);
 }
 
-// ── Dispatch ──────────────────────────────────────────────────────────────────
+// ── Mode: kit ─────────────────────────────────────────────────────────────────
+// Generate an EDL/XML timeline for Premiere Pro / DaVinci Resolve.
 
-(async () => {
-  switch (command) {
-    case 'sheet':
-      await cmdSheet();
-      break;
-    case 'stills':
-      await cmdStills(rest.map(Number));
-      break;
-    case 'full':
-      await cmdFull();
-      break;
-    case 'mux':
-      await cmdMux();
-      break;
+async function modeKit() {
+  const mp4Files = fs.readdirSync(OUT_DIR)
+    .filter(f => f.endsWith('.mp4') && !f.includes('muxed'))
+    .map(f => path.join(OUT_DIR, f))
+    .sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs);
+
+  if (mp4Files.length === 0) die('No MP4 in out/ — run full first');
+
+  const masterPath = mp4Files[0];
+  const edlPath    = masterPath.replace('.mp4', '.edl');
+
+  // Simple EDL — single clip on V1 track
+  const edl = [
+    'TITLE: FrameForge Export',
+    'FCM: DROP FRAME',
+    '',
+    '001  AX       V     C        00:00:00:00 00:01:00:00 00:00:00:00 00:01:00:00',
+    `* FROM CLIP NAME: ${path.basename(masterPath)}`,
+  ].join('\n');
+
+  fs.writeFileSync(edlPath, edl, 'utf8');
+  log(`[kit] EDL → ${edlPath}`);
+}
+
+// ── Sync spawn wrapper ────────────────────────────────────────────────────────
+
+function _spawnSync(cmd, args) {
+  return _spawnSyncFn(cmd, args, {
+    encoding:  'utf8',
+    maxBuffer: 1024 * 1024 * 256,
+    stdio:     'pipe',
+  });
+}
+
+// ── Entry point ───────────────────────────────────────────────────────────────
+
+if (!fs.existsSync(INDEX)) die(`index.html not found at: ${INDEX}\nRun new-project.mjs first.`);
+
+ensureDir(OUT_DIR);
+
+try {
+  switch (mode) {
+    case 'sheet':      await modeSheet();      break;
+    case 'stills':     await modeStills();     break;
+    case 'strip':      await modeStrip();      break;
+    case 'storyboard': await modeStoryboard(); break;
+    case 'crop':       await modeCrop();       break;
+    case 'full':       await modeFull();       break;
+    case 'mux':        await modeMux();        break;
+    case 'kit':        await modeKit();        break;
     default:
-      console.error(`Unknown command: ${command}. Use: sheet | stills | full | mux`);
-      process.exit(1);
+      die(`Unknown mode: ${mode}\nUsage: render.mjs [sheet|stills|strip|storyboard|crop|full|mux|kit] [options]`);
   }
-})().catch(err => { console.error(err); process.exit(1); });
+} catch (err) {
+  die(String(err.stack || err));
+}

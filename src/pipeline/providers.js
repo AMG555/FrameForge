@@ -428,11 +428,11 @@ class TTSProvider {
         proc.on('close', code => code === 0 ? resolve() : reject(new Error(`edge-tts exited ${code}`)));
         proc.on('error', reject);
       });
-      // Normalise audio via FFmpeg — no bass-boost, no artificial deepening
+      // Normalise audio via FFmpeg — trim trailing silence, normalise levels
       await new Promise((resolve, reject) => {
         const proc = spawn('ffmpeg', ['-nostdin', '-y', '-threads', '2',
           '-i', rawPath,
-          '-af', 'atrim=end_silence=0.3,asetpts=PTS-STARTPTS,highpass=f=80,volume=1.0,dynaudnorm=f=150:g=5:p=0.95',
+          '-af', 'silenceremove=stop_periods=-1:stop_duration=0.3:stop_threshold=-40dB,highpass=f=80,volume=1.0,dynaudnorm=f=150:g=5:p=0.95',
           '-ar', '48000', '-ac', '2', '-c:a', 'aac', '-b:a', '192k', outputPath], { timeout: 30000 });
         proc.on('close', code => code === 0 ? resolve() : reject(new Error(`ffmpeg exited ${code}`)));
         proc.on('error', reject);

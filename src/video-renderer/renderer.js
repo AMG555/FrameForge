@@ -106,13 +106,36 @@ class VideoRenderer {
     const dur        = this._getAudioDuration(voicePath);
     const clampedDur = Math.max(2, Math.min(60, dur + 0.15));
 
-    const mediaSource = videoPath || imagePath;
-    if (!mediaSource) throw new Error(`Scene ${sceneIndex} has neither imagePath nor videoPath`);
+    const mediaSource    = videoPath || imagePath;
+    const captionFilter  = this._captionFilter(caption);
+
+    // No image and no video: generate a solid dark background so TTS-only
+    // scenes (e.g. --no-images) still produce a valid video segment.
+    if (!mediaSource) {
+      const bgColor = '1e1e2e'; // dark navy
+      const result = spawnSync('ffmpeg', [
+        '-nostdin', '-y', '-threads', '2',
+        '-f', 'lavfi', '-i', `color=c=#${bgColor}:s=1920x1080:r=30`,
+        '-i', voicePath,
+        '-t', String(clampedDur),
+        ...( captionFilter ? ['-vf', captionFilter] : [] ),
+        '-map', '0:v:0', '-map', '1:a:0',
+        '-af', 'apad',
+        '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '22',
+        '-pix_fmt', 'yuv420p',
+        '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-ac', '2',
+        '-movflags', '+faststart',
+        outputPath,
+      ], { timeout: 5 * 60 * 1000, encoding: 'utf8' });
+
+      if (result.status !== 0) {
+        throw new Error(`Scene ${sceneIndex} (no-image fallback) render failed: ${(result.stderr || '').slice(-300)}`);
+      }
+      manifest?.setSceneRendered(sceneIndex, outputPath);
+      return outputPath;
+    }
 
     const isVideoInput = Boolean(videoPath) || /\.(mp4|mov|webm|mkv|m4v)$/i.test(mediaSource);
-
-    // Caption filter
-    const captionFilter = this._captionFilter(caption);
 
     let inputArgs = [];
     let vf = '';

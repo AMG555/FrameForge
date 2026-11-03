@@ -1,167 +1,165 @@
 #!/usr/bin/env python3
 """
-scripts/transcribe.py — Whisper caption outline generator for FrameForge HTML renderer
+transcribe.py — Word-level caption outline generator for FrameForge HTML renderer.
 
-Transcribes an audio file (FrameForge TTS output or your own recording) using
-OpenAI Whisper (local, free) and writes a word-level timing outline in the format
-expected by reel/engine.js captions():
-
-    start_ms  TAB  end_ms  TAB  word
-
-One word per line. Lines are tab-separated.
+Uses openai-whisper (free, local) to transcribe TTS audio files and write
+a word-level outline.txt that engine.js captions() reads at render time.
 
 Usage:
-  uv run scripts/transcribe.py                         # auto-discovers audio/voice_*.m4a
-  uv run scripts/transcribe.py --audio audio/narration.m4a
-  uv run scripts/transcribe.py --audio out/audio_mix.m4a --out audio/outline.txt
-  uv run scripts/transcribe.py --model large-v3        # higher accuracy (slower)
-  uv run scripts/transcribe.py --lang en               # force language
-  python scripts/transcribe.py                         # standard python (no uv)
-
-Requirements:
-  pip install openai-whisper  (or: uv add openai-whisper)
-  ffmpeg in PATH (used by Whisper for audio decoding)
+  uv run scripts/transcribe.py                     # transcribe audio/voice_*.m4a
+  uv run scripts/transcribe.py audio/custom.mp3    # single file
 
 Output:
-  audio/outline.txt  (default) — load in edit.js with: captions('audio/outline.txt')
+  audio/outline.txt   — NDJSON, one segment per line:
+      {"start": 0.0, "end": 0.5, "text": "Hello"}
+
+Requirements (installed automatically by uv):
+  openai-whisper  (local inference, no API key)
+  ffmpeg          (system — apt install ffmpeg / brew install ffmpeg)
 """
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#   "openai-whisper>=20231117",
+#   "numpy<2.0",
+# ]
+# ///
 
 import sys
-import os
-import argparse
-import glob
 import json
+import os
+import glob
+import pathlib
 
+# ── Config ────────────────────────────────────────────────────────────────────
 
-def find_audio(audio_dir):
-    """Find the best audio source: audio_mix.m4a first, then voice_*.m4a files."""
-    mix = os.path.join(audio_dir, "audio_mix.m4a")
-    if os.path.exists(mix):
-        return mix
-    # Fall back to concatenated voices — pick the first one
-    voice_files = sorted(
-        glob.glob(os.path.join(audio_dir, "voice_*.m4a")),
-        key=lambda f: int("".join(filter(str.isdigit, os.path.basename(f))) or "0"),
-    )
-    return voice_files[0] if voice_files else None
+AUDIO_DIR   = pathlib.Path(__file__).parent.parent / "audio"
+MODEL_SIZE  = os.environ.get("WHISPER_MODEL", "base")   # tiny/base/small/medium
+LANGUAGE    = os.environ.get("WHISPER_LANG", "en")
+OUTLINE_OUT = AUDIO_DIR / "outline.txt"
 
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
-def transcribe(audio_path, model_name="base", language=None):
-    """Run Whisper on the audio file. Returns list of word-level segments."""
+def load_whisper():
     try:
         import whisper
+        return whisper
     except ImportError:
-        print(
-            "[transcribe] ERROR: openai-whisper not installed.\n"
-            "  Install with: pip install openai-whisper\n"
-            "  Or with uv:   uv add openai-whisper",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-
-    print(f"[transcribe] Loading Whisper model '{model_name}'…")
-    model = whisper.load_model(model_name)
-
-    opts = {"word_timestamps": True, "verbose": False}
-    if language:
-        opts["language"] = language
-
-    print(f"[transcribe] Transcribing: {audio_path}")
-    result = model.transcribe(audio_path, **opts)
-    return result
+        print("[transcribe] Installing openai-whisper...", flush=True)
+        import subprocess
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "openai-whisper", "numpy<2.0"])
+        import whisper
+        return whisper
 
 
-def extract_word_timings(result):
+def transcribe_file(model, audio_path: pathlib.Path, time_offset: float = 0.0):
     """
-    Extract (start_ms, end_ms, word) tuples from a Whisper result.
-    Handles both segment-level and word-level timestamps.
+    Transcribe a single audio file. Returns list of segment dicts:
+    [{"start": float, "end": float, "text": str}, ...]
     """
-    timings = []
-    for segment in result.get("segments", []):
-        words = segment.get("words", [])
+    result = model.transcribe(
+        str(audio_path),
+        language=LANGUAGE,
+        word_timestamps=True,
+        fp16=False,
+    )
+
+    segments = []
+    for seg in result.get("segments", []):
+        # Word-level if available
+        words = seg.get("words", [])
         if words:
-            # Word-level timestamps available (word_timestamps=True)
             for w in words:
-                word  = w.get("word", "").strip()
-                start = int(w.get("start", 0) * 1000)
-                end   = int(w.get("end",   0) * 1000)
-                if word:
-                    timings.append((start, end, word))
+                segments.append({
+                    "start": round(time_offset + w["start"], 3),
+                    "end":   round(time_offset + w["end"],   3),
+                    "text":  w["word"].strip(),
+                })
         else:
-            # Fall back to segment-level: distribute words evenly over the segment
-            text  = segment.get("text", "").strip()
-            words = text.split()
-            if not words:
-                continue
-            seg_start = int(segment.get("start", 0) * 1000)
-            seg_end   = int(segment.get("end",   0) * 1000)
-            dur_per   = max(1, (seg_end - seg_start) // len(words))
-            for i, word in enumerate(words):
-                ws = seg_start + i * dur_per
-                we = min(seg_end, ws + dur_per)
-                timings.append((ws, we, word))
-    return timings
+            # Fall back to segment-level
+            segments.append({
+                "start": round(time_offset + seg["start"], 3),
+                "end":   round(time_offset + seg["end"],   3),
+                "text":  seg["text"].strip(),
+            })
+
+    return segments
 
 
-def write_outline(timings, output_path):
-    """Write word-timing outline in the format engine.js loadCaptionData() expects."""
-    os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
-    with open(output_path, "w", encoding="utf-8") as f:
-        for start_ms, end_ms, word in timings:
-            f.write(f"{start_ms}\t{end_ms}\t{word}\n")
-    print(f"[transcribe] ✅  Outline written: {output_path} ({len(timings)} words)")
+def get_audio_duration(path: pathlib.Path) -> float:
+    """Return duration of an audio file in seconds using ffprobe."""
+    import subprocess
+    result = subprocess.run(
+        [
+            "ffprobe", "-v", "error",
+            "-show_entries", "format=duration",
+            "-of", "default=nk=1:nw=1",
+            str(path),
+        ],
+        capture_output=True, text=True, timeout=10,
+    )
+    try:
+        return float(result.stdout.strip())
+    except ValueError:
+        return 0.0
 
+
+# ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Generate word-level caption outline from audio using Whisper"
-    )
-    parser.add_argument("--audio",  default=None,   help="Audio file to transcribe (auto-discovers if omitted)")
-    parser.add_argument("--out",    default=None,   help="Output .txt file path (default: audio/outline.txt)")
-    parser.add_argument("--model",  default="base", help="Whisper model: tiny, base, small, medium, large, large-v3 (default: base)")
-    parser.add_argument("--lang",   default=None,   help="Force language code, e.g. 'en', 'es', 'fr' (auto-detect if omitted)")
-    parser.add_argument("--json",   action="store_true", help="Also write a full JSON transcript alongside the outline")
-    args = parser.parse_args()
+    # Collect audio files to transcribe
+    if len(sys.argv) > 1:
+        audio_files = [pathlib.Path(p) for p in sys.argv[1:]]
+    else:
+        # Auto-discover TTS outputs: voice_0.m4a, voice_1.m4a, ... or any audio
+        patterns = ["voice_*.m4a", "voice_*.mp3", "*.m4a", "*.mp3", "*.wav"]
+        audio_files = []
+        for pat in patterns:
+            found = sorted(AUDIO_DIR.glob(pat))
+            audio_files.extend(f for f in found if f not in audio_files)
+        # Deduplicate while preserving order
+        seen = set()
+        audio_files = [f for f in audio_files if not (f in seen or seen.add(f))]
 
-    root      = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    audio_dir = os.path.join(root, "audio")
-    out_dir   = os.path.join(root, "audio")
+    if not audio_files:
+        print(f"[transcribe] No audio files found in {AUDIO_DIR}")
+        print("  Place TTS outputs there first (voice_0.m4a, voice_1.m4a, …)")
+        sys.exit(0)
 
-    # ── Resolve audio source ──────────────────────────────────────────────────
-    audio_path = args.audio
-    if not audio_path:
-        audio_path = find_audio(audio_dir)
-    if not audio_path or not os.path.exists(audio_path):
-        print(
-            f"[transcribe] No audio file found. Options:\n"
-            f"  1. Copy FrameForge TTS outputs to audio/ (voice_0.m4a, voice_1.m4a, …)\n"
-            f"  2. Run scripts/mix_audio.py first to create out/audio_mix.m4a\n"
-            f"  3. Pass --audio <path>",
-            file=sys.stderr,
-        )
+    print(f"[transcribe] model={MODEL_SIZE}  files={len(audio_files)}", flush=True)
+
+    whisper = load_whisper()
+    model   = whisper.load_model(MODEL_SIZE)
+
+    all_segments = []
+    time_offset  = 0.0
+
+    for audio_path in audio_files:
+        if not audio_path.exists():
+            print(f"  ⚠  Not found: {audio_path}", flush=True)
+            continue
+
+        print(f"  → {audio_path.name}", end="  ", flush=True)
+        segs = transcribe_file(model, audio_path, time_offset)
+        dur  = get_audio_duration(audio_path)
+        time_offset += dur
+        all_segments.extend(segs)
+        print(f"{len(segs)} words  ({dur:.1f}s)", flush=True)
+
+    if not all_segments:
+        print("[transcribe] No segments produced.", flush=True)
         sys.exit(1)
 
-    out_path = args.out or os.path.join(out_dir, "outline.txt")
+    # Write NDJSON outline
+    AUDIO_DIR.mkdir(parents=True, exist_ok=True)
+    with open(OUTLINE_OUT, "w", encoding="utf-8") as f:
+        for seg in all_segments:
+            f.write(json.dumps(seg, ensure_ascii=False) + "\n")
 
-    # ── Transcribe ────────────────────────────────────────────────────────────
-    result  = transcribe(audio_path, model_name=args.model, language=args.lang)
-    timings = extract_word_timings(result)
-
-    if not timings:
-        print("[transcribe] WARNING: no word timings extracted. Try --model small or --model base.", file=sys.stderr)
-
-    write_outline(timings, out_path)
-
-    # ── Optional full JSON transcript ──────────────────────────────────────────
-    if args.json:
-        json_path = out_path.replace(".txt", ".json")
-        with open(json_path, "w", encoding="utf-8") as f:
-            json.dump(result, f, ensure_ascii=False, indent=2)
-        print(f"[transcribe] Full transcript JSON: {json_path}")
-
-    # ── Print edit.js usage hint ──────────────────────────────────────────────
-    rel_out = os.path.relpath(out_path, root)
-    print(f"\n[transcribe] Add to edit.js:\n  captions('{rel_out}');\n")
+    print(f"\n[transcribe] ✅  {len(all_segments)} segments → {OUTLINE_OUT}")
+    print(f"             Total duration: {time_offset:.1f}s")
+    print(f"\nLoad in edit.js:")
+    print(f"  captions('audio/outline.txt');")
 
 
 if __name__ == "__main__":
