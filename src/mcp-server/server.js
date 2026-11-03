@@ -352,13 +352,14 @@ const TOOLS = {
       properties: {
         productionId: { type: 'string', description: 'From ingest_media / edit_scenes' },
         scenes:       { type: 'array',  description: 'Inline scenes array (alternative to productionId)' },
+        orientation:  { type: 'string', enum: ['landscape', 'portrait'], default: 'landscape', description: 'Output orientation. "landscape" = 1920×1080 (16:9). "portrait" = 1080×1920 (9:16, TikTok/Reels/Shorts).' },
         skipImages:   { type: 'boolean', default: false, description: 'Skip AI image generation (use video_path / image_path in scenes)' },
         skipTts:      { type: 'boolean', default: false, description: 'Skip TTS synthesis (use audio_path in scenes)' },
         withMusic:    { type: 'boolean', default: true },
         musicVolume:  { type: 'number',  default: 0.07 },
       },
     },
-    handler: async ({ productionId, scenes, skipImages = false, skipTts = false, withMusic = true, musicVolume = 0.07 }) => {
+    handler: async ({ productionId, scenes, orientation = 'landscape', skipImages = false, skipTts = false, withMusic = true, musicVolume = 0.07 }) => {
       const syncFs = require('fs');
       const { runAssets }   = require('../workflows/assets');
       const { runRender }   = require('../workflows/render');
@@ -389,6 +390,9 @@ const TOOLS = {
         resolvedPid = `render_${crypto.randomBytes(4).toString('hex')}_${Date.now()}`;
       }
 
+      const renderWidth  = orientation === 'portrait' ? 1080 : 1920;
+      const renderHeight = orientation === 'portrait' ? 1920 : 1080;
+
       // Run assets stage (respecting skip flags)
       const assetsResult = await runAssets({
         productionId: resolvedPid,
@@ -396,6 +400,8 @@ const TOOLS = {
         parallelism:  4,
         skipImages,
         skipTts,
+        imageWidth:  renderWidth,
+        imageHeight: renderHeight,
       });
 
       // Run render stage
@@ -404,6 +410,8 @@ const TOOLS = {
         sceneAssets:  assetsResult.sceneAssets,
         withMusic,
         musicVolume,
+        renderWidth,
+        renderHeight,
       });
 
       if (!renderResult.passed) {
@@ -486,6 +494,7 @@ Example scene:
       properties: {
         scenes:       { type: 'array',   description: 'Complete scenes array written by the agent. Each scene: { narration, caption, visual_description, camera_hint?, music_mood?, image_path?, video_path?, audio_path? }' },
         title:        { type: 'string',  description: 'Video title' },
+        orientation:  { type: 'string',  enum: ['landscape', 'portrait'], default: 'landscape', description: 'Output orientation. "landscape" = 1920×1080 (16:9, YouTube/desktop). "portrait" = 1080×1920 (9:16, TikTok/Reels/Shorts).' },
         skipImages:   { type: 'boolean', default: false, description: 'Set true if all scenes already have image_path or video_path' },
         skipTts:      { type: 'boolean', default: false, description: 'Set true if all scenes already have audio_path' },
         imageStyle:   { type: 'string',  description: 'Visual aesthetic for AI-generated images, e.g. "photorealistic", "anime", "flat design". Only used when skipImages is false.' },
@@ -494,7 +503,7 @@ Example scene:
         productionId: { type: 'string',  description: 'Optional — reuse an existing productionId' },
       },
     },
-    handler: async ({ scenes, title = 'FrameForge Video', skipImages = false, skipTts = false, imageStyle, withMusic = true, musicVolume = 0.07, productionId }) => {
+    handler: async ({ scenes, title = 'FrameForge Video', orientation = 'landscape', skipImages = false, skipTts = false, imageStyle, withMusic = true, musicVolume = 0.07, productionId }) => {
       const { runAssets } = require('../workflows/assets');
       const { runRender } = require('../workflows/render');
 
@@ -525,8 +534,12 @@ Example scene:
 
       const pid = productionId || `agent_${crypto.randomBytes(4).toString('hex')}_${Date.now()}`;
 
-      const assetsResult = await runAssets({ productionId: pid, scenes: processedScenes, parallelism: 4, skipImages, skipTts });
-      const renderResult = await runRender({ productionId: pid, sceneAssets: assetsResult.sceneAssets, withMusic, musicVolume });
+      // Resolve output dimensions from orientation
+      const renderWidth  = orientation === 'portrait' ? 1080 : 1920;
+      const renderHeight = orientation === 'portrait' ? 1920 : 1080;
+
+      const assetsResult = await runAssets({ productionId: pid, scenes: processedScenes, parallelism: 4, skipImages, skipTts, imageWidth: renderWidth, imageHeight: renderHeight });
+      const renderResult = await runRender({ productionId: pid, sceneAssets: assetsResult.sceneAssets, withMusic, musicVolume, renderWidth, renderHeight });
 
       if (!renderResult.passed) {
         return { productionId: pid, passed: false, qcReport: renderResult.qcReport };

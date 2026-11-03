@@ -106,7 +106,7 @@ Then from your IDE: `queue_full_pipeline({ topic: "How GPS works" })`
 
 ## Step 5 — Register MCP server in your IDE
 
-### IBM Bob (`~/.bob/mcp.json`)
+###  (`~/.bob/mcp.json`)
 ```json
 {
   "mcpServers": {
@@ -211,7 +211,7 @@ ls -lh /home/node/.n8n-files/packages/
 
 ---
 
-## Overnight batch (IBM Bob)
+## Overnight batch ()
 
 In any Bob conversation with the MCP server registered:
 

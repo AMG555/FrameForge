@@ -26,9 +26,8 @@
 const FPS       = 24;         // target frames per second
 const MAX_ZOOM  = 1.12;       // maximum safe zoom factor
 const BASE_ZOOM = 1.0;        // starting zoom (no zoom)
-const OUTPUT_W  = 1920;
-const OUTPUT_H  = 1080;
-const ZOOM_BASE = `${OUTPUT_W}x${OUTPUT_H}`;
+const DEFAULT_W = 1920;
+const DEFAULT_H = 1080;
 
 // Per-frame zoom step for a smooth motion over ~8s at 24fps
 // 1.12 - 1.00 = 0.12 over (8 * 24) = 192 frames → 0.000625/frame
@@ -42,42 +41,44 @@ const ZOOM_STEP_OUT = 0.0007;
  * Build an FFmpeg -vf filter string for the given camera preset.
  *
  * @param {string} hint   - camera_hint value from scene schema
- * @param {{ duration?: number, focalX?: number, focalY?: number }} opts
+ * @param {{ duration?: number, focalX?: number, focalY?: number, w?: number, h?: number }} opts
  *   duration  scene duration in seconds (used to calibrate speed)
  *   focalX/Y  focal point override (0-1 relative, default 0.5/0.35)
+ *   w/h       output resolution (default 1920×1080)
  * @returns {string}  FFmpeg filter chain (ready for -vf)
  */
-function buildCameraFilter(hint, { duration = 6, focalX = 0.5, focalY = 0.35 } = {}) {
-  const frames = Math.max(48, Math.round(duration * FPS));
+function buildCameraFilter(hint, { duration = 6, focalX = 0.5, focalY = 0.35, w = DEFAULT_W, h = DEFAULT_H } = {}) {
+  const frames   = Math.max(48, Math.round(duration * FPS));
+  const zoomBase = `${w}x${h}`;
   // Focal point in pixels
-  const px = Math.round(focalX * OUTPUT_W);
-  const py = Math.round(focalY * OUTPUT_H);
+  const px = Math.round(focalX * w);
+  const py = Math.round(focalY * h);
 
   switch ((hint || 'auto').toLowerCase()) {
     case 'slow_zoom_in':
-      return _zoomIn(frames);
+      return _zoomIn(frames, ZOOM_STEP_IN, zoomBase);
     case 'slow_zoom_out':
-      return _zoomOut(frames);
+      return _zoomOut(frames, ZOOM_STEP_OUT, zoomBase);
     case 'zoom_in':
-      return _zoomIn(frames, 0.0012);
+      return _zoomIn(frames, 0.0012, zoomBase);
     case 'zoom_out':
-      return _zoomOut(frames, 0.0012);
+      return _zoomOut(frames, 0.0012, zoomBase);
     case 'pan_left':
-      return _pan('left', frames);
+      return _pan('left', frames, zoomBase);
     case 'pan_right':
-      return _pan('right', frames);
+      return _pan('right', frames, zoomBase);
     case 'tilt_up':
-      return _tilt('up', frames);
+      return _tilt('up', frames, zoomBase);
     case 'tilt_down':
-      return _tilt('down', frames);
+      return _tilt('down', frames, zoomBase);
     case 'ken_burns':
-      return _kenBurns(frames, px, py);
+      return _kenBurns(frames, px, py, w, h, zoomBase);
     case 'static':
-      return _static();
+      return _static(w, h);
     case 'auto':
     default:
       // Deterministic selection based on focal-point quadrant
-      return _autoSelect(focalX, focalY, frames);
+      return _autoSelect(focalX, focalY, frames, w, h, zoomBase);
   }
 }
 
@@ -127,24 +128,21 @@ function selectCameraHint(sceneIndex, { focalX = 0.5, focalY = 0.35 } = {}) {
 
 // ── Private filter implementations ───────────────────────────────────────────
 
-function _zoomIn(frames, step = ZOOM_STEP_IN) {
+function _zoomIn(frames, step = ZOOM_STEP_IN, zoomBase = `${DEFAULT_W}x${DEFAULT_H}`) {
   const maxZ = MAX_ZOOM.toFixed(4);
-  // Scale step to spread the full zoom range over exactly `frames` frames so
-  // motion speed is constant regardless of scene duration.
   const rangeStep = frames > 0 ? (MAX_ZOOM - BASE_ZOOM) / frames : step;
-  const s = Math.min(rangeStep, step * 2).toFixed(6); // never faster than 2× default
+  const s = Math.min(rangeStep, step * 2).toFixed(6);
   return (
     `zoompan=` +
     `z='min(zoom+${s},${maxZ})':` +
     `x='iw/2-(iw/zoom/2)':` +
     `y='ih/2-(ih/zoom/2)':` +
-    `d=1:s=${ZOOM_BASE}:fps=${FPS}`
+    `d=1:s=${zoomBase}:fps=${FPS}`
   );
 }
 
-function _zoomOut(frames, step = ZOOM_STEP_OUT) {
+function _zoomOut(frames, step = ZOOM_STEP_OUT, zoomBase = `${DEFAULT_W}x${DEFAULT_H}`) {
   const maxZ = MAX_ZOOM.toFixed(4);
-  // Scale step to spread the full zoom range over exactly `frames` frames.
   const rangeStep = frames > 0 ? (MAX_ZOOM - BASE_ZOOM) / frames : step;
   const s = Math.min(rangeStep, step * 2).toFixed(6);
   return (
@@ -152,78 +150,71 @@ function _zoomOut(frames, step = ZOOM_STEP_OUT) {
     `z='if(lte(zoom,1.0),${maxZ},max(zoom-${s},1.0))':` +
     `x='iw/2-(iw/zoom/2)':` +
     `y='ih/2-(ih/zoom/2)':` +
-    `d=1:s=${ZOOM_BASE}:fps=${FPS}`
+    `d=1:s=${zoomBase}:fps=${FPS}`
   );
 }
 
-function _pan(direction, frames) {
-  // Pan at ~5% of frame width per second (gentle, cinematic)
-  // x sweeps from left edge to right edge (or reverse) over full duration
+function _pan(direction, frames, zoomBase = `${DEFAULT_W}x${DEFAULT_H}`) {
   if (direction === 'left') {
     return (
       `zoompan=` +
       `z='1.06':` +
       `x='if(gte(on,1),x-0.6,iw*0.04)':` +
       `y='ih*0.06':` +
-      `d=1:s=${ZOOM_BASE}:fps=${FPS}`
+      `d=1:s=${zoomBase}:fps=${FPS}`
     );
   }
-  // pan right
   return (
     `zoompan=` +
     `z='1.06':` +
     `x='if(gte(on,1),x+0.6,iw*0.02)':` +
     `y='ih*0.06':` +
-    `d=1:s=${ZOOM_BASE}:fps=${FPS}`
+    `d=1:s=${zoomBase}:fps=${FPS}`
   );
 }
 
-function _tilt(direction, frames) {
+function _tilt(direction, frames, zoomBase = `${DEFAULT_W}x${DEFAULT_H}`) {
   if (direction === 'up') {
     return (
       `zoompan=` +
       `z='1.06':` +
       `x='iw*0.06':` +
       `y='if(gte(on,1),y-0.4,ih*0.12)':` +
-      `d=1:s=${ZOOM_BASE}:fps=${FPS}`
+      `d=1:s=${zoomBase}:fps=${FPS}`
     );
   }
-  // tilt down
   return (
     `zoompan=` +
     `z='1.06':` +
     `x='iw*0.06':` +
     `y='if(gte(on,1),y+0.4,ih*0.02)':` +
-    `d=1:s=${ZOOM_BASE}:fps=${FPS}`
+    `d=1:s=${zoomBase}:fps=${FPS}`
   );
 }
 
-function _kenBurns(frames, focalPx, focalPy) {
-  // Start zoomed in on focal point, slowly pull back + pan toward center
-  const maxZ = MAX_ZOOM.toFixed(4);
-  // Start x/y: offset toward focal point; end x/y: center
-  const startX = Math.max(0, focalPx - OUTPUT_W / 2);
-  const startY = Math.max(0, focalPy - OUTPUT_H / 2);
+function _kenBurns(frames, focalPx, focalPy, w = DEFAULT_W, h = DEFAULT_H, zoomBase = `${DEFAULT_W}x${DEFAULT_H}`) {
+  const maxZ   = MAX_ZOOM.toFixed(4);
+  const startX = Math.max(0, focalPx - w / 2);
+  const startY = Math.max(0, focalPy - h / 2);
   return (
     `zoompan=` +
     `z='max(${maxZ}-0.0006*on,1.0)':` +
     `x='if(eq(on,1),${startX},x+(iw/2-(iw/zoom/2)-x)*0.02)':` +
     `y='if(eq(on,1),${startY},y+(ih/2-(ih/zoom/2)-y)*0.02)':` +
-    `d=1:s=${ZOOM_BASE}:fps=${FPS}`
+    `d=1:s=${zoomBase}:fps=${FPS}`
   );
 }
 
-function _static() {
-  return `scale=${OUTPUT_W}:${OUTPUT_H}:force_original_aspect_ratio=increase:flags=lanczos,crop=${OUTPUT_W}:${OUTPUT_H}`;
+function _static(w = DEFAULT_W, h = DEFAULT_H) {
+  return `scale=${w}:${h}:force_original_aspect_ratio=increase:flags=lanczos,crop=${w}:${h}`;
 }
 
-function _autoSelect(focalX, focalY, frames) {
-  // Quadrant-based automatic selection
-  if (focalY < 0.4 && focalX < 0.5)  return _zoomIn(frames);         // top-left subject → zoom in
-  if (focalY < 0.4 && focalX >= 0.5) return _kenBurns(frames, Math.round(focalX * OUTPUT_W), Math.round(focalY * OUTPUT_H));
-  if (focalX < 0.4)                   return _pan('right', frames);
-  if (focalX > 0.6)                   return _pan('left', frames);
-  return _zoomOut(frames);                                              // centered subject → zoom out
+function _autoSelect(focalX, focalY, frames, w = DEFAULT_W, h = DEFAULT_H, zoomBase = `${DEFAULT_W}x${DEFAULT_H}`) {
+  if (focalY < 0.4 && focalX < 0.5)  return _zoomIn(frames, ZOOM_STEP_IN, zoomBase);
+  if (focalY < 0.4 && focalX >= 0.5) return _kenBurns(frames, Math.round(focalX * w), Math.round(focalY * h), w, h, zoomBase);
+  if (focalX < 0.4)                   return _pan('right', frames, zoomBase);
+  if (focalX > 0.6)                   return _pan('left', frames, zoomBase);
+  return _zoomOut(frames, ZOOM_STEP_OUT, zoomBase);
 }
 
 // ── Exports ───────────────────────────────────────────────────────────────────

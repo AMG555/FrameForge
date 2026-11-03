@@ -139,7 +139,7 @@ wrangler deploy
 }
 ```
 
-This same block works in IBM Bob, Codex, opencode, Cursor, Windsurf, Claude Code, and any MCP-capable tool.
+This same block works in , Codex, opencode, Cursor, Windsurf, Claude Code, and any MCP-capable tool.
 
 ### Local stdio (no cloud account needed)
 

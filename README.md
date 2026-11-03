@@ -23,7 +23,7 @@
 
 **FrameForge is a rendering execution engine. Your IDE is the intelligence.**
 
-Connect IBM Bob, Codex, opencode, Cursor, Windsurf, Claude Code, or any MCP-capable tool via the Cloudflare Remote MCP endpoint. The IDE agent writes the video script — FrameForge handles TTS synthesis, AI image generation, FFmpeg compositing, audio mastering, quality gating, and delivery.
+Connect , Codex, opencode, Cursor, Windsurf, Claude Code, or any MCP-capable tool via the Cloudflare Remote MCP endpoint. The IDE agent writes the video script — FrameForge handles TTS synthesis, AI image generation, FFmpeg compositing, audio mastering, quality gating, and delivery.
 
 No hardcoded topics, styles, or characters. Any format, any language, any visual aesthetic.
 
@@ -174,7 +174,7 @@ wrangler deploy
 }
 ```
 
-Same block works in IBM Bob, Codex, opencode, Cursor, Windsurf, Claude Code, VS Code + Copilot, JetBrains AI, and any MCP-capable tool. See [`cloudflare-mcp/`](cloudflare-mcp/) for the full deployment guide.
+Same block works in , Codex, opencode, Cursor, Windsurf, Claude Code, VS Code + Copilot, JetBrains AI, and any MCP-capable tool. See [`cloudflare-mcp/`](cloudflare-mcp/) for the full deployment guide.
 
 ---
 
@@ -368,7 +368,7 @@ Set `PROVIDER_IMAGE=` to any supported image provider.
 ## Architecture
 
 ```
-YOUR IDE (IBM Bob / Codex / opencode / Cursor / Windsurf / Claude Code)
+YOUR IDE ( / Codex / opencode / Cursor / Windsurf / Claude Code)
          │
          │  HTTPS + SSE  (Cloudflare Remote MCP)
          ▼

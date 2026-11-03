@@ -80,18 +80,20 @@ class VideoRenderer {
    * Render a single scene: image or video clip + voice → scene_N_out.mp4
    *
    * @param {{
-   *   sceneIndex:  number,
-   *   imagePath?:  string,
-   *   videoPath?:  string,   // optional user clip / B-roll
-   *   voicePath:   string,
-   *   caption?:    string,
-   *   camera?:     string,   // camera_hint from scene schema v1.0.0
-   *   focalPoint?: { x: number, y: number },
-   *   manifest?:   ArtifactManifest  // optional — enables idempotency
+   *   sceneIndex:   number,
+   *   imagePath?:   string,
+   *   videoPath?:   string,   // optional user clip / B-roll
+   *   voicePath:    string,
+   *   caption?:     string,
+   *   camera?:      string,   // camera_hint from scene schema v1.0.0
+   *   focalPoint?:  { x: number, y: number },
+   *   manifest?:    ArtifactManifest  // optional — enables idempotency
+   *   renderWidth?: number,   // default 1920
+   *   renderHeight?: number,  // default 1080
    * }} opts
    * @returns {string} outputPath
    */
-  renderScene({ sceneIndex, imagePath, videoPath, voicePath, caption = '', camera, focalPoint, manifest } = {}) {
+  renderScene({ sceneIndex, imagePath, videoPath, voicePath, caption = '', camera, focalPoint, manifest, renderWidth = 1920, renderHeight = 1080 } = {}) {
     const outputPath = path.join(this.vdir, `scene_${sceneIndex}_out.mp4`);
 
     // Idempotency: skip if already rendered and manifest says so
@@ -115,7 +117,7 @@ class VideoRenderer {
       const bgColor = '1e1e2e'; // dark navy
       const result = spawnSync('ffmpeg', [
         '-nostdin', '-y', '-threads', '2',
-        '-f', 'lavfi', '-i', `color=c=#${bgColor}:s=1920x1080:r=30`,
+        '-f', 'lavfi', '-i', `color=c=#${bgColor}:s=${renderWidth}x${renderHeight}:r=30`,
         '-i', voicePath,
         '-t', String(clampedDur),
         ...( captionFilter ? ['-vf', captionFilter] : [] ),
@@ -141,23 +143,23 @@ class VideoRenderer {
     let vf = '';
 
     if (isVideoInput) {
-      // Loop video clip if shorter than duration, scale to 1920:1080 lanczos
+      // Loop video clip if shorter than duration, scale/crop to target resolution
       inputArgs = ['-stream_loop', '-1', '-i', mediaSource, '-i', voicePath];
-      const scaleFilter = 'scale=1920:1080:force_original_aspect_ratio=increase:flags=lanczos,crop=1920:1080';
+      const scaleFilter = `scale=${renderWidth}:${renderHeight}:force_original_aspect_ratio=increase:flags=lanczos,crop=${renderWidth}:${renderHeight}`;
       vf = [scaleFilter, captionFilter].filter(Boolean).join(',');
     } else {
       // Image input with AnimationSystem camera motion
       inputArgs = ['-loop', '1', '-i', mediaSource, '-i', voicePath];
       const hint = camera || selectCameraHint(sceneIndex, focalPoint || {});
       const fx   = focalPoint ? { focalX: focalPoint.x, focalY: focalPoint.y } : {};
-      const cameraFilter = buildCameraFilter(hint, { duration: clampedDur, ...fx });
+      const cameraFilter = buildCameraFilter(hint, { duration: clampedDur, w: renderWidth, h: renderHeight, ...fx });
       vf = [cameraFilter, captionFilter].filter(Boolean).join(',');
     }
 
     const result = spawnSync('ffmpeg', [
       '-nostdin', '-y', '-threads', '2',
       ...inputArgs,
-      '-vf', vf || `scale=1920:1080,format=yuv420p`,
+      '-vf', vf || `scale=${renderWidth}:${renderHeight},format=yuv420p`,
       '-af', 'apad',
       '-t', String(clampedDur),
       '-map', '0:v:0', '-map', '1:a:0',
@@ -270,7 +272,7 @@ class VideoRenderer {
     if (!fs.existsSync(this.vdir)) return [];
     const all = fs.readdirSync(this.vdir)
       .filter(f => /^scene_\d+_out\.mp4$/.test(f))
-      .filter(f => fs.statSync(path.join(this.vdir, f)).size > 50000)
+      .filter(f => fs.statSync(path.join(this.vdir, f)).size > 10000) // >10KB — filter broken 0-byte renders only
       .map(f => path.join(this.vdir, f))
       .sort((a, b) => {
         const na = parseInt(path.basename(a).match(/scene_(\d+)_out/)[1], 10);

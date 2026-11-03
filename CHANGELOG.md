@@ -145,7 +145,7 @@ All notable changes to FrameForge are documented here.
 
 ### Added
 
-**Tool 11: `create_video_from_script`** — Agent-first path. The IDE agent writes the complete `scenes[]` array in its own context; FrameForge renders without any internal LLM calls. This is the primary path for IBM Bob, Claude Code, Cursor, and any agentic IDE.
+**Tool 11: `create_video_from_script`** — Agent-first path. The IDE agent writes the complete `scenes[]` array in its own context; FrameForge renders without any internal LLM calls. This is the primary path for , Claude Code, Cursor, and any agentic IDE.
 
 ```json
 { "scenes": [
@@ -167,7 +167,7 @@ All notable changes to FrameForge are documented here.
 
 ### How FrameForge works with an agentic IDE
 
-FrameForge is a **rendering execution engine**. Your IDE (IBM Bob / Claude Code / Cursor) is the intelligence.
+FrameForge is a **rendering execution engine**. Your IDE ( / Claude Code / Cursor) is the intelligence.
 
 **Farhan's workflow** (the PDF): Claude Desktop controls a browser, types scripts into ElevenLabs, runs Remotion renders. The agent drives the GUI.
 
@@ -259,7 +259,7 @@ Connect FrameForge to any external platform via HTTP — VoxForge, ElevenLabs, R
 - Operations: `ingestMedia()`, `renderScenes()`, `checkStatus()`, `downloadOutput()`
 - Polls job status automatically until completion
 
-**4 new MCP tools** (accessible from Cursor, Claude Code, Kiro, Windsurf, IBM Bob)
+**4 new MCP tools** (accessible from Cursor, Claude Code, Kiro, Windsurf, )
 - `ingest_media` — Upload clips/images/audio, get a scenes manifest back
 - `edit_scenes` — Read and patch a scenes manifest (update captions, swap files, append scenes)
 - `render_from_scenes` — Render directly from a manifest, skipping research/script
@@ -402,7 +402,7 @@ Connect FrameForge to any external platform via HTTP — VoxForge, ElevenLabs, R
 - **`src/cli/make.js`** — standalone one-command video generator (`npm run make -- --topic "..."`).
   Supports `--dry-run`, `--no-shorts`, `--channels`, `--out-dir`, `--style`, `--env`.
 - **`src/mcp-server/stdio.js`** — zero-port stdio MCP transport with 8 tools, lazy loading,
-  and in-process async job registry. Works with IBM Bob, Cursor, Windsurf, Kiro.
+  and in-process async job registry. Works with , Cursor, Windsurf, Kiro.
 - **Webhook provider adapters** — `WebhookLLMProvider`, `WebhookTTSProvider`,
   `WebhookImageProvider` in `src/pipeline/providers.js`. Configure any HTTP API via env
   vars without code changes.

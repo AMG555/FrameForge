@@ -23,7 +23,7 @@ const STATE_DIR = `${FILES_DIR}/state`;
  * @param {{ productionId: string, sceneAssets: object[], withMusic?: boolean, musicVolume?: number }} opts
  * @returns {Promise<RenderResult>}
  */
-async function runRender({ productionId, sceneAssets, withMusic = true, musicVolume = 0.07 }) {
+async function runRender({ productionId, sceneAssets, withMusic = true, musicVolume = 0.07, renderWidth = 1920, renderHeight = 1080 }) {
   const sm        = new StateMachine({ mode: 'file', stateDir: STATE_DIR });
   const retryPol  = new RetryPolicy({ maxAttempts: 2, baseDelayMs: 15000 });
   const telemetry = new Telemetry({ mode: 'file', logPath: `${FILES_DIR}/usage.ndjson` });
@@ -48,6 +48,8 @@ async function runRender({ productionId, sceneAssets, withMusic = true, musicVol
         caption:    asset.caption || '',
         camera:     asset.camera  || 'static',
         focalPoint: asset.focalPoint || null,
+        renderWidth,
+        renderHeight,
       });
       sceneFiles.push(scenePath);
     } catch (err) {

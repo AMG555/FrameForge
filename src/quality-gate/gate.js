@@ -28,12 +28,17 @@ const path          = require('path');
 
 class QualityGate {
   /**
-   * Validate a master video (1920x1080).
+   * Validate a master video.
+   * Accepts both 1920×1080 (landscape) and 1080×1920 (portrait).
    * @param {string} videoPath
+   * @param {{ width?: number, height?: number }} [opts]  expected resolution override
    * @returns {{ passed: boolean, checks: Check[], diagnostics: Diagnostic[] }}
    */
-  async validateMaster(videoPath) {
-    return this._validate(videoPath, { width: 1920, height: 1080, minDuration: 5, maxDuration: 3600 });
+  async validateMaster(videoPath, { width, height } = {}) {
+    // If caller doesn't specify, probe the file and accept whichever valid format it is.
+    const expectedW = width  || this._probeExpectedDimension(videoPath, 'width')  || 1920;
+    const expectedH = height || this._probeExpectedDimension(videoPath, 'height') || 1080;
+    return this._validate(videoPath, { width: expectedW, height: expectedH, minDuration: 5, maxDuration: 3600 });
   }
 
   /**
@@ -42,6 +47,25 @@ class QualityGate {
    */
   async validateShort(videoPath) {
     return this._validate(videoPath, { width: 1080, height: 1920, minDuration: 5, maxDuration: 90 });
+  }
+
+  /**
+   * Read the actual video dimensions and snap to the nearest valid master format.
+   * Accepted: 1920×1080 (landscape) and 1080×1920 (portrait).
+   * Returns the actual dimension if it matches a valid format, otherwise 1920/1080.
+   */
+  _probeExpectedDimension(videoPath, axis) {
+    try {
+      const raw  = this._ffprobe(videoPath, ['-show_streams', '-select_streams', 'v:0', '-print_format', 'json']);
+      const info = JSON.parse(raw).streams?.[0] || {};
+      const w = info.width;
+      const h = info.height;
+      // Snap to known valid formats
+      if ((w === 1920 && h === 1080) || (w === 1080 && h === 1920)) {
+        return axis === 'width' ? w : h;
+      }
+    } catch { /* fall through to default */ }
+    return null;
   }
 
   // ── Internal ──────────────────────────────────────────────────────────────

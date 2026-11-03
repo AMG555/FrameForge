@@ -5,7 +5,7 @@ Deploy the MCP proxy to Cloudflare Workers for ~80% token savings vs local stdio
 ## How it works
 
 ```
-Agentic IDE (Codex / opencode / IBM Bob / Cursor / Windsurf / Claude Code)
+Agentic IDE (Codex / opencode /  / Cursor / Windsurf / Claude Code)
   │  HTTPS POST Bearer MCP_AUTH_TOKEN
   ▼
 Cloudflare Workers  ← this file
@@ -58,7 +58,7 @@ https://frameforge.<YOUR_SUBDOMAIN>.workers.dev/mcp
 
 ## Connect your IDE
 
-### IBM Bob (`~/.bob/mcp.json`)
+###  (`~/.bob/mcp.json`)
 ```json
 {
   "mcpServers": {

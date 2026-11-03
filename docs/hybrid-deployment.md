@@ -27,7 +27,7 @@ The pipeline divides cleanly into two execution tiers:
 
 ```
 Your Machine (Windows/Mac/Linux)
-  ├── IBM Bob / Codex / Cursor / Windsurf       ← agentic IDE
+  ├──  / Codex / Cursor / Windsurf       ← agentic IDE
   ├── Local Render Worker (node server-render-free.js  RENDER_MODE=full)
   │     FFmpeg rendering here (no limits)
   └── Tunnel (Tailscale or ngrok)
@@ -92,7 +92,7 @@ npx wrangler deploy
 # Note your Workers URL: https://video-pipeline-mcp.YOUR_NAME.workers.dev
 ```
 
-### Setup — IDE (IBM Bob)
+### Setup — IDE ()
 
 Edit `~/.bob/mcp.json`:
 ```json
@@ -120,7 +120,7 @@ For Claude Code / Cursor, edit `.mcp.json`:
 }
 ```
 
-**That's it.** IBM Bob now has 14 video tools that run on zero-cost infrastructure.
+**That's it.**  now has 14 video tools that run on zero-cost infrastructure.
 
 ---
 
@@ -150,7 +150,7 @@ Best for overnight batch production. No cloud bills, no sleep issues.
 
 ```
 Your Machine
-  └── IBM Bob → Remote MCP on Cloudflare (free)
+  └──  → Remote MCP on Cloudflare (free)
                      ↓
 Pi 4 (4 GB) — all pipeline stages locally
   ├── Worker API :3211
@@ -230,7 +230,7 @@ Savings: 60-80% token reduction on tool-heavy sessions
 | write_script result (55 scenes) | ~12,000 | ~500 (summary) | -96% |
 | Total per video | ~18,000+ | ~3,500 | -81% |
 
-With IBM Bob at ~$0.015/1k tokens, producing 10 videos:
+With  at ~$0.015/1k tokens, producing 10 videos:
 - stdio: ~$2.70/run
 - Remote MCP: ~$0.53/run
 - **Monthly savings on 100 videos: ~$22**
@@ -264,7 +264,7 @@ R2 public buckets serve at `https://pub-xxx.r2.dev/` — free CDN for your video
 
 | Layer | Service | Cost |
 |-------|---------|------|
-| Agentic IDE | IBM Bob / Codex / Cursor on your machine | $0 |
+| Agentic IDE |  / Codex / Cursor on your machine | $0 |
 | Remote MCP | Cloudflare Workers free (100k req/day) | $0 |
 | API orchestration | Render Free (research, script, assets, publish) | $0 |
 | FFmpeg rendering | Your machine (delegated via Tailscale) | $0 |

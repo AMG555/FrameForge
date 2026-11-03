@@ -27,7 +27,7 @@ const NEG_PROMPT   = 'photorealistic, 3D render, CGI, painting, dark background,
  * @param {{ productionId: string, scenes: object[], parallelism?: number }} opts
  * @returns {Promise<AssetsResult>}
  */
-async function runAssets({ productionId, scenes, parallelism = 4, skipImages = false, skipTts = false }) {
+async function runAssets({ productionId, scenes, parallelism = 4, skipImages = false, skipTts = false, imageWidth = 1920, imageHeight = 1080 }) {
   const imageGen  = new ImageProvider();
   const ttsGen    = new TTSProvider();
   const sm        = new StateMachine({ mode: 'file', stateDir: STATE_DIR });
@@ -68,7 +68,7 @@ async function runAssets({ productionId, scenes, parallelism = 4, skipImages = f
         imagePath = path.join(VDIR, `scene_${idx}.png`);
         const prompt = `${(scene.visual_description || scene.visual_action || '').replace(/\[[A-Z]+\]/g, '').trim()}, ${STYLE_SUFFIX}`;
         await retryPol.executeStage('Asset_Generation', async () =>
-          imageGen.generate({ prompt, negativePrompt: NEG_PROMPT, outputPath: imagePath, width: 1920, height: 1080, seed })
+          imageGen.generate({ prompt, negativePrompt: NEG_PROMPT, outputPath: imagePath, width: imageWidth, height: imageHeight, seed })
         );
         await telemetry.track({ productionId, stage: 'Asset_Generation', provider: process.env.PROVIDER_IMAGE || 'pollinations', operation: 'scene_image', units: 1 });
       }
