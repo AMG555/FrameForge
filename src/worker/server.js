@@ -141,18 +141,17 @@ async function runFullPipeline(payload, jobId) {
   console.log(`[Worker/${jobId}] Shorts done: ${sht.shorts?.length || 0} passed`);
 
   // E → Package
-  // Script schema v2.0.0 uses title/description/tags (not youtubeTitle/youtubeDescription/youtubeTags)
   const pkg = await runPackaging({
-    productionId:       scr.productionId,
-    masterPath:         ren.masterPath,
-    shorts:             sht.shorts || [],
-    scenes:             scr.scenes,
-    youtubeTitle:       scr.title,
-    youtubeDescription: scr.description,
-    youtubeTags:        scr.tags,
-    thumbnailPrompt:    scr.thumbnailPrompt,
-    qcReport:           ren.qcReport,
-    totalWords:         scr.totalWords,
+    productionId: scr.productionId,
+    masterPath:   ren.masterPath,
+    shorts:       sht.shorts || [],
+    scenes:       scr.scenes,
+    title:        scr.title,
+    description:  scr.description,
+    tags:         scr.tags,
+    thumbnailPrompt: scr.thumbnailPrompt,
+    qcReport:     ren.qcReport,
+    totalWords:   scr.totalWords,
   });
   console.log(`[Worker/${jobId}] Package done: ${pkg.packageDir}`);
 
@@ -161,17 +160,17 @@ async function runFullPipeline(payload, jobId) {
   console.log(`[Worker/${jobId}] Publish done: ${JSON.stringify(pub.results)}`);
 
   return {
-    productionId: scr.productionId,
+    productionId:    scr.productionId,
     topic,
-    youtubeTitle:   scr.title,
-    masterPath:     ren.masterPath,
-    packageDir:     pkg.packageDir,
-    publishResults: pub.results,
+    title:           scr.title,
+    masterPath:      ren.masterPath,
+    packageDir:      pkg.packageDir,
+    publishResults:  pub.results,
     publishDecision: pub.publishDecision,
-    sceneCount:     scr.sceneCount,
-    totalWords:     scr.totalWords,
-    shortsCount:    sht.shorts?.length || 0,
-    qcPassed:       ren.passed,
+    sceneCount:      scr.sceneCount,
+    totalWords:      scr.totalWords,
+    shortsCount:     sht.shorts?.length || 0,
+    qcPassed:        ren.passed,
   };
 }
 

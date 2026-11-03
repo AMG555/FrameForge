@@ -209,11 +209,10 @@ async function runFullPipeline(payload, jobId) {
   }
 
   // Steps E-F run here (network-only)
-  // Script schema v2.0.0 uses title/description/tags (not youtubeTitle/youtubeDescription/youtubeTags)
-  const pkg = await runPackaging({ productionId: scr.productionId, masterPath: ren.masterPath, shorts: sht.shorts || [], scenes: scr.scenes, youtubeTitle: scr.title, youtubeDescription: scr.description, youtubeTags: scr.tags, thumbnailPrompt: scr.thumbnailPrompt, qcReport: ren.qcReport, totalWords: scr.totalWords });
+  const pkg = await runPackaging({ productionId: scr.productionId, masterPath: ren.masterPath, shorts: sht.shorts || [], scenes: scr.scenes, title: scr.title, description: scr.description, tags: scr.tags, thumbnailPrompt: scr.thumbnailPrompt, qcReport: ren.qcReport, totalWords: scr.totalWords });
   const pub = await runPublishing({ productionId: scr.productionId, manifest: pkg.manifest, channels });
 
-  return { productionId: scr.productionId, topic, youtubeTitle: scr.title, masterPath: ren.masterPath, publishResults: pub.results, sceneCount: scr.sceneCount, totalWords: scr.totalWords, shortsCount: sht.shorts?.length || 0, qcPassed: ren.passed };
+  return { productionId: scr.productionId, topic, title: scr.title, masterPath: ren.masterPath, publishResults: pub.results, sceneCount: scr.sceneCount, totalWords: scr.totalWords, shortsCount: sht.shorts?.length || 0, qcPassed: ren.passed };
 }
 
 // ── Delegation to local render endpoint ───────────────────────────────────────

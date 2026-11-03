@@ -1,7 +1,7 @@
 {
   "name": "video-pipeline",
   "version": "1.0.0",
-  "description": "Autonomous overnight video production for any agentic IDE. MCP server on port 3210, n8n orchestration, pluggable LLM/TTS/Image providers (Groq, watsonx, OpenAI, edge-tts, ElevenLabs, Azure, Pollinations, fal.ai), quality gates, Telegram/YouTube delivery.",
+  "description": "Autonomous overnight video production for any agentic IDE. MCP server on port 3210, pluggable LLM/TTS/Image providers (Groq, watsonx, OpenAI, edge-tts, ElevenLabs, Azure, Pollinations, fal.ai), quality gates, file and webhook delivery.",
   "author": { "name": "auto-vid-gen" },
   "license": "Apache-2.0",
   "keywords": ["video", "n8n", "mcp", "ibm-bob", "watsonx", "groq", "ffmpeg", "tts", "automation"]

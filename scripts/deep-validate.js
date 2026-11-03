@@ -187,6 +187,13 @@ check('publishing.js no Telegram curl',        !pubjs.includes('telegramShorts')
 check('publishing.js no YouTube OAuth2',       !pubjs.includes('_refreshAccessToken') && !pubjs.includes('YOUTUBE_CLIENT_ID'));
 check('publishing.js no stale youtubeTitle fallback', !pubjs.includes('youtubeTitle') && !pubjs.includes('youtubeDescription'));
 
+// ── packaging.js — canonical title/description/tags field names ──────────
+console.log('\n=== packaging.js canonical field names ===');
+const pkgjs = fs.readFileSync('./src/workflows/packaging.js', 'utf8');
+check('packaging.js uses title not youtubeTitle',       !pkgjs.includes("youtubeTitle,") && pkgjs.includes("title,"));
+check('packaging.js metadata.title canonical',          pkgjs.includes('metadata: {') && pkgjs.includes('title,'));
+check('packaging.js writes description.md not youtube', pkgjs.includes("'description.md'") && !pkgjs.includes("'youtube_description.md'"));
+
 // ── server-render-free.js — no stale Telegram default ────────────────────
 console.log('\n=== server-render-free.js ===');
 const renderFreeJs = fs.readFileSync('./src/worker/server-render-free.js', 'utf8');

@@ -172,7 +172,7 @@ The rendered MP4 can be injected back into FrameForge via `video_path`:
 Or pass it directly to `publish_video` via MCP:
 
 ```
-publish_video(productionId, masterPath="output/my-topic/html-render/out/video.mp4", channels=["telegram","youtube"])
+publish_video(productionId, masterPath="output/my-topic/html-render/out/video.mp4", channels=["file","webhook"])
 ```
 
 ---

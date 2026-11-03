@@ -58,8 +58,8 @@ if (scenes.length === 0) {
   process.exit(1);
 }
 
-const title       = script.youtube_title || script.youtubeTitle || 'FrameForge Video';
-const description = script.youtube_description || script.youtubeDescription || '';
+const title       = script.title || 'FrameForge Video';
+const description = script.description || '';
 const fps         = args.fps    || 30;
 const width       = args.width  || 1920;
 const height      = args.height || 1080;

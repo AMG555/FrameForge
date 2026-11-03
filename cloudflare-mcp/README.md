@@ -14,7 +14,7 @@ Cloudflare Workers  ← this file
 Render Free / VPS / Pi  (server-render-free.js)
   │  FFmpeg rendering + TTS + image gen
   ▼
-Telegram / YouTube
+file / webhook delivery
 ```
 
 **Token savings:** IDEs download tool descriptions once and cache them. Binary results (images, audio) stay on the server — only file paths are returned. Result: ~60-80% fewer tokens per session compared to stdio MCP.

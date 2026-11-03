@@ -229,7 +229,7 @@ function logSection(title) {
 // overlays the video title with FFmpeg drawtext. Saves to <outDir>/thumbnail.jpg.
 // Non-fatal: failures are logged as warnings, not errors.
 
-async function generateThumbnail({ thumbnailPrompt, youtubeTitle, outDir }) {
+async function generateThumbnail({ thumbnailPrompt, title, outDir }) {
   if (!thumbnailPrompt) return null;
   const outputPath = path.join(outDir, 'thumbnail.jpg');
   try {
@@ -243,7 +243,7 @@ async function generateThumbnail({ thumbnailPrompt, youtubeTitle, outDir }) {
 
     // Optionally burn title text with FFmpeg
     const { spawnSync } = require('child_process');
-    if (youtubeTitle) {
+    if (title) {
       // Resolve a usable font (same logic as renderer.js)
       const fontCandidates = process.platform === 'win32'
         ? ['C:/Windows/Fonts/arialbd.ttf', 'C:/Windows/Fonts/calibrib.ttf', 'C:/Windows/Fonts/segoeui.ttf']
@@ -255,7 +255,7 @@ async function generateThumbnail({ thumbnailPrompt, youtubeTitle, outDir }) {
         || '';
 
       if (font) {
-        const safeTitle = youtubeTitle.replace(/['":\\]/g, ' ').slice(0, 80);
+        const safeTitle = title.replace(/['":\\]/g, ' ').slice(0, 80);
         const result = spawnSync('ffmpeg', [
           '-y', '-i', imgPath,
           '-vf', `drawtext=fontfile='${font}':text='${safeTitle}':fontcolor=white:fontsize=52:x=(w-text_w)/2:y=h-120:shadowx=3:shadowy=3:shadowcolor=black`,
@@ -326,9 +326,9 @@ async function runSingleVideo(args, topic, outDir, workflows) {
 
   let scenes = null;
   let productionId = null;
-  let youtubeTitle = topic || 'Video';
-  let youtubeDescription = '';
-  let youtubeTags = [];
+  let title = topic || 'Video';
+  let description = '';
+  let tags = [];
   let thumbnailPrompt = null;
   let totalWords = 0;
 
@@ -348,14 +348,14 @@ async function runSingleVideo(args, topic, outDir, workflows) {
         topic,
         style:        args.style,
       });
-      scenes          = scriptResult.scenes;
-      youtubeTitle    = scriptResult.youtubeTitle || topic;
-      youtubeDescription = scriptResult.youtubeDescription || '';
-      youtubeTags     = scriptResult.youtubeTags || [];
+      scenes      = scriptResult.scenes;
+      title       = scriptResult.title || topic;
+      description = scriptResult.description || '';
+      tags        = scriptResult.tags || [];
       thumbnailPrompt = scriptResult.thumbnailPrompt;
-      totalWords      = scriptResult.totalWords || 0;
+      totalWords  = scriptResult.totalWords || 0;
       log('Script', `✅  ${scenes.length} scenes, ~${totalWords} words`);
-      log('Script', `    Title: "${youtubeTitle}"`);
+      log('Script', `    Title: "${title}"`);
 
       if (args.dryRun) {
         logSection('Script-Only / Dry Run Complete');
@@ -365,7 +365,7 @@ async function runSingleVideo(args, topic, outDir, workflows) {
         log('Output', `Script written to: ${scriptPath}`);
         log('TIP', `Resume with: npm run make -- --script-file ${scriptPath}`);
         summarise(startTime);
-        return { productionId, topic, dryRun: true, youtubeTitle, scriptPath };
+        return { productionId, topic, dryRun: true, title, scriptPath };
       }
     }
   }
@@ -377,19 +377,19 @@ async function runSingleVideo(args, topic, outDir, workflows) {
     if (!fs.existsSync(absScript)) throw new Error(`Script file not found: ${absScript}`);
     const raw = JSON.parse(fs.readFileSync(absScript, 'utf8'));
     const scriptData = raw.script || raw;
-    scenes          = scriptData.scenes;
-    productionId    = scriptData.productionId || raw.productionId || `script_${Date.now()}`;
-    youtubeTitle    = scriptData.youtubeTitle || topic || 'Video';
-    youtubeDescription = scriptData.youtubeDescription || '';
-    youtubeTags     = scriptData.youtubeTags || [];
+    scenes      = scriptData.scenes;
+    productionId = scriptData.productionId || raw.productionId || `script_${Date.now()}`;
+    title       = scriptData.title || topic || 'Video';
+    description = scriptData.description || '';
+    tags        = scriptData.tags || [];
     thumbnailPrompt = scriptData.thumbnailPrompt || null;
-    totalWords      = scriptData.totalWords || scenes?.reduce((n, s) => n + (s.narration || '').split(/\s+/).filter(Boolean).length, 0) || 0;
+    totalWords  = scriptData.totalWords || scenes?.reduce((n, s) => n + (s.narration || '').split(/\s+/).filter(Boolean).length, 0) || 0;
     log('Script', `✅  Loaded ${scenes?.length} scenes from: ${absScript}`);
 
     if (args.dryRun) {
       logSection('Dry Run Complete');
       summarise(startTime);
-      return { productionId, topic, dryRun: true, youtubeTitle };
+      return { productionId, topic, dryRun: true, title };
     }
   }
 
@@ -463,14 +463,14 @@ async function runSingleVideo(args, topic, outDir, workflows) {
   logSection('Stage E: Packaging');
   const packageResult = await runPackaging({
     productionId,
-    masterPath:         renderResult.masterPath,
-    shorts:             shortsResult.shorts || [],
+    masterPath:   renderResult.masterPath,
+    shorts:       shortsResult.shorts || [],
     scenes,
-    youtubeTitle,
-    youtubeDescription,
-    youtubeTags,
+    title,
+    description,
+    tags,
     thumbnailPrompt,
-    qcReport:           renderResult.qcReport,
+    qcReport:     renderResult.qcReport,
     totalWords,
   });
   log('Package', `✅  Manifest: ${packageResult.manifestPath || 'saved'}`);
@@ -479,7 +479,7 @@ async function runSingleVideo(args, topic, outDir, workflows) {
   logSection('Thumbnail');
   const thumbPath = await generateThumbnail({
     thumbnailPrompt,
-    youtubeTitle,
+    title,
     outDir,
   });
   if (thumbPath) log('Thumbnail', `✅  Saved: ${thumbPath}`);
@@ -489,7 +489,7 @@ async function runSingleVideo(args, topic, outDir, workflows) {
     logSection('Publish Skipped (--no-publish)');
     log('Output', `Master video: ${renderResult.masterPath}`);
     summarise(startTime);
-    return { productionId, topic, masterPath: renderResult.masterPath, thumbnailPath: thumbPath, youtubeTitle, shorts: shortsResult.shorts || [] };
+    return { productionId, topic, masterPath: renderResult.masterPath, thumbnailPath: thumbPath, title, shorts: shortsResult.shorts || [] };
   }
 
   logSection('Stage F: Publish');
@@ -517,7 +517,7 @@ async function runSingleVideo(args, topic, outDir, workflows) {
     topic,
     masterPath:    renderResult.masterPath,
     thumbnailPath: thumbPath,
-    youtubeTitle,
+    title,
     shorts:        shortsResult.shorts || [],
     publishResult,
   };
@@ -628,7 +628,7 @@ async function main() {
     // Print per-topic summary
     batchResults.forEach(r => {
       const icon = r.status === 'ok' ? '✅' : '❌';
-      const detail = r.status === 'ok' ? r.youtubeTitle || r.masterPath : r.error;
+      const detail = r.status === 'ok' ? r.title || r.masterPath : r.error;
       console.log(`  ${icon} [${r.index}] ${r.topic} — ${detail}`);
     });
 

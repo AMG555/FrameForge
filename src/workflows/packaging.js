@@ -25,9 +25,9 @@ const STATE_DIR = `${FILES_DIR}/state`;
  *   masterPath: string,
  *   shorts?: object[],
  *   scenes: object[],
- *   youtubeTitle: string,
- *   youtubeDescription: string,
- *   youtubeTags?: string[],
+ *   title: string,
+ *   description: string,
+ *   tags?: string[],
  *   thumbnailPrompt?: string,
  *   qcReport: object,
  *   totalWords?: number,
@@ -36,14 +36,14 @@ const STATE_DIR = `${FILES_DIR}/state`;
 async function runPackaging({
   productionId,
   masterPath,
-  shorts = [],
-  scenes = [],
-  youtubeTitle,
-  youtubeDescription,
-  youtubeTags = [],
+  shorts          = [],
+  scenes          = [],
+  title           = '',
+  description     = '',
+  tags            = [],
   thumbnailPrompt = '',
   qcReport,
-  totalWords = 0,
+  totalWords      = 0,
 }) {
   const sm        = new StateMachine({ mode: 'file', stateDir: STATE_DIR });
   const telemetry = new Telemetry({ mode: 'file', logPath: `${FILES_DIR}/usage.ndjson` });
@@ -99,9 +99,9 @@ async function runPackaging({
     sceneCount:       scenes.length,
     totalWords,
     metadata: {
-      youtubeTitle,
-      youtubeDescription,
-      youtubeTags,
+      title,
+      description,
+      tags,
       thumbnailPrompt,
     },
     qcSummary: {
@@ -116,18 +116,18 @@ async function runPackaging({
   const manifestPath = path.join(pkgDir, 'manifest.json');
   await fs.writeFile(manifestPath, JSON.stringify(manifest, null, 2), 'utf8');
 
-  // ── Write YouTube description file ───────────────────────────────────────
+  // ── Write video description file ────────────────────────────────────────
   const descLines = [
-    youtubeTitle,
+    title,
     '',
-    youtubeDescription,
+    description,
     '',
-    youtubeTags.length ? `Tags: ${youtubeTags.slice(0, 10).join(', ')}` : '',
+    tags.length ? `Tags: ${tags.slice(0, 10).join(', ')}` : '',
     '',
     '---',
     'Produced with autonomous AI video pipeline.',
   ];
-  await fs.writeFile(path.join(pkgDir, 'youtube_description.md'), descLines.join('\n'), 'utf8');
+  await fs.writeFile(path.join(pkgDir, 'description.md'), descLines.join('\n'), 'utf8');
 
   await sm.completeStage(productionId, 'Packaging', {
     outputHash: contentHash,

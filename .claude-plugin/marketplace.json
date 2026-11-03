@@ -9,9 +9,9 @@
     {
       "name": "video-pipeline",
       "source": "./plugins/video-pipeline",
-      "description": "End-to-end overnight video production: topic research with real fact-checking (Tavily/Brave/SearXNG), script writing, voice synthesis (ElevenLabs/edge-tts/Azure/OpenAI), FFmpeg animation, quality gates, Telegram delivery, YouTube Data API v3 upload.",
-      "version": "1.2.0",
-      "keywords": ["frameforge", "video", "automation", "n8n", "mcp", "tts", "ffmpeg", "ibm-bob", "enterprise", "youtube", "cloudflare"]
+      "description": "End-to-end overnight video production: topic research with real fact-checking (Tavily/Brave/SearXNG), script writing, voice synthesis (ElevenLabs/edge-tts/Azure/OpenAI), FFmpeg animation, quality gates, file and webhook delivery.",
+      "version": "2.3.0",
+      "keywords": ["frameforge", "video", "automation", "mcp", "tts", "ffmpeg", "ibm-bob", "enterprise", "cloudflare"]
     }
   ]
 }
