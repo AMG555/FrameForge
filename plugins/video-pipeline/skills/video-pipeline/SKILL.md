@@ -26,11 +26,12 @@ IDE Agent (IBM Bob / Codex / opencode / Cursor / Windsurf / Claude Code)
     │
     ▼  Cloudflare Remote MCP (recommended) ─────────────────────────────
     │  https://video-mcp.YOUR_SUBDOMAIN.workers.dev/mcp
-    │  13 tools: research_topic · write_script · assemble_video
+    │  14 tools: research_topic · write_script · assemble_video
     │            publish_video · ingest_media · edit_scenes
     │            render_from_scenes · external_platform_call
     │            create_video_from_script · multi_voice_tts
     │            queue_full_pipeline · get_job_status
+    │            render_tts · generate_scene_image
     │
     ▼  OR — Local stdio / HTTP MCP ────────────────────────────────────
     │  node src/mcp-server/stdio.js   (stdio)
@@ -137,9 +138,11 @@ npm run setup
 
 ## Workflow (step-by-step)
 
-### Agent-First Path (Recommended for IDE agents)
+### Path 1 — Agent-First (Recommended for all agentic IDEs)
 
-Your IDE writes the scenes. FrameForge renders. No internal LLM needed:
+**You are already running an LLM — use it.** Write the scenes yourself and hand
+them to FrameForge for rendering. No `GROQ_API_KEY` or any other LLM key needed.
+FrameForge only runs FFmpeg, TTS, and image generation:
 
 ```
 create_video_from_script({
@@ -149,17 +152,23 @@ create_video_from_script({
     { narration: "Your device picks up the signal...", caption: "YOUR DEVICE",
       visual_description: "laptop receiving signal, clean diagram" }
   ],
-  title: "How WiFi Works",
-  channels: ["telegram"]
+  title: "How WiFi Works"
 })
 ```
 
-### Auto-Research Path
+Then deliver it:
+```
+publish_video({ productionId, masterPath, channels: ["file"] })
+```
 
-Let FrameForge handle research + scripting:
+### Path 2 — Auto-Research (for unattended / batch runs)
+
+Use this when FrameForge runs **without** an IDE in the loop — overnight batch,
+`queue_full_pipeline`, or a standalone worker. The pipeline calls its own LLM
+for research and scripting, so `PROVIDER_LLM` + the matching API key are required:
 
 ```
-1. research_topic({ topic: "...", style: "educational", format: "YouTube short" })
+1. research_topic({ topic: "...", style: "educational", format: "short-form reel" })
 2. write_script({ productionId, claims, topic, persona: "tech reviewer" })
 3. render_from_scenes({ productionId })
 4. publish_video({ productionId, masterPath, channels: ["file"] })

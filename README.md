@@ -74,11 +74,12 @@ npm run doctor        # pre-flight check — tells you what's missing
 npm run setup         # interactive key wizard (~2 min)
 ```
 
-Minimum `.env` for a free, zero-cost run:
+Minimum `.env` — **if you use `create_video_from_script` from your IDE, no LLM key is needed at all.** The IDE's model writes the script; FrameForge only handles rendering:
 
 ```env
-GROQ_API_KEY=gsk_...         # free tier — console.groq.com
-PROVIDER_LLM=groq
+# LLM key only needed for auto-research path (research_topic / write_script)
+# Skip this if your IDE writes the scenes via create_video_from_script
+GROQ_API_KEY=gsk_...         # free tier — console.groq.com (or set PROVIDER_LLM=ollama for fully local)
 PROVIDER_TTS=edge-tts        # free, offline — no key needed
 PROVIDER_IMAGE=pollinations  # free — no key needed
 ```
@@ -157,9 +158,9 @@ Same block works in IBM Bob, Codex, opencode, Cursor, Windsurf, Claude Code, VS 
 
 ## Using FrameForge from Your IDE
 
-### Agent-first path (recommended)
+### Agent-first path (recommended for all agentic IDEs)
 
-Your IDE agent writes the `scenes[]` array. FrameForge renders it. No internal LLM needed.
+**You are already running a model** (Claude, GPT-4o, Gemini, etc.) inside your IDE. Write the scenes yourself — FrameForge only handles rendering. No `GROQ_API_KEY` or `PROVIDER_LLM` needed at all.
 
 ```
 create_video_from_script({
@@ -180,12 +181,12 @@ create_video_from_script({
 → { masterPath: "/files/final_video_abc123.mp4", passed: true, sceneCount: 2 }
 ```
 
-### Auto-research path
+### Auto-research path (for unattended / batch runs)
 
-Let FrameForge handle research and scripting internally:
+Use this when FrameForge runs **without** an IDE in the loop — overnight batch or `queue_full_pipeline`. The pipeline calls its own LLM, so `PROVIDER_LLM` + its API key are required:
 
 ```
-1. research_topic({ topic: "How GPS works", style: "educational", format: "YouTube short" })
+1. research_topic({ topic: "How GPS works", style: "educational", format: "short-form reel" })
 2. write_script({ ...claims, persona: "tech explainer", language: "en", targetDuration: 60 })
 3. render_from_scenes({ productionId, skipImages: false })
 ```
