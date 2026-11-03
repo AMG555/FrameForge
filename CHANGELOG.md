@@ -25,12 +25,19 @@ All notable changes to FrameForge are documented here.
 
 - `VideoRenderer.assembleMain` — minimum scene guard lowered from 5 → 1 (throws only on 0; warns below 3). The README's 2-scene `create_video_from_script` examples now work without error.
 - Cloudflare Worker version → `2.3.0`; `SERVER_INFO.version` → `2.3.0`; `package.json` → `2.3.0`
-- `scripts/deep-validate.js` — +23 checks (engine asset files, rate-limit, Tool 14, new scripts)
+- `scripts/deep-validate.js` — +27 checks (engine asset files, rate-limit, Tool 14, new scripts, auth token forwarding, publish_video invariants)
 - `README.md` — version badge, test count, Tool 14 row, HTML Renderer section, architecture diagram tool counts updated
+
+### Security
+
+- `get_job_status` and `queue_full_pipeline` now forward `INTERNAL_API_TOKEN` as `Authorization: Bearer` in all HTTP requests to the worker API. Previously these two tools made unauthenticated calls.
+- `publish_video` manifest no longer emits stale `youtubeTitle`/`youtubeDescription` alias keys.
+- `cloudflare-mcp/src/index.js` architecture comment corrected (was "Telegram / YouTube").
+- `log-redaction.js` — removed stale YouTube OAuth2 key names (`youtubeRefreshToken`, `youtubeClientSecret`).
 
 ### Tests
 
-- 439 tests, 93 suites (was 375 / 80 in v2.2.0)
+- 449 tests, 96 suites (was 439 / 93 before this patch)
 
 ---
 

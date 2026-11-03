@@ -10,7 +10,7 @@
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
 [![Version](https://img.shields.io/badge/version-2.3.0-blue.svg)](CHANGELOG.md)
 [![MCP Spec](https://img.shields.io/badge/MCP-2024--11--05-blue.svg)](https://modelcontextprotocol.io/)
-[![Tests](https://img.shields.io/badge/tests-440%20passing-brightgreen.svg)](#-testing)
+[![Tests](https://img.shields.io/badge/tests-449%20passing-brightgreen.svg)](#-testing)
 [![FFmpeg](https://img.shields.io/badge/engine-FFmpeg%20native-red.svg)](https://ffmpeg.org/)
 
 [Quickstart](#-60-second-quickstart) · [Connect Your IDE](#-connect-your-ide) · [14 MCP Tools](#-mcp-tools-reference) · [HTML Renderer](#-html-renderer) · [Architecture](#-architecture) · [Deploy](#-deployment) · [User Guide](docs/user-guide.md)
@@ -414,7 +414,7 @@ sudo journalctl -fu   frameforge
 | `npm run start:worker:render` | Render-optimised worker (api_only mode) |
 | `npm run start:local-render` | Local full-render worker (RENDER_MODE=full) |
 | `npm run validate` | Deep structural validation |
-| `npm test` | Unit test suite (439 tests, 93 suites) |
+| `npm test` | Unit test suite (449 tests, 96 suites) |
 
 **`npm run make` flags:**
 
@@ -433,7 +433,7 @@ npm run make -- \
 
 ## Testing
 
-439 tests across 18 modules — run with:
+449 tests across 18 modules — run with:
 
 ```bash
 npm test
@@ -480,7 +480,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide.
 
 Quick checklist:
 1. `npm run doctor` passes on your OS
-2. `npm test` passes (439/439)
+2. `npm test` passes (449/449)
 3. `npm run validate` passes (all checks)
 4. FFmpeg commands keep `-nostdin` and cross-platform font paths
 5. Commit messages: plain imperative sentences — no `feat:`/`fix:` prefixes
