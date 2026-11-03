@@ -203,6 +203,10 @@ check('server.js has create_video_from_script',      serverjs.includes('create_v
 check('server.js has multi_voice_tts',               serverjs.includes('multi_voice_tts'));
 check('server.js body size limit present',           serverjs.includes('MAX_BODY_BYTES'));
 check('server.js no stale YouTube stub',             !serverjs.includes("'YouTube upload requires manual setup'"));
+check('publish_video channels default is file not telegram', serverjs.includes("channels = ['file']") && !serverjs.includes("channels = ['telegram']"));
+check('publish_video metadata has no youtubeTitle alias',    !serverjs.includes('youtubeTitle: title'));
+check('get_job_status forwards INTERNAL_API_TOKEN',          serverjs.includes('internalToken') && serverjs.includes('get_job_status'));
+check('queue_full_pipeline forwards INTERNAL_API_TOKEN',     serverjs.includes('authHeaders') && serverjs.includes('queue_full_pipeline'));
 
 // ── state-machine.js — write mutex ───────────────────────────────────────
 console.log('\n=== state-machine.js write mutex ===');

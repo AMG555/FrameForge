@@ -90,11 +90,6 @@ const JSON_CREDENTIAL_KEYS = [
   'internal_api_token',
   'mcpAuthToken',
   'mcp_auth_token',
-  // YouTube OAuth2
-  'youtubeRefreshToken',
-  'youtube_refresh_token',
-  'youtubeClientSecret',
-  'youtube_client_secret',
   // Search API
   'searchApiKey',
   'search_api_key',

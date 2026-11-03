@@ -232,28 +232,26 @@ const TOOLS = {
 
   // ── Tool 6: Publish video ─────────────────────────────────────────────────
   publish_video: {
-    description: 'Deliver finished video to configured channels (Telegram, YouTube).',
+    description: 'Deliver finished video via file copy or HTTP webhook. Channels: "file" (copy to published/) and/or "webhook" (POST JSON summary to PUBLISH_WEBHOOK_URL).',
     inputSchema: {
       type: 'object',
       required: ['productionId', 'masterPath'],
       properties: {
         productionId:     { type: 'string' },
         masterPath:       { type: 'string' },
-        channels:         { type: 'array', items: { type: 'string' }, default: ['telegram'] },
-        youtubeTitle:     { type: 'string' },
-        youtubeDescription: { type: 'string' },
+        channels:         { type: 'array', items: { type: 'string' }, default: ['file'], description: 'Delivery channels: file | webhook' },
+        title:            { type: 'string', description: 'Video title for metadata and webhook payload' },
+        description:      { type: 'string', description: 'Video description for metadata and webhook payload' },
       },
     },
-    handler: async ({ productionId, masterPath, channels = ['telegram'], youtubeTitle = '', youtubeDescription = '' }) => {
+    handler: async ({ productionId, masterPath, channels = ['file'], title = '', description = '' }) => {
       await sm.startStage(productionId, 'Publishing');
 
-      // Delegate entirely to runPublishing — it handles Telegram, YouTube, and shorts.
-      // Previously had an inline Telegram send here which caused double-delivery when
-      // channels included 'telegram', since runPublishing also sends to Telegram.
       const manifest = {
         master: { path: masterPath },
-        metadata: { youtubeTitle, youtubeDescription },
+        metadata: { title, description },
         shorts: [],
+        publishDecision: 'AUTO_PUBLISH',
       };
       const pubResult = await runPublishing({ productionId, manifest, channels });
       const results = pubResult.results || {};
@@ -627,6 +625,7 @@ Example scene:
       const client  = require(isHttps ? 'https' : 'http');
       const safePath = `/jobs/${encodeURIComponent(jobId)}`;
 
+      const internalToken = process.env.INTERNAL_API_TOKEN;
       return new Promise((resolve, reject) => {
         const url = new URL(targetUrl.replace(/\/$/, '') + safePath);
         const req = client.request({
@@ -634,7 +633,7 @@ Example scene:
           port:     url.port || (isHttps ? 443 : 80),
           path:     url.pathname + url.search,
           method:   'GET',
-          headers:  {},
+          headers:  internalToken ? { Authorization: `Bearer ${internalToken}` } : {},
         }, (res) => {
           const chunks = [];
           res.on('data', d => chunks.push(d));
@@ -676,6 +675,8 @@ Example scene:
       const isHttps = targetUrl.startsWith('https');
       const client  = require(isHttps ? 'https' : 'http');
       const body    = JSON.stringify({ type: 'full_pipeline', payload: { topic, style, language, channels, ...payload } });
+      const internalToken = process.env.INTERNAL_API_TOKEN;
+      const authHeaders = internalToken ? { Authorization: `Bearer ${internalToken}` } : {};
 
       const result = await new Promise((resolve, reject) => {
         const url = new URL(`${targetUrl.replace(/\/$/, '')}/jobs`);
@@ -684,7 +685,7 @@ Example scene:
           port:     url.port || (isHttps ? 443 : 80),
           path:     url.pathname + url.search,
           method:   'POST',
-          headers:  { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
+          headers:  { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body), ...authHeaders },
         }, (res) => {
           const chunks = [];
           res.on('data', d => chunks.push(d));

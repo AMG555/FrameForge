@@ -286,3 +286,71 @@ describe('get_job_status tool definition', () => {
     if (saved !== undefined) process.env.WORKER_API_URL = saved;
   });
 });
+
+// ── INTERNAL_API_TOKEN forwarding ─────────────────────────────────────────────
+// These tests verify that get_job_status and queue_full_pipeline both include
+// Authorization headers when INTERNAL_API_TOKEN is present in the environment.
+// We validate the handler source directly (unit-testable without a live server).
+
+describe('INTERNAL_API_TOKEN forwarding in worker tools', () => {
+  const fs = require('fs');
+  const src = fs.readFileSync(require.resolve('./server'), 'utf8');
+
+  it('get_job_status reads INTERNAL_API_TOKEN from env', () => {
+    // Confirm the auth pattern is present in the handler source
+    assert.ok(src.includes('process.env.INTERNAL_API_TOKEN'), 'INTERNAL_API_TOKEN not referenced in server.js');
+  });
+
+  it('get_job_status sets Authorization header when token present', () => {
+    assert.ok(
+      src.includes("Authorization: `Bearer ${internalToken}`"),
+      'Authorization: Bearer pattern missing from get_job_status handler'
+    );
+  });
+
+  it('queue_full_pipeline builds authHeaders from INTERNAL_API_TOKEN', () => {
+    assert.ok(src.includes('authHeaders'), 'authHeaders variable missing from queue_full_pipeline');
+  });
+
+  it('queue_full_pipeline spreads authHeaders into request headers', () => {
+    assert.ok(src.includes('...authHeaders'), '...authHeaders spread missing from request options');
+  });
+});
+
+// ── publish_video channels default ───────────────────────────────────────────
+
+describe('publish_video tool definition', () => {
+  const { TOOLS } = require('./server');
+
+  it('publish_video is defined in TOOLS', () => {
+    assert.ok(Object.prototype.hasOwnProperty.call(TOOLS, 'publish_video'), 'publish_video missing from TOOLS');
+  });
+
+  it('publish_video channels default is file not telegram', () => {
+    // Extract handler source to confirm the default
+    const handlerSrc = TOOLS.publish_video.handler.toString();
+    assert.ok(handlerSrc.includes("channels = ['file']"), "channels default should be ['file']");
+    assert.ok(!handlerSrc.includes("channels = ['telegram']"), "channels default must not be ['telegram']");
+  });
+
+  it('publish_video inputSchema channels default is file', () => {
+    const schema = TOOLS.publish_video.inputSchema;
+    const chanProp = schema.properties.channels;
+    assert.ok(chanProp, 'channels property missing from inputSchema');
+    assert.deepEqual(chanProp.default, ['file'], 'channels inputSchema default must be [file]');
+  });
+
+  it('publish_video description mentions file and webhook only', () => {
+    const desc = TOOLS.publish_video.description;
+    assert.ok(desc.includes('file') || desc.includes('webhook'), 'description should mention file/webhook');
+    assert.ok(!desc.includes('telegram') && !desc.includes('Telegram'), 'description must not mention Telegram');
+    assert.ok(!desc.includes('youtube') && !desc.includes('YouTube'), 'description must not mention YouTube');
+  });
+
+  it('publish_video handler throws for missing productionId', async () => {
+    await assert.rejects(
+      () => TOOLS.publish_video.handler({ masterPath: '/tmp/video.mp4' }),
+      (err) => err instanceof Error
+    );
+  });
+});

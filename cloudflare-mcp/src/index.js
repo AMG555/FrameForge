@@ -27,7 +27,7 @@
  *   Cloudflare R2 (video storage)
  *     │ public URL
  *     ▼
- *   Telegram / YouTube
+ *   file / webhook delivery
  *
  * Deploy:
  *   cd cloudflare-mcp
