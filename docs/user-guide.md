@@ -25,6 +25,17 @@ Practical walk-throughs for every common task. Start with [Setup](#1-setup) if y
 
 ## 1. Setup
 
+### Which path are you on?
+
+FrameForge has two distinct usage paths. Pick one before setting up your `.env`:
+
+| Path | How it works | LLM key needed? |
+|------|--------------|-----------------|
+| **Agent-first (Path 1)** | Your IDE agent writes the scenes; FrameForge renders them. Tools: `create_video_from_script`, `render_from_scenes`, `ingest_media`, etc. | ❌ No — TTS + image only |
+| **Auto-research (Path 2)** | FrameForge researches a topic, writes the script, and renders autonomously. Tools: `research_topic`, `write_script`, `queue_full_pipeline`. | ✅ Yes |
+
+Most IDE users are on **Path 1** and need no LLM API key.
+
 ### Prerequisites
 
 | Dependency | Check | Install |
@@ -42,14 +53,23 @@ npm run doctor      # pre-flight check — lists exactly what's missing
 npm run setup       # interactive wizard — writes your .env (~2 min)
 ```
 
-### Minimum free .env
+### Minimum .env — Path 1 (agent-first, no LLM key)
 
 ```env
-GROQ_API_KEY=gsk_...         # free — console.groq.com
-PROVIDER_LLM=groq
-PROVIDER_TTS=edge-tts        # free offline TTS — no account
-PROVIDER_IMAGE=pollinations  # free image gen — no account
+PROVIDER_TTS=edge-tts        # free offline TTS — no account needed
+PROVIDER_IMAGE=pollinations  # free image gen — no account needed
 ```
+
+### Minimum .env — Path 2 (auto-research, LLM key required)
+
+```env
+PROVIDER_LLM=groq
+GROQ_API_KEY=gsk_...         # free — console.groq.com
+PROVIDER_TTS=edge-tts
+PROVIDER_IMAGE=pollinations
+```
+
+Other free LLM options: `PROVIDER_LLM=gemini` + `GEMINI_API_KEY`, or `PROVIDER_LLM=ollama` (fully local, no key).
 
 ### Verify
 
@@ -123,6 +143,8 @@ This same block works in IBM Bob, Codex, opencode, Cursor, Windsurf, Claude Code
 
 ### Local stdio (no cloud account needed)
 
+**Path 1 — agent-first (no LLM key needed):**
+
 ```json
 {
   "mcpServers": {
@@ -130,12 +152,23 @@ This same block works in IBM Bob, Codex, opencode, Cursor, Windsurf, Claude Code
       "command": "node",
       "args": ["/absolute/path/to/FrameForge/src/mcp-server/stdio.js"],
       "env": {
-        "GROQ_API_KEY": "gsk_...",
-        "PROVIDER_LLM": "groq",
         "PROVIDER_TTS": "edge-tts",
         "PROVIDER_IMAGE": "pollinations"
       }
     }
+  }
+}
+```
+
+**Path 2 — add these if you use `research_topic`, `write_script`, or `queue_full_pipeline`:**
+
+```json
+{
+  "env": {
+    "PROVIDER_TTS": "edge-tts",
+    "PROVIDER_IMAGE": "pollinations",
+    "PROVIDER_LLM": "groq",
+    "GROQ_API_KEY": "gsk_..."
   }
 }
 ```
@@ -436,12 +469,13 @@ This is the recommended production setup: lightweight network-bound work (LLM, T
 3. Set these environment variables in Render's dashboard:
 
 ```env
-GROQ_API_KEY=gsk_...
-PROVIDER_LLM=groq
 PROVIDER_TTS=edge-tts
 PROVIDER_IMAGE=pollinations
 INTERNAL_API_TOKEN=<random 32-byte hex>
 RENDER_MODE=api_only
+# Only needed if you use research_topic / write_script / queue_full_pipeline:
+# PROVIDER_LLM=groq
+# GROQ_API_KEY=gsk_...
 ```
 
 ### Step 2 — Run the local render worker
@@ -495,14 +529,20 @@ npm run start:worker   # worker on port 3211
 npm run mcp:stdio
 ```
 
-Minimum free `.env`:
+Minimum free `.env` — **Path 1 (agent-first, no LLM key):**
 
 ```env
-GROQ_API_KEY=gsk_...
-PROVIDER_LLM=groq
 PROVIDER_TTS=edge-tts
 PROVIDER_IMAGE=pollinations
 N8N_FILES_DIR=./output    # where videos are saved
+```
+
+Add these only if you use `research_topic`, `write_script`, or `queue_full_pipeline` (**Path 2**):
+
+```env
+PROVIDER_LLM=groq
+GROQ_API_KEY=gsk_...      # free — console.groq.com
+# Alternatives: PROVIDER_LLM=gemini + GEMINI_API_KEY, or PROVIDER_LLM=ollama (no key)
 ```
 
 ---
@@ -533,13 +573,16 @@ The audio is too quiet or too loud. Usually a TTS voice with an unusual level. T
 
 ### `LLM Provider: no API key found` in doctor
 
-Run `npm run setup` to add the key, or manually add it to `.env`:
+This warning only matters if you use the auto-research tools (`research_topic`, `write_script`, `queue_full_pipeline`). For the agent-first path (`create_video_from_script`), ignore it.
+
+If you do need it, run `npm run setup` to add the key, or set it manually in `.env`:
 
 ```env
+PROVIDER_LLM=groq
 GROQ_API_KEY=gsk_...
 ```
 
-Free LLM options: Groq (`GROQ_API_KEY`), Gemini (`GEMINI_API_KEY`), Cerebras (`CEREBRAS_API_KEY`).
+Free LLM options: Groq (`GROQ_API_KEY`), Gemini (`GEMINI_API_KEY`), Cerebras (`CEREBRAS_API_KEY`), or `PROVIDER_LLM=ollama` (fully local, no key).
 
 ### `Cannot write to working dir`
 
