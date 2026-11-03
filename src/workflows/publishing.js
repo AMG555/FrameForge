@@ -63,8 +63,8 @@ async function runPublishing({ productionId, manifest, channels = ['file'], outp
     throw new Error(`Master video not found at: ${masterPath}`);
   }
 
-  const title       = manifest?.metadata?.title       || manifest?.metadata?.youtubeTitle       || '';
-  const description = manifest?.metadata?.description || manifest?.metadata?.youtubeDescription || '';
+  const title       = manifest?.metadata?.title       || '';
+  const description = manifest?.metadata?.description || '';
   const results = {};
 
   // ── File channel ────────────────────────────────────────────────────────────

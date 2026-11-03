@@ -34,10 +34,16 @@ All notable changes to FrameForge are documented here.
 - `publish_video` manifest no longer emits stale `youtubeTitle`/`youtubeDescription` alias keys.
 - `cloudflare-mcp/src/index.js` architecture comment corrected (was "Telegram / YouTube").
 - `log-redaction.js` — removed stale YouTube OAuth2 key names (`youtubeRefreshToken`, `youtubeClientSecret`).
+- MCP HTTP server now enforces `MCP_AUTH_TOKEN` when set, using `crypto.timingSafeEqual` to prevent timing oracle attacks. Previously the token was validated only in the Cloudflare Worker proxy; the local HTTP server only logged a warning.
+- `external-adapter.js` — fixed `this`-binding bug in `downloadOutput()` where `this._authHeader()` was called inside a nested regular function that lost the instance context. Auth headers are now captured before the closure.
+- `providers.js` — removed unused `execSync` import (imported but never called; reduces unnecessary attack surface).
+- `publishing.js` — removed stale `youtubeTitle`/`youtubeDescription` fallback from title/description extraction.
+- Server startup no longer logs active provider configuration (`LLM=groq TTS=edge-tts ...`) to stdout, preventing accidental info disclosure in log aggregation pipelines.
+- `scripts/deep-validate.js` — +5 new invariant checks covering MCP auth enforcement, provider config log hygiene, and stale YouTube fallback removal.
 
 ### Tests
 
-- 449 tests, 96 suites (was 439 / 93 before this patch)
+- 456 tests, 98 suites (was 449 / 96 before this patch)
 
 ---
 

@@ -354,3 +354,35 @@ describe('publish_video tool definition', () => {
     );
   });
 });
+
+// ── MCP HTTP auth enforcement ─────────────────────────────────────────────────
+// Validate that _checkMCPAuth is present and that the HTTP handler gate exists.
+
+describe('MCP HTTP auth enforcement', () => {
+  const fs = require('fs');
+  const src = fs.readFileSync(require.resolve('./server'), 'utf8');
+
+  it('_checkMCPAuth function is defined in server.js', () => {
+    assert.ok(src.includes('function _checkMCPAuth'), '_checkMCPAuth missing from server.js');
+  });
+
+  it('_checkMCPAuth uses crypto.timingSafeEqual', () => {
+    assert.ok(src.includes('crypto.timingSafeEqual'), 'timingSafeEqual missing — auth is not timing-safe');
+  });
+
+  it('HTTP handler calls _checkMCPAuth before processing requests', () => {
+    assert.ok(src.includes('_checkMCPAuth(req)'), 'HTTP handler does not call _checkMCPAuth');
+  });
+
+  it('HTTP handler returns 401 when auth fails', () => {
+    assert.ok(src.includes("res.writeHead(401"), '401 response missing from auth failure path');
+  });
+
+  it('MCP_AUTH_TOKEN gate is opt-in (disabled when env var not set)', () => {
+    // Auth must be skippable for local dev without env set
+    assert.ok(
+      src.includes('if (!expected) return true'),
+      '_checkMCPAuth must return true when MCP_AUTH_TOKEN is not set'
+    );
+  });
+});

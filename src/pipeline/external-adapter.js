@@ -303,13 +303,14 @@ class ExternalAdapter {
    * @returns {Promise<string>} resolves with localPath
    */
   downloadOutput(remoteUrl, localPath) {
+    // Capture auth header once (before the closure) so `this` binding is unambiguous.
+    const authHdr = this._authHeader();
     return new Promise((resolve, reject) => {
       const lib   = remoteUrl.startsWith('https') ? https : http;
       const file  = fs.createWriteStream(localPath);
       const timer = setTimeout(() => { file.destroy(); reject(new Error('Download timeout')); }, 120000);
       function follow(url, hops) {
         if (hops > 5) { clearTimeout(timer); return reject(new Error('Too many redirects')); }
-        const authHdr = this._authHeader();
         lib.get(url, { headers: authHdr }, res => {
           if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
             res.resume(); return follow(res.headers.location, hops + 1);
@@ -322,7 +323,7 @@ class ExternalAdapter {
           file.on('error', err => { clearTimeout(timer); reject(err); });
         }).on('error', err => { clearTimeout(timer); reject(err); });
       }
-      follow.call(this, remoteUrl, 0);
+      follow(remoteUrl, 0);
     });
   }
 

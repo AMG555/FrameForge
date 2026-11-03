@@ -213,3 +213,27 @@ describe('pollUntilDone terminal status detection', () => {
     }
   });
 });
+
+// ── ExternalAdapter.downloadOutput — this-binding fix ─────────────────────────
+// Verifies that downloadOutput captures authHdr before the closure (the `this`
+// binding bug fix). We test the source text — no live HTTP call needed.
+
+describe('ExternalAdapter.downloadOutput this-binding fix', () => {
+  const fs  = require('fs');
+  const src = fs.readFileSync(require.resolve('./external-adapter'), 'utf8');
+
+  it('downloadOutput captures authHdr before the follow() closure', () => {
+    // The fix moves `const authHdr = this._authHeader()` outside follow()
+    assert.ok(
+      src.includes('const authHdr = this._authHeader()'),
+      'authHdr must be captured at downloadOutput scope, not inside follow()'
+    );
+  });
+
+  it('downloadOutput calls follow() without .call(this, ...)', () => {
+    assert.ok(
+      !src.includes('follow.call(this,'),
+      'follow.call(this, ...) must be removed — follow() no longer needs this binding'
+    );
+  });
+});

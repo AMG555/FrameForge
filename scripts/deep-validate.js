@@ -185,6 +185,7 @@ check('publishing.js webhook channel present', pubjs.includes("channels.includes
 check('publishing.js has PUBLISH_WEBHOOK_URL', pubjs.includes('PUBLISH_WEBHOOK_URL'));
 check('publishing.js no Telegram curl',        !pubjs.includes('telegramShorts') && !pubjs.includes('TELEGRAM_BOT_TOKEN'));
 check('publishing.js no YouTube OAuth2',       !pubjs.includes('_refreshAccessToken') && !pubjs.includes('YOUTUBE_CLIENT_ID'));
+check('publishing.js no stale youtubeTitle fallback', !pubjs.includes('youtubeTitle') && !pubjs.includes('youtubeDescription'));
 
 // ── server-render-free.js — no stale Telegram default ────────────────────
 console.log('\n=== server-render-free.js ===');
@@ -207,6 +208,8 @@ check('publish_video channels default is file not telegram', serverjs.includes("
 check('publish_video metadata has no youtubeTitle alias',    !serverjs.includes('youtubeTitle: title'));
 check('get_job_status forwards INTERNAL_API_TOKEN',          serverjs.includes('internalToken') && serverjs.includes('get_job_status'));
 check('queue_full_pipeline forwards INTERNAL_API_TOKEN',     serverjs.includes('authHeaders') && serverjs.includes('queue_full_pipeline'));
+check('MCP HTTP server enforces MCP_AUTH_TOKEN',             serverjs.includes('_checkMCPAuth') && serverjs.includes('crypto.timingSafeEqual'));
+check('server startup does not log provider env config',     !serverjs.includes("LLM=${process.env.PROVIDER_LLM"));
 
 // ── state-machine.js — write mutex ───────────────────────────────────────
 console.log('\n=== state-machine.js write mutex ===');

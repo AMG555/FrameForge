@@ -799,6 +799,22 @@ async function readBodyLimited(req) {
   });
 }
 
+// Timing-safe token comparison — prevents timing oracle on the MCP auth token.
+function _checkMCPAuth(req) {
+  const expected = process.env.MCP_AUTH_TOKEN;
+  if (!expected) return true; // auth disabled — local dev only
+  const header = req.headers['authorization'] || '';
+  const token  = header.replace(/^Bearer\s+/i, '').trim();
+  const bufA   = Buffer.from(token);
+  const bufB   = Buffer.from(expected);
+  if (bufA.length !== bufB.length) {
+    // Compare equal-length buffers to avoid short-circuit timing leak
+    crypto.timingSafeEqual(bufB, bufB);
+    return false;
+  }
+  return crypto.timingSafeEqual(bufA, bufB);
+}
+
 async function start() {
   await sm.init();
   await telemetry.init();
@@ -823,6 +839,12 @@ async function start() {
 
     if (req.method !== 'POST') {
       res.writeHead(405, CORS_HEADERS); return res.end();
+    }
+
+    // Auth check — enforce MCP_AUTH_TOKEN when set
+    if (!_checkMCPAuth(req)) {
+      res.writeHead(401, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ jsonrpc: '2.0', error: { code: -32001, message: 'Unauthorized — set Authorization: Bearer <MCP_AUTH_TOKEN>' } }));
     }
 
     let rawBody;
@@ -858,7 +880,6 @@ async function start() {
     console.log(`[video-pipeline MCP] listening on http://127.0.0.1:${PORT}`);
     console.log(`[video-pipeline MCP] protocol: MCP 2024-11-05`);
     console.log(`[video-pipeline MCP] tools: ${Object.keys(TOOLS).join(', ')}`);
-    console.log(`[video-pipeline MCP] LLM=${process.env.PROVIDER_LLM || 'groq'} TTS=${process.env.PROVIDER_TTS || 'edge-tts'} Image=${process.env.PROVIDER_IMAGE || 'pollinations'}`);
   });
 }
 
