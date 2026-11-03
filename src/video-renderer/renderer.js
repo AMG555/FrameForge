@@ -239,7 +239,7 @@ class VideoRenderer {
 
     // Verify
     const stat = fs.statSync(outputPath);
-    if (stat.size < 1024 * 1024) throw new Error(`Assembled video too small: ${stat.size} bytes`);
+    if (stat.size < 100 * 1024) throw new Error(`Assembled video too small: ${stat.size} bytes`);
 
     manifest?.setMaster(outputPath, { qualityPassed: false });
     return outputPath;

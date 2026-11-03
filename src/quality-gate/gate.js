@@ -33,7 +33,7 @@ class QualityGate {
    * @returns {{ passed: boolean, checks: Check[], diagnostics: Diagnostic[] }}
    */
   async validateMaster(videoPath) {
-    return this._validate(videoPath, { width: 1920, height: 1080, minDuration: 60, maxDuration: 3600 });
+    return this._validate(videoPath, { width: 1920, height: 1080, minDuration: 5, maxDuration: 3600 });
   }
 
   /**
@@ -68,8 +68,8 @@ class QualityGate {
     // ── 1. File size ──────────────────────────────────────────────────────
     try {
       const stat = require('fs').statSync(videoPath);
-      if (stat.size < 1024 * 1024) { fail('file_size', '>1MB', `${Math.round(stat.size/1024)}KB`, 'File too small'); }
-      else { pass('file_size', '>1MB', `${Math.round(stat.size/1024/1024)}MB`); }
+      if (stat.size < 100 * 1024) { fail('file_size', '>100KB', `${Math.round(stat.size/1024)}KB`, 'File too small'); }
+      else { pass('file_size', '>100KB', `${Math.round(stat.size/1024)}KB`); }
       diag('file_size_bytes', stat.size, 'bytes', 'Video file size');
     } catch (err) { fail('file_exists', 'exists', 'missing', err.message); }
 

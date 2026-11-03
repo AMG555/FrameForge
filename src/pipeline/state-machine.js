@@ -106,7 +106,28 @@ class StateMachine {
   // ── Stage lifecycle ───────────────────────────────────────────────────────
 
   async startStage(productionId, stageName) {
-    const record = await this._loadProduction(productionId);
+    let record;
+    try {
+      record = await this._loadProduction(productionId);
+    } catch (err) {
+      // Production not yet registered (agent-first path skips createProduction).
+      // Auto-create a minimal QUEUED record so the stage can proceed.
+      const now = new Date().toISOString();
+      record = {
+        productionId,
+        status: 'QUEUED',
+        pipelineVersion: '1.0.0',
+        schemaVersion: '1.0.0',
+        topic: productionId,
+        createdAt: now,
+        startedAt: null,
+        completedAt: null,
+        configHash: this._hash(productionId),
+        stages: {},
+        metadata: {},
+      };
+      await this._saveProduction(productionId, record);
+    }
     record.stages[stageName] = {
       status:    'RUNNING',
       startedAt: new Date().toISOString(),
