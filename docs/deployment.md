@@ -30,9 +30,9 @@ How to run FrameForge on a Raspberry Pi, Linux server, Render free tier, or Dock
 ## Step 1 — Clone and configure
 
 ```bash
-git clone <your-repo-url> auto-vid-gen
-cd auto-vid-gen
-npm install          # no dependencies currently — safe no-op
+git clone https://github.com/AMG555/FrameForge.git FrameForge
+cd FrameForge
+npm install
 cp docs/env.template .env
 ```
 
@@ -194,19 +194,16 @@ sudo journalctl -fu   video-mcp
 ## Checking the pipeline ran
 
 ```bash
-# See all productions
-ls -lh /home/node/.n8n-files/state/
+# See all output files
+ls -lh .frameforge-files/
 
 # See usage/cost log
-cat /home/node/.n8n-files/usage.ndjson | python3 -c "
+cat .frameforge-files/usage.ndjson | python3 -c "
 import sys,json
 for line in sys.stdin:
     d=json.loads(line)
     print(f\"{d['stage']:20} {d['provider']:12} {d['units']:6} units  {d.get('estimated_cost','?')} USD\")
 "
-
-# See production package
-ls -lh /home/node/.n8n-files/packages/
 ```
 
 ---

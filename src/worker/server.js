@@ -32,6 +32,30 @@ const crypto = require('crypto');
 const path   = require('path');
 const fs     = require('fs').promises;
 
+// ── Internal auth ─────────────────────────────────────────────────────────────
+// When INTERNAL_API_TOKEN is set, all routes except GET /health require a
+// matching Authorization: Bearer <token> header. The compare is timing-safe
+// to prevent oracle attacks on the token value.
+
+const INTERNAL_TOKEN = process.env.INTERNAL_API_TOKEN || '';
+
+function _timingSafeEqual(a, b) {
+  const bufA = Buffer.from(String(a));
+  const bufB = Buffer.from(String(b));
+  if (bufA.length !== bufB.length) {
+    crypto.timingSafeEqual(bufA, bufA); // constant-time dummy compare
+    return false;
+  }
+  return crypto.timingSafeEqual(bufA, bufB);
+}
+
+function _checkAuth(req) {
+  if (!INTERNAL_TOKEN) return true; // auth disabled when token not configured
+  const header = req.headers['authorization'] || req.headers['x-internal-token'] || '';
+  const token  = header.replace(/^Bearer\s+/i, '').trim();
+  return _timingSafeEqual(token, INTERNAL_TOKEN);
+}
+
 const { runResearch }   = require('../workflows/research');
 const { runScript }     = require('../workflows/script');
 const { runAssets }     = require('../workflows/assets');
@@ -193,7 +217,7 @@ async function handleRequest(req, res) {
   const url    = new URL(req.url, `http://localhost:${PORT}`);
   const parts  = url.pathname.replace(/^\/+|\/+$/g, '').split('/');
 
-  // GET /health
+  // GET /health — unauthenticated (health-check probes must work without a token)
   if (req.method === 'GET' && parts[0] === 'health') {
     return jsonResponse(res, 200, {
       status:  'ok',
@@ -201,6 +225,11 @@ async function handleRequest(req, res) {
       queued:  _queue.length,
       jobs:    jobs.size,
     });
+  }
+
+  // All other routes require internal auth when INTERNAL_API_TOKEN is set
+  if (!_checkAuth(req)) {
+    return jsonResponse(res, 401, { error: 'Unauthorized — set Authorization: Bearer <INTERNAL_API_TOKEN>' });
   }
 
   // GET /jobs
@@ -295,4 +324,4 @@ if (require.main === module) {
   start().catch(err => { console.error('[Worker] startup failed:', err); process.exit(1); });
 }
 
-module.exports = { _submitJob, jobs, runFullPipeline, start };
+module.exports = { _submitJob, jobs, runFullPipeline, start, _checkAuth, _timingSafeEqual };

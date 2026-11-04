@@ -237,3 +237,48 @@ describe('ExternalAdapter.downloadOutput this-binding fix', () => {
     );
   });
 });
+
+// ── ExternalAdapter.downloadOutput path-traversal guard ───────────────────────
+
+describe('ExternalAdapter.downloadOutput path-traversal guard', () => {
+  const { ExternalAdapter } = require('./external-adapter');
+
+  it('throws when localPath is outside FILES_DIR', () => {
+    const adapter = new ExternalAdapter({ name: 'test', baseUrl: 'https://example.com' });
+    // Default FILES_DIR is /home/node/.n8n-files; anything outside should be blocked.
+    // On Windows the guard uses process.env.N8N_FILES_DIR — set it to a temp-like value.
+    const originalFilesDir = process.env.N8N_FILES_DIR;
+    process.env.N8N_FILES_DIR = '/tmp/ff-test-guard';
+    try {
+      assert.throws(
+        () => adapter.downloadOutput('https://example.com/out.mp4', '/etc/passwd'),
+        /FILES_DIR|localPath/i
+      );
+    } finally {
+      if (originalFilesDir === undefined) delete process.env.N8N_FILES_DIR;
+      else process.env.N8N_FILES_DIR = originalFilesDir;
+    }
+  });
+
+  it('throws for a path-traversal attempt', () => {
+    const adapter = new ExternalAdapter({ name: 'test', baseUrl: 'https://example.com' });
+    const originalFilesDir = process.env.N8N_FILES_DIR;
+    process.env.N8N_FILES_DIR = '/tmp/ff-test-guard';
+    try {
+      assert.throws(
+        () => adapter.downloadOutput('https://example.com/out.mp4', '/tmp/ff-test-guard/../../etc/shadow'),
+        /FILES_DIR|localPath/i
+      );
+    } finally {
+      if (originalFilesDir === undefined) delete process.env.N8N_FILES_DIR;
+      else process.env.N8N_FILES_DIR = originalFilesDir;
+    }
+  });
+
+  it('source contains path-traversal guard comment', () => {
+    const fs  = require('fs');
+    const src = fs.readFileSync(require.resolve('./external-adapter'), 'utf8');
+    assert.ok(src.includes('Path-traversal guard'), 'Path-traversal guard comment missing from downloadOutput');
+    assert.ok(src.includes('filesDir'), 'filesDir variable missing from downloadOutput guard');
+  });
+});

@@ -11,7 +11,7 @@ Agentic IDE (Codex / opencode /  / Cursor / Windsurf / Claude Code)
 Cloudflare Workers  ← this file
   │  HTTP POST Bearer INTERNAL_API_TOKEN
   ▼
-Render Free / VPS / Pi  (server-render-free.js)
+Your backend  (VPS / Pi / Render / any machine running npm run start:worker)
   │  FFmpeg rendering + TTS + image gen
   ▼
 file / webhook delivery
@@ -25,7 +25,7 @@ file / webhook delivery
 
 - [Cloudflare account](https://cloudflare.com) (free)
 - [Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/install-and-update/): `npm install -g wrangler`
-- A running [Render API](../docs/hybrid-deployment.md) or VPS running `server-render-free.js`
+- A machine (VPS, Pi, local, or Render) running `server-render-free.js` — see [`../docs/deployment.md`](../docs/deployment.md)
 
 ## Deploy (2 minutes)
 
@@ -38,7 +38,7 @@ wrangler login
 
 # Set required secrets
 wrangler secret put WORKER_API_URL
-# → Enter: https://your-render-app.onrender.com
+# → Enter: https://YOUR_BACKEND_URL  (your VPS, Pi, or any server running npm run start:worker)
 
 wrangler secret put INTERNAL_API_TOKEN
 # → Enter: (same token set as INTERNAL_API_TOKEN on your Render app)
@@ -126,5 +126,5 @@ The Worker pings your Render `/health` endpoint every 8 minutes via a Cloudflare
 | `WORKER_API_URL not set` | Secret not configured | `wrangler secret put WORKER_API_URL` |
 | `HTTP 401` from IDE | Wrong `MCP_AUTH_TOKEN` | Re-check token in IDE config |
 | `HTTP 401` from Render | `INTERNAL_API_TOKEN` mismatch | Must match on both CF Worker and Render |
-| Tool calls timeout | Render dyno sleeping | Wait 30s for wake; cron will prevent this in future |
-| `job_... not found` after Render restart | Free tier ephemeral state | Use paid Render ($7/mo) for persistence; or re-run |
+| Tool calls timeout | Backend cold-start | Wait 30s for wake; cron will prevent this if using Render |
+| `job_... not found` after restart | Ephemeral state (free-tier backends) | Use a persistent VPS or paid Render plan for durable job state; or re-run |

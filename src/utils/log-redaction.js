@@ -15,6 +15,16 @@ const CREDENTIAL_PATTERNS = [
   // Groq API keys
   { pattern: /gsk_[a-zA-Z0-9]{32,}/g, replacement: '***GROQ_API_KEY_REDACTED***' },
 
+  // Anthropic API keys (sk-ant-api03-...)
+  { pattern: /sk-ant-[A-Za-z0-9_-]{20,}/g, replacement: '***ANTHROPIC_API_KEY_REDACTED***' },
+
+  // OpenAI API keys (sk-proj-... or sk-[A-Za-z0-9]{48})
+  { pattern: /sk-proj-[A-Za-z0-9_-]{20,}/g, replacement: '***OPENAI_API_KEY_REDACTED***' },
+  { pattern: /\bsk-[A-Za-z0-9]{48,}\b/g,    replacement: '***OPENAI_API_KEY_REDACTED***' },
+
+  // OpenRouter API keys (sk-or-v1-...)
+  { pattern: /sk-or-v1-[A-Za-z0-9_-]{20,}/g, replacement: '***OPENROUTER_API_KEY_REDACTED***' },
+
   // Telegram bot tokens (format: 123456789:ABC-DEF...)
   { pattern: /\d{9,}:[A-Za-z0-9_-]{35}/g, replacement: '***TELEGRAM_TOKEN_REDACTED***' },
 
@@ -35,6 +45,9 @@ const CREDENTIAL_PATTERNS = [
 
   // Replicate API keys (r8_...)
   { pattern: /r8_[A-Za-z0-9]{30,}/g, replacement: '***REPLICATE_API_KEY_REDACTED***' },
+
+  // Azure Speech keys (typically 32-char alphanum, caught below; additional explicit guard)
+  // IBM watsonx API keys (IAM keys — same pattern as generic Bearer, caught below)
 
   // Internal / MCP auth tokens (32-char hex)
   { pattern: /\b[0-9a-f]{32,64}\b/g, replacement: '***INTERNAL_TOKEN_REDACTED***' },

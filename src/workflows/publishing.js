@@ -137,8 +137,46 @@ async function _logForReview(productionId, manifest) {
   fsSync.appendFileSync(reviewLog, entry, 'utf8');
 }
 
+/**
+ * Guard against SSRF: reject webhook URLs that resolve to RFC-1918 / link-local /
+ * loopback ranges. These are unroutable from the public internet but reachable
+ * from the server process, so a confused-deputy attack could exfiltrate cloud
+ * metadata or probe internal services.
+ *
+ * Only the hostname portion of the URL is checked — we don't perform a DNS
+ * resolution (that would be async and incomplete). Literal IP addresses in the
+ * URL cover the common metadata-endpoint pattern (169.254.169.254, 127.x, 10.x,
+ * 192.168.x, 172.16-31.x).
+ */
+function _assertSafeWebhookUrl(rawUrl) {
+  let parsed;
+  try { parsed = new URL(rawUrl); }
+  catch { throw new Error(`Invalid webhook URL: ${rawUrl}`); }
+
+  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+    throw new Error(`Webhook URL must use http: or https: — got: ${parsed.protocol}`);
+  }
+
+  const host = parsed.hostname.toLowerCase();
+
+  // Reject literal private / loopback / link-local IP addresses:
+  // 127.x (loopback), 10.x / 172.16-31.x / 192.168.x (RFC-1918),
+  // 169.254.x (link-local / AWS metadata), ::1 / fc / fe80 (IPv6 private).
+  const PRIVATE_RE = /^(127\.\d+\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|192\.168\.\d+\.\d+|169\.254\.\d+\.\d+|::1|fc[\da-f]{2}:|fe80:)/i;
+
+  if (PRIVATE_RE.test(host)) {
+    throw new Error(`Webhook URL resolves to a private/loopback address — SSRF blocked: ${host}`);
+  }
+
+  // Reject bare "localhost" and common localhost aliases
+  if (host === 'localhost' || host.endsWith('.localhost') || host === '0.0.0.0' || host === '[::1]') {
+    throw new Error(`Webhook URL must not target localhost — SSRF blocked: ${host}`);
+  }
+}
+
 /** Minimal HTTP/HTTPS POST helper — no external dependencies */
 function _httpPost(url, body, headers = {}) {
+  _assertSafeWebhookUrl(url);
   return new Promise((resolve, reject) => {
     const parsed = new URL(url);
     const lib    = parsed.protocol === 'https:' ? https : http;
@@ -164,4 +202,4 @@ function _httpPost(url, body, headers = {}) {
   });
 }
 
-module.exports = { runPublishing };
+module.exports = { runPublishing, _assertSafeWebhookUrl };

@@ -1,3 +1,14 @@
+# render.yaml — OPTIONAL Render.com deployment config
+#
+# This file is only needed if you want to host the FrameForge worker on Render.com.
+# For local/VPS/Pi deployments, ignore this file and use:
+#   npm run mcp               (MCP server, port 3210)
+#   npm run start:worker      (queue worker, port 3211)
+#
+# If deploying to Render: push this repo, Render detects this file, and deploys automatically.
+# Set GROQ_API_KEY (and any other keys) as secrets in the Render dashboard.
+# Point LOCAL_RENDER_URL at a machine running `npm run start:local-render` for FFmpeg rendering.
+#
 services:
   - type: web
     name: video-pipeline-worker

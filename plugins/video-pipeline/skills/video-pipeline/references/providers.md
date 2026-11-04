@@ -1,7 +1,7 @@
 # Provider Environment Variable Reference
 
 All secrets come from environment variables. Never hardcode them.
-Copy `.kiro/config/production-secrets.env.template` → `.env` to get started.
+Copy `docs/env.template` → `.env` to get started.
 
 ---
 
@@ -84,10 +84,11 @@ PROVIDER_IMAGE=pollinations
 # No key required. Uses flux model.
 ```
 
-### fal (fast, FLUX-based)
+### fal (fast, FLUX-based — recommended for production)
 ```bash
 PROVIDER_IMAGE=fal
 FAL_API_KEY=...
+# Also accepted as: FALAI_API_KEY (legacy alias)
 ```
 
 ### replicate

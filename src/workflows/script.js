@@ -113,8 +113,9 @@ async function runScript({
 
   const facts = claims.slice(0, 8).map(c => c.safe_wording || c.claim).join('; ');
 
-  // If targetDuration is given, adjust scene count guidance (≈ 5s/scene)
-  const targetScenes = targetDuration ? Math.max(5, Math.min(120, Math.round(targetDuration / 5))) : sceneCount;
+  // If targetDuration is given, adjust scene count guidance (≈ 5s/scene).
+  // No ceiling — long-form documentaries, lectures, and podcasts may need hundreds of scenes.
+  const targetScenes = targetDuration ? Math.max(5, Math.round(targetDuration / 5)) : sceneCount;
 
   const raw = await retryPol.executeStage('Script', async () => {
     const system = [
@@ -160,7 +161,9 @@ async function runScript({
     throw new Error(`Too few scenes: ${script.scenes?.length}`);
   }
 
-  const scenes = script.scenes.slice(0, 120).map((s, i) => normaliseScene(s, i));
+  // No scene count ceiling — callers supply targetDuration / sceneCount and the
+  // pipeline renders however many scenes the script produces.
+  const scenes = script.scenes.map((s, i) => normaliseScene(s, i));
 
   const totalWords = scenes.reduce((n, s) => n + (s.narration || '').split(/\s+/).filter(Boolean).length, 0);
   if (totalWords < 50) throw new Error(`Script too short: ${totalWords} words`);

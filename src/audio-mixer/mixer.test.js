@@ -120,3 +120,23 @@ describe('AudioMixer.mixVideo', () => {
     );
   });
 });
+
+describe('AudioMixer._getVideoDuration', () => {
+  it('returns 0 for a non-existent file', () => {
+    const mixer = new AudioMixer();
+    const dur   = mixer._getVideoDuration('/tmp/__no_video_duration_test.mp4');
+    assert.equal(dur, 0);
+  });
+
+  it('returns 0 for a dummy non-video buffer file', () => {
+    const tmpFile = path.join(os.tmpdir(), '__duration_dummy_frameforge.mp4');
+    fs.writeFileSync(tmpFile, Buffer.alloc(1024));
+    try {
+      const mixer = new AudioMixer();
+      const dur   = mixer._getVideoDuration(tmpFile);
+      assert.equal(dur, 0, 'Non-MP4 dummy file should return 0 duration');
+    } finally {
+      fs.unlinkSync(tmpFile);
+    }
+  });
+});

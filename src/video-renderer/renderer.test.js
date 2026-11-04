@@ -96,6 +96,15 @@ describe('VideoRenderer._captionFilter', () => {
 });
 
 describe('VideoRenderer._discoverScenes', () => {
+  // _hasValidStreams calls ffprobe on real files; stub it to always return true
+  // for _discoverScenes tests so they can focus on size-filter and ordering logic
+  // without requiring real MP4 media files in the test suite.
+  function makeRenderer(filesDir) {
+    const r = new VideoRenderer({ filesDir });
+    r._hasValidStreams = () => true; // stub: test logic only, no ffprobe calls
+    return r;
+  }
+
   it('returns empty array when vdir does not exist', () => {
     const renderer = new VideoRenderer({ filesDir: '/tmp/__nonexistent_vrenderer_dir' });
     assert.deepEqual(renderer._discoverScenes(null), []);
@@ -106,7 +115,7 @@ describe('VideoRenderer._discoverScenes', () => {
     const vDir    = path.join(tmpDir, 'video_tmp');
     fs.mkdirSync(vDir);
 
-    // Create fake scene files large enough to pass 50 KB filter
+    // Create fake scene files large enough to pass the >10 KB size filter
     const big = Buffer.alloc(60 * 1024);
     fs.writeFileSync(path.join(vDir, 'scene_1_out.mp4'), big);
     fs.writeFileSync(path.join(vDir, 'scene_3_out.mp4'), big);
@@ -114,7 +123,7 @@ describe('VideoRenderer._discoverScenes', () => {
     // Also create a file that should NOT match the pattern
     fs.writeFileSync(path.join(vDir, 'concat_main.txt'), 'dummy');
 
-    const renderer = new VideoRenderer({ filesDir: tmpDir });
+    const renderer = makeRenderer(tmpDir);
     const scenes   = renderer._discoverScenes(null);
 
     assert.equal(scenes.length, 3);
@@ -128,19 +137,37 @@ describe('VideoRenderer._discoverScenes', () => {
     fs.rmSync(tmpDir, { recursive: true });
   });
 
-  it('filters out small scene files (< 50 KB)', () => {
+  it('filters out small scene files (< 10 KB)', () => {
     const tmpDir  = fs.mkdtempSync(path.join(os.tmpdir(), 'ff-renderer-small-'));
     const vDir    = path.join(tmpDir, 'video_tmp');
     fs.mkdirSync(vDir);
 
-    // One big file, one tiny file
+    // One big file (60 KB), one tiny file (100 bytes — below 10 KB threshold)
     fs.writeFileSync(path.join(vDir, 'scene_1_out.mp4'), Buffer.alloc(60 * 1024));
     fs.writeFileSync(path.join(vDir, 'scene_2_out.mp4'), Buffer.alloc(100));
 
-    const renderer = new VideoRenderer({ filesDir: tmpDir });
+    const renderer = makeRenderer(tmpDir);
     const scenes   = renderer._discoverScenes(null);
     assert.equal(scenes.length, 1);
     assert.ok(scenes[0].endsWith('scene_1_out.mp4'));
+
+    fs.rmSync(tmpDir, { recursive: true });
+  });
+
+  it('excludes scene files with invalid or missing streams', () => {
+    // _hasValidStreams is NOT stubbed here — we verify the real exclusion behaviour.
+    // Buffer.alloc dummy files are not valid MP4s so ffprobe returns nothing → excluded.
+    const tmpDir  = fs.mkdtempSync(path.join(os.tmpdir(), 'ff-renderer-streams-'));
+    const vDir    = path.join(tmpDir, 'video_tmp');
+    fs.mkdirSync(vDir);
+
+    fs.writeFileSync(path.join(vDir, 'scene_1_out.mp4'), Buffer.alloc(60 * 1024));
+    fs.writeFileSync(path.join(vDir, 'scene_2_out.mp4'), Buffer.alloc(60 * 1024));
+
+    const renderer = new VideoRenderer({ filesDir: tmpDir }); // real _hasValidStreams
+    const scenes   = renderer._discoverScenes(null);
+    // Both files are dummy buffers — ffprobe finds no streams → both excluded
+    assert.equal(scenes.length, 0, 'Dummy files with no valid streams must be excluded from concat');
 
     fs.rmSync(tmpDir, { recursive: true });
   });
@@ -154,7 +181,7 @@ describe('VideoRenderer._discoverScenes', () => {
       fs.writeFileSync(path.join(vDir, `scene_${i}_out.mp4`), big);
     }
 
-    const renderer = new VideoRenderer({ filesDir: tmpDir });
+    const renderer = makeRenderer(tmpDir);
     const scenes   = renderer._discoverScenes(5);
     assert.equal(scenes.length, 5);
 
@@ -198,17 +225,31 @@ describe('VideoRenderer._findRandomMusicFile', () => {
 });
 
 describe('VideoRenderer.renderScene — error handling', () => {
-  it('throws when neither imagePath nor videoPath is supplied', () => {
-    // When no media is provided the renderer falls back to a solid-colour background
-    // and runs ffmpeg with the supplied voicePath. If that path doesn't exist ffmpeg
-    // exits non-zero → renderer throws the no-image-fallback error.
+  it('throws when voicePath does not exist on disk', () => {
+    // Fix 1: voicePath is validated before calling ffprobe to prevent NaN duration.
+    // A missing voice file must throw immediately rather than silently passing NaN to ffmpeg.
     const renderer = new VideoRenderer({ filesDir: os.tmpdir() });
     assert.throws(
       () => renderer.renderScene({ sceneIndex: 0, voicePath: '/tmp/__fake_voice.m4a' }),
-      (err) => err instanceof Error && (
-        /neither imagePath nor videoPath/.test(err.message) ||
-        /no-image fallback/.test(err.message)
-      )
+      (err) => err instanceof Error && /voicePath is missing or does not exist/.test(err.message)
+    );
+  });
+
+  it('throws when voicePath is null', () => {
+    const renderer = new VideoRenderer({ filesDir: os.tmpdir() });
+    assert.throws(
+      () => renderer.renderScene({ sceneIndex: 0, voicePath: null }),
+      (err) => err instanceof Error && /voicePath is missing or does not exist/.test(err.message)
+    );
+  });
+
+  it('throws on no-image fallback when voicePath exists but ffmpeg fails', () => {
+    // When voicePath exists but is not a real audio file, ffmpeg exits non-zero.
+    // We use the test file itself as a stand-in "voice file" so existence check passes.
+    const renderer = new VideoRenderer({ filesDir: os.tmpdir() });
+    assert.throws(
+      () => renderer.renderScene({ sceneIndex: 0, voicePath: __filename }), // __filename always exists
+      (err) => err instanceof Error && /no-image fallback/.test(err.message)
     );
   });
 });
@@ -231,7 +272,10 @@ describe('VideoRenderer.assembleMain — error handling', () => {
 
   it('does not throw with 2 scene files (short-form content)', () => {
     // assembleMain must accept fewer than 5 scenes for demos and short-form content.
-    // It will fail later at FFmpeg concat (no real media), but the guard itself must pass.
+    // It will fail later at FFmpeg concat (no real media), but the scene-count guard
+    // itself must not block short-form content.
+    // _hasValidStreams is stubbed so the dummy buffer files pass the stream check —
+    // the goal here is to verify the scene-count guard, not stream-validity logic.
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ff-assemble-2-'));
     const vDir   = path.join(tmpDir, 'video_tmp');
     fs.mkdirSync(vDir);
@@ -240,6 +284,8 @@ describe('VideoRenderer.assembleMain — error handling', () => {
     fs.writeFileSync(path.join(vDir, 'scene_2_out.mp4'), big);
 
     const renderer = new VideoRenderer({ filesDir: tmpDir });
+    renderer._hasValidStreams = () => true; // stub: test scene-count guard only
+
     // Should NOT throw "Too few scenes" — may throw FFmpeg error instead
     try {
       renderer.assembleMain({ productionId: 'test-short-001', withMusic: false });
@@ -251,5 +297,44 @@ describe('VideoRenderer.assembleMain — error handling', () => {
     }
 
     fs.rmSync(tmpDir, { recursive: true });
+  });
+});
+
+describe('VideoRenderer._getAudioDuration', () => {
+  it('returns 3 (fallback) when audioPath is null', () => {
+    const renderer = new VideoRenderer();
+    assert.equal(renderer._getAudioDuration(null), 3);
+  });
+
+  it('returns 3 (fallback) when audioPath is undefined', () => {
+    const renderer = new VideoRenderer();
+    assert.equal(renderer._getAudioDuration(undefined), 3);
+  });
+
+  it('returns 3 (fallback) for a non-existent file path', () => {
+    const renderer = new VideoRenderer();
+    const dur = renderer._getAudioDuration('/tmp/__nonexistent_audio_renderer_test.m4a');
+    assert.equal(dur, 3);
+  });
+
+  it('returns 3 (fallback) for a dummy non-audio buffer file', () => {
+    const tmpFile = path.join(os.tmpdir(), '__audio_dur_dummy_renderer.m4a');
+    fs.writeFileSync(tmpFile, Buffer.alloc(512));
+    try {
+      const renderer = new VideoRenderer();
+      const dur = renderer._getAudioDuration(tmpFile);
+      assert.equal(dur, 3, 'Dummy file with no valid audio should return fallback 3s');
+    } finally {
+      fs.unlinkSync(tmpFile);
+    }
+  });
+
+  it('always returns a finite number, never NaN', () => {
+    const renderer = new VideoRenderer();
+    const cases = [null, undefined, '', '/nonexistent/path.m4a'];
+    for (const c of cases) {
+      const dur = renderer._getAudioDuration(c);
+      assert.ok(Number.isFinite(dur), `Expected finite number for input ${JSON.stringify(c)}, got ${dur}`);
+    }
   });
 });

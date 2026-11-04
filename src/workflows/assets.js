@@ -67,10 +67,17 @@ async function runAssets({ productionId, scenes, parallelism = 4, skipImages = f
       } else {
         imagePath = path.join(VDIR, `scene_${idx}.png`);
         const prompt = `${(scene.visual_description || scene.visual_action || '').replace(/\[[A-Z]+\]/g, '').trim()}, ${STYLE_SUFFIX}`;
-        await retryPol.executeStage('Asset_Generation', async () =>
-          imageGen.generate({ prompt, negativePrompt: NEG_PROMPT, outputPath: imagePath, width: imageWidth, height: imageHeight, seed })
-        );
-        await telemetry.track({ productionId, stage: 'Asset_Generation', provider: process.env.PROVIDER_IMAGE || 'pollinations', operation: 'scene_image', units: 1 });
+        try {
+          await retryPol.executeStage('Asset_Generation', async () =>
+            imageGen.generate({ prompt, negativePrompt: NEG_PROMPT, outputPath: imagePath, width: imageWidth, height: imageHeight, seed })
+          );
+          await telemetry.track({ productionId, stage: 'Asset_Generation', provider: process.env.PROVIDER_IMAGE || 'pollinations', operation: 'scene_image', units: 1 });
+        } catch (imgErr) {
+          // Image provider failed (e.g. Pollinations down). Fall back to dark-background
+          // rendering — the renderer handles imagePath=null gracefully with a solid colour bg.
+          console.warn(`[Assets] Scene ${idx} image generation failed (${imgErr.message}) — falling back to dark-bg placeholder. Set PROVIDER_IMAGE=falai for a reliable alternative.`);
+          imagePath = null;
+        }
       }
 
       // ── TTS / User Audio ───────────────────────────────────────────────

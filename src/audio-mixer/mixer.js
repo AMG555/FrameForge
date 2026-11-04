@@ -81,6 +81,11 @@ class AudioMixer {
   }
 
   _videoWithDucking(videoPath, musicPath, outputPath) {
+    // Measure the video duration upfront so we can use explicit -t instead of -shortest.
+    // -shortest causes FFmpeg to hang or silently trim audio on subtitle streams and on
+    // some sidechaincompress filter graphs where the shorter stream signals EOF late.
+    const videoDur = this._getVideoDuration(videoPath);
+
     const filterComplex = [
       '[0:a]acompressor=ratio=3:threshold=-20dB:attack=5:release=50[voice_comp]',
       '[1:a]aformat=sample_rates=48000:channel_layouts=stereo,highpass=f=80,lowpass=f=8000,volume=0.15[music_filtered]',
@@ -97,8 +102,10 @@ class AudioMixer {
       '-map', '0:v',
       '-map', '[audio_out]',
       '-c:v', 'copy',           // no re-encode of video
-      '-c:a', 'aac', '-b:a', '192k',
-      '-shortest',
+      '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-ac', '2',
+      // Use explicit -t instead of -shortest to prevent hang/trim on subtitle streams.
+      // videoDur measured by ffprobe; fallback to omitting -t if measurement failed.
+      ...(videoDur > 0 ? ['-t', String(videoDur)] : []),
       '-movflags', '+faststart',
       outputPath,
     ], { timeout: 300000, encoding: 'utf8' });
@@ -107,6 +114,20 @@ class AudioMixer {
       throw new Error(`Video ducking failed: ${(result.stderr || '').slice(-300)}`);
     }
     return outputPath;
+  }
+
+  /** Measure total duration of a video file via ffprobe. Returns 0 on failure. */
+  _getVideoDuration(videoPath) {
+    try {
+      const result = spawnSync('ffprobe', [
+        '-v', 'error',
+        '-show_entries', 'format=duration',
+        '-of', 'default=nk=1:nw=1',
+        videoPath,
+      ], { encoding: 'utf8', timeout: 15000 });
+      const parsed = parseFloat((result.stdout || '').trim());
+      return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+    } catch { return 0; }
   }
 
   _normaliseVoice(voicePath, outputPath) {

@@ -303,6 +303,15 @@ class ExternalAdapter {
    * @returns {Promise<string>} resolves with localPath
    */
   downloadOutput(remoteUrl, localPath) {
+    // ── Path-traversal guard ────────────────────────────────────────────────
+    // localPath must resolve inside FILES_DIR so an agent-supplied path like
+    // "../../etc/passwd" or "/tmp/../../root/key" cannot escape the sandbox.
+    const filesDir = path.resolve(process.env.N8N_FILES_DIR || '/home/node/.n8n-files');
+    const resolved = path.resolve(localPath);
+    if (!resolved.startsWith(filesDir + path.sep)) {
+      throw new Error(`downloadOutput: localPath must be inside FILES_DIR (${filesDir}): ${localPath}`);
+    }
+
     // Capture auth header once (before the closure) so `this` binding is unambiguous.
     const authHdr = this._authHeader();
     return new Promise((resolve, reject) => {

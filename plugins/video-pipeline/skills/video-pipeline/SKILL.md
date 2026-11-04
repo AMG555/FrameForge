@@ -26,12 +26,12 @@ IDE Agent (IBM Bob / Codex / opencode / Cursor / Windsurf / Claude Code)
     │
     ▼  Cloudflare Remote MCP (recommended) ─────────────────────────────
     │  https://video-mcp.YOUR_SUBDOMAIN.workers.dev/mcp
-    │  14 tools: research_topic · write_script · assemble_video
-    │            publish_video · ingest_media · edit_scenes
-    │            render_from_scenes · external_platform_call
-    │            create_video_from_script · multi_voice_tts
+    │  17 tools: create_video_from_script · render_from_scenes
+    │            ingest_media · edit_scenes · render_tts · multi_voice_tts
+    │            generate_scene_image · assemble_video · publish_video
+    │            research_topic · write_script · external_platform_call
     │            queue_full_pipeline · get_job_status
-    │            render_tts · generate_scene_image
+    │            scaffold_animation_project · validate_storyboard · render_animation
     │
     ▼  OR — Local stdio / HTTP MCP ────────────────────────────────────
     │  node src/mcp-server/stdio.js   (stdio)
@@ -138,7 +138,7 @@ npm run setup
 
 ## Workflow (step-by-step)
 
-### Path 1 — Agent-First (Recommended for all agentic IDEs)
+### Path 1 — Agent-First (FFmpeg + AI images)
 
 **You are already running an LLM — use it.** Write the scenes yourself and hand
 them to FrameForge for rendering. No `GROQ_API_KEY` or any other LLM key needed.
@@ -161,7 +161,49 @@ Then deliver it:
 publish_video({ productionId, masterPath, channels: ["file"] })
 ```
 
-### Path 2 — Auto-Research (for unattended / batch runs)
+> **Image generation fallback:** If the configured image provider is unavailable, FrameForge automatically falls back to a dark-background placeholder per scene — the render completes. Switch to `PROVIDER_IMAGE=falai` for a more reliable free provider.
+
+### Path 2 — Code-Driven Animated Video (Playwright + ffmpeg, no AI images)
+
+Use when: the user wants Remotion-style motion graphics, image gen is unavailable, or they ask for "animated video" or "make it look good". Every pixel is a pure function of time `t`.
+
+> **Beat sheet gate:** Reply with a beat sheet and 4 keyframe descriptions first. Stop. Wait for approval before writing any scene code.
+
+```
+// 1. Synthesise voice first — audio timing is ground truth
+multi_voice_tts({ text: "Narration.", outputPath: ".frameforge-files/voice_0.m4a" })
+
+// 2. Scaffold the compositor project (copies engine + all render scripts + briefings)
+scaffold_animation_project({
+  outDir: ".frameforge-files/my-anim/",
+  scenes: [ { narration: "...", caption: "...", visual_description: "..." } ],
+  audioPath: ".frameforge-files/voice_0.m4a"
+})
+// → returns nextSteps[] — read ANIMATION_GUIDE.md and edit STORYBOARD.md next
+
+// 3. Validate storyboard (four hard gates — must pass before scene code)
+validate_storyboard({ storyboardPath: ".frameforge-files/my-anim/STORYBOARD.md" })
+
+// 4. Write real animation in edit.js (pure functions of t — read ANIMATION_GUIDE.md)
+
+// 5. Pre-flight linter
+render_animation({ projectDir: ".frameforge-files/my-anim/", mode: "look" })
+
+// 6. Review stills (at least one sheet per shot, one strip per key motion)
+render_animation({ projectDir: ".frameforge-files/my-anim/", mode: "sheet" })
+render_animation({ projectDir: ".frameforge-files/my-anim/", mode: "strip",
+                   timestamps: [2.1, 2.6] })   // every frame of one motion
+render_animation({ projectDir: ".frameforge-files/my-anim/", mode: "crop",
+                   timestamps: ["9:16", 3.0] })  // mobile crop check
+
+// 7. Full render (only after stills pass)
+render_animation({ projectDir: ".frameforge-files/my-anim/", mode: "full",
+                   audioPath: ".frameforge-files/voice_0.m4a" })
+```
+
+Requires one-time: `cd <outDir> && npm install playwright && npx playwright install chromium`
+
+### Path 3 — Auto-Research (for unattended / batch runs)
 
 Use this when FrameForge runs **without** an IDE in the loop — overnight batch,
 `queue_full_pipeline`, or a standalone worker. The pipeline calls its own LLM
@@ -250,8 +292,8 @@ marks that production FAILED and moves to the next topic.
 ## Key files
 
 ```
-src/mcp-server/server.js          MCP HTTP server (14 tools, port 3210)
-src/mcp-server/stdio.js           MCP stdio server (14 tools)
+src/mcp-server/server.js          MCP HTTP server (17 tools, port 3210)
+src/mcp-server/stdio.js           MCP stdio server (17 tools)
 cloudflare-mcp/src/index.js       Cloudflare Workers Remote MCP proxy
 src/pipeline/providers.js         LLM / TTS / Image abstraction (env-var-switchable providers)
 src/pipeline/state-machine.js     File + PostgreSQL production state

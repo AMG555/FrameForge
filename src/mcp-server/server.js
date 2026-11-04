@@ -685,6 +685,13 @@ Example scene:
         throw new Error('Set WORKER_API_URL in .env (the worker HTTP endpoint, e.g. http://localhost:3211) or pass webhookUrl.');
       }
 
+      // SSRF guard — only when the URL came from agent input (webhookUrl param),
+      // not from the operator-configured WORKER_API_URL env var (trusted).
+      if (webhookUrl) {
+        const { _assertSafeWebhookUrl } = require('../workflows/publishing');
+        _assertSafeWebhookUrl(webhookUrl);
+      }
+
       const isHttps = targetUrl.startsWith('https');
       const client  = require(isHttps ? 'https' : 'http');
       const body    = JSON.stringify({ type: 'full_pipeline', payload: { topic, style, language, channels, ...payload } });
@@ -718,6 +725,363 @@ Example scene:
       return { jobId, status: result.status || 'QUEUED', topic, workerResponse: result };
     },
   },
+  // ── Tool 15: Scaffold animation project ──────────────────────────────────
+  // Copies the HTML compositor template (reel/engine.js, index.html, scripts/)
+  // into a new project folder and generates a starter edit.js from the scenes
+  // the agent wrote. The agent then edits edit.js and calls render_animation.
+  scaffold_animation_project: {
+    description: `Scaffold a code-driven HTML compositor project for high-quality animated video.
+Every frame is a pure function of time t rendered by Playwright + ffmpeg — no AI image generation needed.
+Copies the engine template into outDir and generates a starter edit.js from your scenes.
+
+Use this when:
+- You want Remotion-style motion graphics (kinetic text, springs, morphing layouts)
+- Pollinations/image providers are unavailable and you want real visual quality
+- The user asks for animated video, code-rendered video, or "make it look good"
+
+After scaffolding, the agent edits edit.js in outDir to animate each scene, then calls render_animation.`,
+    inputSchema: {
+      type: 'object',
+      required: ['outDir'],
+      properties: {
+        outDir:    { type: 'string', description: 'Directory to scaffold the project into (created if absent)' },
+        scenes:    { type: 'array',  description: 'Scene array from create_video_from_script / write_script. Each scene narration/caption/visual_description generates one layer() in edit.js.' },
+        title:     { type: 'string', description: 'Video title — written into edit.js reel() config' },
+        width:     { type: 'number', default: 1920, description: '1920 for landscape, 1080 for portrait (Shorts)' },
+        height:    { type: 'number', default: 1080, description: '1080 for landscape, 1920 for portrait (Shorts)' },
+        fps:       { type: 'number', default: 30 },
+        audioPath: { type: 'string', description: 'Path to the mixed audio file to mux in (from multi_voice_tts or mix_audio.py)' },
+      },
+    },
+    handler: async ({ outDir, scenes = [], title = 'FrameForge Animation', width = 1920, height = 1080, fps = 30, audioPath }) => {
+      const syncFs = require('fs');
+      const pathMod = require('path');
+
+      if (!outDir) throw new Error('outDir is required');
+
+      // Locate the engine template shipped with FrameForge
+      const templateDir = pathMod.resolve(__dirname, '../../plugins/video-pipeline/skills/video-pipeline/assets/project');
+      if (!syncFs.existsSync(templateDir)) {
+        throw new Error(`Engine template not found at ${templateDir}. Ensure the FrameForge plugins/ folder is present.`);
+      }
+
+      // Create output directory
+      syncFs.mkdirSync(outDir, { recursive: true });
+      syncFs.mkdirSync(pathMod.join(outDir, 'out'), { recursive: true });
+      syncFs.mkdirSync(pathMod.join(outDir, 'reel'), { recursive: true });
+      syncFs.mkdirSync(pathMod.join(outDir, 'scripts'), { recursive: true });
+
+      // Copy engine files — all scripts the agent and production pipeline may need
+      const engineFiles = [
+        ['reel/engine.js', 'reel/engine.js'],
+        ['reel/engine.css', 'reel/engine.css'],
+        ['reel/virtual-clock.js', 'reel/virtual-clock.js'],
+        ['scripts/render.mjs', 'scripts/render.mjs'],
+        ['scripts/look.mjs', 'scripts/look.mjs'],
+        ['scripts/storyboard-validator.mjs', 'scripts/storyboard-validator.mjs'],
+        ['scripts/mix_audio.py', 'scripts/mix_audio.py'],
+        ['scripts/transcribe.py', 'scripts/transcribe.py'],
+        ['scripts/verify.py', 'scripts/verify.py'],
+        ['scripts/capture.mjs', 'scripts/capture.mjs'],     // website/tweet screenshot b-roll
+        ['scripts/stock.py', 'scripts/stock.py'],             // stock footage search
+        ['scripts/video_job.py', 'scripts/video_job.py'],   // detached job queue with spend caps
+        ['ANIMATION_GUIDE.md', 'ANIMATION_GUIDE.md'],
+        ['STORYBOARD.md', 'STORYBOARD.md'],
+        // Pipeline subagent briefings (loaded by subagents, not the orchestrator's context)
+        ['pipeline/briefings/orchestrator.md', 'pipeline/briefings/orchestrator.md'],
+        ['pipeline/briefings/scene-author.md', 'pipeline/briefings/scene-author.md'],
+        ['pipeline/briefings/diagram-author.md', 'pipeline/briefings/diagram-author.md'],
+      ];
+
+      const copied = [];
+      for (const [src, dest] of engineFiles) {
+        const srcPath  = pathMod.join(templateDir, src);
+        const destPath = pathMod.join(outDir, dest);
+        if (syncFs.existsSync(srcPath)) {
+          syncFs.mkdirSync(pathMod.dirname(destPath), { recursive: true });
+          syncFs.copyFileSync(srcPath, destPath);
+          copied.push(dest);
+        }
+      }
+
+      // Copy index.html (compositor page — requires #stage div, engine.css, and edit.js module)
+      const indexSrc = pathMod.join(templateDir, 'index.html');
+      if (syncFs.existsSync(indexSrc)) {
+        syncFs.copyFileSync(indexSrc, pathMod.join(outDir, 'index.html'));
+        copied.push('index.html');
+      } else {
+        // Fallback compositor — correct structure with #stage for engine.js to append layers into
+        const minimalHtml = `<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<link rel="stylesheet" href="reel/engine.css">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+  #stage { position: relative; width: var(--reel-width, 1920px); height: var(--reel-height, 1080px); overflow: hidden; background: #000; }
+  #stage > [data-layer] { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+</style>
+</head><body>
+<div id="stage"></div>
+<script type="module" src="edit.js"></script>
+</body></html>`;
+        syncFs.writeFileSync(pathMod.join(outDir, 'index.html'), minimalHtml, 'utf8');
+        copied.push('index.html (generated fallback)');
+      }
+
+      // Generate starter edit.js from scenes
+      // Each scene becomes one layer() with opacity in/out and a text() for its caption.
+      // The agent is expected to replace this with real animation code.
+      let duration = 0;
+      const sceneBlocks = scenes.map((scene, idx) => {
+        const wordsPerSec = 2.5;
+        const words = (scene.narration || '').split(/\s+/).filter(Boolean).length;
+        const dur = Math.max(2, Math.round((words / wordsPerSec) * 10) / 10);
+        const start = Math.round(duration * 10) / 10;
+        duration = Math.round((duration + dur) * 10) / 10;
+        const caption = (scene.caption || `Scene ${idx + 1}`).replace(/'/g, "\\'");
+        const visual = (scene.visual_description || scene.narration || '').slice(0, 80).replace(/'/g, "\\'");
+        return [
+          `// ─── Scene ${idx + 1}: ${start}s–${duration}s ────────────────────────────────`,
+          `// Visual: ${visual}`,
+          `layer('scene${idx + 1}').on(t => {`,
+          `  const lt = t - ${start};`,
+          `  if (lt < 0 || lt > ${dur}) return { opacity: 0 };`,
+          `  const fadeIn  = Math.min(1, lt / 0.3);`,
+          `  const fadeOut = lt > ${dur} - 0.3 ? 1 - (lt - (${dur} - 0.3)) / 0.3 : 1;`,
+          `  return { opacity: fadeIn * fadeOut };`,
+          `});`,
+          `at(${start}, text('${caption}', { font: '48px/1.3 sans-serif', color: '#fff', x: 'center', y: ${height / 2} }));`,
+          '',
+        ].join('\n');
+      });
+
+      const editJs = [
+        `/**`,
+        ` * edit.js — generated by FrameForge scaffold_animation_project`,
+        ` * Title: ${title}`,
+        ` *`,
+        ` * AGENT INSTRUCTIONS:`,
+        ` * 1. Read ANIMATION_GUIDE.md for the six determinism rules.`,
+        ` * 2. Validate STORYBOARD.md: node scripts/storyboard-validator.mjs STORYBOARD.md`,
+        ` * 3. Replace each scene block below with real animation (see reel/engine.js API).`,
+        ` * 4. Check visuals: node scripts/render.mjs sheet`,
+        ` * 5. Full render:   node scripts/render.mjs full${audioPath ? ` --audio="${audioPath}"` : ''}`,
+        ` *`,
+        ` * Iron rule: every style must be a PURE FUNCTION OF t.`,
+        ` * Never use Math.random(), Date.now(), setTimeout, or module-level mutable counters.`,
+        ` * Use hash(i) from engine.js for deterministic randomness.`,
+        ` */`,
+        `import { reel, layer, at, text, hash } from './reel/engine.js';`,
+        ``,
+        `reel({ width: ${width}, height: ${height}, fps: ${fps}, duration: ${duration} });`,
+        ``,
+        ...sceneBlocks,
+      ].join('\n');
+
+      syncFs.writeFileSync(pathMod.join(outDir, 'edit.js'), editJs, 'utf8');
+
+      return {
+        outDir,
+        title,
+        duration,
+        sceneCount: scenes.length,
+        copied,
+        editJs: pathMod.join(outDir, 'edit.js'),
+        nextSteps: [
+          `1. Read ANIMATION_GUIDE.md — six determinism rules and four storyboard gates (run from ${outDir})`,
+          `2. Edit STORYBOARD.md — every shot needs an event, non-overlapping reads, named transitions, no text`,
+          `3. Validate: node scripts/storyboard-validator.mjs STORYBOARD.md (run from ${outDir})`,
+          `4. Edit edit.js — replace starter layers with real animation (pure functions of t)`,
+          `5. Pre-flight: node scripts/look.mjs (fonts, clipped text, NaN transforms)`,
+          `6. Check sheet: node scripts/render.mjs sheet  (one sheet per shot)`,
+          `   Check motion: node scripts/render.mjs strip <start> <end>  (every frame of a key motion)`,
+          `   Check mobile: node scripts/render.mjs crop 9:16 <t>`,
+          `7. Full render: node scripts/render.mjs full${audioPath ? ` --audio="${audioPath}"` : ''} (run from ${outDir})`,
+          `   Requires: npm install playwright && npx playwright install chromium`,
+          `8. Unattended/batch: python scripts/video_job.py submit --spec spec.json --max-usd 2.00`,
+        ],
+        message: `Animation project scaffolded at ${outDir}. Read ANIMATION_GUIDE.md, validate STORYBOARD.md, edit edit.js, then render.`,
+      };
+    },
+  },
+
+  // ── Tool 16: Validate storyboard ─────────────────────────────────────────
+  // Hard-gate check on STORYBOARD.md before any scene code is allowed.
+  validate_storyboard: {
+    description: 'Validate a STORYBOARD.md or storyboard.json against the four hard gates (event, non-overlapping reads, named transitions, no on-screen text). Returns { passed, errors, warnings }. Must pass before writing scene code.',
+    inputSchema: {
+      type: 'object',
+      required: ['storyboardPath'],
+      properties: {
+        storyboardPath: { type: 'string', description: 'Path to STORYBOARD.md or storyboard.json' },
+      },
+    },
+    handler: async ({ storyboardPath }) => {
+      const syncFs  = require('fs');
+      const pathMod = require('path');
+      const { spawnSync } = require('child_process');
+
+      if (!storyboardPath) throw new Error('storyboardPath is required');
+      if (!syncFs.existsSync(storyboardPath)) throw new Error(`Storyboard file not found: ${storyboardPath}`);
+
+      // Find the validator script relative to the storyboard file's project
+      const projectDir = pathMod.dirname(storyboardPath);
+      const validatorPath = pathMod.join(projectDir, 'scripts', 'storyboard-validator.mjs');
+      const fallbackValidator = pathMod.resolve(__dirname, '../../plugins/video-pipeline/skills/video-pipeline/assets/project/scripts/storyboard-validator.mjs');
+      const validator = syncFs.existsSync(validatorPath) ? validatorPath : fallbackValidator;
+
+      if (!syncFs.existsSync(validator)) {
+        throw new Error(`Storyboard validator not found. Run scaffold_animation_project first.`);
+      }
+
+      const result = spawnSync('node', [validator, storyboardPath], { encoding: 'utf8', timeout: 15000 });
+      const output = (result.stdout || '') + (result.stderr || '');
+      const passed = result.status === 0;
+
+      // Parse errors and warnings from the validator output
+      const errors   = [];
+      const warnings = [];
+      for (const line of output.split('\n')) {
+        if (line.includes('❌')) errors.push(line.replace(/\s*❌\s*/, '').trim());
+        if (line.includes('⚠️')) warnings.push(line.replace(/\s*⚠️\s*/, '').trim());
+      }
+
+      return {
+        passed,
+        errors,
+        warnings,
+        message: passed
+          ? `All 4 storyboard gates passed${warnings.length ? ` (${warnings.length} warning(s))` : ''}.`
+          : `${errors.length} gate violation(s). Fix STORYBOARD.md before writing scene code.`,
+        output,
+      };
+    },
+  },
+
+  // ── Tool 17: Render animation ─────────────────────────────────────────────
+  // Triggers render.mjs in a scaffolded project folder.
+  // Returns output path and QC results.
+  render_animation: {
+    description: `Run the HTML compositor renderer on a scaffolded animation project.
+Modes:
+  "sheet"      — contact sheet (one frame every 0.5s), fast visual check of the whole film
+  "stills"     — frames at specific timestamps (pass timestamps array)
+  "strip"      — every frame in a time range (motion/transition check); pass timestamps as [start, end]
+  "storyboard" — 4 keyframes at 0%, 33%, 66%, 100% of duration
+  "crop"       — focal-point 9:16 mobile crop preview; pass timestamps as [aspect_ratio_string, t]
+  "full"       — full render → out/<title>.mp4
+  "mux"        — re-mux audio only (no re-render, use after changing audio)
+  "look"       — pre-render linter (fonts, clipped text, NaN transforms, missing assets)
+
+Review budget: at least one "sheet" per shot, one "strip" per key motion/transition, one "crop" per story-carrying face.
+Returns { outputPath, passed } for "full", or { outputPath } for sheet/strip/storyboard.
+Requires: npm install playwright && npx playwright install chromium (one-time setup in projectDir).`,
+    inputSchema: {
+      type: 'object',
+      required: ['projectDir', 'mode'],
+      properties: {
+        projectDir:  { type: 'string', description: 'The directory created by scaffold_animation_project' },
+        mode:        { type: 'string', enum: ['sheet', 'stills', 'strip', 'storyboard', 'crop', 'full', 'mux', 'look'], description: 'Render mode' },
+        timestamps:  { type: 'array', items: {}, description: 'For mode="stills": [t1, t2, ...]. For mode="strip": [startSeconds, endSeconds]. For mode="crop": ["9:16", t]. For mode="sheet": omit or pass shot times.' },
+        audioPath:   { type: 'string', description: 'Audio file to mux in (for mode="full" or "mux")' },
+        workers:     { type: 'number', default: 4, description: 'Parallel Playwright pages for mode="full"' },
+        crf:         { type: 'number', default: 18, description: 'FFmpeg CRF quality (lower = better, larger file)' },
+      },
+    },
+    handler: async ({ projectDir, mode, timestamps = [], audioPath, workers = 4, crf = 18 }) => {
+      const syncFs = require('fs');
+      const pathMod = require('path');
+      const { spawnSync } = require('child_process');
+
+      if (!projectDir) throw new Error('projectDir is required');
+      if (!syncFs.existsSync(projectDir)) throw new Error(`Project directory not found: ${projectDir}`);
+
+      const renderScript = pathMod.join(projectDir, 'scripts', 'render.mjs');
+      if (!syncFs.existsSync(renderScript)) {
+        throw new Error(`render.mjs not found in ${projectDir}/scripts/. Run scaffold_animation_project first.`);
+      }
+
+      // ── Validate timestamps ─────────────────────────────────────────────────
+      // For mode="crop" the first item may be an aspect-ratio string like "9:16".
+      // All other items must be numeric (seconds). No item may start with "--"
+      // or contain shell metacharacters that could inject extra CLI flags.
+      const SAFE_TS = /^[0-9]+([.:][0-9]+)*$/;  // e.g. "1.5", "9:16", "02:30"
+      const sanitisedTimestamps = timestamps.map((v, i) => {
+        const s = String(v);
+        if (s.startsWith('--') || !SAFE_TS.test(s)) {
+          throw new Error(`timestamps[${i}] is not a valid time value or aspect ratio: "${s}"`);
+        }
+        return s;
+      });
+
+      // ── Validate audioPath ──────────────────────────────────────────────────
+      // Must resolve inside FILES_DIR so an agent cannot write outside the
+      // sandbox by passing "../../etc/passwd" or similar.
+      if (audioPath) {
+        const resolved = pathMod.resolve(audioPath);
+        const filesDir = pathMod.resolve(process.env.N8N_FILES_DIR || '/home/node/.n8n-files');
+        if (!resolved.startsWith(filesDir + pathMod.sep) && !resolved.startsWith(pathMod.resolve(projectDir) + pathMod.sep)) {
+          throw new Error(`audioPath must be inside the project directory or FILES_DIR: ${audioPath}`);
+        }
+      }
+
+      const args = [renderScript, mode];
+      if ((mode === 'stills' || mode === 'strip' || mode === 'crop') && sanitisedTimestamps.length > 0) {
+        args.push(...sanitisedTimestamps);
+      }
+      if (audioPath) args.push(`--audio=${audioPath}`);
+      if (mode === 'full') {
+        args.push(`--workers=${workers}`, `--crf=${crf}`);
+      }
+
+      const result = spawnSync('node', args, {
+        cwd:      projectDir,
+        encoding: 'utf8',
+        timeout:  30 * 60 * 1000,  // 30 min ceiling
+      });
+
+      const stdout = result.stdout || '';
+      const stderr = result.stderr || '';
+      const exitCode = result.status;
+
+      if (exitCode !== 0 && mode === 'full') {
+        throw new Error(`render.mjs ${mode} failed (exit ${exitCode}):\n${stderr.slice(-1000)}`);
+      }
+
+      // Locate produced file
+      const outDir = pathMod.join(projectDir, 'out');
+      let outputPath = null;
+      if (syncFs.existsSync(outDir)) {
+        const files = syncFs.readdirSync(outDir);
+        if (mode === 'sheet' || mode === 'storyboard') {
+          const sheet = files.find(f => f.endsWith('.jpg') || f.endsWith('.png'));
+          if (sheet) outputPath = pathMod.join(outDir, sheet);
+        } else if (mode === 'full' || mode === 'mux') {
+          const mp4 = files.find(f => f.endsWith('.mp4') && !f.includes('_preview'));
+          if (mp4) outputPath = pathMod.join(outDir, mp4);
+        } else if (mode === 'stills' || mode === 'strip' || mode === 'crop') {
+          const stills = files.filter(f => f.endsWith('.png') || f.endsWith('.jpg'));
+          if (stills.length > 0) outputPath = stills.map(f => pathMod.join(outDir, f));
+        }
+      }
+
+      const passed = exitCode === 0;
+
+      return {
+        mode,
+        passed,
+        exitCode,
+        outputPath,
+        projectDir,
+        stdout: stdout.slice(-2000),
+        stderr: passed ? undefined : stderr.slice(-1000),
+        message: passed
+          ? `${mode} complete. Output: ${Array.isArray(outputPath) ? outputPath.join(', ') : (outputPath || outDir)}`
+          : `${mode} failed (exit ${exitCode}). Check stderr for details.`,
+      };
+    },
+  },
+
 };
 
 // ── MCP protocol handler (MCP 2024-11-05 spec) ───────────────────────────
