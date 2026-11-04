@@ -423,8 +423,9 @@ class TTSProvider {
     // Only a mild rate adjustment from env (e.g. TTS_RATE='+0%') is supported.
     const rate = this._overrides.rate || process.env.TTS_RATE || '+0%';
     return withRetry(async () => {
+      const _shell = process.platform === 'win32';
       await new Promise((resolve, reject) => {
-        const proc = spawn('edge-tts', ['--voice', safeVoice, '--rate', rate, '--text', text, '--write-media', rawPath], { timeout: 40000 });
+        const proc = spawn('edge-tts', ['--voice', safeVoice, '--rate', rate, '--text', text, '--write-media', rawPath], { timeout: 40000, shell: _shell });
         proc.on('close', code => code === 0 ? resolve() : reject(new Error(`edge-tts exited ${code}`)));
         proc.on('error', reject);
       });
@@ -433,7 +434,7 @@ class TTSProvider {
         const proc = spawn('ffmpeg', ['-nostdin', '-y', '-threads', '2',
           '-i', rawPath,
           '-af', 'silenceremove=stop_periods=-1:stop_duration=0.3:stop_threshold=-40dB,highpass=f=80,volume=1.0,dynaudnorm=f=150:g=5:p=0.95',
-          '-ar', '48000', '-ac', '2', '-c:a', 'aac', '-b:a', '192k', outputPath], { timeout: 30000 });
+          '-ar', '48000', '-ac', '2', '-c:a', 'aac', '-b:a', '192k', outputPath], { timeout: 30000, shell: _shell });
         proc.on('close', code => code === 0 ? resolve() : reject(new Error(`ffmpeg exited ${code}`)));
         proc.on('error', reject);
       });

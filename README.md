@@ -77,6 +77,8 @@ Then add one line to your IDE's MCP config:
 
 ## Make your first video
 
+**New to FrameForge?** Read [`START_HERE.md`](START_HERE.md) — it's a single file you paste into any IDE chat that starts a guided conversation: the agent asks what you want to make, produces a beat sheet for your approval, then drives the full pipeline.
+
 Once connected, tell your IDE:
 
 > *"Make a 60-second explainer video about how GPS works"*

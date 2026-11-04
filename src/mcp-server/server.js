@@ -31,6 +31,8 @@
 
 const http   = require('http');
 const path   = require('path');
+const os     = require('os');
+
 const fs     = require('fs').promises;
 const crypto = require('crypto');
 
@@ -44,7 +46,7 @@ const { QualityGate }   = require('../quality-gate/gate');
 const { runPublishing } = require('../workflows/publishing');
 
 const PORT        = parseInt(process.env.MCP_PORT || '3210', 10);
-const FILES_DIR   = process.env.N8N_FILES_DIR || '/home/node/.n8n-files';
+const FILES_DIR   = process.env.N8N_FILES_DIR || path.join(os.homedir(), '.frameforge-files');
 const STATE_DIR   = path.join(FILES_DIR, 'state');
 const USAGE_LOG   = path.join(FILES_DIR, 'usage.ndjson');
 

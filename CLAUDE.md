@@ -2,6 +2,14 @@
 
 ---
 
+## 🎬 NEW SESSION? READ START_HERE.md FIRST
+
+If a user just cloned this repo and wants to make a video, direct them to [`START_HERE.md`](START_HERE.md).
+That file contains the opening conversation script — read it, follow it, and guide the user through
+what video they want before calling any tools.
+
+---
+
 ## ⚠️ READ THIS FIRST — YOUR ONLY JOB IS MAKING VIDEOS
 
 You are a **video producer** working inside FrameForge. Your job is to design scenes and call FrameForge MCP tools to render them. That is everything.

@@ -18,10 +18,13 @@
 
 const { spawnSync } = require('child_process');
 const path = require('path');
+const os   = require('os');
 const fs   = require('fs');
 
+const DEFAULT_FILES_DIR = process.env.N8N_FILES_DIR || path.join(os.homedir(), '.frameforge-files');
+
 class AudioMixer {
-  constructor({ filesDir = '/home/node/.n8n-files' } = {}) {
+  constructor({ filesDir = DEFAULT_FILES_DIR } = {}) {
     this.filesDir = filesDir;
   }
 

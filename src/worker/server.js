@@ -30,6 +30,7 @@
 const http   = require('http');
 const crypto = require('crypto');
 const path   = require('path');
+const os     = require('os');
 const fs     = require('fs').promises;
 
 // ── Internal auth ─────────────────────────────────────────────────────────────
@@ -67,7 +68,7 @@ const { StateMachine }  = require('../pipeline/state-machine');
 const { RetryPolicy }   = require('../pipeline/retry-policy');
 
 const PORT      = parseInt(process.env.WORKER_PORT || '3211', 10);
-const FILES_DIR = process.env.N8N_FILES_DIR || '/home/node/.n8n-files';
+const FILES_DIR = process.env.N8N_FILES_DIR || path.join(os.homedir(), '.frameforge-files');
 const STATE_DIR = path.join(FILES_DIR, 'state');
 
 // In-memory job registry (persisted to state dir for crash recovery)

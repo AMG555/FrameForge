@@ -22,7 +22,10 @@
 
 const { spawnSync } = require('child_process');
 const path  = require('path');
+const os    = require('os');
 const fs    = require('fs');
+
+const DEFAULT_FILES_DIR = process.env.N8N_FILES_DIR || path.join(os.homedir(), '.frameforge-files');
 
 const { buildCameraFilter, selectCameraHint } = require('../animation/animation-system');
 const { AudioMixer }                          = require('../audio-mixer/mixer');
@@ -66,7 +69,7 @@ function resolveFont() {
 }
 
 class VideoRenderer {
-  constructor({ filesDir = '/home/node/.n8n-files' } = {}) {
+  constructor({ filesDir = DEFAULT_FILES_DIR } = {}) {
     this.filesDir = filesDir;
     this.vdir     = path.join(filesDir, 'video_tmp');
     this.font     = resolveFont();

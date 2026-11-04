@@ -55,6 +55,7 @@ const http   = require('http');
 const https  = require('https');
 const crypto = require('crypto');
 const path   = require('path');
+const os     = require('os');
 const fs     = require('fs').promises;
 
 // ── Security helpers ──────────────────────────────────────────────────────────
@@ -73,7 +74,7 @@ function timingSafeEqual(a, b) {
 }
 
 const PORT             = parseInt(process.env.WORKER_PORT || '3211', 10);
-const FILES_DIR        = process.env.N8N_FILES_DIR || '/tmp/video-pipeline';
+const FILES_DIR        = process.env.N8N_FILES_DIR || path.join(os.tmpdir(), 'frameforge-pipeline');
 const RENDER_MODE      = process.env.RENDER_MODE || 'api_only';
 const LOCAL_RENDER     = process.env.LOCAL_RENDER_URL || '';
 const INTERNAL_TOKEN   = process.env.INTERNAL_API_TOKEN || '';
