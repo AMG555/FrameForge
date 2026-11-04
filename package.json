@@ -1,11 +1,15 @@
 {
-  "name": "frameforge",
+  "name": "@frameforge/mcp",
   "version": "2.3.0",
-  "description": "FrameForge — Enterprise AI video production engine. Localhost-first. Any agentic IDE. Cloudflare Remote MCP for 80% token savings.",
+  "description": "FrameForge — AI video production engine for agentic IDEs. npx @frameforge/mcp. FFmpeg + TTS run on your machine. 17 MCP tools.",
+  "publishConfig": {
+    "access": "public"
+  },
   "main": "src/mcp-server/server.js",
   "bin": {
-    "frameforge": "src/cli/make.js",
-    "frameforge-setup": "src/cli/setup-keys.js",
+    "frameforge":        "src/cli/make.js",
+    "frameforge-mcp":    "src/mcp-server/stdio.js",
+    "frameforge-setup":  "src/cli/setup-keys.js",
     "frameforge-doctor": "src/cli/doctor.js"
   },
   "scripts": {

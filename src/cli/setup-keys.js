@@ -43,7 +43,10 @@
 
 const fs       = require('fs');
 const path     = require('path');
+const os       = require('os');
 const readline = require('readline');
+
+const { CONFIG_DIR, CONFIG_FILE } = require('../config/load-config');
 
 // ── Parse args ────────────────────────────────────────────────────────────────
 
@@ -328,12 +331,42 @@ Press Enter to accept a default. Ctrl+C to cancel.
 
   fs.writeFileSync(outPath, envLines.join('\n'), 'utf8');
 
-  console.log(`\n✅  .env written to: ${outPath}`);
+  // Also write to ~/.frameforge/config.json so `npx frameforge-mcp` picks up
+  // the keys from any directory without a .env file in the project root.
+  try {
+    fs.mkdirSync(CONFIG_DIR, { recursive: true });
+    // Merge into existing config (preserves keys not set in this wizard run)
+    let existing = {};
+    if (fs.existsSync(CONFIG_FILE)) {
+      try { existing = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8')); } catch { existing = {}; }
+    }
+    const merged = { ...existing, ...cfg };
+    // Omit blank values
+    for (const k of Object.keys(merged)) {
+      if (!merged[k]) delete merged[k];
+    }
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(merged, null, 2) + '\n', { encoding: 'utf8', mode: 0o600 });
+    console.log(`\n✅  Keys saved to: ${outPath}`);
+    console.log(`    Keys also saved to: ${CONFIG_FILE}  (used by npx frameforge-mcp)`);
+  } catch (cfgErr) {
+    console.log(`\n✅  .env written to: ${outPath}`);
+    console.warn(`    (Could not write global config: ${cfgErr.message})`);
+  }
+
+  // Detect whether running via npx (package in npm cache) or from a cloned repo.
+  // When run via npx the file lives inside npm's temp cache, not under a project path.
+  const isNpx = __filename.includes('_npx') || __filename.includes(path.join('npm', 'cache'));
   console.log(`\n    Next steps:`);
-  console.log(`    1. Review the file:  cat ${outFile}`);
-  console.log(`    2. Validate keys:    node src/cli/setup-keys.js --check`);
-  console.log(`    3. Generate a video: npm run make -- --topic "Your topic"`);
-  console.log(`    4. Edit-only mode:   npm run make -- --mode edit-only --scenes-file scenes.json\n`);
+  if (isNpx) {
+    console.log(`    1. Validate keys:     npx frameforge-doctor`);
+    console.log(`    2. Add to your IDE:   see https://github.com/AMG555/FrameForge#connect-your-ide`);
+    console.log(`    3. Generate a video:  npx frameforge --topic "Your topic"`);
+  } else {
+    console.log(`    1. Review the file:   cat ${outFile}`);
+    console.log(`    2. Validate keys:     npm run doctor`);
+    console.log(`    3. Generate a video:  npm run make -- --topic "Your topic"`);
+  }
+  console.log('');
 
   rl.close();
 }

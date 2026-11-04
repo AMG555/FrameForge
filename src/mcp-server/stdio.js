@@ -1,20 +1,38 @@
+#!/usr/bin/env node
 /**
  * FrameForge MCP Server — Local Stdio Transport
  *
  * Implements standard stdio JSON-RPC transport for MCP 2024-11-05.
- * Used for zero-config integration with Claude Code, Cursor, Windsurf, Codex, opencode:
+ * Used for zero-config integration with Claude Code, Cursor, Windsurf, Codex, opencode.
  *
+ * When run via `npx frameforge-mcp`, keys are loaded from ~/.frameforge/config.json
+ * (written once by `npx frameforge-setup`). Falls back to .env in cwd.
+ *
+ * IDE config (npx — no clone required):
+ * {
+ *   "mcpServers": {
+ *     "frameforge": {
+ *       "command": "npx",
+ *       "args": ["-y", "frameforge-mcp"]
+ *     }
+ *   }
+ * }
+ *
+ * IDE config (local clone):
  * {
  *   "mcpServers": {
  *     "frameforge": {
  *       "command": "node",
- *       "args": ["src/mcp-server/stdio.js"]
+ *       "args": ["/absolute/path/to/frameforge/src/mcp-server/stdio.js"]
  *     }
  *   }
  * }
  */
 
 'use strict';
+
+// Load config BEFORE requiring server.js so env vars are set when providers initialise
+require('../config/load-config').loadConfig();
 
 const readline = require('readline');
 const { handleMCPRequest } = require('./server');

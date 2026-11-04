@@ -20,23 +20,61 @@ FrameForge is an MCP server your IDE agent calls to make videos. You (or your ag
 
 ---
 
-## Install in one command
+## Zero-install quickstart (npx)
+
+No cloning. No `npm install`. FFmpeg and edge-tts run on your own machine.
 
 ```bash
-git clone https://github.com/AMG555/FrameForge.git && cd FrameForge && npm run doctor && npm run setup && npm run mcp
+# 1. Install prerequisites (one-time, system-level)
+#    FFmpeg: https://ffmpeg.org/download.html  →  add bin/ to PATH
+#    edge-tts: pip install edge-tts
+
+# 2. Configure your API keys (one-time, saved to ~/.frameforge/config.json)
+npx --package=@frameforge/mcp frameforge-setup
+
+# 3. Check everything is ready
+npx --package=@frameforge/mcp frameforge-doctor
+
+# 4. Add to your IDE — then ask your agent to make a video
 ```
 
-`doctor` checks your system. `setup` writes your `.env`. `mcp` starts the server on port 3210. That's it.
+Add to your IDE's MCP config (works in Bob, Cursor, Windsurf, Codex, Claude Code, opencode):
 
-**Prerequisites:** Node ≥ 18, [FFmpeg ≥ 5](https://ffmpeg.org/download.html), `pip install edge-tts`
+```json
+{
+  "mcpServers": {
+    "frameforge": {
+      "command": "npx",
+      "args": ["--package=@frameforge/mcp", "-y", "frameforge-mcp"]
+    }
+  }
+}
+```
+
+That's it. Your agent now has 17 video production tools. FFmpeg and TTS run on your machine — no cloud render costs.
 
 ---
 
-## Connect your IDE
+## Other connection methods
 
-Pick the method that matches how your IDE works:
+### Cloned repo (contributors / local dev)
 
-### Remote URL — works in every IDE, no local server needed
+```bash
+git clone https://github.com/AMG555/FrameForge.git && cd FrameForge && npm run doctor && npm run setup
+```
+
+```json
+{
+  "mcpServers": {
+    "frameforge": {
+      "command": "node",
+      "args": ["/absolute/path/to/FrameForge/src/mcp-server/stdio.js"]
+    }
+  }
+}
+```
+
+### Remote URL (Cloudflare Workers — FFmpeg must run separately)
 
 Deploy once to Cloudflare (free):
 
@@ -47,27 +85,12 @@ wrangler secret put MCP_AUTH_TOKEN   # any random 32-char string
 wrangler deploy
 ```
 
-Then add one line to your IDE's MCP config:
-
 ```json
 {
   "mcpServers": {
     "frameforge": {
       "url": "https://video-mcp.YOUR_SUBDOMAIN.workers.dev/mcp",
       "headers": { "Authorization": "Bearer YOUR_MCP_AUTH_TOKEN" }
-    }
-  }
-}
-```
-
-### Local stdio — no cloud account needed
-
-```json
-{
-  "mcpServers": {
-    "frameforge": {
-      "command": "node",
-      "args": ["/absolute/path/to/FrameForge/src/mcp-server/stdio.js"]
     }
   }
 }

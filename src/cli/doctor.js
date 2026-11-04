@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+// Load keys from ~/.frameforge/config.json before any env checks
+require('../config/load-config').loadConfig();
 /**
  * FrameForge System Doctor — Pre-flight Environment Diagnostics
  *

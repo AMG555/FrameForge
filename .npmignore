@@ -1,0 +1,40 @@
+# FrameForge .npmignore
+# Files excluded from the npm package (users get just the runtime, not the dev/test scaffolding)
+
+# Tests
+**/*.test.js
+src/integration.test.js
+
+# Dev scripts
+scripts/
+.github/
+.cursor/
+.kiro/
+
+# IDE rules (users set up their own)
+.cursorrules
+.windsurfrules
+AGENT.md
+
+# Docs source (available on GitHub; not needed at runtime)
+docs/
+
+# Cloudflare worker (separate deployment, not needed for npx)
+cloudflare-mcp/
+
+# Plugin skill files (large, optional — available on GitHub)
+plugins/
+
+# Render config
+render.yaml
+
+# Local dev files
+.env
+.env.*
+*.log
+*.local
+
+# Coverage / cache
+coverage/
+.nyc_output/
+node_modules/
