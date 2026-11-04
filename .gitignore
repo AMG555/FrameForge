@@ -80,11 +80,6 @@ audit_output*.txt
 # ── IDE internal state ───────────────────────────────────────────────────
 .bob/
 
-# ── Agent instructions (internal only - never push to public repo) ─────────
-AGENT.md
-agent.md
-[Aa][Gg][Ee][Nn][Tt].[Mm][Dd]
-
 
 # ── FrameForge video output & working directories ────────────────────────────
 output/
