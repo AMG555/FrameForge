@@ -223,7 +223,9 @@ describe('productionId path-traversal guard (MCP server)', () => {
 
 describe('multi_voice_tts outputPath guard', () => {
   const pathMod  = require('path');
-  const filesDir = '/home/node/.n8n-files';
+  const os       = require('os');
+  // Use a fixed test base so assertions are platform-independent
+  const filesDir = pathMod.join(os.tmpdir(), 'ff-test-guard');
 
   function isPathSafe(outputPath) {
     if (!outputPath) return false;
@@ -233,14 +235,14 @@ describe('multi_voice_tts outputPath guard', () => {
   }
 
   it('allows paths inside FILES_DIR', () => {
-    assert.equal(isPathSafe('/home/node/.n8n-files/video_tmp/voice_0.m4a'), true);
-    assert.equal(isPathSafe('/home/node/.n8n-files/voice.mp3'), true);
+    assert.equal(isPathSafe(pathMod.join(filesDir, 'video_tmp', 'voice_0.m4a')), true);
+    assert.equal(isPathSafe(pathMod.join(filesDir, 'voice.mp3')), true);
   });
 
   it('blocks path traversal outside FILES_DIR', () => {
-    assert.equal(isPathSafe('/etc/passwd'), false);
-    assert.equal(isPathSafe('/home/node/.n8n-files/../../../etc/passwd'), false);
-    assert.equal(isPathSafe('/tmp/evil.mp3'), false);
+    assert.equal(isPathSafe(pathMod.join(os.tmpdir(), 'evil.mp3')), false);
+    assert.equal(isPathSafe(pathMod.join(filesDir, '..', '..', 'etc', 'passwd')), false);
+    assert.equal(isPathSafe(pathMod.join(os.tmpdir(), 'other', 'evil.mp3')), false);
   });
 
   it('blocks null/empty outputPath', () => {

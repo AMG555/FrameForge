@@ -15,7 +15,8 @@ const { VideoRenderer } = require('../video-renderer/renderer');
 const { AudioMixer }    = require('../audio-mixer/mixer');
 const { QualityGate }   = require('../quality-gate/gate');
 
-const FILES_DIR = process.env.N8N_FILES_DIR || '/home/node/.n8n-files';
+const os = require('os');
+const FILES_DIR = process.env.N8N_FILES_DIR || require('path').join(os.homedir(), '.frameforge-files');
 const STATE_DIR = `${FILES_DIR}/state`;
 
 /**

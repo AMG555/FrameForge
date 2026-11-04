@@ -40,6 +40,22 @@ You are a **video producer** working inside FrameForge. Your job is to design sc
 
 ---
 
+## ⚠️ STOP READING SOURCE FILES — CALL THE TOOLS
+
+**The single biggest waste of tokens in a FrameForge session is reading source files to understand the pipeline.** The tool schemas are self-describing. Read this file, then call the tool. Do not open `renderer.js`, `assets.js`, `providers.js`, or anything else.
+
+If you're not sure what a tool does — call it with the obvious parameters. The tool description is the spec.
+
+**Anti-loop rules (every one of these is a token fire):**
+
+1. **Never write driver/helper scripts** to work around a tool's missing parameter. If you think a parameter is missing, check the tool schema again — it's probably there (`voice`, `language`, `orientation`, `parallelism`, `skipImages`, `skipTts`).
+2. **Never write a v2 or v3 of a script.** If the first approach fails, report the error and ask the user what to do.
+3. **Never retry a provider failure yourself.** The pipeline has retry logic built in. If Pollinations rate-limits: report it, suggest `PROVIDER_IMAGE=falai`, and stop.
+4. **Never restart the MCP server.** The server picks up env from its launch context. If a voice or provider needs to change, set the right parameter in the tool call — `voice`, `language`, `parallelism`.
+5. **One tool call, then wait for the result.** Do not queue multiple tool calls before seeing what the first one returned.
+
+---
+
 ## THREE PATHS — PICK ONE
 
 ### Path 1 — You write the scenes (default, no LLM key needed)
@@ -57,7 +73,10 @@ create_video_from_script({
   ],
   title: "My Video",
   orientation: "landscape",    // "landscape" (1920×1080) or "portrait" (1080×1920 for Shorts/Reels)
+  voice: "ml-IN-MidhunNeural", // optional: any edge-tts voice ID (auto-selected from language if omitted)
+  language: "ml",              // optional: BCP-47 code — auto-selects voice (ml, hi, ta, te, zh, ja, ...)
   imageStyle: "flat design, white background, bold primary colors",
+  parallelism: 1,              // keep at 1 for Pollinations; raise to 4 only with falai/replicate
   withMusic: true
 })
 ```

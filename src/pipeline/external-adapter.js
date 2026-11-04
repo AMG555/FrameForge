@@ -306,7 +306,7 @@ class ExternalAdapter {
     // ── Path-traversal guard ────────────────────────────────────────────────
     // localPath must resolve inside FILES_DIR so an agent-supplied path like
     // "../../etc/passwd" or "/tmp/../../root/key" cannot escape the sandbox.
-    const filesDir = path.resolve(process.env.N8N_FILES_DIR || '/home/node/.n8n-files');
+    const filesDir = path.resolve(process.env.N8N_FILES_DIR || require('path').join(require('os').homedir(), '.frameforge-files'));
     const resolved = path.resolve(localPath);
     if (!resolved.startsWith(filesDir + path.sep)) {
       throw new Error(`downloadOutput: localPath must be inside FILES_DIR (${filesDir}): ${localPath}`);

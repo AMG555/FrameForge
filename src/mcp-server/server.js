@@ -494,24 +494,53 @@ Example scene:
       type: 'object',
       required: ['scenes'],
       properties: {
-        scenes:       { type: 'array',   description: 'Complete scenes array written by the agent. Each scene: { narration, caption, visual_description, camera_hint?, music_mood?, image_path?, video_path?, audio_path? }' },
+        scenes:       { type: 'array',   description: 'Complete scenes array written by the agent. Each scene: { narration, caption, visual_description, camera_hint?, music_mood?, image_path?, video_path?, audio_path?, voice? }' },
         title:        { type: 'string',  description: 'Video title' },
         orientation:  { type: 'string',  enum: ['landscape', 'portrait'], default: 'landscape', description: 'Output orientation. "landscape" = 1920×1080 (16:9, YouTube/desktop). "portrait" = 1080×1920 (9:16, TikTok/Reels/Shorts).' },
+        voice:        { type: 'string',  description: 'edge-tts voice ID for all scenes, e.g. "ml-IN-MidhunNeural" (Malayalam male), "en-US-BrianNeural" (English). Per-scene voice field overrides this. Full list: edge-tts --list-voices' },
+        language:     { type: 'string',  description: 'BCP-47 language hint, e.g. "ml" (Malayalam), "hi" (Hindi), "ta" (Tamil), "te" (Telugu), "en" (English). Auto-selects a default voice for the language when voice is not set.' },
         skipImages:   { type: 'boolean', default: false, description: 'Set true if all scenes already have image_path or video_path' },
         skipTts:      { type: 'boolean', default: false, description: 'Set true if all scenes already have audio_path' },
         imageStyle:   { type: 'string',  description: 'Visual aesthetic for AI-generated images, e.g. "photorealistic", "anime", "flat design". Only used when skipImages is false.' },
+        parallelism:  { type: 'number',  default: 1, description: 'Concurrent image generation requests (default: 1). Increase to 2-4 only when using a reliable image provider like falai or replicate. Keep at 1 for Pollinations to avoid rate limits.' },
         withMusic:    { type: 'boolean', default: true },
         musicVolume:  { type: 'number',  default: 0.07 },
         productionId: { type: 'string',  description: 'Optional — reuse an existing productionId' },
       },
     },
-    handler: async ({ scenes, title = 'FrameForge Video', orientation = 'landscape', skipImages = false, skipTts = false, imageStyle, withMusic = true, musicVolume = 0.07, productionId }) => {
+    handler: async ({ scenes, title = 'FrameForge Video', orientation = 'landscape', voice, language, skipImages = false, skipTts = false, imageStyle, parallelism = 1, withMusic = true, musicVolume = 0.07, productionId }) => {
       const { runAssets } = require('../workflows/assets');
       const { runRender } = require('../workflows/render');
 
       if (!Array.isArray(scenes) || scenes.length === 0) {
         throw new Error('scenes array is required and must not be empty. You (the IDE agent) write the scenes.');
       }
+
+      // Auto-select voice from language hint when voice is not explicitly provided.
+      // Maps BCP-47 language prefix → default edge-tts neural voice.
+      const LANGUAGE_VOICES = {
+        'ml': 'ml-IN-MidhunNeural',   // Malayalam male
+        'hi': 'hi-IN-MadhurNeural',   // Hindi male
+        'ta': 'ta-IN-ValluvarNeural',  // Tamil male
+        'te': 'te-IN-MohanNeural',     // Telugu male
+        'kn': 'kn-IN-GaganNeural',    // Kannada male
+        'bn': 'bn-IN-BashkarNeural',  // Bengali male
+        'mr': 'mr-IN-ManoharNeural',  // Marathi male
+        'gu': 'gu-IN-NiranjanNeural', // Gujarati male
+        'pa': 'pa-IN-OjasvNeural',    // Punjabi male
+        'ur': 'ur-PK-AsadNeural',     // Urdu male
+        'zh': 'zh-CN-YunxiNeural',    // Chinese male
+        'ja': 'ja-JP-KeitaNeural',    // Japanese male
+        'ko': 'ko-KR-InJoonNeural',   // Korean male
+        'ar': 'ar-SA-HamedNeural',    // Arabic male
+        'fr': 'fr-FR-HenriNeural',    // French male
+        'de': 'de-DE-ConradNeural',   // German male
+        'es': 'es-ES-AlvaroNeural',   // Spanish male
+        'pt': 'pt-BR-AntonioNeural',  // Portuguese male
+        'it': 'it-IT-DiegoNeural',    // Italian male
+        'ru': 'ru-RU-DmitryNeural',   // Russian male
+      };
+      const resolvedVoice = voice || (language ? LANGUAGE_VOICES[language.toLowerCase().slice(0, 2)] : null) || null;
 
       // Apply imageStyle to visual_description if provided and skipImages is false
       const processedScenes = scenes.map((s, i) => ({
@@ -527,6 +556,7 @@ Example scene:
         image_path:         s.image_path         || null,
         video_path:         s.video_path         || null,
         audio_path:         s.audio_path         || null,
+        voice:              s.voice              || null,  // per-scene voice override
         character:          s.character          || { character_id: 'none', pose: 'none', emotion: 'neutral', position: { x: 0.5, y: 0.8, scale: 1.0 } },
         focal_point:        s.focal_point        || { x: 0.5, y: 0.35, weight: 0.8 },
         overlay:            s.overlay            || { type: 'none' },
@@ -540,7 +570,7 @@ Example scene:
       const renderWidth  = orientation === 'portrait' ? 1080 : 1920;
       const renderHeight = orientation === 'portrait' ? 1920 : 1080;
 
-      const assetsResult = await runAssets({ productionId: pid, scenes: processedScenes, parallelism: 4, skipImages, skipTts, imageWidth: renderWidth, imageHeight: renderHeight });
+      const assetsResult = await runAssets({ productionId: pid, scenes: processedScenes, parallelism, skipImages, skipTts, imageWidth: renderWidth, imageHeight: renderHeight, voice: resolvedVoice });
       const renderResult = await runRender({ productionId: pid, sceneAssets: assetsResult.sceneAssets, withMusic, musicVolume, renderWidth, renderHeight });
 
       if (!renderResult.passed) {
@@ -1021,7 +1051,7 @@ Requires: npm install playwright && npx playwright install chromium (one-time se
       // sandbox by passing "../../etc/passwd" or similar.
       if (audioPath) {
         const resolved = pathMod.resolve(audioPath);
-        const filesDir = pathMod.resolve(process.env.N8N_FILES_DIR || '/home/node/.n8n-files');
+        const filesDir = pathMod.resolve(process.env.N8N_FILES_DIR || pathMod.join(os.homedir(), '.frameforge-files'));
         if (!resolved.startsWith(filesDir + pathMod.sep) && !resolved.startsWith(pathMod.resolve(projectDir) + pathMod.sep)) {
           throw new Error(`audioPath must be inside the project directory or FILES_DIR: ${audioPath}`);
         }

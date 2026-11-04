@@ -68,7 +68,7 @@ class ArtifactManifest {
   /**
    * @param {{ productionId: string, artifactsDir?: string }} opts
    */
-  constructor({ productionId, artifactsDir = '/home/node/.n8n-files/artifacts' } = {}) {
+  constructor({ productionId, artifactsDir = require('path').join(process.env.N8N_FILES_DIR || require('path').join(require('os').homedir(), '.frameforge-files'), 'artifacts') } = {}) {
     if (!productionId) throw new Error('productionId is required');
     this.productionId  = productionId;
     this.dir           = path.join(artifactsDir, productionId);

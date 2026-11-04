@@ -47,7 +47,7 @@ function estimateCost(provider, operation, units) {
 }
 
 class Telemetry {
-  constructor({ mode = 'file', logPath = '/home/node/.n8n-files/usage.ndjson', pg = null } = {}) {
+  constructor({ mode = 'file', logPath = require('path').join(process.env.N8N_FILES_DIR || require('path').join(require('os').homedir(), '.frameforge-files'), 'usage.ndjson'), pg = null } = {}) {
     this.mode    = mode;
     this.logPath = logPath;
     this.pg      = pg;

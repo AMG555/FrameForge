@@ -38,7 +38,8 @@ class StateMachine {
    */
   constructor(config = {}) {
     this.mode     = config.mode || 'file';
-    this.stateDir = config.stateDir || '/home/node/.n8n-files/state';
+    const _os = require('os'); const _path = require('path');
+    this.stateDir = config.stateDir || _path.join(process.env.N8N_FILES_DIR || _path.join(_os.homedir(), '.frameforge-files'), 'state');
     this.pg       = config.pg || null; // pg.Pool instance when mode === 'pg'
     // Per-productionId write mutex — prevents concurrent file writes from
     // parallel asset generation (assets.js runs up to 4 scenes at once).

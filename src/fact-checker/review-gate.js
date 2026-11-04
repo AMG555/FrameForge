@@ -45,7 +45,7 @@ class FactCheckerReviewGate {
    *   reviewsDir?:   string,  // directory for persisting review decisions
    * }} opts
    */
-  constructor({ stateMachine = null, notifyUrl, reviewsDir = '/home/node/.n8n-files/reviews' } = {}) {
+  constructor({ stateMachine = null, notifyUrl, reviewsDir = require('path').join(process.env.N8N_FILES_DIR || require('path').join(require('os').homedir(), '.frameforge-files'), 'reviews') } = {}) {
     this.stateMachine = stateMachine;
     this.notifyUrl    = notifyUrl || process.env.REVIEW_NOTIFY_URL || '';
     this.reviewsDir   = reviewsDir;

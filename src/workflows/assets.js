@@ -14,7 +14,8 @@ const { RetryPolicy }   = require('../pipeline/retry-policy');
 const { Telemetry }     = require('../pipeline/telemetry');
 const { AssetLibrary }  = require('../asset-library/asset-library');
 
-const FILES_DIR = process.env.N8N_FILES_DIR || '/home/node/.n8n-files';
+const os = require('os');
+const FILES_DIR = process.env.N8N_FILES_DIR || require('path').join(os.homedir(), '.frameforge-files');
 const STATE_DIR = `${FILES_DIR}/state`;
 const VDIR      = `${FILES_DIR}/video_tmp`;
 
@@ -27,7 +28,7 @@ const NEG_PROMPT   = 'photorealistic, 3D render, CGI, painting, dark background,
  * @param {{ productionId: string, scenes: object[], parallelism?: number }} opts
  * @returns {Promise<AssetsResult>}
  */
-async function runAssets({ productionId, scenes, parallelism = 4, skipImages = false, skipTts = false, imageWidth = 1920, imageHeight = 1080 }) {
+async function runAssets({ productionId, scenes, parallelism = 1, skipImages = false, skipTts = false, imageWidth = 1920, imageHeight = 1080, voice = null }) {
   const imageGen  = new ImageProvider();
   const ttsGen    = new TTSProvider();
   const sm        = new StateMachine({ mode: 'file', stateDir: STATE_DIR });
@@ -91,8 +92,10 @@ async function runAssets({ productionId, scenes, parallelism = 4, skipImages = f
         voicePath = null;
       } else {
         voicePath = path.join(VDIR, `voice_${idx}.m4a`);
+        // Per-scene voice overrides global voice, which overrides TTS_VOICE env
+        const ttsVoice = scene.voice || voice || undefined;
         await retryPol.executeStage('TTS', async () =>
-          ttsGen.synthesize({ text: scene.narration, outputPath: voicePath })
+          ttsGen.synthesize({ text: scene.narration, voice: ttsVoice, outputPath: voicePath })
         );
         await telemetry.track({ productionId, stage: 'TTS', provider: process.env.PROVIDER_TTS || 'edge-tts', operation: 'tts_synthesis', units: scene.narration.length });
       }

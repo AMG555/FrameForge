@@ -42,7 +42,7 @@ const path = require('path');
 const fs   = require('fs');
 
 class ShortsExtractor {
-  constructor({ filesDir = '/home/node/.n8n-files' } = {}) {
+  constructor({ filesDir = process.env.N8N_FILES_DIR || require('path').join(require('os').homedir(), '.frameforge-files') } = {}) {
     this.filesDir = filesDir;
   }
 

@@ -14,7 +14,8 @@ const fs     = require('fs').promises;
 const { StateMachine } = require('../pipeline/state-machine');
 const { Telemetry }    = require('../pipeline/telemetry');
 
-const FILES_DIR = process.env.N8N_FILES_DIR || '/home/node/.n8n-files';
+const os = require('os');
+const FILES_DIR = process.env.N8N_FILES_DIR || require('path').join(os.homedir(), '.frameforge-files');
 const STATE_DIR = `${FILES_DIR}/state`;
 
 /**
