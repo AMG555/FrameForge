@@ -557,6 +557,15 @@ async function modeFull() {
 
   if (encResult.status !== 0) die('ffmpeg encode failed:\n' + encResult.stderr);
   log(`[full] ✅  ${outPath}`);
+
+  // Clean up frames directory unless --keep flag is set
+  if (!flags.keep) {
+    log('[full] cleaning up frames...');
+    fs.rmSync(FRAME_DIR, { recursive: true, force: true });
+    log('[full] frames deleted — keeping only the encoded MP4');
+  } else {
+    log(`[full] --keep set, frames retained at ${FRAME_DIR}`);
+  }
 }
 
 // ── Mode: mux ─────────────────────────────────────────────────────────────────
