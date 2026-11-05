@@ -7,9 +7,9 @@
   },
   "main": "src/mcp-server/server.js",
   "bin": {
-    "frameforge":        "src/cli/make.js",
-    "frameforge-mcp":    "src/mcp-server/stdio.js",
-    "frameforge-setup":  "src/cli/setup-keys.js",
+    "frameforge": "src/cli/make.js",
+    "frameforge-mcp": "src/mcp-server/stdio.js",
+    "frameforge-setup": "src/cli/setup-keys.js",
     "frameforge-doctor": "src/cli/doctor.js"
   },
   "scripts": {
@@ -55,6 +55,6 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/AMG555/FrameForge"
+    "url": "git+https://github.com/AMG555/FrameForge.git"
   }
 }
