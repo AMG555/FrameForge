@@ -30,10 +30,10 @@ No cloning. No `npm install`. FFmpeg and edge-tts run on your own machine.
 #    edge-tts: pip install edge-tts
 
 # 2. Configure your API keys (one-time, saved to ~/.frameforge/config.json)
-npx --package=@frameforgemcp/mcp frameforge-setup
+npx --package=@amg555/frameforge-mcp frameforge-setup
 
 # 3. Check everything is ready
-npx --package=@frameforgemcp/mcp frameforge-doctor
+npx --package=@amg555/frameforge-mcp frameforge-doctor
 
 # 4. Add to your IDE — then ask your agent to make a video
 ```
@@ -45,7 +45,7 @@ Add to your IDE's MCP config (works in Bob, Cursor, Windsurf, Codex, Claude Code
   "mcpServers": {
     "frameforge": {
       "command": "npx",
-      "args": ["--package=@frameforgemcp/mcp", "-y", "frameforge-mcp"]
+      "args": ["--package=@amg555/frameforge-mcp", "-y", "frameforge-mcp"]
     }
   }
 }
