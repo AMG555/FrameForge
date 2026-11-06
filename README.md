@@ -6,6 +6,7 @@
 
 **Any IDE. Any topic. Any style. 1080p videos from a single prompt.**
 
+[![npm](https://img.shields.io/npm/v/@amg555/frameforge-mcp.svg?label=npm)](https://www.npmjs.com/package/@amg555/frameforge-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
 [![Version](https://img.shields.io/badge/version-2.3.0-blue.svg)](CHANGELOG.md)
@@ -272,6 +273,16 @@ Every video passes 7 checks before delivery. Any failure blocks the output.
 
 ## CLI commands
 
+**Via npx (no clone needed):**
+
+| Command | What it does |
+|---------|-------------|
+| `npx --package=@amg555/frameforge-mcp frameforge-setup` | Interactive key wizard — saves to `~/.frameforge/config.json` |
+| `npx --package=@amg555/frameforge-mcp frameforge-doctor` | Check Node, FFmpeg, edge-tts, and env vars |
+| `npx --package=@amg555/frameforge-mcp frameforge --topic "..."` | Full pipeline: research → render → deliver |
+
+**Via cloned repo:**
+
 | Command | What it does |
 |---------|-------------|
 | `npm run doctor` | Check Node, FFmpeg, edge-tts, and env vars |
@@ -323,7 +334,14 @@ Report vulnerabilities: [SECURITY.md](SECURITY.md)
 
 ## Deployment
 
-**VPS / Pi / local machine:**
+**npx (no install — recommended for users):**
+
+```bash
+npx --package=@amg555/frameforge-mcp frameforge-setup
+# then add the IDE config from the quickstart above
+```
+
+**VPS / Pi / self-hosted (cloned repo):**
 
 ```bash
 git clone https://github.com/AMG555/FrameForge.git && cd FrameForge
