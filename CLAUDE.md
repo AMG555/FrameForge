@@ -218,7 +218,7 @@ get_job_status({ jobId })   // poll every 30s until status = "SUCCEEDED"
 | `scaffold_animation_project` | Scaffold a Playwright + FFmpeg animation project (engine, render scripts, STORYBOARD.md) |
 | `validate_storyboard` | Enforce the 4 hard gates before any scene code |
 | `render_animation` | Playwright renderer: `sheet` / `strip` / `storyboard` / `crop` / `full` / `mux` / `kit` / `look` |
-| `multi_voice_tts` | TTS per-call: `edge-tts` · **`voxforge`** · `elevenlabs` · `azure` · `openai` · `webhook` |
+| `multi_voice_tts` | TTS per-call: `edge-tts` · `elevenlabs` · `voxforge` · `azure` · `openai` · `webhook` |
 | `export_to_editor` | Send finished animation to Premiere / Resolve / CapCut / After Effects / Remotion |
 | `external_platform_call` | HTTP bridge to VoxForge, Runway, Kling, Pika, or any platform |
 

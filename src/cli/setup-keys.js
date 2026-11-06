@@ -240,8 +240,8 @@ Press Enter to accept a default. Ctrl+C to cancel.
 
   cfg.PROVIDER_TTS = await menu('Choose TTS provider', [
     ['edge-tts',   'edge-tts — free, offline, 400+ voices. No key needed.'],
-    ['voxforge',   'VoxForge — custom voice cloning (github.com/amg555/voxforge). Get key: your VoxForge instance.'],
     ['elevenlabs', 'ElevenLabs — best quality + voice cloning. elevenlabs.io'],
+    ['voxforge',   'VoxForge — self-hosted voice cloning. github.com/amg555/voxforge'],
     ['azure',      'Azure Cognitive Speech. portal.azure.com'],
     ['openai',     'OpenAI TTS (uses OPENAI_API_KEY above)'],
     ['webhook',    'Custom/any OpenAI-compatible TTS endpoint'],
