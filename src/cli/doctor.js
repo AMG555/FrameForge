@@ -89,7 +89,37 @@ if (edgeTts.status === 0) {
   );
 }
 
-// 5. System Font (for video subtitles/captions)
+// 5. Playwright / Chromium (required for code-driven animation — Path 2)
+const playwright = spawnSync('node', ['-e', "require('playwright')"], {
+  encoding: 'utf8', timeout: 5000,
+  // Look in the project's own node_modules first (how it ships in the npm package)
+  cwd: path.resolve(__dirname, '../..'),
+});
+const playwrightGlobal = spawnSync('node', ['-e', "require('playwright')"], {
+  encoding: 'utf8', timeout: 5000,
+});
+const hasPlaywright = playwright.status === 0 || playwrightGlobal.status === 0;
+
+// Check for a locally installed Chromium browser
+const chromiumPaths = [
+  path.join(require('os').homedir(), '.cache', 'ms-playwright'),   // Linux / macOS default
+  path.join(process.env.LOCALAPPDATA || '', 'ms-playwright'),       // Windows
+  path.join(require('os').homedir(), 'Library', 'Caches', 'ms-playwright'), // macOS alt
+];
+const hasChromium = chromiumPaths.some(p => { try { return require('fs').readdirSync(p).length > 0; } catch { return false; } });
+
+if (hasPlaywright && hasChromium) {
+  pass('Playwright', 'playwright package + Chromium browser installed (code-driven animation ready)');
+} else if (hasPlaywright && !hasChromium) {
+  warn('Playwright', 'playwright package found but Chromium browser not installed',
+    'Run in your animation project dir: npx playwright install chromium');
+} else {
+  warn('Playwright', 'Not installed — required for code-driven animation (Path 2)',
+    'Run in your animation project dir: npm install playwright && npx playwright install chromium\n' +
+    '    (Path 1 via create_video_from_script does not need Playwright)');
+}
+
+// 6. System Font (for video subtitles/captions)
 const FONT_CANDIDATES = [
   'C:\\Windows\\Fonts\\arialbd.ttf',
   'C:\\Windows\\Fonts\\calibrib.ttf',

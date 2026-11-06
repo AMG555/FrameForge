@@ -50,7 +50,7 @@ done
 if command -v edge-tts >/dev/null 2>&1; then
   echo "  edge-tts   $(command -v edge-tts) (free TTS, no key)"
 else
-  echo "  edge-tts   not found — run: npm install -g edge-tts"
+  echo "  edge-tts   not found — run: pip install edge-tts"
 fi
 
 echo
