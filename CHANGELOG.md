@@ -4,6 +4,25 @@ All notable changes to FrameForge are documented here.
 
 ---
 
+## [2.3.2] — 2026-11-06
+
+### Added
+
+- **Tool 18: `export_to_editor`** — send a finished animation MP4 + EDL to any local editing app via an HTTP bridge: Premiere Pro (`:7777`), DaVinci Resolve (`:8080`), CapCut (`:9090`), After Effects (`:7878`), or Remotion (`:3001`). Pass `editorUrl` to override any port. Bridge setup docs: `docs/editor-bridges/`.
+- **VoxForge TTS provider** (`PROVIDER_TTS=voxforge`) — named first-class provider in `TTSProvider`. Tries `/v1/audio/speech` (OpenAI-compatible) then falls back to `/v1/tts`. Configured via `VOXFORGE_URL`, `VOXFORGE_KEY`, `VOXFORGE_VOICE`, `VOXFORGE_MODEL`. Also surfaced in `multi_voice_tts` platform enum and `setup-keys.js` wizard.
+- **Editing app presets in `ExternalAdapter`** — `premiere`, `resolve`, `capcut`, `aftereffects` (local bridge), `kling` (cloud), plus updated `voxforge` preset pointing to `/v1/audio/speech`.
+- **`render_animation` mode `"kit"`** — now exposed in the MCP tool enum. Generates an EDL file in `out/` for import into Premiere / Resolve.
+
+### Changed
+
+- **`CLAUDE.md`**: code-driven animation promoted to **primary path**; FFmpeg + AI images demoted to "quick draft"; new sections for VoxForge voice and editor bridge workflow; tool table reorganised into Primary / Secondary / Auto-research groups (18 tools).
+- **`START_HERE.md`**: opening question set updated to surface animated explainer as a first-class format choice.
+- **`setup-keys.js`**: VoxForge added to TTS provider menu (second option, right after edge-tts). Four new config keys persisted: `VOXFORGE_URL`, `VOXFORGE_KEY`, `VOXFORGE_VOICE`, `VOXFORGE_MODEL`.
+- **`scripts/deep-validate.js`**: +3 checks (`export_to_editor`, `voxforge`, tool count label updated to 18).
+- Version bump: `2.3.1` → `2.3.2` across all version strings.
+
+---
+
 ## [2.3.1] — 2026-11-04
 
 ### Added

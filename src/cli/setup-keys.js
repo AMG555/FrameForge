@@ -240,13 +240,20 @@ Press Enter to accept a default. Ctrl+C to cancel.
 
   cfg.PROVIDER_TTS = await menu('Choose TTS provider', [
     ['edge-tts',   'edge-tts — free, offline, 400+ voices. No key needed.'],
+    ['voxforge',   'VoxForge — custom voice cloning (github.com/amg555/voxforge). Get key: your VoxForge instance.'],
     ['elevenlabs', 'ElevenLabs — best quality + voice cloning. elevenlabs.io'],
     ['azure',      'Azure Cognitive Speech. portal.azure.com'],
     ['openai',     'OpenAI TTS (uses OPENAI_API_KEY above)'],
-    ['webhook',    'Custom/VoxForge/any TTS endpoint'],
+    ['webhook',    'Custom/any OpenAI-compatible TTS endpoint'],
   ], 'edge-tts');
 
-  if (cfg.PROVIDER_TTS === 'elevenlabs') {
+  if (cfg.PROVIDER_TTS === 'voxforge') {
+    cfg.VOXFORGE_URL   = await ask('  VoxForge base URL', 'https://api.voxforge.io');
+    cfg.VOXFORGE_KEY   = await askSecret('  VoxForge API key (leave blank if self-hosted without auth)');
+    cfg.VOXFORGE_VOICE = await ask('  Voice ID or cloned speaker ID', 'narrator');
+    cfg.VOXFORGE_MODEL = await ask('  Model ID (leave blank for default)', 'voxforge-v1');
+    console.log('  ℹ️   Self-hosted? Set VOXFORGE_URL to your instance URL (e.g. http://localhost:8080).');
+  } else if (cfg.PROVIDER_TTS === 'elevenlabs') {
     cfg.ELEVENLABS_API_KEY  = await askSecret('  ElevenLabs API key');
     cfg.ELEVENLABS_VOICE_ID = await ask('  Voice ID (leave blank for default Adam)', 'pNInz6obpgDQGcFmaJgB');
     console.log('  ℹ️   For voice cloning: set ELEVENLABS_VOICE_ID to your cloned voice ID.');
@@ -326,7 +333,7 @@ Press Enter to accept a default. Ctrl+C to cancel.
 
   const groups = {
     '# ── LLM ─────────────────────────────────────────────────────────': ['PROVIDER_LLM','GROQ_API_KEY','CEREBRAS_API_KEY','OPENROUTER_API_KEY','ANTHROPIC_API_KEY','GEMINI_API_KEY','MISTRAL_API_KEY','TOGETHER_API_KEY','OPENAI_API_KEY','OLLAMA_BASE_URL','OLLAMA_MODEL','WEBHOOK_LLM_URL','WEBHOOK_LLM_HEADERS','WEBHOOK_LLM_RESPONSE_PATH','LLM_MODEL'],
-    '# ── TTS ─────────────────────────────────────────────────────────': ['PROVIDER_TTS','ELEVENLABS_API_KEY','ELEVENLABS_VOICE_ID','AZURE_SPEECH_KEY','AZURE_SPEECH_REGION','WEBHOOK_TTS_URL','WEBHOOK_TTS_RESPONSE','WEBHOOK_TTS_RESPONSE_PATH','TTS_VOICE','TTS_RATE'],
+    '# ── TTS ─────────────────────────────────────────────────────────': ['PROVIDER_TTS','VOXFORGE_URL','VOXFORGE_KEY','VOXFORGE_VOICE','VOXFORGE_MODEL','ELEVENLABS_API_KEY','ELEVENLABS_VOICE_ID','AZURE_SPEECH_KEY','AZURE_SPEECH_REGION','WEBHOOK_TTS_URL','WEBHOOK_TTS_RESPONSE','WEBHOOK_TTS_RESPONSE_PATH','TTS_VOICE','TTS_RATE'],
     '# ── Image generation ─────────────────────────────────────────────': ['PROVIDER_IMAGE','FALAI_API_KEY','REPLICATE_API_KEY','WEBHOOK_IMAGE_URL','WEBHOOK_IMAGE_RESPONSE','WEBHOOK_IMAGE_RESPONSE_PATH','POLLINATIONS_MODEL'],
     '# ── Delivery webhooks ────────────────────────────────────────────': ['PUBLISH_WEBHOOK_URL','REVIEW_NOTIFY_URL'],
     '# ── External platform adapter ────────────────────────────────────': ['EXTERNAL_PLATFORM_NAME','EXTERNAL_PLATFORM_URL','EXTERNAL_PLATFORM_KEY','EXTERNAL_PLATFORM_INGEST_PATH','EXTERNAL_PLATFORM_RENDER_PATH','EXTERNAL_PLATFORM_STATUS_PATH'],

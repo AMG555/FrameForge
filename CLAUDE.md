@@ -58,7 +58,9 @@ If you're not sure what a tool does — call it with the obvious parameters. The
 
 ## THREE PATHS — PICK ONE
 
-### Path 1 — You write the scenes (default, no LLM key needed)
+> **The primary path is Path 2 (code-driven animation).** Every frame is a pure function of time `t`, rendered by Playwright + FFmpeg. This is what produces the high-quality, viral-style motion graphics clips. Path 1 (FFmpeg + AI images) is the fast fallback when Playwright is unavailable or the user wants a quick draft. Path 3 (auto-research) is for unattended batch.
+
+### Path 1 — You write the scenes + AI images (quick draft)
 
 Your IDE model writes the scenes. FrameForge generates TTS + AI images + renders with FFmpeg.
 
@@ -207,9 +209,20 @@ get_job_status({ jobId })   // poll every 30s until status = "SUCCEEDED"
 
 ---
 
-## ALL 17 MCP TOOLS
+## ALL 18 MCP TOOLS
 
-**No LLM key needed:**
+**Primary — code-driven animation (no LLM key, no image gen API):**
+
+| Tool | What it does |
+|------|-------------|
+| `scaffold_animation_project` | Scaffold a Playwright + FFmpeg animation project (engine, render scripts, STORYBOARD.md) |
+| `validate_storyboard` | Enforce the 4 hard gates before any scene code |
+| `render_animation` | Playwright renderer: `sheet` / `strip` / `storyboard` / `crop` / `full` / `mux` / `kit` / `look` |
+| `multi_voice_tts` | TTS per-call: `edge-tts` · **`voxforge`** · `elevenlabs` · `azure` · `openai` · `webhook` |
+| `export_to_editor` | Send finished animation to Premiere / Resolve / CapCut / After Effects / Remotion |
+| `external_platform_call` | HTTP bridge to VoxForge, Runway, Kling, Pika, or any platform |
+
+**Secondary — FFmpeg + AI images (fast draft, no Playwright needed):**
 
 | Tool | What it does |
 |------|-------------|
@@ -219,15 +232,10 @@ get_job_status({ jobId })   // poll every 30s until status = "SUCCEEDED"
 | `edit_scenes` | Patch captions, swap media files, append scenes |
 | `assemble_video` | FFmpeg render + quality gate → master MP4 |
 | `render_tts` | Generate voice audio for one scene |
-| `multi_voice_tts` | Override TTS provider per call without touching `.env` |
 | `generate_scene_image` | Generate one scene image |
 | `publish_video` | Deliver via file copy or HTTP webhook |
-| `external_platform_call` | HTTP bridge to ElevenLabs, Runway, Replicate, etc. |
-| `scaffold_animation_project` | Create a code-driven animation project |
-| `validate_storyboard` | Check STORYBOARD.md against the 4-gate contract |
-| `render_animation` | Playwright renderer: sheet / strip / storyboard / crop / full / look |
 
-**Needs a free LLM key:**
+**Auto-research (needs a free LLM key):**
 
 | Tool | What it does |
 |------|-------------|
@@ -235,6 +243,56 @@ get_job_status({ jobId })   // poll every 30s until status = "SUCCEEDED"
 | `write_script` | Generate a scene script from research |
 | `queue_full_pipeline` | Queue a full pipeline run; returns `{ jobId }` |
 | `get_job_status` | Poll a queued job for status |
+
+---
+
+## VOICE — VoxForge custom audio
+
+`multi_voice_tts` with `platform: "voxforge"` routes to your VoxForge instance:
+
+```
+multi_voice_tts({
+  text: "Your narration.",
+  outputPath: ".frameforge-files/voice_0.m4a",
+  platform: "voxforge",
+  voice: "my-cloned-voice-id",   // speaker ID from VoxForge
+  apiKey: "vf-..."               // or set VOXFORGE_KEY in .env
+})
+```
+
+Set in `.env` for all calls:
+```
+PROVIDER_TTS=voxforge
+VOXFORGE_URL=https://api.voxforge.io    # or your self-hosted URL
+VOXFORGE_KEY=vf-...
+VOXFORGE_VOICE=my-cloned-voice-id
+```
+
+---
+
+## EDITOR BRIDGES — send animation to editing apps
+
+After `render_animation full`, send the finished MP4 into any editing app:
+
+```
+// Export EDL timeline first (for apps that support it)
+render_animation({ projectDir: "...", mode: "kit" })
+
+// Send to DaVinci Resolve (default bridge port :8080)
+export_to_editor({ projectDir: "...", editor: "resolve" })
+
+// Send to Premiere Pro (bridge port :7777)
+export_to_editor({ projectDir: "...", editor: "premiere" })
+
+// Send to CapCut (bridge port :9090)
+export_to_editor({ projectDir: "...", editor: "capcut" })
+
+// Custom endpoint
+export_to_editor({ projectDir: "...", editor: "custom", editorUrl: "http://localhost:4000" })
+```
+
+Bridge servers run locally alongside the app. Setup docs: `docs/editor-bridges/`.
+Override ports: `RESOLVE_BRIDGE_URL`, `PREMIERE_BRIDGE_URL`, `CAPCUT_BRIDGE_URL`, `AE_BRIDGE_URL`.
 
 ---
 

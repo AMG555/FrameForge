@@ -150,24 +150,20 @@ class ExternalAdapter {
   _applyPreset() {
     const name = this.name.toLowerCase();
     const presets = {
+      // ── Voice / Audio platforms ─────────────────────────────────────────────
+      voxforge: {
+        baseUrl:    this.baseUrl || process.env.VOXFORGE_URL || 'https://api.voxforge.io',
+        ingestPath: '/v1/voices/add',   // upload a speaker sample for cloning
+        renderPath: '/v1/audio/speech', // OpenAI-compatible TTS synthesis
+        statusPath: '/v1/voices',       // list voices / health check
+      },
       elevenlabs: {
         baseUrl:    'https://api.elevenlabs.io',
-        ingestPath: '/v1/voices/add',                // voice cloning
-        renderPath: '/v1/text-to-speech',            // TTS synthesis
-        statusPath: '/v1/voices',                    // list voices (health check)
+        ingestPath: '/v1/voices/add',
+        renderPath: '/v1/text-to-speech',
+        statusPath: '/v1/voices',
       },
-      remotion: {
-        baseUrl:    process.env.REMOTION_BASE_URL || 'http://localhost:3001',
-        ingestPath: '/compositions',
-        renderPath: '/renders',
-        statusPath: '/renders',
-      },
-      voxforge: {
-        baseUrl:    this.baseUrl || 'https://api.voxforge.io',
-        ingestPath: '/v1/ingest',
-        renderPath: '/v1/render',
-        statusPath: '/v1/status',
-      },
+      // ── Video generation platforms ──────────────────────────────────────────
       runway: {
         baseUrl:    'https://api.runwayml.com',
         ingestPath: '/v1/assets',
@@ -179,6 +175,50 @@ class ExternalAdapter {
         ingestPath: '/generate',
         renderPath: '/generate',
         statusPath: '/generations',
+      },
+      kling: {
+        baseUrl:    'https://api.klingai.com',
+        ingestPath: '/v1/videos/image2video',
+        renderPath: '/v1/videos/image2video',
+        statusPath: '/v1/videos/image2video',
+      },
+      // ── Local editing app bridges ───────────────────────────────────────────
+      // These talk to local companion servers (CEP panel, local REST shim, etc.)
+      remotion: {
+        baseUrl:    process.env.REMOTION_BASE_URL || 'http://localhost:3001',
+        ingestPath: '/compositions',
+        renderPath: '/renders',
+        statusPath: '/renders',
+      },
+      premiere: {
+        // Adobe Premiere Pro — requires the FrameForge CEP panel (see docs/premiere-panel/)
+        // OR the unofficial premiere-rest-bridge: github.com/premiere-rest-bridge
+        baseUrl:    process.env.PREMIERE_BRIDGE_URL || 'http://localhost:7777',
+        ingestPath: '/import',          // import a clip into the current project
+        renderPath: '/export',          // export timeline to file
+        statusPath: '/status',
+      },
+      resolve: {
+        // DaVinci Resolve — requires local Resolve REST API bridge (port 8080 by default)
+        // Enable via: Preferences → System → Remote Control (DaVinci Resolve 18.6+)
+        baseUrl:    process.env.RESOLVE_BRIDGE_URL || 'http://localhost:8080',
+        ingestPath: '/media/import',
+        renderPath: '/render/start',
+        statusPath: '/render/status',
+      },
+      capcut: {
+        // CapCut Desktop — requires CapCut MCP bridge (https://github.com/capcut-mcp)
+        baseUrl:    process.env.CAPCUT_BRIDGE_URL || 'http://localhost:9090',
+        ingestPath: '/import',
+        renderPath: '/export',
+        statusPath: '/status',
+      },
+      aftereffects: {
+        // Adobe After Effects — requires AEIO REST bridge or ExtendScript server
+        baseUrl:    process.env.AE_BRIDGE_URL || 'http://localhost:7878',
+        ingestPath: '/import',
+        renderPath: '/render',
+        statusPath: '/render/status',
       },
     };
 

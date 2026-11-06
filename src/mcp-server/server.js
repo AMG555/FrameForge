@@ -592,14 +592,14 @@ Example scene:
   // ── Tool 12: Multi-platform TTS ──────────────────────────────────────────
   // Call any voice platform per-request without changing global .env
   multi_voice_tts: {
-    description: 'Convert text to speech using any supported voice platform per-call. Overrides the global PROVIDER_TTS for this one request. Supports: edge-tts, elevenlabs, azure, openai, custom webhook.',
+    description: 'Convert text to speech using any supported voice platform per-call. Overrides the global PROVIDER_TTS for this one request. Supports: edge-tts, voxforge, elevenlabs, azure, openai, webhook.',
     inputSchema: {
       type: 'object',
       required: ['text', 'outputPath'],
       properties: {
         text:       { type: 'string', description: 'Text to synthesise' },
         outputPath: { type: 'string', description: 'Where to save the audio file (.m4a or .mp3)' },
-        platform:   { type: 'string', enum: ['edge-tts','elevenlabs','azure','openai','webhook'], description: 'TTS platform. Overrides PROVIDER_TTS for this call.' },
+        platform:   { type: 'string', enum: ['edge-tts','voxforge','elevenlabs','azure','openai','webhook'], description: 'TTS platform. Overrides PROVIDER_TTS for this call. "voxforge" = github.com/amg555/voxforge; uses VOXFORGE_URL + VOXFORGE_KEY.' },
         voice:      { type: 'string', description: 'Voice ID. edge-tts: e.g. en-US-GuyNeural. ElevenLabs: voice_id. Azure: short name. OpenAI: alloy/echo/fable/nova/onyx/shimmer.' },
         rate:       { type: 'string', description: 'Speaking rate, e.g. "-10%" for slower, "+20%" for faster (edge-tts)' },
         apiKey:     { type: 'string', description: 'API key for this call (optional — falls back to env var)' },
@@ -608,9 +608,11 @@ Example scene:
         sceneIndex: { type: 'number', description: 'Optional scene index for naming the output file' },
       },
     },
-    handler: async ({ text, outputPath, platform, voice, rate, apiKey, webhookUrl, productionId = 'adhoc', sceneIndex }) => {
+    handler: async ({ text, outputPath, platform: _platform, voice, rate, apiKey, webhookUrl, productionId = 'adhoc', sceneIndex }) => {
       const syncFs  = require('fs');
       const pathMod = require('path');
+      // Normalise platform name so 'voxforge' routes correctly
+      const platform = _platform ? _platform.toLowerCase() : undefined;
 
       // Guard: outputPath must not escape FILES_DIR — prevent path traversal
       if (outputPath) {
@@ -1003,17 +1005,18 @@ Modes:
   "crop"       — focal-point 9:16 mobile crop preview; pass timestamps as [aspect_ratio_string, t]
   "full"       — full render → out/<title>.mp4
   "mux"        — re-mux audio only (no re-render, use after changing audio)
+  "kit"        — export EDL/XML for Premiere Pro / DaVinci Resolve; run after "full"
   "look"       — pre-render linter (fonts, clipped text, NaN transforms, missing assets)
 
 Review budget: at least one "sheet" per shot, one "strip" per key motion/transition, one "crop" per story-carrying face.
-Returns { outputPath, passed } for "full", or { outputPath } for sheet/strip/storyboard.
+Returns { outputPath, passed } for "full", or { outputPath } for sheet/strip/storyboard/kit.
 Requires: npm install playwright && npx playwright install chromium (one-time setup in projectDir).`,
     inputSchema: {
       type: 'object',
       required: ['projectDir', 'mode'],
       properties: {
         projectDir:  { type: 'string', description: 'The directory created by scaffold_animation_project' },
-        mode:        { type: 'string', enum: ['sheet', 'stills', 'strip', 'storyboard', 'crop', 'full', 'mux', 'look'], description: 'Render mode' },
+        mode:        { type: 'string', enum: ['sheet', 'stills', 'strip', 'storyboard', 'crop', 'full', 'mux', 'kit', 'look'], description: 'Render mode' },
         timestamps:  { type: 'array', items: {}, description: 'For mode="stills": [t1, t2, ...]. For mode="strip": [startSeconds, endSeconds]. For mode="crop": ["9:16", t]. For mode="sheet": omit or pass shot times.' },
         audioPath:   { type: 'string', description: 'Audio file to mux in (for mode="full" or "mux")' },
         workers:     { type: 'number', default: 4, description: 'Parallel Playwright pages for mode="full"' },
@@ -1091,6 +1094,9 @@ Requires: npm install playwright && npx playwright install chromium (one-time se
         } else if (mode === 'full' || mode === 'mux') {
           const mp4 = files.find(f => f.endsWith('.mp4') && !f.includes('_preview'));
           if (mp4) outputPath = pathMod.join(outDir, mp4);
+        } else if (mode === 'kit') {
+          const edl = files.find(f => f.endsWith('.edl') || f.endsWith('.xml'));
+          if (edl) outputPath = pathMod.join(outDir, edl);
         } else if (mode === 'stills' || mode === 'strip' || mode === 'crop') {
           const stills = files.filter(f => f.endsWith('.png') || f.endsWith('.jpg'));
           if (stills.length > 0) outputPath = stills.map(f => pathMod.join(outDir, f));
@@ -1114,13 +1120,118 @@ Requires: npm install playwright && npx playwright install chromium (one-time se
     },
   },
 
+  // ── Tool 18: Export to editing app ────────────────────────────────────────
+  // Send a finished animation project to any local editing app via MCP bridge.
+  // Works with Premiere Pro, DaVinci Resolve, CapCut, After Effects, or Remotion.
+  export_to_editor: {
+    description: `Send a finished FrameForge animation to a local editing app for post-production.
+
+Supported editors (configure via env or pass editorUrl directly):
+  "premiere"     — Adobe Premiere Pro via local REST bridge (PREMIERE_BRIDGE_URL, default :7777)
+  "resolve"      — DaVinci Resolve Remote API (RESOLVE_BRIDGE_URL, default :8080)
+  "capcut"       — CapCut Desktop via MCP bridge (CAPCUT_BRIDGE_URL, default :9090)
+  "aftereffects" — Adobe After Effects via AEIO bridge (AE_BRIDGE_URL, default :7878)
+  "remotion"     — Remotion local dev server (REMOTION_BASE_URL, default :3001)
+  "custom"       — any HTTP endpoint (pass editorUrl)
+
+What this does:
+  1. Imports the rendered MP4 (and optionally the audio stem) into the editor
+  2. Exports an EDL/XML timeline from the animation project (render_animation kit mode)
+  3. Returns the editor's import confirmation or render job ID
+
+The bridge servers are lightweight companion apps you run locally alongside the editor.
+They are not installed by FrameForge — see docs/editor-bridges/ for setup instructions.`,
+    inputSchema: {
+      type: 'object',
+      required: ['projectDir'],
+      properties: {
+        projectDir: { type: 'string', description: 'The animation project directory (from scaffold_animation_project)' },
+        editor:     { type: 'string', enum: ['premiere', 'resolve', 'capcut', 'aftereffects', 'remotion', 'custom'], default: 'resolve', description: 'Target editing app' },
+        editorUrl:  { type: 'string', description: 'Override the editor bridge URL (e.g. http://localhost:8080). Useful for custom or remote bridges.' },
+        audioPath:  { type: 'string', description: 'Audio stem to import alongside the video (optional)' },
+        importOnly: { type: 'boolean', default: false, description: 'If true, only import the clip — do not trigger an export/render in the editor.' },
+      },
+    },
+    handler: async ({ projectDir, editor = 'resolve', editorUrl, audioPath, importOnly = false }) => {
+      const syncFs  = require('fs');
+      const pathMod = require('path');
+      const { ExternalAdapter } = require('../pipeline/external-adapter');
+
+      if (!projectDir) throw new Error('projectDir is required');
+      if (!syncFs.existsSync(projectDir)) throw new Error(`Project directory not found: ${projectDir}`);
+
+      // Find the most recently rendered MP4 in out/
+      const outDir = pathMod.join(projectDir, 'out');
+      if (!syncFs.existsSync(outDir)) {
+        throw new Error(`No out/ directory in ${projectDir}. Run render_animation with mode="full" first.`);
+      }
+      const mp4Files = syncFs.readdirSync(outDir)
+        .filter(f => f.endsWith('.mp4') && !f.includes('_preview'))
+        .map(f => pathMod.join(outDir, f))
+        .sort((a, b) => syncFs.statSync(b).mtimeMs - syncFs.statSync(a).mtimeMs);
+
+      if (mp4Files.length === 0) {
+        throw new Error(`No rendered MP4 found in ${outDir}. Run render_animation with mode="full" first.`);
+      }
+      const masterPath = mp4Files[0];
+
+      // Also find the EDL from kit mode (generate it now if missing)
+      const edlFiles = syncFs.readdirSync(outDir).filter(f => f.endsWith('.edl') || f.endsWith('.xml'));
+      let edlPath = edlFiles.length > 0 ? pathMod.join(outDir, edlFiles[0]) : null;
+
+      // Configure the adapter for the target editor
+      // editorUrl overrides the preset base URL
+      const adapterConfig = editorUrl
+        ? { name: editor, baseUrl: editorUrl }
+        : { name: editor };
+
+      const adapter = new ExternalAdapter(adapterConfig);
+
+      // Build the file list to import
+      const files = [masterPath];
+      if (audioPath && syncFs.existsSync(audioPath)) files.push(audioPath);
+      if (edlPath) files.push(edlPath);
+
+      let importResult;
+      try {
+        importResult = await adapter.ingestMedia({
+          files,
+          metadata: {
+            source:    'frameforge',
+            projectDir,
+            editor,
+            importOnly: String(importOnly),
+          },
+        });
+      } catch (err) {
+        // If the bridge is not running, give a clear message instead of a raw HTTP error
+        throw new Error(
+          `Could not reach ${editor} bridge at ${adapter.baseUrl}.\n` +
+          `Make sure the bridge is running.\n` +
+          `Error: ${err.message}\n\n` +
+          `See docs/editor-bridges/${editor}.md for setup instructions.`
+        );
+      }
+
+      return {
+        editor,
+        bridgeUrl: adapter.baseUrl,
+        importedFiles: files.map(f => pathMod.basename(f)),
+        masterPath,
+        edlPath,
+        importResult,
+        message: `Imported into ${editor} at ${adapter.baseUrl}. ${edlPath ? 'EDL/XML timeline included.' : 'Tip: run render_animation mode="kit" to also export an EDL timeline.'}`,
+      };
+    },
+  },
+
 };
 
 // ── MCP protocol handler (MCP 2024-11-05 spec) ───────────────────────────
 
 const SERVER_INFO = {
   name:    'video-pipeline',
-  version: '2.3.1',
+  version: '2.3.2',
 };
 
 const CAPABILITIES = {

@@ -390,10 +390,56 @@ class TTSProvider {
       case 'elevenlabs': return this._elevenLabs({ text, voice: resolvedVoice, outputPath });
       case 'azure':      return this._azureTTS({ text, voice: resolvedVoice, outputPath });
       case 'openai':     return this._openaiTTS({ text, voice: resolvedVoice, outputPath });
+      case 'voxforge':   return this._voxforgeTTS({ text, voice: resolvedVoice, outputPath });
       case 'custom':
       case 'webhook':    return this._customTTS({ text, voice: resolvedVoice, outputPath });
       default:           return this._edgeTTS({ text, voice: resolvedVoice, outputPath });
     }
+  }
+
+  /**
+   * VoxForge TTS — github.com/amg555/voxforge
+   * OpenAI-compatible /v1/audio/speech endpoint with optional voice cloning.
+   * Env vars:
+   *   VOXFORGE_URL   — base URL, e.g. https://api.voxforge.io  (or self-hosted)
+   *   VOXFORGE_KEY   — API key (Bearer token)
+   *   VOXFORGE_VOICE — voice ID or cloned speaker ID (default: 'narrator')
+   *   VOXFORGE_MODEL — model ID (default: 'voxforge-v1')
+   */
+  async _voxforgeTTS({ text, voice, outputPath }) {
+    const baseUrl = process.env.VOXFORGE_URL || 'https://api.voxforge.io';
+    const apiKey  = this._overrides.apiKey || process.env.VOXFORGE_KEY || '';
+    const model   = process.env.VOXFORGE_MODEL || 'voxforge-v1';
+    const resolvedVoice = voice || process.env.VOXFORGE_VOICE || 'narrator';
+    const rate    = this._overrides.rate || process.env.TTS_RATE || '+0%';
+
+    const headers = { 'Content-Type': 'application/json' };
+    if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
+
+    // Try OpenAI-compatible /v1/audio/speech first; fall back to /v1/tts
+    const endpoints = [
+      `${baseUrl}/v1/audio/speech`,
+      `${baseUrl}/v1/tts`,
+    ];
+
+    return withRetry(async () => {
+      for (const url of endpoints) {
+        try {
+          const isOpenAIPath = url.endsWith('/speech');
+          const body = isOpenAIPath
+            ? { model, input: text, voice: resolvedVoice }
+            : { text, voice: resolvedVoice, rate, model };
+          const audio = await httpPost(url, body, headers);
+          await fs.writeFile(outputPath, Buffer.isBuffer(audio) ? audio : Buffer.from(audio, 'binary'));
+          const stat = await fs.stat(outputPath);
+          if (stat.size > 500) return outputPath;
+        } catch (err) {
+          if (endpoints.indexOf(url) === endpoints.length - 1) throw err;
+          // try next endpoint
+        }
+      }
+      throw new Error('VoxForge: all endpoints failed');
+    }, { maxAttempts: 3, baseDelayMs: 3000, label: 'TTS(voxforge)' });
   }
 
   async _customTTS({ text, voice, outputPath }) {
