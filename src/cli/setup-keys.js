@@ -171,6 +171,15 @@ async function main() {
 This wizard writes your provider API keys to: ${path.resolve(outFile)}
 Keys are never sent anywhere — they stay on your machine.
 Press Enter to accept a default. Ctrl+C to cancel.
+
+  ✅  No keys are required to make videos.
+      Your IDE writes the scenes — FrameForge uses free providers by default:
+        • edge-tts  — free voice (no account)
+        • pollinations — free images (no account)
+        • FFmpeg — free local render (already on your machine)
+
+      You only need keys for the auto-research pipeline (FrameForge writes the
+      script itself). Skip those sections if you plan to write scenes yourself.
 `);
 
   const cfg = {};
@@ -178,22 +187,27 @@ Press Enter to accept a default. Ctrl+C to cancel.
   // ── LLM ──────────────────────────────────────────────────────────────────
   section('1 / 5  —  LLM Provider  (research + script generation)');
   console.log('  Used for: researching topics, writing scripts, fact-checking.');
+  console.log('  ⚡ SKIP THIS if your IDE agent writes the scenes (most common path).');
   console.log('  Free option: Groq (no credit card needed for free tier).\n');
 
   cfg.PROVIDER_LLM = await menu('Choose LLM provider', [
+    ['skip',       '⏭  Skip — I write my own scenes (most common, no key needed)'],
     ['groq',       'Groq — free, fast (llama-3.3-70b). Get key: console.groq.com'],
     ['cerebras',   'Cerebras — fastest inference (2000+ tok/s). Get key: cloud.cerebras.ai'],
+    ['gemini',     'Google Gemini 2.0 Flash — free tier. Get key: aistudio.google.com'],
     ['openrouter', 'OpenRouter — all models with one key. Get key: openrouter.ai'],
     ['anthropic',  'Anthropic Claude Sonnet 4.5. Get key: console.anthropic.com'],
-    ['gemini',     'Google Gemini 2.0 Flash. Get key: aistudio.google.com'],
     ['mistral',    'Mistral Large. Get key: console.mistral.ai'],
     ['together',   'Together AI Llama-3.3-70B-Turbo. Get key: api.together.ai'],
     ['openai',     'OpenAI GPT-4o. Get key: platform.openai.com'],
     ['ollama',     'Ollama — fully local, no key needed. Install: ollama.com'],
     ['webhook',    'Custom/VoxForge/any OpenAI-compatible endpoint'],
-  ], 'groq');
+  ], 'skip');
 
-  if (cfg.PROVIDER_LLM === 'groq') {
+  if (cfg.PROVIDER_LLM === 'skip') {
+    console.log('  ✅  LLM skipped — your IDE will write scenes via create_video_from_script.\n');
+    cfg.PROVIDER_LLM = undefined; // don't write to config
+  } else if (cfg.PROVIDER_LLM === 'groq') {
     cfg.GROQ_API_KEY = await askSecret('  Groq API key (starts with gsk_)');
   } else if (cfg.PROVIDER_LLM === 'cerebras') {
     cfg.CEREBRAS_API_KEY = await askSecret('  Cerebras API key');
