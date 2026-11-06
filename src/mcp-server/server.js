@@ -1120,108 +1120,169 @@ Requires: npm install playwright && npx playwright install chromium (one-time se
     },
   },
 
-  // ── Tool 18: Export to editing app ────────────────────────────────────────
-  // Send a finished animation project to any local editing app via MCP bridge.
-  // Works with Premiere Pro, DaVinci Resolve, CapCut, After Effects, or Remotion.
+  // ── Tool 18: Edit in external app ─────────────────────────────────────────
+  // Import a FrameForge animation into an editing app AND optionally drive
+  // real editing operations — cuts, transitions, color, captions, render.
+  //
+  // How it works per editor:
+  //
+  //   resolve      — DaVinci Resolve 18.6+ built-in REST API (no bridge needed).
+  //                  Enable in Preferences → System → General → "IP Remote Control".
+  //                  Full edit support: import, timeline, cut, color, render.
+  //
+  //   premiere     — Adobe Premiere Pro via CEP panel companion server.
+  //                  The companion runs ExtendScript on the Premiere side and
+  //                  exposes a local REST API. Supports: import, cut, transition,
+  //                  caption overlay, export.
+  //                  Install: see docs/editor-bridges/premiere.md
+  //
+  //   aftereffects — After Effects via AE REST bridge (ExtendScript server).
+  //                  Supports: import comp, add effects, render queue.
+  //                  Install: see docs/editor-bridges/aftereffects.md
+  //
+  //   remotion     — Remotion IS code: operations are applied by editing the
+  //                  composition props and calling `npx remotion render`.
+  //                  No bridge needed — FrameForge writes the prop patches directly.
+  //
+  //   capcut       — CapCut has no public desktop editing API as of 2026.
+  //                  Only import + render export are supported (same as export_to_editor).
+  //
+  //   custom       — Any HTTP endpoint. You control what operations it handles.
   export_to_editor: {
-    description: `Send a finished FrameForge animation to a local editing app for post-production.
+    description: `Import a FrameForge animation into an editing app and optionally apply editing operations.
 
-Supported editors (configure via env or pass editorUrl directly):
-  "premiere"     — Adobe Premiere Pro via local REST bridge (PREMIERE_BRIDGE_URL, default :7777)
-  "resolve"      — DaVinci Resolve Remote API (RESOLVE_BRIDGE_URL, default :8080)
-  "capcut"       — CapCut Desktop via MCP bridge (CAPCUT_BRIDGE_URL, default :9090)
-  "aftereffects" — Adobe After Effects via AEIO bridge (AE_BRIDGE_URL, default :7878)
-  "remotion"     — Remotion local dev server (REMOTION_BASE_URL, default :3001)
-  "custom"       — any HTTP endpoint (pass editorUrl)
+Supported editors:
+  "resolve"      — DaVinci Resolve 18.6+ built-in REST API. Enable in Preferences → System → General → "IP Remote Control". Port default: 8080.
+  "premiere"     — Adobe Premiere Pro via CEP companion server. Full timeline editing via ExtendScript. Port default: 7777.
+  "aftereffects" — After Effects via AE REST bridge. Import comp, add effects, render queue. Port default: 7878.
+  "remotion"     — Remotion composition — patches props, triggers CLI render. Port default: 3001.
+  "capcut"       — CapCut Desktop — import + export only (no programmatic edit API available). Port default: 9090.
+  "custom"       — Any HTTP endpoint (pass editorUrl).
 
-What this does:
-  1. Imports the rendered MP4 (and optionally the audio stem) into the editor
-  2. Exports an EDL/XML timeline from the animation project (render_animation kit mode)
-  3. Returns the editor's import confirmation or render job ID
+Actions (pass as "action" parameter):
+  "import"       — Import the rendered MP4 (and EDL if present) into the editor. Default.
+  "edit"         — Apply a list of operations to an existing timeline (see "operations").
+  "render"       — Trigger the editor's own render/export pipeline.
+  "status"       — Poll a previously started render job (pass jobId).
 
-The bridge servers are lightweight companion apps you run locally alongside the editor.
-They are not installed by FrameForge — see docs/editor-bridges/ for setup instructions.`,
+Operations (used with action="edit"):
+  { op: "cut",        at: 4.5 }                          — add a cut at 4.5s
+  { op: "trim",       clip: 0, startDelta: 0.5 }         — trim clip 0 start by +0.5s
+  { op: "transition", between: [0,1], type: "dissolve", duration: 0.5 }
+  { op: "color",      clip: 0, lut: "/path/to/lut.cube" }
+  { op: "color",      clip: 0, grade: { lift: [0,0,0,0], gamma: [1,1,1,1], gain: [1,1,1,1] } }
+  { op: "caption",    at: 2.0, duration: 3.0, text: "Hello", position: "bottom" }
+  { op: "mute",       clip: 1 }
+  { op: "speed",      clip: 0, factor: 0.5 }             — 50% slow-motion
+  { op: "swap",       clip: 0, newPath: "/new/clip.mp4" } — replace a clip`,
     inputSchema: {
       type: 'object',
-      required: ['projectDir'],
+      required: ['editor'],
       properties: {
-        projectDir: { type: 'string', description: 'The animation project directory (from scaffold_animation_project)' },
-        editor:     { type: 'string', enum: ['premiere', 'resolve', 'capcut', 'aftereffects', 'remotion', 'custom'], default: 'resolve', description: 'Target editing app' },
-        editorUrl:  { type: 'string', description: 'Override the editor bridge URL (e.g. http://localhost:8080). Useful for custom or remote bridges.' },
-        audioPath:  { type: 'string', description: 'Audio stem to import alongside the video (optional)' },
-        importOnly: { type: 'boolean', default: false, description: 'If true, only import the clip — do not trigger an export/render in the editor.' },
+        editor:     { type: 'string', enum: ['resolve', 'premiere', 'aftereffects', 'remotion', 'capcut', 'custom'], description: 'Target editing app' },
+        action:     { type: 'string', enum: ['import', 'edit', 'render', 'status'], default: 'import', description: 'What to do: import clip, apply edit operations, trigger render, or poll status' },
+        projectDir: { type: 'string', description: 'FrameForge animation project directory. Required for action=import (finds the rendered MP4 and EDL automatically).' },
+        videoPath:  { type: 'string', description: 'Explicit MP4 path to import (overrides auto-detection from projectDir)' },
+        audioPath:  { type: 'string', description: 'Audio stem to import alongside the video' },
+        timelineName: { type: 'string', description: 'Timeline/sequence name to create or target in the editor' },
+        operations: { type: 'array',  description: 'Edit operations for action="edit". Each op: { op, clip?, at?, between?, type?, duration?, text?, position?, lut?, grade?, factor?, newPath? }' },
+        jobId:      { type: 'string', description: 'Render job ID to poll (for action="status")' },
+        editorUrl:  { type: 'string', description: 'Override the editor bridge URL. Useful for non-default ports or remote bridges.' },
+        exportPath: { type: 'string', description: 'Where the editor should save the export (for action="render")' },
       },
     },
-    handler: async ({ projectDir, editor = 'resolve', editorUrl, audioPath, importOnly = false }) => {
+    handler: async ({ editor = 'resolve', action = 'import', projectDir, videoPath, audioPath, timelineName, operations = [], jobId, editorUrl, exportPath }) => {
       const syncFs  = require('fs');
       const pathMod = require('path');
       const { ExternalAdapter } = require('../pipeline/external-adapter');
 
-      if (!projectDir) throw new Error('projectDir is required');
-      if (!syncFs.existsSync(projectDir)) throw new Error(`Project directory not found: ${projectDir}`);
+      if (!editor) throw new Error('editor is required');
 
-      // Find the most recently rendered MP4 in out/
-      const outDir = pathMod.join(projectDir, 'out');
-      if (!syncFs.existsSync(outDir)) {
-        throw new Error(`No out/ directory in ${projectDir}. Run render_animation with mode="full" first.`);
+      // ── Resolve video path ────────────────────────────────────────────────
+      let masterPath = videoPath || null;
+      let edlPath    = null;
+
+      if (!masterPath && projectDir) {
+        if (!syncFs.existsSync(projectDir)) throw new Error(`Project directory not found: ${projectDir}`);
+        const outDir = pathMod.join(projectDir, 'out');
+        if (!syncFs.existsSync(outDir)) throw new Error(`No out/ in ${projectDir}. Run render_animation mode="full" first.`);
+
+        const mp4s = syncFs.readdirSync(outDir)
+          .filter(f => f.endsWith('.mp4') && !f.includes('_preview'))
+          .map(f => pathMod.join(outDir, f))
+          .sort((a, b) => syncFs.statSync(b).mtimeMs - syncFs.statSync(a).mtimeMs);
+        if (mp4s.length === 0) throw new Error(`No MP4 in ${outDir}. Run render_animation mode="full" first.`);
+        masterPath = mp4s[0];
+
+        const edls = syncFs.readdirSync(outDir).filter(f => f.endsWith('.edl') || f.endsWith('.xml'));
+        if (edls.length > 0) edlPath = pathMod.join(outDir, edls[0]);
       }
-      const mp4Files = syncFs.readdirSync(outDir)
-        .filter(f => f.endsWith('.mp4') && !f.includes('_preview'))
-        .map(f => pathMod.join(outDir, f))
-        .sort((a, b) => syncFs.statSync(b).mtimeMs - syncFs.statSync(a).mtimeMs);
 
-      if (mp4Files.length === 0) {
-        throw new Error(`No rendered MP4 found in ${outDir}. Run render_animation with mode="full" first.`);
-      }
-      const masterPath = mp4Files[0];
-
-      // Also find the EDL from kit mode (generate it now if missing)
-      const edlFiles = syncFs.readdirSync(outDir).filter(f => f.endsWith('.edl') || f.endsWith('.xml'));
-      let edlPath = edlFiles.length > 0 ? pathMod.join(outDir, edlFiles[0]) : null;
-
-      // Configure the adapter for the target editor
-      // editorUrl overrides the preset base URL
-      const adapterConfig = editorUrl
-        ? { name: editor, baseUrl: editorUrl }
-        : { name: editor };
-
+      // ── Configure adapter ─────────────────────────────────────────────────
+      const adapterConfig = editorUrl ? { name: editor, baseUrl: editorUrl } : { name: editor };
       const adapter = new ExternalAdapter(adapterConfig);
 
-      // Build the file list to import
-      const files = [masterPath];
-      if (audioPath && syncFs.existsSync(audioPath)) files.push(audioPath);
-      if (edlPath) files.push(edlPath);
+      // ── Dispatch action ───────────────────────────────────────────────────
+      const callAdapter = async (method, payload) => {
+        try {
+          return await method(payload);
+        } catch (err) {
+          throw new Error(
+            `Could not reach ${editor} bridge at ${adapter.baseUrl}.\n` +
+            `Ensure the bridge is running. Error: ${err.message}\n` +
+            `Setup docs: docs/editor-bridges/${editor}.md`
+          );
+        }
+      };
 
-      let importResult;
-      try {
-        importResult = await adapter.ingestMedia({
-          files,
-          metadata: {
-            source:    'frameforge',
-            projectDir,
-            editor,
-            importOnly: String(importOnly),
-          },
-        });
-      } catch (err) {
-        // If the bridge is not running, give a clear message instead of a raw HTTP error
-        throw new Error(
-          `Could not reach ${editor} bridge at ${adapter.baseUrl}.\n` +
-          `Make sure the bridge is running.\n` +
-          `Error: ${err.message}\n\n` +
-          `See docs/editor-bridges/${editor}.md for setup instructions.`
+      if (action === 'import') {
+        if (!masterPath) throw new Error('Provide projectDir or videoPath for action="import"');
+        const files = [masterPath];
+        if (audioPath && syncFs.existsSync(audioPath)) files.push(audioPath);
+        if (edlPath) files.push(edlPath);
+        const result = await callAdapter(
+          p => adapter.ingestMedia(p),
+          { files, metadata: { source: 'frameforge', timelineName: timelineName || pathMod.basename(masterPath, '.mp4'), edlPath: edlPath || '' } }
         );
+        return { editor, action, bridgeUrl: adapter.baseUrl, importedFiles: files.map(f => pathMod.basename(f)), masterPath, edlPath, result,
+          message: `Imported into ${editor}. ${edlPath ? 'EDL/XML timeline included.' : 'Tip: run render_animation mode="kit" for an EDL.'}` };
       }
 
-      return {
-        editor,
-        bridgeUrl: adapter.baseUrl,
-        importedFiles: files.map(f => pathMod.basename(f)),
-        masterPath,
-        edlPath,
-        importResult,
-        message: `Imported into ${editor} at ${adapter.baseUrl}. ${edlPath ? 'EDL/XML timeline included.' : 'Tip: run render_animation mode="kit" to also export an EDL timeline.'}`,
-      };
+      if (action === 'edit') {
+        if (operations.length === 0) throw new Error('Provide at least one operation for action="edit"');
+        // Validate each operation has an "op" field
+        for (const [i, o] of operations.entries()) {
+          if (!o.op) throw new Error(`operations[${i}] is missing required field "op"`);
+          const valid = ['cut','trim','transition','color','caption','mute','speed','swap'];
+          if (!valid.includes(o.op)) throw new Error(`operations[${i}].op "${o.op}" is not valid. Use: ${valid.join(', ')}`);
+        }
+        const body = { operations, timelineName: timelineName || 'FrameForge', source: 'frameforge' };
+        const result = await callAdapter(
+          p => adapter.renderScenes({ scenes: [], productionId: 'edit', options: p }),
+          body
+        );
+        return { editor, action, bridgeUrl: adapter.baseUrl, operationCount: operations.length, result,
+          message: `Applied ${operations.length} edit operation(s) in ${editor}.` };
+      }
+
+      if (action === 'render') {
+        const body = { exportPath: exportPath || '', timelineName: timelineName || 'FrameForge', source: 'frameforge' };
+        const result = await callAdapter(
+          p => adapter.renderScenes({ scenes: [], productionId: 'render', options: p }),
+          body
+        );
+        const newJobId = result?.jobId || result?.id || result?.data?.id;
+        return { editor, action, bridgeUrl: adapter.baseUrl, jobId: newJobId, result,
+          message: newJobId ? `Render started in ${editor}. Poll with action="status" jobId="${newJobId}".` : `Render triggered in ${editor}.` };
+      }
+
+      if (action === 'status') {
+        if (!jobId) throw new Error('Provide jobId for action="status"');
+        const result = await callAdapter(p => adapter.checkStatus(p), jobId);
+        return { editor, action, jobId, status: result.status, outputUrl: result.outputUrl, result };
+      }
+
+      throw new Error(`Unknown action: ${action}. Use import | edit | render | status`);
     },
   },
 

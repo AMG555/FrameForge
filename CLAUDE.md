@@ -270,29 +270,65 @@ VOXFORGE_VOICE=my-cloned-voice-id
 
 ---
 
-## EDITOR BRIDGES — send animation to editing apps
+## EDITOR BRIDGES — import and edit in external apps
 
-After `render_animation full`, send the finished MP4 into any editing app:
+`export_to_editor` supports four actions: **import**, **edit**, **render**, **status**.
+
+### Import a finished animation
 
 ```
-// Export EDL timeline first (for apps that support it)
-render_animation({ projectDir: "...", mode: "kit" })
+// Auto-generates EDL and imports MP4 + EDL into DaVinci Resolve
+export_to_editor({ editor: "resolve", action: "import", projectDir: ".frameforge-files/my-anim/" })
 
-// Send to DaVinci Resolve (default bridge port :8080)
-export_to_editor({ projectDir: "...", editor: "resolve" })
+// Premiere Pro (requires CEP companion server)
+export_to_editor({ editor: "premiere", action: "import", projectDir: "..." })
 
-// Send to Premiere Pro (bridge port :7777)
-export_to_editor({ projectDir: "...", editor: "premiere" })
-
-// Send to CapCut (bridge port :9090)
-export_to_editor({ projectDir: "...", editor: "capcut" })
-
-// Custom endpoint
-export_to_editor({ projectDir: "...", editor: "custom", editorUrl: "http://localhost:4000" })
+// Explicit video path (no projectDir needed)
+export_to_editor({ editor: "resolve", action: "import", videoPath: "/path/to/output.mp4" })
 ```
 
-Bridge servers run locally alongside the app. Setup docs: `docs/editor-bridges/`.
-Override ports: `RESOLVE_BRIDGE_URL`, `PREMIERE_BRIDGE_URL`, `CAPCUT_BRIDGE_URL`, `AE_BRIDGE_URL`.
+### Apply editing operations
+
+```
+export_to_editor({
+  editor: "resolve",
+  action: "edit",
+  timelineName: "MyFilm",
+  operations: [
+    { op: "cut",        at: 4.5 },
+    { op: "transition", between: [0, 1], type: "dissolve", duration: 0.5 },
+    { op: "color",      clip: 0, lut: "/path/to/film.cube" },
+    { op: "caption",    at: 2.0, duration: 3.0, text: "Chapter 1", position: "bottom" },
+    { op: "trim",       clip: 1, startDelta: 0.3 },
+    { op: "speed",      clip: 2, factor: 0.5 },
+    { op: "mute",       clip: 3 },
+    { op: "swap",       clip: 0, newPath: "/new/take.mp4" }
+  ]
+})
+```
+
+### Trigger the editor's own render/export
+
+```
+export_to_editor({ editor: "resolve", action: "render", exportPath: "/exports/final.mp4" })
+// → returns { jobId }
+
+export_to_editor({ editor: "resolve", action: "status", jobId: "..." })
+// → returns { status, outputUrl }
+```
+
+### What's supported per editor
+
+| Editor | import | edit ops | render | Notes |
+|--------|--------|----------|--------|-------|
+| `resolve` | ✅ | ✅ | ✅ | Built-in REST API (Resolve 18.6+). Enable in Preferences → System → General → "IP Remote Control". No bridge install needed. |
+| `premiere` | ✅ | ✅ | ✅ | Requires CEP companion panel. See `docs/editor-bridges/premiere.md`. |
+| `aftereffects` | ✅ | ✅ | ✅ | Requires AE REST bridge. See `docs/editor-bridges/aftereffects.md`. |
+| `remotion` | ✅ | ✅ | ✅ | Remotion is code — operations patch composition props + trigger CLI render. No bridge. |
+| `capcut` | ✅ | ❌ | ✅ | No public desktop edit API. Import + export only. |
+| `custom` | ✅ | ✅ | ✅ | You define what the endpoint handles. |
+
+**Override ports:** `RESOLVE_BRIDGE_URL`, `PREMIERE_BRIDGE_URL`, `CAPCUT_BRIDGE_URL`, `AE_BRIDGE_URL`
 
 ---
 
