@@ -1,17 +1,45 @@
 {
   "name": "frameforge",
-  "owner": { "name": "AMG555" },
-  "metadata": {
-    "description": "FrameForge — Enterprise AI video production engine. Localhost-first, any agentic IDE (IBM Bob, Cursor, Windsurf, Kiro, Claude Code). Cloudflare Remote MCP for ~80% token savings.",
-    "version": "1.2.0"
-  },
+  "displayName": "FrameForge — AI Video Production",
+  "description": "Full AI video production engine. Produce short-form reels (1080×1920), YouTube videos (1920×1080), or code-driven animated explainers — directly from your IDE. Playwright + FFmpeg renders every frame. 17 MCP tools.",
+  "version": "2.3.1",
+  "homepage": "https://github.com/AMG555/FrameForge",
   "plugins": [
     {
       "name": "video-pipeline",
-      "source": "./plugins/video-pipeline",
-      "description": "End-to-end overnight video production: topic research with real fact-checking (Tavily/Brave/SearXNG), script writing, voice synthesis (ElevenLabs/edge-tts/Azure/OpenAI), FFmpeg animation, quality gates, file and webhook delivery.",
-      "version": "2.3.0",
-      "keywords": ["frameforge", "video", "automation", "mcp", "tts", "ffmpeg", "ibm-bob", "enterprise", "cloudflare"]
+      "path": "plugins/video-pipeline/.claude-plugin/plugin.json",
+      "skills": [
+        {
+          "name": "video-pipeline",
+          "displayName": "FrameForge Video Pipeline",
+          "description": "End-to-end video production: research → script → TTS → images → render → publish. Three paths: (1) IDE writes scenes (most common, no API key), (2) code-driven Playwright animation, (3) auto-research pipeline. 17 MCP tools.",
+          "triggerPhrases": [
+            "make a video about",
+            "produce a reel on",
+            "create a short",
+            "edit this into a reel",
+            "make an explainer",
+            "animated video",
+            "code-driven video",
+            "generate video",
+            "run the pipeline",
+            "publish video",
+            "overnight batch",
+            "queue videos"
+          ]
+        }
+      ]
     }
-  ]
+  ],
+  "mcpServer": {
+    "command": "npx",
+    "args": ["--yes", "--package=@amg555/frameforge-mcp", "frameforge-mcp"],
+    "description": "Runs the FrameForge MCP server via npx (no install needed). Requires ffmpeg and edge-tts on PATH."
+  },
+  "requirements": {
+    "node": ">=18.0.0",
+    "binaries": ["ffmpeg", "ffprobe"],
+    "optional": ["edge-tts", "python3"],
+    "notes": "edge-tts: pip install edge-tts. Playwright (for code-driven animation): npm install playwright && npx playwright install chromium (run once in project dir)."
+  }
 }

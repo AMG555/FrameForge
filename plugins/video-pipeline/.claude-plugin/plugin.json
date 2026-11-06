@@ -1,8 +1,19 @@
 {
   "name": "video-pipeline",
-  "version": "1.0.0",
-  "description": "Autonomous overnight video production for any agentic IDE. MCP server on port 3210, pluggable LLM/TTS/Image providers (Groq, watsonx, OpenAI, edge-tts, ElevenLabs, Azure, Pollinations, fal.ai), quality gates, file and webhook delivery.",
-  "author": { "name": "auto-vid-gen" },
-  "license": "Apache-2.0",
-  "keywords": ["video", "n8n", "mcp", "ibm-bob", "watsonx", "groq", "ffmpeg", "tts", "automation"]
+  "displayName": "FrameForge Video Pipeline",
+  "version": "2.3.1",
+  "description": "End-to-end AI video production. IDE writes scenes → FrameForge renders. Or: scaffold a Playwright+ffmpeg code-driven animation. Or: auto-research and script the video.",
+  "skills": [
+    {
+      "name": "video-pipeline",
+      "path": "skills/video-pipeline/SKILL.md",
+      "displayName": "Video Pipeline",
+      "description": "17 MCP tools: create_video_from_script, scaffold_animation_project, render_animation, validate_storyboard, multi_voice_tts, ingest_media, edit_scenes, research_topic, write_script, queue_full_pipeline, and more."
+    }
+  ],
+  "mcpServer": {
+    "command": "npx",
+    "args": ["--yes", "--package=@amg555/frameforge-mcp", "frameforge-mcp"],
+    "description": "Starts the FrameForge MCP server. No install needed — npx pulls from npm."
+  }
 }

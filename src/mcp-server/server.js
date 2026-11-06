@@ -1120,7 +1120,7 @@ Requires: npm install playwright && npx playwright install chromium (one-time se
 
 const SERVER_INFO = {
   name:    'video-pipeline',
-  version: '2.3.0',
+  version: '2.3.1',
 };
 
 const CAPABILITIES = {

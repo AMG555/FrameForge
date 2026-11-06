@@ -94,9 +94,13 @@ Output files appear in `.frameforge-files/`:
 
 ### Path 2 — Code-driven animated video (Playwright + FFmpeg, no AI images)
 
-Use this when: the user wants motion graphics, Pollinations is unavailable, or they ask for "animated" or "code-rendered" video. Every frame is a pure function of time `t`.
+Use this when: the user wants motion graphics, Pollinations is unavailable, or they ask for "animated", "code-rendered", "explainer", "reel", or "YouTube-style" video. Every frame is a pure function of time `t`.
 
 > **Iron rule:** Never use `Math.random()`, `Date.now()`, `setTimeout`, or module-level mutable state in scene code. Use `hash(i)` from `reel/engine.js` for deterministic randomness.
+
+**Pick a format first:**
+- **Reel / Short / TikTok** → `width: 1080, height: 1920` (portrait 9:16)
+- **YouTube / Explainer** → `width: 1920, height: 1080` (landscape 16:9)
 
 **Step 0 — Beat sheet first. Always. No exceptions.**
 
@@ -106,9 +110,14 @@ Before writing any scene code, reply to the user with:
 
 **Stop and wait for approval before Step 1.** Fixing a beat sheet costs one message. Rewriting a finished scene costs everything.
 
-**Step 1 — Generate TTS first (exact timing is ground truth):**
+**Step 1 — Generate TTS and transcription (exact timing is ground truth):**
 ```
 multi_voice_tts({ text: "Full narration text.", outputPath: ".frameforge-files/voice_0.m4a" })
+```
+Then transcribe for word-level timestamps (required for `cuePhrase()` sync):
+```
+// run in projectDir after scaffold: python scripts/transcribe.py .frameforge-files/voice_0.m4a
+// → produces voice_0.captions.json with per-word start/end times
 ```
 
 **Step 2 — Scaffold the project:**
@@ -116,7 +125,7 @@ multi_voice_tts({ text: "Full narration text.", outputPath: ".frameforge-files/v
 scaffold_animation_project({
   outDir: ".frameforge-files/my-animation/",
   title: "My Video",
-  width: 1920, height: 1080,
+  width: 1920, height: 1080,   // or 1080×1920 for portrait reel
   scenes: [{ narration: "...", caption: "...", visual_description: "..." }],
   audioPath: ".frameforge-files/voice_0.m4a"
 })
@@ -138,15 +147,48 @@ validate_storyboard({ storyboardPath: ".frameforge-files/my-animation/STORYBOARD
 - Read `ANIMATION_GUIDE.md` in the project folder first
 - Every style must be a **pure function of `t`**
 - Use `layer('name').on(t => ({ ...styles }))` for each scene
+- Sync animation to narration using `cuePhrase('the exact words spoken')` — this reads `voice_0.captions.json` and returns the frame when those words start. **The build fails if the phrase isn't found**, so re-recording VO can never silently desync the animation.
 
 **Step 5 — Pre-flight, then stills, then full render:**
 ```
 render_animation({ projectDir: ".frameforge-files/my-animation/", mode: "look" })       // fonts, assets, NaN checks
 render_animation({ projectDir: ".frameforge-files/my-animation/", mode: "sheet" })      // contact sheet — inspect this
 render_animation({ projectDir: ".frameforge-files/my-animation/", mode: "strip", timestamps: [2.1, 2.6] })  // motion check
+render_animation({ projectDir: ".frameforge-files/my-animation/", mode: "crop", timestamps: ["9:16", 3.0] })  // mobile check
 render_animation({ projectDir: ".frameforge-files/my-animation/", mode: "full",
                    audioPath: ".frameforge-files/voice_0.m4a" })                         // only after stills pass
 ```
+
+**Still review budget (minimum, before full render):**
+- At least one `sheet` per shot
+- One `strip` per key motion or transition
+- One `crop` per story-carrying face or detail
+
+**Step 6 — Optional: hook variants**
+
+For reels and Shorts, make 2–3 versions with different opening hooks:
+- Change only the first shot (0s–3s) in `edit.js`
+- `render_animation({ mode: "stills", timestamps: [0.0, 1.5, 3.0] })` to compare openings
+- Full render each variant, deliver as `hook_a.mp4`, `hook_b.mp4`, etc.
+
+**Step 7 — Optional: unattended / spend-capped batch**
+```
+// run from projectDir
+python scripts/video_job.py submit --spec spec.json --max-usd 2.00
+// → { jobId }  — detached process, survives your session closing
+python scripts/video_job.py status --id <jobId>
+python scripts/video_job.py result --id <jobId>
+```
+Each step only starts if the running cost won't exceed `--max-usd`. Receipts go to `jobs/receipts.jsonl`.
+
+**Step 8 — Golden stills regression test (before any refactor)**
+
+After the video passes QC, save the test stills:
+```
+render_animation({ projectDir, mode: "storyboard" })  // 4 keyframes, file to out/storyboard.jpg
+// → copy out/storyboard.jpg to test/golden/storyboard.jpg
+```
+Before future refactors, re-run and compare. If pixels shift, the refactor broke determinism.
 
 > Requires one-time setup in the project directory: `npm install playwright && npx playwright install chromium`
 

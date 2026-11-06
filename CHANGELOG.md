@@ -4,6 +4,22 @@ All notable changes to FrameForge are documented here.
 
 ---
 
+## [2.3.1] — 2026-11-04
+
+### Added
+
+- **`.claude-plugin/marketplace.json`** — Claude Code plugin marketplace registration. FrameForge is now discoverable via `claude plugin marketplace add AMG555/FrameForge`.
+- **`plugins/video-pipeline/.claude-plugin/plugin.json`** — per-plugin manifest for the video-pipeline skill.
+
+### Changed
+
+- **`src/cli/setup-keys.js`** — `skip` is now the **default** option in the LLM provider menu. Users who write their own scenes (the most common path) are no longer forced through an API key section.
+- **`CLAUDE.md`** — Path 2 expanded: transcript/`cuePhrase()` word-sync workflow, `video_job.py` spend-capped batch, golden stills regression test, hook variants (A/B testing opening shots), mobile crop check, still-review budget.
+- **`START_HERE.md`** — restructured into three named paths (A: IDE-scenes, B: code-driven animation, C: auto-research). Reel vs. YouTube format choice surfaced in opening questions. Path B includes transcription, hook variants, and storyboard gate.
+- Version bump: `2.3.0` → `2.3.1` across all version strings.
+
+---
+
 ## [2.3.0] — 2026-11-02
 
 ### Added
