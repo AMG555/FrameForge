@@ -1,0 +1,18 @@
+{
+  "title": "End-to-End Test Video",
+  "scenes": [
+    {
+      "scene_id": 1,
+      "narration": "Welcome to the world of deterministic code-driven animations.",
+      "caption": "CODE-DRIVEN VIDEO",
+      "visual_description": "Bold modern kinetic typography with glowing blue accent"
+    },
+    {
+      "scene_id": 2,
+      "narration": "Every frame is a pure mathematical function of time t.",
+      "caption": "PURE FUNCTION OF T",
+      "visual_description": "Terminal and code execution card appearing on screen"
+    }
+  ]
+}
+

@@ -19,6 +19,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { doctorBrowser, launchHarnessBrowser } from '../lib/browser.mjs';
+import { openPageWithVirtualClock } from '../lib/capture.mjs';
 import { verifyScenePurity } from '../lib/verify-purity.mjs';
 import { renderSheet, renderStrip, renderCrop, renderStoryboard } from '../lib/sheets.mjs';
 import { renderFrameJobs } from '../lib/jobs.mjs';
@@ -75,7 +76,6 @@ async function cmdDoctor() {
     console.log(`  ✅ Renderer: ${res.renderer}`);
     console.log(`  ✅ Vendor:   ${res.vendor}`);
     console.log(`  Flags:      ${res.flags.join(' ')}`);
-    process.exit(0);
   } else {
     console.error(`  ❌ Doctor failed: ${res.error}`);
     process.exit(1);
@@ -145,8 +145,7 @@ async function cmdVerify() {
 
 async function cmdSheet() {
   const { browser } = await launchHarnessBrowser();
-  const page = await browser.newPage();
-  await page.goto('file://' + HTML_FILE, { waitUntil: 'load' });
+  const page = await openPageWithVirtualClock({ browser, htmlPath: HTML_FILE });
   const outPath = flags.out ? path.resolve(CWD, flags.out) : path.join(CHECK_DIR, 'sheet.jpg');
 
   let times = [0.1, 0.5, 1.0, 1.5, 2.0];
@@ -173,8 +172,7 @@ async function cmdStrip() {
   const outPath = flags.out ? path.resolve(CWD, flags.out) : path.join(CHECK_DIR, `strip_${start}_${end}s.jpg`);
 
   const { browser } = await launchHarnessBrowser();
-  const page = await browser.newPage();
-  await page.goto('file://' + HTML_FILE, { waitUntil: 'load' });
+  const page = await openPageWithVirtualClock({ browser, htmlPath: HTML_FILE });
 
   console.log(`🎞 Generating Motion Strip [${start}s → ${end}s] → ${outPath}`);
   await renderStrip({
@@ -199,8 +197,7 @@ async function cmdCrop() {
   const outPath = flags.out ? path.resolve(CWD, flags.out) : path.join(CHECK_DIR, `crop_${time}s.jpg`);
 
   const { browser } = await launchHarnessBrowser();
-  const page = await browser.newPage();
-  await page.goto('file://' + HTML_FILE, { waitUntil: 'load' });
+  const page = await openPageWithVirtualClock({ browser, htmlPath: HTML_FILE });
 
   console.log(`✂ Generating Crop Check (at ${time}s, framing=${cropStr}) → ${outPath}`);
   await renderCrop({

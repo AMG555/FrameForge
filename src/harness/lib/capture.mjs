@@ -110,7 +110,19 @@ export const VIRTUAL_CLOCK_INJECTION = `
 })();
 `;
 
-export async function openPageWithVirtualClock(browser, htmlPath, { width = 1920, height = 1080 } = {}) {
+export async function openPageWithVirtualClock(browserOrOpts, htmlPathArg, optsArg = {}) {
+  let browser, htmlPath, width, height;
+  if (browserOrOpts && typeof browserOrOpts === 'object' && browserOrOpts.browser) {
+    browser  = browserOrOpts.browser;
+    htmlPath = browserOrOpts.htmlPath;
+    width    = browserOrOpts.width || 1920;
+    height   = browserOrOpts.height || 1080;
+  } else {
+    browser  = browserOrOpts;
+    htmlPath = htmlPathArg;
+    width    = optsArg.width || 1920;
+    height   = optsArg.height || 1080;
+  }
   const page = await browser.newPage();
   await page.addInitScript(VIRTUAL_CLOCK_INJECTION);
 

@@ -54,6 +54,7 @@ export function buildFramesEncodeArgs({
     '-colorspace', 'bt709',
     '-color_primaries', 'bt709',
     '-color_trc', 'bt709',
+    '-x264-params', 'colorprim=bt709:transfer=bt709:colormatrix=bt709',
     '-movflags', '+faststart',
     // Explicit duration prevents -shortest hang trap
     '-t', String(duration),
