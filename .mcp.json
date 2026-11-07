@@ -6,7 +6,7 @@
     "remote": "CLOUDFLARE REMOTE MCP: Connects via edge URL. Saves ~80% prompt context tokens in your IDE."
   },
   "_paths": {
-    "agent-first": "Path 1 — your IDE writes scenes, FrameForge renders. Only TTS + image keys needed. No LLM key.",
+    "agent-first": "Path 1 — your IDE writes scenes, FrameForge renders with code-driven animations & user media. Only TTS needed. No LLM key.",
     "auto-research": "Path 2 — FrameForge researches and scripts autonomously. Requires PROVIDER_LLM + its key."
   },
 
@@ -17,8 +17,7 @@
       "command": "node",
       "args": ["src/mcp-server/stdio.js"],
       "env": {
-        "PROVIDER_TTS":   "edge-tts",
-        "PROVIDER_IMAGE": "pollinations"
+        "PROVIDER_TTS":   "edge-tts"
       }
     },
 
@@ -28,7 +27,6 @@
       "args": ["src/mcp-server/server.js"],
       "env": {
         "PROVIDER_TTS":   "edge-tts",
-        "PROVIDER_IMAGE": "pollinations",
         "MCP_PORT":       "3210"
       }
     },

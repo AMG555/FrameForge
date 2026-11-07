@@ -49,7 +49,6 @@ GROQ_API_KEY=gsk_...
 
 # Optional — free providers work without keys
 PROVIDER_TTS=edge-tts
-PROVIDER_IMAGE=pollinations
 ```
 
 ---
@@ -117,7 +116,6 @@ Then from your IDE: `queue_full_pipeline({ topic: "How GPS works" })`
         "PROVIDER_LLM": "groq",
         "GROQ_API_KEY": "${GROQ_API_KEY}",
         "PROVIDER_TTS": "edge-tts",
-        "PROVIDER_IMAGE": "pollinations",
         "PUBLISH_WEBHOOK_URL": "${PUBLISH_WEBHOOK_URL}"
       }
     }
@@ -156,7 +154,7 @@ Restart your IDE. The skill appears in the skill palette and the MCP tools appea
 ## Raspberry Pi / low-memory notes
 
 - Use `PROVIDER_LLM=ollama` with `LLM_MODEL=llama3.2:1b` for local inference
-- Use `PROVIDER_IMAGE=pollinations` (free, no local GPU needed)
+- Visuals use code-driven animation (zero GPU memory, pure CPU/FFmpeg)
 - Set `parallelism=1` in runAssets calls if RAM < 2 GB
 - FFmpeg render is CPU-bound: a 55-scene video takes ~45 min on Pi 4
 

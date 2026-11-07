@@ -49,7 +49,7 @@ prefer to remain anonymous.
 
 ### Network
 - FFmpeg calls use `-nostdin` to prevent interactive prompts from blocking.
-- All outbound HTTP calls (Pollinations, search APIs, webhook endpoints) use
+- All outbound HTTP calls (search APIs, webhook endpoints) use
   Node.js `https` with explicit timeouts and no silent redirects beyond 5 hops.
 
 ### Cloudflare Workers
@@ -64,8 +64,6 @@ prefer to remain anonymous.
 - The LLM fallback in `FactChecker._querySources()` produces synthesized
   sources when no `SEARCH_API_KEY` is set. These are not real citations and
   should not be presented as authoritative without a real search provider.
-- Pollinations.ai image requests are unauthenticated — do not include
-  private or sensitive content in image prompts.
 - `PUBLISH_WEBHOOK_URL` and `REVIEW_NOTIFY_URL` receivers are trusted
   endpoints; ensure they are authenticated on your side before deploying
   to production.

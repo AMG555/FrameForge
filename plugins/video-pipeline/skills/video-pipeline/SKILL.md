@@ -42,7 +42,7 @@ IDE Agent (IBM Bob / Codex / opencode / Cursor / Windsurf / Claude Code)
     │                              |mistral|together|cerebras|openai
     │                              |ollama|webhook
     │  TTS provider:   PROVIDER_TTS=edge-tts|elevenlabs|azure|openai|webhook
-    │  Image provider: PROVIDER_IMAGE=pollinations|falai|replicate|dalle|webhook
+    │  Visuals:        Code-driven animations (default) + user media (video_path / image_path)
     │
     ▼  Optional: queue_full_pipeline
        queue_full_pipeline MCP tool → POST job to worker API (WORKER_API_URL)
@@ -121,8 +121,7 @@ GROQ_API_KEY=gsk_...
 # TTS (edge-tts is free offline)
 PROVIDER_TTS=edge-tts
 
-# Image (pollinations is free, no key)
-PROVIDER_IMAGE=pollinations
+# Visuals are 100% code-driven (kinetic typography/motion graphics) + user media. No image key needed.
 
 # Delivery (optional — default is 'file' which copies to N8N_FILES_DIR/published/)
 # PUBLISH_WEBHOOK_URL=https://hooks.example.com/frameforge
@@ -264,10 +263,8 @@ marks that production FAILED and moves to the next topic.
 | TTS   | elevenlabs  | `ELEVENLABS_API_KEY`      | Voice cloning                  |
 | TTS   | azure       | `AZURE_SPEECH_KEY`        | Enterprise                     |
 | TTS   | openai      | `OPENAI_API_KEY`          | High quality                   |
-| Image | pollinations| _(none)_                  | Free, no key                   |
-| Image | falai       | `FAL_API_KEY`             | Fast FLUX                      |
-| Image | replicate   | `REPLICATE_API_TOKEN`     | Flexible                       |
-| Image | dalle       | `OPENAI_API_KEY`          | DALL-E 3                       |
+| Visual| code-driven | _(none)_                  | Default — kinetic cards & typography |
+| Visual| user-media  | _(none)_                  | Caller `image_path` / `video_path`   |
 
 ---
 

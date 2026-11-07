@@ -7,7 +7,7 @@
  * Architecture:
  * - Metadata filtering (primary): Fast PostgreSQL lookup
  * - Semantic search (fallback): Embedding similarity if no metadata match
- * - Generation: Pollinations API with style consistency
+ * - Generation: Procedural SVG / local visual composition
  */
 
 const fs     = require('fs').promises;

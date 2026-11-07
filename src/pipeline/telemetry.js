@@ -26,6 +26,7 @@ const COST_TABLE = {
   together:    { tokens:     0.00000090 },  // $0.90/1M tokens (Llama-3.3-70B-Turbo)
   openai:      { tokens:     0.00000250 },  // $2.50/1M input tokens (gpt-4o)
   ollama:      { tokens:     0           },  // local
+  code_animation: { images:  0           },  // 100% local procedural code-driven motion
   pollinations:{ images:     0           },  // free tier
   falai:       { images:     0.003       },  // ~$0.003/image
   replicate:   { images:     0.003       },

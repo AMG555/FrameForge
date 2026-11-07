@@ -51,7 +51,7 @@ All notable changes to FrameForge are documented here.
   - `scripts/verify.py` — 7-gate quality verification (same gates as `QualityGate`)
   - `scripts/transcribe.py` — Whisper word-level caption outline generator (`openai-whisper`, free local)
   - `scripts/capture.mjs` — headless Playwright screenshot for b-roll (site, tweet, URL)
-  - `scripts/stock.py` — Pexels stock footage/image downloader (free API key); Pollinations fallback for images
+  - `scripts/stock.py` — Pexels stock footage/image downloader (free API key) with user media asset stubs
   - `scripts/html-renderer/new-project.mjs` updated: copies real engine files instead of writing stubs; includes all 8 scripts
 - **Tool 14: `get_job_status`** — MCP tool to poll a job queued by `queue_full_pipeline`. Returns `{ status, stage, result, error }`. Added to `src/mcp-server/server.js`; automatically available on stdio transport. 5 new tests.
 - **Cloudflare KV rate limiter** — sliding-window 100 req/hr per bearer token. SHA-256-hashed key stored in `RATE_LIMITS` KV namespace. Returns HTTP 429 + `Retry-After` when exceeded. KV binding documented in `cloudflare-mcp/wrangler.toml`. Rate-limiting skipped when KV not bound (local dev).

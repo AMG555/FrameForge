@@ -36,7 +36,8 @@
  *   --channels      <list>   file,webhook  (default: file)
  *   --no-research            Skip research stage (use --topic as raw facts)
  *   --no-script              Skip script stage (requires --scenes-file)
- *   --no-images              Skip AI image generation (use video/image_path in scenes)
+ *   --no-images              Skip AI image generation (use code-driven animation or user clips)
+ *   --ai-images              Opt-in: generate AI diffusion images (default: code animation)
  *   --no-tts                 Skip TTS synthesis (use audio_path in scenes)
  *   --no-shorts              Skip Shorts extraction
  *   --no-publish             Skip publishing (render only)
@@ -84,6 +85,14 @@ const LANGUAGE_VOICES = {
 
 // ── Argument parsing ──────────────────────────────────────────────────────────
 
+// Dispatch to code-driven animation harness if invoked as `frameforge harness ...`
+if (process.argv[2] === 'harness') {
+  const harnessBin = path.resolve(__dirname, '../harness/bin/harness.mjs');
+  const { spawnSync } = require('child_process');
+  const res = spawnSync(process.execPath, [harnessBin, ...process.argv.slice(3)], { stdio: 'inherit' });
+  process.exit(res.status ?? 0);
+}
+
 function parseArgs(argv) {
   const args = {
     mode: 'full-auto',
@@ -108,6 +117,7 @@ function parseArgs(argv) {
       case '--no-research':   args.noResearch  = true; break;
       case '--no-script':     args.noScript    = true; break;
       case '--no-images':     args.noImages    = true; break;
+      case '--ai-images':     args.aiImages    = true; break;
       case '--no-tts':        args.noTts       = true; break;
       case '--no-shorts':     args.shorts      = false; break;
       case '--no-publish':    args.noPublish   = true; break;
@@ -225,82 +235,46 @@ function logSection(title) {
 }
 
 // ── Thumbnail generator ───────────────────────────────────────────────────────
-// Downloads a Pollinations image for the thumbnail prompt and optionally
-// overlays the video title with FFmpeg drawtext. Saves to <outDir>/thumbnail.jpg.
-// Non-fatal: failures are logged as warnings, not errors.
+// Generates a crisp code-driven procedural thumbnail with FFmpeg.
+// Saves to <outDir>/thumbnail.jpg. Non-fatal: failures are logged as warnings.
 
 async function generateThumbnail({ thumbnailPrompt, title, outDir }) {
-  if (!thumbnailPrompt) return null;
+  if (!thumbnailPrompt && !title) return null;
   const outputPath = path.join(outDir, 'thumbnail.jpg');
   try {
-    const model   = process.env.POLLINATIONS_MODEL || 'flux';
-    const prompt  = encodeURIComponent(thumbnailPrompt.slice(0, 500));
-    const imgUrl  = `https://image.pollinations.ai/prompt/${prompt}?width=1280&height=720&model=${model}&nologo=true`;
-    // Download image
-    const imgPath = path.join(outDir, 'thumbnail_raw.jpg');
-    await _downloadFile(imgUrl, imgPath);
-    if (!fs.existsSync(imgPath)) return null;
-
-    // Optionally burn title text with FFmpeg
     const { spawnSync } = require('child_process');
-    if (title) {
-      // Resolve a usable font (same logic as renderer.js)
-      const fontCandidates = process.platform === 'win32'
-        ? ['C:/Windows/Fonts/arialbd.ttf', 'C:/Windows/Fonts/calibrib.ttf', 'C:/Windows/Fonts/segoeui.ttf']
-        : process.platform === 'darwin'
-          ? ['/System/Library/Fonts/Helvetica.ttc', '/Library/Fonts/Arial Bold.ttf']
-          : ['/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', '/usr/share/fonts/truetype/freefont/FreeSansBold.ttf'];
-      const font = process.env.FFMPEG_FONT
-        || fontCandidates.find(f => fs.existsSync(f))
-        || '';
+    const safeTitle = (title || 'FrameForge Video').replace(/['":\\]/g, ' ').slice(0, 80);
+    const fontCandidates = process.platform === 'win32'
+      ? ['C:/Windows/Fonts/arialbd.ttf', 'C:/Windows/Fonts/calibrib.ttf', 'C:/Windows/Fonts/segoeui.ttf']
+      : process.platform === 'darwin'
+        ? ['/System/Library/Fonts/Helvetica.ttc', '/Library/Fonts/Arial Bold.ttf']
+        : ['/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', '/usr/share/fonts/truetype/freefont/FreeSansBold.ttf'];
+    const font = process.env.FFMPEG_FONT
+      || fontCandidates.find(f => fs.existsSync(f))
+      || '';
 
-      if (font) {
-        const safeTitle = title.replace(/['":\\]/g, ' ').slice(0, 80);
-        const result = spawnSync('ffmpeg', [
-          '-y', '-i', imgPath,
-          '-vf', `drawtext=fontfile='${font}':text='${safeTitle}':fontcolor=white:fontsize=52:x=(w-text_w)/2:y=h-120:shadowx=3:shadowy=3:shadowcolor=black`,
-          '-q:v', '3',
-          outputPath,
-        ], { encoding: 'utf8' });
-        if (result.status === 0) {
-          fs.unlinkSync(imgPath); // remove raw
-          return outputPath;
-        }
-      }
-      // FFmpeg unavailable or failed — just rename the raw image
-      fs.renameSync(imgPath, outputPath);
-    } else {
-      fs.renameSync(imgPath, outputPath);
+    const drawFilter = font
+      ? `drawtext=fontfile='${font}':text='${safeTitle}':fontcolor=white:fontsize=56:x=(w-text_w)/2:y=(h-text_h)/2:shadowx=3:shadowy=3:shadowcolor=black`
+      : `drawtext=text='${safeTitle}':fontcolor=white:fontsize=56:x=(w-text_w)/2:y=(h-text_h)/2:shadowx=3:shadowy=3:shadowcolor=black`;
+
+    const result = spawnSync('ffmpeg', [
+      '-y',
+      '-f', 'lavfi',
+      '-i', 'color=c=0x0f172a:s=1280x720:d=1',
+      '-vf', drawFilter,
+      '-frames:v', '1',
+      '-q:v', '3',
+      outputPath,
+    ], { encoding: 'utf8' });
+
+    if (result.status === 0 && fs.existsSync(outputPath)) {
+      return outputPath;
     }
-    return outputPath;
+    return null;
   } catch (err) {
     log('Thumbnail', `⚠️  Thumbnail generation failed (non-fatal): ${err.message}`);
     return null;
   }
-}
-
-function _downloadFile(url, destPath) {
-  return new Promise((resolve, reject) => {
-    const client = url.startsWith('https') ? https : http;
-    const file   = fs.createWriteStream(destPath);
-    function follow(u, hops) {
-      if (hops > 5) return reject(new Error('Too many redirects'));
-      client.get(u, (res) => {
-        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-          res.resume();
-          return follow(res.headers.location, hops + 1);
-        }
-        if (res.statusCode !== 200) {
-          res.resume();
-          return reject(new Error(`HTTP ${res.statusCode} downloading ${u}`));
-        }
-        res.pipe(file);
-        file.on('finish', () => file.close(resolve));
-        file.on('error', reject);
-      }).on('error', reject);
-    }
-    follow(url, 0);
-  });
 }
 
 // ── Single video runner (used by both single-topic and batch modes) ───────────
@@ -414,12 +388,18 @@ async function runSingleVideo(args, topic, outDir, workflows) {
   // ── Stage C: Assets (images + TTS) ────────────────────────────────────────
   logSection('Stage C: Assets (images + TTS)');
 
+  // Code-driven first: AI diffusion images are disabled by default to eliminate AI artifacts.
+  const enableAiImages = Boolean(args.aiImages || process.env.ENABLE_AI_IMAGES === 'true');
+  const skipImages = args.noImages !== undefined ? args.noImages : !enableAiImages;
+
+  if (!enableAiImages) {
+    log('Assets', 'ℹ️   Code-driven animation: kinetic typography & user media (diffusion disabled)');
+  }
+
   // Pass stage-skip flags into scenes so runAssets can honour them
   const preparedScenes = scenes.map(s => ({
     ...s,
-    // --no-images: mark scene as if it has a placeholder image path → renderer skips generation
-    _skipImageGen: args.noImages,
-    // --no-tts: mark scene as if it has pre-recorded audio → renderer skips TTS
+    _skipImageGen: skipImages,
     _skipTts:      args.noTts,
   }));
 
@@ -427,8 +407,9 @@ async function runSingleVideo(args, topic, outDir, workflows) {
     productionId,
     scenes:       preparedScenes,
     parallelism:  4,
-    skipImages:   args.noImages,
+    skipImages,
     skipTts:      args.noTts,
+    enableAiImages,
   });
   log('Assets', `✅  ${assetsResult.sceneCount} scenes prepared`);
 

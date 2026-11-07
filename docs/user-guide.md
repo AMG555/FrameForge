@@ -57,7 +57,7 @@ npm run setup       # interactive wizard — writes your .env (~2 min)
 
 ```env
 PROVIDER_TTS=edge-tts        # free offline TTS — no account needed
-PROVIDER_IMAGE=pollinations  # free image gen — no account needed
+# Visuals: 100% code-driven animations & user media by default (0 keys needed)
 ```
 
 ### Minimum .env — Path 2 (auto-research, LLM key required)
@@ -66,7 +66,6 @@ PROVIDER_IMAGE=pollinations  # free image gen — no account needed
 PROVIDER_LLM=groq
 GROQ_API_KEY=gsk_...         # free — console.groq.com
 PROVIDER_TTS=edge-tts
-PROVIDER_IMAGE=pollinations
 ```
 
 Other free LLM options: `PROVIDER_LLM=gemini` + `GEMINI_API_KEY`, or `PROVIDER_LLM=ollama` (fully local, no key).
@@ -152,8 +151,7 @@ This same block works in , Codex, opencode, Cursor, Windsurf, Claude Code, and a
       "command": "node",
       "args": ["/absolute/path/to/FrameForge/src/mcp-server/stdio.js"],
       "env": {
-        "PROVIDER_TTS": "edge-tts",
-        "PROVIDER_IMAGE": "pollinations"
+        "PROVIDER_TTS": "edge-tts"
       }
     }
   }
@@ -166,7 +164,6 @@ This same block works in , Codex, opencode, Cursor, Windsurf, Claude Code, and a
 {
   "env": {
     "PROVIDER_TTS": "edge-tts",
-    "PROVIDER_IMAGE": "pollinations",
     "PROVIDER_LLM": "groq",
     "GROQ_API_KEY": "gsk_..."
   }
@@ -470,7 +467,6 @@ This is the recommended production setup: lightweight network-bound work (LLM, T
 
 ```env
 PROVIDER_TTS=edge-tts
-PROVIDER_IMAGE=pollinations
 INTERNAL_API_TOKEN=<random 32-byte hex>
 RENDER_MODE=api_only
 # Only needed if you use research_topic / write_script / queue_full_pipeline:
@@ -533,7 +529,6 @@ Minimum free `.env` — **Path 1 (agent-first, no LLM key):**
 
 ```env
 PROVIDER_TTS=edge-tts
-PROVIDER_IMAGE=pollinations
 N8N_FILES_DIR=./output    # where videos are saved
 ```
 

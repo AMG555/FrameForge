@@ -20,7 +20,7 @@ check('batch handling',              code.includes('Array.isArray(body)'));
 check('ping handler',                code.includes("method === 'ping'"));
 check('notifications/init',          code.includes("notifications/initialized"));
 check('body size limit',             code.includes('MAX_BODY_BYTES'));
-check('SERVER_INFO version 2.3.2',   code.includes("version: '2.3.2'"));
+check('SERVER_INFO version 2.3.3',   code.includes("version: '2.3.3'"));
 check('18 tools defined (incl get_job_status)', code.includes('get_job_status'));
 check('export_to_editor tool defined', code.includes('export_to_editor'));
 check('voxforge TTS provider', code.includes('voxforge'));
@@ -266,6 +266,25 @@ check('engine.js exports layer()',    engineJs.includes('export function layer')
 check('engine.js exports wallCard()', engineJs.includes('export function wallCard'));
 check('engine.js exports reel()',     engineJs.includes('export function reel'));
 check('engine.js REEL state exported',engineJs.includes('export const REEL'));
+check('engine.js exports boilSeed()',   engineJs.includes('export function boilSeed'));
+check('engine.js exports kf()',         engineJs.includes('export function kf'));
+check('engine.js exports onTwos()',     engineJs.includes('export function onTwos'));
+check('engine.js exports seg()',        engineJs.includes('export function seg'));
+check('engine.js exports pulse()',      engineJs.includes('export function pulse'));
+check('engine.js exports shots()',      engineJs.includes('export function shots'));
+
+// ── Code-Driven Video Harness ─────────────────────────────────────────────
+console.log('\n=== Code-Driven Video Harness ===');
+check('harness/bin/harness.mjs exists',       fs.existsSync('./src/harness/bin/harness.mjs'));
+check('harness/lib/browser.mjs exists',       fs.existsSync('./src/harness/lib/browser.mjs'));
+check('harness/lib/capture.mjs exists',       fs.existsSync('./src/harness/lib/capture.mjs'));
+check('harness/lib/jobs.mjs exists',          fs.existsSync('./src/harness/lib/jobs.mjs'));
+check('harness/lib/sheets.mjs exists',        fs.existsSync('./src/harness/lib/sheets.mjs'));
+check('harness/lib/verify-purity.mjs exists', fs.existsSync('./src/harness/lib/verify-purity.mjs'));
+check('harness/lib/pixels.mjs exists',        fs.existsSync('./src/harness/lib/pixels.mjs'));
+check('harness/lib/encode.mjs exists',        fs.existsSync('./src/harness/lib/encode.mjs'));
+check('asset harness.mjs exists',             fs.existsSync(`${engineAssetBase}/scripts/harness.mjs`));
+check('asset verify-purity.mjs exists',       fs.existsSync(`${engineAssetBase}/scripts/verify-purity.mjs`));
 
 // ── Cloudflare Worker rate limiting ───────────────────────────────────────
 console.log('\n=== Cloudflare Worker rate limiting ===');
@@ -274,7 +293,7 @@ check('cf-worker has checkRateLimit',   cfWorker.includes('checkRateLimit'));
 check('cf-worker hashes token (SHA-256)', cfWorker.includes('SHA-256'));
 check('cf-worker uses RATE_LIMITS KV',  cfWorker.includes('env.RATE_LIMITS'));
 check('cf-worker returns 429 on limit', cfWorker.includes('429'));
-check('cf-worker version 2.3.2',        cfWorker.includes("'2.3.2'"));
+check('cf-worker version 2.3.3',        cfWorker.includes("'2.3.3'"));
 check('wrangler.toml has kv_namespaces',fs.readFileSync('./cloudflare-mcp/wrangler.toml','utf8').includes('kv_namespaces'));
 
 // ── plugins/skills present ────────────────────────────────────────────────

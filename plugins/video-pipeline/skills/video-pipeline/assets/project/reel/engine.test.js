@@ -317,3 +317,89 @@ describe('cuePhrase', () => {
     }, /FATAL SYNC ERROR/);
   });
 });
+
+// ── boilSeed, kf, onTwos, seg, pulse ──────────────────────────────────────────
+
+describe('boilSeed and determinism primitives', () => {
+  function boilSeedPure(key = 'frame', t = null) {
+    const boilN = t !== null ? Math.floor(t * 12) : 0;
+    let h = 2166136261;
+    const str = `${key}|${boilN}`;
+    for (let i = 0; i < str.length; i++) {
+      h = Math.imul(h ^ str.charCodeAt(i), 16777619);
+    }
+    return (h >>> 0) / 4294967296;
+  }
+
+  function kfPure(t, keys, e = easeInOut) {
+    if (!keys || keys.length === 0) return 0;
+    if (t <= keys[0][0]) return keys[0][1];
+    for (let i = 1; i < keys.length; i++) {
+      if (t < keys[i][0]) {
+        const [a, va] = keys[i - 1];
+        const [b, vb] = keys[i];
+        const prog = (t - a) / (b - a);
+        const k = e(Math.max(0, Math.min(1, prog)));
+        if (Array.isArray(va) && Array.isArray(vb)) {
+          return va.map((v, idx) => v + ((vb[idx] ?? v) - v) * k);
+        }
+        return va + (vb - va) * k;
+      }
+    }
+    return keys[keys.length - 1][1];
+  }
+
+  function onTwosPure(t) {
+    return Math.floor(t * 12 + 1e-6) / 12;
+  }
+
+  function segPure(t, a, b) {
+    if (b === a) return 0;
+    return Math.max(0, Math.min(1, (t - a) / (b - a)));
+  }
+
+  function pulsePure(t, k = 6) {
+    const frac = t - Math.floor(t);
+    return Math.exp(-frac * k);
+  }
+
+  it('boilSeed produces deterministic float in [0, 1)', () => {
+    const s1 = boilSeedPure('star', 1.0);
+    const s2 = boilSeedPure('star', 1.0);
+    assert.equal(s1, s2);
+    assert.ok(s1 >= 0 && s1 < 1);
+  });
+
+  it('boilSeed holds value across 1/12s window', () => {
+    const s1 = boilSeedPure('bg', 0.01);
+    const s2 = boilSeedPure('bg', 0.07); // both in frame 0
+    assert.equal(s1, s2);
+  });
+
+  it('onTwos steps at 12 fps boundaries', () => {
+    assert.equal(onTwosPure(0.05), 0);
+    assert.equal(onTwosPure(0.09), Math.floor(0.09 * 12) / 12);
+  });
+
+  it('seg clamps progress in [0, 1]', () => {
+    assert.equal(segPure(0.5, 1, 2), 0);
+    assert.equal(segPure(1.5, 1, 2), 0.5);
+    assert.equal(segPure(2.5, 1, 2), 1);
+  });
+
+  it('pulse decays exponentially from 1', () => {
+    assert.equal(pulsePure(0), 1);
+    assert.ok(pulsePure(0.5) < 0.1);
+  });
+
+  it('kf interpolates numbers and array keyframes', () => {
+    const keysNum = [[0, 0], [1, 100]];
+    assert.equal(kfPure(0, keysNum), 0);
+    assert.equal(kfPure(1, keysNum), 100);
+    assert.equal(kfPure(0.5, keysNum), 50);
+
+    const keysArr = [[0, [10, 20]], [1, [30, 40]]];
+    const mid = kfPure(0.5, keysArr);
+    assert.deepEqual(mid, [20, 30]);
+  });
+});

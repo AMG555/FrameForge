@@ -148,7 +148,7 @@ Single character only.
 1920x1080 landscape.
 `;
 
-const imageUrl = await pollinations.generate({
+const imageUrl = await generateAssetVisual({
   prompt,
   width: 1920,
   height: 1080,
@@ -179,7 +179,7 @@ All assets track `schema_version: "1.0.0"` for evolution:
 - **Metadata lookup:** <10ms (PostgreSQL indexed)
 - **Semantic search:** <200ms (cached embeddings)
 - **Asset composition:** <500ms (image layering)
-- **Asset generation:** 5-15s (Pollinations API)
+- **Asset generation:** <100ms (code-driven / local procedural)
 
 ## Storage
 

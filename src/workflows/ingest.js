@@ -278,21 +278,21 @@ async function runIngest({ productionId, scenesFile, mediaDir, rawScenes, outDir
   // Print summary
   const withVideo  = validScenes.filter(s => s.video_path).length;
   const withImage  = validScenes.filter(s => s.image_path && !s.video_path).length;
-  const withAI     = validScenes.filter(s => !s.video_path && !s.image_path).length;
+  const withCodeAnim = validScenes.filter(s => !s.video_path && !s.image_path).length;
   const withAudio  = validScenes.filter(s => s.audio_path).length;
   const withTTS    = validScenes.filter(s => !s.audio_path && s.narration).length;
   console.log(`[Ingest]    Scenes: ${validScenes.length} total`);
-  console.log(`[Ingest]    Video clips: ${withVideo}  |  User images: ${withImage}  |  AI-generate: ${withAI}`);
+  console.log(`[Ingest]    Video clips: ${withVideo}  |  User images: ${withImage}  |  Code-animated: ${withCodeAnim}`);
   console.log(`[Ingest]    Pre-recorded audio: ${withAudio}  |  TTS needed: ${withTTS}`);
-  if (withAI > 0)   console.log(`[Ingest]    ℹ️   ${withAI} scene(s) will use AI image generation (remove --no-images to skip)`);
-  if (withTTS > 0)  console.log(`[Ingest]    ℹ️   ${withTTS} scene(s) will use TTS synthesis (remove --no-tts to skip)`);
+  if (withCodeAnim > 0) console.log(`[Ingest]    ℹ️   ${withCodeAnim} scene(s) will render with code-driven animations (kinetic typography/motion graphics)`);
+  if (withTTS > 0)      console.log(`[Ingest]    ℹ️   ${withTTS} scene(s) will use TTS synthesis (remove --no-tts to skip)`);
 
   return {
     productionId:  pid,
     scenesFile:    outPath,
     scenes:        validScenes,
     sceneCount:    validScenes.length,
-    stats: { withVideo, withImage, withAI, withAudio, withTTS },
+    stats: { withVideo, withImage, withCodeAnim, withAI: withCodeAnim, withAudio, withTTS },
   };
 }
 

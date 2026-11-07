@@ -245,6 +245,84 @@ export function spring(t, { tension = 200, friction = 22, delay = 0 } = {}) {
   );
 }
 
+let _BOILN = 0;
+
+/**
+ * boilSeed(key, [t]) — Deterministic pseudo-random seed generator for linework boil.
+ *
+ * Boil holds drawing for 2 frames (12 fps), but moving elements consume randomness,
+ * shifting random streams for later elements. boilSeed restarts stream from BOILN + key
+ * so still elements never jitter.
+ *
+ * @param {string} key  Unique stable name of element (e.g. 'bg', 'character', 'prop')
+ * @param {number} [t]  Current time (optional, updates internal BOILN = floor(t * 12))
+ * @returns {number} Deterministic float in [0, 1)
+ */
+export function boilSeed(key = 'frame', t = null) {
+  if (t !== null && typeof t === 'number') {
+    _BOILN = Math.floor(t * 12);
+  }
+  let h = 2166136261;
+  const str = `${key}|${_BOILN}`;
+  for (let i = 0; i < str.length; i++) {
+    h = Math.imul(h ^ str.charCodeAt(i), 16777619);
+  }
+  return (h >>> 0) / 4294967296;
+}
+
+/** Step time on twos (12 fps hold step) */
+export function onTwos(t) {
+  return Math.floor(t * 12 + 1e-6) / 12;
+}
+
+/** Segment normalization: clamps (t - a) / (b - a) in [0, 1] */
+export function seg(t, a, b) {
+  if (b === a) return 0;
+  return Math.max(0, Math.min(1, (t - a) / (b - a)));
+}
+
+/** Exponential beat pulse */
+export function pulse(t, k = 6) {
+  const frac = t - Math.floor(t);
+  return Math.exp(-frac * k);
+}
+
+/**
+ * Keyframes with closed-form interpolation (scalar numbers or arrays).
+ * @param {number} t
+ * @param {Array<[number, number|number[]]>} keys  e.g. [[0, 0], [1, 100], [2, 50]]
+ * @param {function} [e=easeInOut] Easing function
+ */
+export function kf(t, keys, e = easeInOut) {
+  if (!keys || keys.length === 0) return 0;
+  if (t <= keys[0][0]) return keys[0][1];
+  for (let i = 1; i < keys.length; i++) {
+    if (t < keys[i][0]) {
+      const [a, va] = keys[i - 1];
+      const [b, vb] = keys[i];
+      const prog = (t - a) / (b - a);
+      const k = e(Math.max(0, Math.min(1, prog)));
+      if (Array.isArray(va) && Array.isArray(vb)) {
+        return va.map((v, idx) => v + ((vb[idx] ?? v) - v) * k);
+      }
+      return va + (vb - va) * k;
+    }
+  }
+  return keys[keys.length - 1][1];
+}
+
+/**
+ * Register sequential timeline shots: [[t0, fn0], [t1, fn1], ...]
+ * Each fn(t, lt, dur) paints the frame when t is in its window.
+ */
+export function shots(shotList = []) {
+  for (let i = 0; i < shotList.length; i++) {
+    const [start, fn] = shotList[i];
+    const end = i + 1 < shotList.length ? shotList[i + 1][0] : REEL.duration;
+    layer(`shot_${i}`, { start, end }).on(fn);
+  }
+}
+
 // ── Component builders ────────────────────────────────────────────────────────
 
 /**

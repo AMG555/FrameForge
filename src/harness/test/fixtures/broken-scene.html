@@ -1,0 +1,27 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>body { margin: 0; background: #0c1116; }</style>
+</head>
+<body>
+<canvas id="frame" width="1080" height="1080"></canvas>
+<script>
+window.DURATION = 2;
+const ctx = document.querySelector("#frame").getContext("2d");
+let historyAccumulator = 0;
+
+// Broken: relies on rAF loop and unseeded Math.random + accumulated state
+window.seek = async (t) => {
+  historyAccumulator += Math.random() * 50; // History leak & randomness!
+  ctx.fillStyle = "#0c1116";
+  ctx.fillRect(0, 0, 1080, 1080);
+  ctx.fillStyle = "#ff5555";
+  ctx.beginPath();
+  ctx.arc(120 + 400 * t + historyAccumulator, 540, 80, 0, 2 * Math.PI);
+  ctx.fill();
+};
+</script>
+</body>
+</html>
+

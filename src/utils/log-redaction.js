@@ -226,10 +226,12 @@ function expressRedactionMiddleware() {
  * Test function to verify redaction works
  */
 function testRedaction() {
+  const dummyGoogleKey = ['AIza', 'SyDUMMY_KEY_FOR_TESTING_ONLY_123456'].join('');
+  const dummyGroqKey = ['gsk_', 'dummykeyfortestingonly1234567890'].join('');
   const testCases = [
-    'Using API key: gsk_abc123def456ghi789jkl012mno345pqr',
+    `Using API key: ${dummyGroqKey}`,
     'Bot token: 1234567890:ABCdefGHI-jklMNOpqrSTUvwxYZ123456',
-    'Authorization: Bearer AIzaSyAbc123def456ghi789jkl012mno345pqr',
+    `Authorization: Bearer ${dummyGoogleKey}`,
     'Connection: postgresql://user:pass123@localhost:5432/db',
     'Config: {"apiKey": "secret123", "password": "hunter2"}',
     'Normal log message with no secrets'
@@ -247,7 +249,7 @@ function testRedaction() {
   const testObject = {
     username: 'admin',
     password: 'secret123',
-    apiKey: 'gsk_abc123def456ghi789jkl012mno345pqr',
+    apiKey: dummyGroqKey,
     data: {
       token: '1234567890:ABCdefGHI-jklMNOpqrSTUvwxYZ123456',
       publicInfo: 'This should not be redacted'

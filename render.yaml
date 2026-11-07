@@ -32,8 +32,6 @@ services:
         value: groq
       - key: PROVIDER_TTS
         value: edge-tts
-      - key: PROVIDER_IMAGE
-        value: pollinations
       # Delivery webhook (optional):
       - key: PUBLISH_WEBHOOK_URL
         sync: false

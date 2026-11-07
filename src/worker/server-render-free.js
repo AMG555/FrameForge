@@ -7,7 +7,6 @@
  *
  *   NETWORK-BOUND (runs on Render free — no RAM/CPU pressure):
  *     - LLM calls (Groq API)        — ~50ms response time
- *     - Image generation (Pollinations) — network fetch
  *     - TTS synthesis (edge-tts API or ElevenLabs) — network
  *     - Webhook/file delivery       — network / disk
  *
@@ -22,7 +21,7 @@
  *   ──────────────────────────────────────────────
  *   research         → Render free (LLM only)
  *   script           → Render free (LLM only)
- *   assets           → Render free (LLM + network image/TTS)
+ *   assets           → Render free (TTS synthesis + media resolution)
  *   render           → LOCAL/PI (FFmpeg — see LOCAL_RENDER_URL)
  *   shorts           → LOCAL/PI (FFmpeg)
  *   package          → Render free (file ops, cheap)
@@ -36,7 +35,7 @@
  *      or written to /tmp (ephemeral, fine for single-job state).
  *      Final videos are written to N8N_FILES_DIR/published/ or sent via PUBLISH_WEBHOOK_URL.
  *   3. 512 MB RAM: edge-tts runs as a subprocess (~50 MB). Groq calls are pure HTTP.
- *      Image generation is a HTTP fetch + stream to disk (~20 MB peak).
+ *      Media processing streams directly to disk (~20 MB peak).
  *
  * Environment variables:
  *   WORKER_PORT        — default 3211

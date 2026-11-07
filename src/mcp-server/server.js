@@ -23,7 +23,7 @@
  * Env (optional — only needed for pipeline-internal LLM calls):
  *   PROVIDER_LLM=groq|cerebras|openrouter|anthropic|gemini|mistral|together|openai|ollama|webhook
  *   PROVIDER_TTS=edge-tts|elevenlabs|azure|openai|webhook
- *   PROVIDER_IMAGE=pollinations|falai|replicate|dalle|webhook
+ *   Visuals: 100% code-driven animation (default) or user media
  *   MCP_PORT=3210
  */
 
@@ -36,7 +36,7 @@ const os     = require('os');
 const fs     = require('fs').promises;
 const crypto = require('crypto');
 
-const { LLMProvider, TTSProvider, ImageProvider } = require('../pipeline/providers');
+const { LLMProvider, TTSProvider } = require('../pipeline/providers');
 const { StateMachine }  = require('../pipeline/state-machine');
 const { RetryPolicy }   = require('../pipeline/retry-policy');
 const { Telemetry }     = require('../pipeline/telemetry');
@@ -53,7 +53,6 @@ const USAGE_LOG   = path.join(FILES_DIR, 'usage.ndjson');
 // Singletons
 const llm       = new LLMProvider();
 const tts       = new TTSProvider();
-const imageGen  = new ImageProvider();
 const sm        = new StateMachine({ mode: 'file', stateDir: STATE_DIR });
 const retryPol  = new RetryPolicy({ maxAttempts: 3, baseDelayMs: 10000 });
 const telemetry = new Telemetry({ mode: 'file', logPath: USAGE_LOG });
@@ -121,46 +120,37 @@ const TOOLS = {
     },
   },
 
-  // ── Tool 3: Generate scene image ─────────────────────────────────────────
+  // ── Tool 3: Generate scene visual ─────────────────────────────────────────
   generate_scene_image: {
-    description: 'Generate an image for one scene using the configured image provider. Pass imageStyle to control the visual aesthetic (default: clean flat illustration). No hardcoded art style.',
+    description: 'Registers or generates a code-driven visual card for one scene. FrameForge uses 100% code-driven animation and user media instead of diffusion.',
     inputSchema: {
       type: 'object',
-      required: ['productionId', 'sceneIndex', 'visualDescription'],
+      required: ['productionId', 'sceneIndex'],
       properties: {
         productionId:     { type: 'string' },
         sceneIndex:       { type: 'number' },
-        visualDescription:{ type: 'string', description: 'Scene visual description — used directly as image prompt' },
-        imageStyle:       { type: 'string', description: 'Visual aesthetic, e.g. "flat design", "photorealistic", "anime", "watercolour sketch". Default: clean flat illustration.' },
-        negativePrompt:   { type: 'string', description: 'What to exclude from the image (optional)' },
-        seed:             { type: 'number', default: 12345 },
+        visualDescription:{ type: 'string', description: 'Scene visual description' },
+        imagePath:        { type: 'string', description: 'Optional user image path' },
       },
     },
     handler: async ({
       productionId,
       sceneIndex,
       visualDescription,
-      // Accept legacy 'visualAction' param name for backwards compat
       visualAction,
-      imageStyle = 'clean flat illustration, white background, bold lines',
-      negativePrompt = 'watermark, text, logo, blurry, low quality',
-      seed = 12345,
+      imagePath = null,
     }) => {
-      const vdir       = path.join(FILES_DIR, 'video_tmp');
-      const outputPath = path.join(vdir, `scene_${sceneIndex}.png`);
-      await fs.mkdir(vdir, { recursive: true });
-
       const description = visualDescription || visualAction || '';
-      const prompt = `${description.trim()}, ${imageStyle}`;
+      await telemetry.track({ productionId, stage: 'Asset_Generation', provider: 'code_animation', operation: 'scene_visual_registered', units: 1 });
 
-      await retryPol.executeStage('Asset_Generation', async () => {
-        return imageGen.generate({ prompt, negativePrompt, outputPath, width: 1920, height: 1080, seed: seed + sceneIndex * 37 });
-      });
-
-      const stat = await fs.stat(outputPath);
-      await telemetry.track({ productionId, stage: 'Asset_Generation', provider: process.env.PROVIDER_IMAGE || 'pollinations', operation: 'scene_image_generation', units: 1 });
-
-      return { productionId, sceneIndex, imagePath: outputPath, sizeBytes: stat.size };
+      return {
+        productionId,
+        sceneIndex,
+        imagePath: imagePath || null,
+        visualType: imagePath ? 'user_image' : 'code_animation',
+        visualDescription: description,
+        message: 'Scene visual ready. 100% code-driven kinetic animation active.',
+      };
     },
   },
 
@@ -434,13 +424,29 @@ const TOOLS = {
   // ── Tool 10: External platform call ────────────────────────────────────────
   // Bridge to VoxForge, Runway, ElevenLabs, Remotion, or any external platform.
   external_platform_call: {
-    description: 'Send media or scenes to an external platform (VoxForge, Runway, ElevenLabs, Remotion, etc.). Configured via EXTERNAL_PLATFORM_* env vars or setup-keys wizard.',
+    description: `Call any external platform or custom MCP-compatible app via HTTP — no env vars required when you pass platformUrl directly.
+
+Works with any app that exposes an HTTP API: your own custom editor, VoxForge, Runway, Kling, Pika, Remotion, ElevenLabs, or anything you build.
+
+Actions:
+  ingest   — upload/import files (POST multipart to the platform)
+  edit     — send an operations array to drive editing in the app
+  render   — send scenes or a render job request
+  status   — poll a job by jobId
+  download — fetch a remote URL to a local file
+
+Named presets (set EXTERNAL_PLATFORM_NAME to one of these and omit platformUrl):
+  voxforge, elevenlabs, runway, kling, pika, remotion, premiere, resolve, capcut, aftereffects`,
     inputSchema: {
       type: 'object',
       required: ['action'],
       properties: {
-        action:      { type: 'string', enum: ['ingest','render','status','download'], description: 'ingest: upload media files | render: send scenes for rendering | status: poll job | download: fetch output' },
+        action:      { type: 'string', enum: ['ingest','edit','render','status','download'], description: 'ingest: upload files | edit: send operations to drive the app | render: submit render job | status: poll job | download: fetch output' },
+        platformUrl: { type: 'string', description: 'Base URL of the target app/platform (e.g. http://localhost:8080 or https://api.myapp.io). Overrides EXTERNAL_PLATFORM_URL. Pass this to connect any custom app without touching .env.' },
+        platformKey: { type: 'string', description: 'API key or bearer token for the platform. Overrides EXTERNAL_PLATFORM_KEY.' },
+        platformName:{ type: 'string', description: 'Named preset to use (voxforge|elevenlabs|runway|kling|premiere|resolve|capcut|aftereffects|remotion). When set, default paths are applied automatically.' },
         files:       { type: 'array',  items: { type: 'string' }, description: 'Local file paths (for action=ingest)' },
+        operations:  { type: 'array',  description: 'Edit operations array (for action=edit). Each: { op, clip?, at?, between?, type?, duration?, text?, ... }' },
         scenes:      { type: 'array',  description: 'Scene array (for action=render)' },
         productionId:{ type: 'string', description: 'productionId (for action=render)' },
         jobId:       { type: 'string', description: 'Job ID to poll (for action=status)' },
@@ -449,27 +455,58 @@ const TOOLS = {
         metadata:    { type: 'object', description: 'Extra fields forwarded to the platform' },
       },
     },
-    handler: async ({ action, files, scenes, productionId, jobId, outputUrl, outputPath, metadata }) => {
+    handler: async ({ action, platformUrl, platformKey, platformName, files, operations, scenes, productionId, jobId, outputUrl, outputPath, metadata }) => {
       const { ExternalAdapter } = require('../pipeline/external-adapter');
-      const adapter = new ExternalAdapter();
+
+      // Build adapter — per-call platformUrl/platformKey override env vars entirely.
+      // This means you can connect any custom app without setting EXTERNAL_PLATFORM_* in .env.
+      const adapterConfig = {};
+      if (platformName) adapterConfig.name    = platformName;
+      if (platformUrl)  adapterConfig.baseUrl = platformUrl;
+      if (platformKey)  adapterConfig.apiKey  = platformKey;
+
+      const adapter = new ExternalAdapter(adapterConfig);
+
+      // If no URL was provided via param or env, give a clear setup message
       if (!adapter.isConfigured()) {
-        throw new Error('External platform not configured. Run: node src/cli/setup-keys.js to set EXTERNAL_PLATFORM_URL and EXTERNAL_PLATFORM_KEY.');
+        throw new Error(
+          'No platform URL configured. Either:\n' +
+          '  • Pass platformUrl: "http://localhost:8080" (connects any custom app immediately)\n' +
+          '  • Set EXTERNAL_PLATFORM_URL in .env (persistent)\n' +
+          '  • Run: npx frameforge-setup   (interactive wizard)'
+        );
       }
 
       switch (action) {
         case 'ingest':
           return adapter.ingestMedia({ files: files || [], metadata: metadata || {} });
+
+        case 'edit': {
+          // Validate operations
+          const ops = operations || [];
+          if (ops.length === 0) throw new Error('action=edit requires at least one operation in the operations array');
+          const validOps = ['cut','trim','transition','color','caption','mute','speed','swap'];
+          for (const [i, o] of ops.entries()) {
+            if (!o.op) throw new Error(`operations[${i}] missing "op" field`);
+            if (!validOps.includes(o.op)) throw new Error(`operations[${i}].op "${o.op}" not valid. Use: ${validOps.join(', ')}`);
+          }
+          return adapter.renderScenes({ scenes: [], productionId: 'edit', options: { operations: ops, ...(metadata || {}) } });
+        }
+
         case 'render':
           return adapter.renderScenes({ scenes: scenes || [], productionId, options: metadata || {} });
+
         case 'status':
           if (!jobId) throw new Error('action=status requires jobId');
           return adapter.checkStatus(jobId);
+
         case 'download':
           if (!outputUrl || !outputPath) throw new Error('action=download requires outputUrl and outputPath');
           await adapter.downloadOutput(outputUrl, outputPath);
           return { outputPath, downloaded: true };
+
         default:
-          throw new Error(`Unknown action: ${action}. Use ingest|render|status|download`);
+          throw new Error(`Unknown action: ${action}. Use ingest|edit|render|status|download`);
       }
     },
   },
@@ -478,37 +515,41 @@ const TOOLS = {
   // Primary path for IBM Bob / Claude Code / Cursor users.
   // The IDE agent writes the scenes array in its own context — no internal LLM needed.
   create_video_from_script: {
-    description: `Agent-first video creation. YOU (the IDE agent) provide the complete scenes array — FrameForge just renders it. No internal LLM, no research stage. This is the primary path for Claude Code, IBM Bob, Cursor, and any agentic IDE.
+    description: `Agent-first video creation. YOU (the IDE agent) provide the complete scenes array — FrameForge renders it.
+Features:
+- Code-driven animation and kinetic typography by default (broadcast quality, zero AI artifacts).
+- Supports manual user clips (video_path) and manual images (image_path).
+- Optional AI diffusion generation via enableAiImages: true.
+- No internal LLM or research required. Primary path for Claude Code, IBM Bob, Cursor, and any agentic IDE.
 
 Example scene:
 {
   "narration": "The text spoken aloud in this scene",
   "caption": "OVERLAY TEXT",
-  "visual_description": "A description used as the AI image prompt",
+  "visual_description": "Description of the scene visual / animation",
   "camera_hint": "zoom_in",
   "music_mood": "energetic",
   "image_path": "/optional/your/own/image.jpg",
+  "video_path": "/optional/your/own/clip.mp4",
   "audio_path": "/optional/your/own/voice.mp3"
 }`,
     inputSchema: {
       type: 'object',
       required: ['scenes'],
       properties: {
-        scenes:       { type: 'array',   description: 'Complete scenes array written by the agent. Each scene: { narration, caption, visual_description, camera_hint?, music_mood?, image_path?, video_path?, audio_path?, voice? }' },
-        title:        { type: 'string',  description: 'Video title' },
-        orientation:  { type: 'string',  enum: ['landscape', 'portrait'], default: 'landscape', description: 'Output orientation. "landscape" = 1920×1080 (16:9, YouTube/desktop). "portrait" = 1080×1920 (9:16, TikTok/Reels/Shorts).' },
-        voice:        { type: 'string',  description: 'edge-tts voice ID for all scenes, e.g. "ml-IN-MidhunNeural" (Malayalam male), "en-US-BrianNeural" (English). Per-scene voice field overrides this. Full list: edge-tts --list-voices' },
-        language:     { type: 'string',  description: 'BCP-47 language hint, e.g. "ml" (Malayalam), "hi" (Hindi), "ta" (Tamil), "te" (Telugu), "en" (English). Auto-selects a default voice for the language when voice is not set.' },
-        skipImages:   { type: 'boolean', default: false, description: 'Set true if all scenes already have image_path or video_path' },
-        skipTts:      { type: 'boolean', default: false, description: 'Set true if all scenes already have audio_path' },
-        imageStyle:   { type: 'string',  description: 'Visual aesthetic for AI-generated images, e.g. "photorealistic", "anime", "flat design". Only used when skipImages is false.' },
-        parallelism:  { type: 'number',  default: 1, description: 'Concurrent image generation requests (default: 1). Increase to 2-4 only when using a reliable image provider like falai or replicate. Keep at 1 for Pollinations to avoid rate limits.' },
-        withMusic:    { type: 'boolean', default: true },
-        musicVolume:  { type: 'number',  default: 0.07 },
-        productionId: { type: 'string',  description: 'Optional — reuse an existing productionId' },
+        scenes:         { type: 'array',   description: 'Complete scenes array written by the agent. Each scene: { narration, caption, visual_description, camera_hint?, music_mood?, image_path?, video_path?, audio_path?, voice? }' },
+        title:          { type: 'string',  description: 'Video title' },
+        orientation:    { type: 'string',  enum: ['landscape', 'portrait'], default: 'landscape', description: 'Output orientation. "landscape" = 1920×1080 (16:9, YouTube/desktop). "portrait" = 1080×1920 (9:16, TikTok/Reels/Shorts).' },
+        voice:          { type: 'string',  description: 'edge-tts voice ID for all scenes, e.g. "ml-IN-MidhunNeural" (Malayalam male), "en-US-BrianNeural" (English). Per-scene voice field overrides this. Full list: edge-tts --list-voices' },
+        language:       { type: 'string',  description: 'BCP-47 language hint, e.g. "ml" (Malayalam), "hi" (Hindi), "ta" (Tamil), "te" (Telugu), "en" (English). Auto-selects a default voice for the language when voice is not set.' },
+        skipTts:        { type: 'boolean', default: false, description: 'Set true if all scenes already have audio_path' },
+        parallelism:    { type: 'number',  default: 1, description: 'Concurrent TTS synthesis requests (default: 1).' },
+        withMusic:      { type: 'boolean', default: true },
+        musicVolume:    { type: 'number',  default: 0.07 },
+        productionId:   { type: 'string',  description: 'Optional — reuse an existing productionId' },
       },
     },
-    handler: async ({ scenes, title = 'FrameForge Video', orientation = 'landscape', voice, language, skipImages = false, skipTts = false, imageStyle, parallelism = 1, withMusic = true, musicVolume = 0.07, productionId }) => {
+    handler: async ({ scenes, title = 'FrameForge Video', orientation = 'landscape', voice, language, skipTts = false, parallelism = 1, withMusic = true, musicVolume = 0.07, productionId }) => {
       const { runAssets } = require('../workflows/assets');
       const { runRender } = require('../workflows/render');
 
@@ -542,15 +583,12 @@ Example scene:
       };
       const resolvedVoice = voice || (language ? LANGUAGE_VOICES[language.toLowerCase().slice(0, 2)] : null) || null;
 
-      // Apply imageStyle to visual_description if provided and skipImages is false
       const processedScenes = scenes.map((s, i) => ({
         scene_id:           s.scene_id || i + 1,
         schema_version:     '2.0.0',
         narration:          s.narration          || '',
         caption:            s.caption            || '',
-        visual_description: imageStyle && !s.image_path && !s.video_path
-          ? `${s.visual_description || ''}, ${imageStyle}`.trim()
-          : (s.visual_description  || ''),
+        visual_description: s.visual_description || '',
         camera_hint:        s.camera_hint        || 'auto',
         music_mood:         s.music_mood         || 'neutral',
         image_path:         s.image_path         || null,
@@ -570,7 +608,7 @@ Example scene:
       const renderWidth  = orientation === 'portrait' ? 1080 : 1920;
       const renderHeight = orientation === 'portrait' ? 1920 : 1080;
 
-      const assetsResult = await runAssets({ productionId: pid, scenes: processedScenes, parallelism, skipImages, skipTts, imageWidth: renderWidth, imageHeight: renderHeight, voice: resolvedVoice });
+      const assetsResult = await runAssets({ productionId: pid, scenes: processedScenes, parallelism, skipTts, voice: resolvedVoice });
       const renderResult = await runRender({ productionId: pid, sceneAssets: assetsResult.sceneAssets, withMusic, musicVolume, renderWidth, renderHeight });
 
       if (!renderResult.passed) {
@@ -770,7 +808,7 @@ Copies the engine template into outDir and generates a starter edit.js from your
 
 Use this when:
 - You want Remotion-style motion graphics (kinetic text, springs, morphing layouts)
-- Pollinations/image providers are unavailable and you want real visual quality
+- You want broadcast-grade visual quality with zero diffusion artifacts
 - The user asks for animated video, code-rendered video, or "make it look good"
 
 After scaffolding, the agent edits edit.js in outDir to animate each scene, then calls render_animation.`,
@@ -811,6 +849,13 @@ After scaffolding, the agent edits edit.js in outDir to animate each scene, then
         ['reel/engine.css', 'reel/engine.css'],
         ['reel/virtual-clock.js', 'reel/virtual-clock.js'],
         ['scripts/render.mjs', 'scripts/render.mjs'],
+        ['scripts/harness.mjs', 'scripts/harness.mjs'],
+        ['scripts/browser.mjs', 'scripts/browser.mjs'],
+        ['scripts/verify-purity.mjs', 'scripts/verify-purity.mjs'],
+        ['scripts/pixels.mjs', 'scripts/pixels.mjs'],
+        ['scripts/sheets.mjs', 'scripts/sheets.mjs'],
+        ['scripts/jobs.mjs', 'scripts/jobs.mjs'],
+        ['scripts/encode.mjs', 'scripts/encode.mjs'],
         ['scripts/look.mjs', 'scripts/look.mjs'],
         ['scripts/storyboard-validator.mjs', 'scripts/storyboard-validator.mjs'],
         ['scripts/mix_audio.py', 'scripts/mix_audio.py'],
@@ -862,9 +907,7 @@ After scaffolding, the agent edits edit.js in outDir to animate each scene, then
         copied.push('index.html (generated fallback)');
       }
 
-      // Generate starter edit.js from scenes
-      // Each scene becomes one layer() with opacity in/out and a text() for its caption.
-      // The agent is expected to replace this with real animation code.
+      // Generate starter edit.js from scenes with contextual code-driven animation components
       let duration = 0;
       const sceneBlocks = scenes.map((scene, idx) => {
         const wordsPerSec = 2.5;
@@ -874,6 +917,29 @@ After scaffolding, the agent edits edit.js in outDir to animate each scene, then
         duration = Math.round((duration + dur) * 10) / 10;
         const caption = (scene.caption || `Scene ${idx + 1}`).replace(/'/g, "\\'");
         const visual = (scene.visual_description || scene.narration || '').slice(0, 80).replace(/'/g, "\\'");
+        const textLower = ((scene.narration || '') + ' ' + (scene.visual_description || '') + ' ' + caption).toLowerCase();
+
+        let componentCode;
+        if (scene.image_path) {
+          componentCode = `at(${start}, imageCard(${JSON.stringify(scene.image_path)}, { caption: ${JSON.stringify(caption)}, width: ${Math.round(width * 0.72)}, x: 'center', y: 'center', duration: ${dur} }));`;
+        } else if (scene.video_path) {
+          componentCode = `at(${start}, wallCard([{ text: ${JSON.stringify(caption)}, size: 28, weight: 800, color: 'var(--accent)' }], { x: 'center', y: ${Math.round(height * 0.78)}, width: ${Math.round(width * 0.8)}, duration: ${dur} }));`;
+        } else if (/\b(code|function|syntax|api|javascript|python|typescript|json|sql|query|endpoint|algorithm|struct)\b/.test(textLower)) {
+          const snippet = visual.length > 20 ? visual : `// ${caption}\nfunction execute() {\n  return "${caption.toLowerCase()}";\n}`;
+          componentCode = `at(${start}, codeCard(${JSON.stringify(snippet)}, 'js', { title: ${JSON.stringify(caption)}, width: ${Math.round(width * 0.76)}, x: 'center', y: ${Math.round(height * 0.22)}, duration: ${dur} }));`;
+        } else if (/\b(terminal|command|cli|bash|shell|npm|install|curl|git|docker|deploy|run)\b/.test(textLower)) {
+          const cmd = caption.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+          componentCode = `at(${start}, terminal(['$ frameforge ${cmd}', '${caption} — initializing...', '✓ complete (${dur}s)'], { title: ${JSON.stringify(caption)}, width: ${Math.round(width * 0.74)}, x: 'center', y: ${Math.round(height * 0.24)}, duration: ${dur} }));`;
+        } else {
+          componentCode = [
+            `at(${start}, wallCard([`,
+            `  { text: ${JSON.stringify(caption)}, size: 36, weight: 800, color: 'var(--accent)' },`,
+            `  { text: ${JSON.stringify((scene.narration || '').slice(0, 130).replace(/'/g, "\\'"))}, size: 24, weight: 400 }`,
+            `], { x: 'center', y: ${Math.round(height * 0.30)}, width: ${Math.round(width * 0.82)}, duration: ${dur} }));`,
+            `at(${start}, stamp(${JSON.stringify(caption.slice(0, 16))}, { x: ${Math.round(width * 0.75)}, y: ${Math.round(height * 0.18)}, color: 'var(--accent)', duration: ${dur} }));`,
+          ].join('\n');
+        }
+
         return [
           `// ─── Scene ${idx + 1}: ${start}s–${duration}s ────────────────────────────────`,
           `// Visual: ${visual}`,
@@ -884,7 +950,7 @@ After scaffolding, the agent edits edit.js in outDir to animate each scene, then
           `  const fadeOut = lt > ${dur} - 0.3 ? 1 - (lt - (${dur} - 0.3)) / 0.3 : 1;`,
           `  return { opacity: fadeIn * fadeOut };`,
           `});`,
-          `at(${start}, text('${caption}', { font: '48px/1.3 sans-serif', color: '#fff', x: 'center', y: ${height / 2} }));`,
+          componentCode,
           '',
         ].join('\n');
       });
@@ -905,7 +971,7 @@ After scaffolding, the agent edits edit.js in outDir to animate each scene, then
         ` * Never use Math.random(), Date.now(), setTimeout, or module-level mutable counters.`,
         ` * Use hash(i) from engine.js for deterministic randomness.`,
         ` */`,
-        `import { reel, layer, at, text, hash } from './reel/engine.js';`,
+        `import { reel, layer, at, text, wallCard, codeCard, terminal, imageCard, stamp, chip, hash } from './reel/engine.js';`,
         ``,
         `reel({ width: ${width}, height: ${height}, fps: ${fps}, duration: ${duration} });`,
         ``,
@@ -1292,7 +1358,7 @@ Operations (used with action="edit"):
 
 const SERVER_INFO = {
   name:    'video-pipeline',
-  version: '2.3.2',
+  version: '2.3.3',
 };
 
 const CAPABILITIES = {

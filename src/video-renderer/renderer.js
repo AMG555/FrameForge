@@ -123,10 +123,15 @@ class VideoRenderer {
     const mediaSource    = videoPath || imagePath;
     const captionFilter  = this._captionFilter(caption);
 
-    // No image and no video: generate a solid dark background so TTS-only
-    // scenes (e.g. --no-images) still produce a valid video segment.
+    // No image and no video: procedural motion-graphics scene.
+    // Cycles through sleek modern palettes with vignette shading.
     if (!mediaSource) {
-      const bgColor = '1e1e2e'; // dark navy
+      const PALETTES = ['0d1117', '0f172a', '13111c', '0c1a24', '18181b'];
+      const bgColor  = PALETTES[sceneIndex % PALETTES.length];
+      const vfFilters = ['vignette=PI/4'];
+      if (captionFilter) vfFilters.push(captionFilter);
+      const vf = vfFilters.join(',');
+
       const result = spawnSync('ffmpeg', [
         '-nostdin', '-y', '-threads', '2',
         '-f', 'lavfi', '-i', `color=c=#${bgColor}:s=${renderWidth}x${renderHeight}:r=30`,
@@ -136,7 +141,7 @@ class VideoRenderer {
         // Specifying whole_dur is mandatory: without it -apad on a color source runs forever.
         '-af', `apad=whole_dur=${clampedDur}`,
         '-t', String(clampedDur),
-        ...( captionFilter ? ['-vf', captionFilter] : [] ),
+        '-vf', vf,
         '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '22',
         '-pix_fmt', 'yuv420p',
         '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-ac', '2',

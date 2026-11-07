@@ -9,7 +9,7 @@
 [![npm](https://img.shields.io/npm/v/@amg555/frameforge-mcp.svg?label=npm)](https://www.npmjs.com/package/@amg555/frameforge-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
-[![Version](https://img.shields.io/badge/version-2.3.2-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.3.3-blue.svg)](CHANGELOG.md)
 [![MCP Spec](https://img.shields.io/badge/MCP-2024--11--05-blue.svg)](https://modelcontextprotocol.io/)
 [![Tests](https://img.shields.io/badge/tests-512%20passing-brightgreen.svg)](#testing)
 
@@ -135,7 +135,7 @@ short_1_<id>.mp4       →  auto-extracted 9:16 vertical Short
 video_meta.json        →  title, description, tags, chapters
 ```
 
-**No API keys required for this path.** `edge-tts` (voice) and `pollinations` (images) are both free with no account. If Pollinations is slow, add `FALAI_API_KEY` and set `PROVIDER_IMAGE=falai`.
+**No API keys required for this path.** `edge-tts` (voice) runs offline and visual cards render procedurally via FFmpeg/Playwright. 100% deterministic, zero diffusion flaws.
 
 ---
 
@@ -143,7 +143,7 @@ video_meta.json        →  title, description, tags, chapters
 
 ### Your IDE writes the script — no LLM key needed
 
-Your IDE's model writes the scenes. FrameForge only runs FFmpeg, TTS, and image generation. Use `create_video_from_script`. This is the fastest path and what most people want.
+Your IDE's model writes the scenes. FrameForge runs FFmpeg, TTS, and code-driven kinetic animations or user media. Use `create_video_from_script`. This is the fastest path and what most people want.
 
 ### FrameForge researches and scripts itself
 
@@ -226,17 +226,21 @@ Switch any provider with one `.env` change — no code changes.
 
 Set `PROVIDER_TTS=<name>`.
 
-**Images**
+**Visuals & Media**
 
-| Provider | Free? | Key needed |
-|----------|-------|------------|
-| `pollinations` | ✅ free, no account | none — **default** |
-| `falai` | ✅ free tier | `FALAI_API_KEY` at fal.ai |
-| `replicate` | paid | `REPLICATE_API_KEY` |
-| `dalle` | paid | `OPENAI_API_KEY` |
-| `webhook` | — | `WEBHOOK_IMAGE_URL` |
+FrameForge is **code-driven first**: scenes render via crisp vector animations, kinetic typography, and user-provided media (clips, b-roll, photos) — zero diffusion artifacts, zero AI slop, 100% deterministic.
 
-Set `PROVIDER_IMAGE=<name>`.
+| Visual Mode / Provider | Type | Key needed |
+|------------------------|------|------------|
+| `code-driven` | **Default** — kinetic cards, typography, spring motion | none — **recommended default** |
+| `user-media` | User-supplied `image_path` or `video_path` in scene | none |
+| `pollinations` | Optional AI diffusion (opt-in via `--ai-images`) | none |
+| `falai` | Optional AI diffusion (fast FLUX) | `FALAI_API_KEY` at fal.ai |
+| `replicate` | Optional AI diffusion (FLUX-schnell) | `REPLICATE_API_KEY` |
+| `dalle` | Optional AI diffusion (DALL-E 3) | `OPENAI_API_KEY` |
+| `webhook` | Custom image/video generation endpoint | `WEBHOOK_IMAGE_URL` |
+
+Set `ENABLE_AI_IMAGES=true` or pass `--ai-images` only if you explicitly want AI diffusion images. Default is clean code-driven animation.
 
 **LLM — only for the auto-research path**
 

@@ -133,7 +133,7 @@ const editLines = [
   ` * If a layer is only active until t=X, it must explicitly hide itself after t=X.`,
   ` */`,
   ``,
-  `import { reel, layer, text, wallCard, stamp, at, stagger, captions, cue } from './reel/engine.js';`,
+  `import { reel, layer, text, wallCard, stamp, at, stagger, captions, cue, codeCard, terminal, imageCard, chip } from './reel/engine.js';`,
   ``,
   `// ── Compositor config ────────────────────────────────────────────────────────`,
   `reel({`,
@@ -151,6 +151,87 @@ const editLines = [
   `}));`,
   ``,
 ];
+
+function renderSceneComponent(scene, i, width, height, start, duration) {
+  const narration = (scene.narration || '').replace(/`/g, "'");
+  const visual    = (scene.visual_description || '').replace(/`/g, "'");
+  const caption   = (scene.caption || `SCENE ${i + 1}`).toUpperCase().replace(/`/g, "'");
+  const textLower = (narration + ' ' + visual + ' ' + caption).toLowerCase();
+
+  // 1. Manual User Image
+  if (scene.image_path) {
+    return [
+      `// User-supplied image for Scene ${i + 1}`,
+      `at(${start}, imageCard(${JSON.stringify(scene.image_path)}, {`,
+      `  caption: ${JSON.stringify(caption)},`,
+      `  width: ${Math.round(width * 0.72)},`,
+      `  x: 'center', y: 'center',`,
+      `  duration: ${duration}`,
+      `}));`,
+    ].join('\n');
+  }
+
+  // 2. Manual User Video Clip
+  if (scene.video_path) {
+    return [
+      `// User-supplied video clip for Scene ${i + 1}: ${scene.video_path}`,
+      `at(${start}, wallCard([`,
+      `  { text: ${JSON.stringify(caption)}, size: 28, weight: 800, color: 'var(--accent)' },`,
+      `], { x: 'center', y: ${Math.round(height * 0.78)}, width: ${Math.round(width * 0.8)}, duration: ${duration} }));`,
+    ].join('\n');
+  }
+
+  // 3. Code / Tech
+  if (/\b(code|function|syntax|api|javascript|python|typescript|json|sql|query|endpoint|algorithm|struct)\b/.test(textLower)) {
+    const snippet = visual.length > 20 ? visual : `// ${caption}\nfunction execute() {\n  return "${caption.toLowerCase()}";\n}`;
+    return [
+      `at(${start}, codeCard(${JSON.stringify(snippet)}, 'js', {`,
+      `  title: ${JSON.stringify(caption)},`,
+      `  width: ${Math.round(width * 0.76)},`,
+      `  x: 'center', y: ${Math.round(height * 0.22)},`,
+      `  duration: ${duration}`,
+      `}));`,
+    ].join('\n');
+  }
+
+  // 4. Terminal / Commands
+  if (/\b(terminal|command|cli|bash|shell|npm|install|curl|git|docker|deploy|run)\b/.test(textLower)) {
+    const cmd = caption.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    return [
+      `at(${start}, terminal([`,
+      `  '$ frameforge ${cmd}',`,
+      `  '${caption} — initializing...',`,
+      `  '✓ complete (${duration}s)'`,
+      `], {`,
+      `  title: ${JSON.stringify(caption)},`,
+      `  width: ${Math.round(width * 0.74)},`,
+      `  x: 'center', y: ${Math.round(height * 0.24)},`,
+      `  duration: ${duration}`,
+      `}));`,
+    ].join('\n');
+  }
+
+  // 5. Stat / Metric / Number
+  const metricMatch = textLower.match(/\b(\$?\d+(?:\.\d+)?%?|\d+x)\b/);
+  if (metricMatch && /\b(percent|million|billion|trillion|x|fps|ms|seconds|users|growth|speed|metric|stat)\b/.test(textLower)) {
+    return [
+      `at(${start}, wallCard([`,
+      `  { text: ${JSON.stringify(metricMatch[0].toUpperCase())}, size: 76, weight: 900, color: 'var(--accent)' },`,
+      `  { text: ${JSON.stringify(caption)}, size: 28, weight: 800 },`,
+      `  { text: ${JSON.stringify(narration.slice(0, 110))}, size: 20, weight: 400, color: '#94a3b8' }`,
+      `], { x: 'center', y: ${Math.round(height * 0.25)}, width: ${Math.round(width * 0.82)}, duration: ${duration} }));`,
+    ].join('\n');
+  }
+
+  // 6. Default: Kinetic typography card with accent stamp
+  return [
+    `at(${start}, wallCard([`,
+    `  { text: ${JSON.stringify(caption)}, size: 36, weight: 800, color: 'var(--accent)' },`,
+    `  { text: ${JSON.stringify(narration.slice(0, 130))}, size: 24, weight: 400 }`,
+    `], { x: 'center', y: ${Math.round(height * 0.30)}, width: ${Math.round(width * 0.82)}, duration: ${duration} }));`,
+    `at(${start}, stamp(${JSON.stringify(caption.slice(0, 16))}, { x: ${Math.round(width * 0.75)}, y: ${Math.round(height * 0.18)}, color: 'var(--accent)', duration: ${duration} }));`,
+  ].join('\n');
+}
 
 sceneMeta.forEach((scene, i) => {
   const start    = scene._start.toFixed(2);
@@ -178,11 +259,8 @@ sceneMeta.forEach((scene, i) => {
     `  };`,
     `});`,
     ``,
-    `// Caption card for scene ${i + 1}`,
-    `at(${start}, wallCard([`,
-    `  { text: ${JSON.stringify(caption)}, size: 28, weight: 800, color: 'var(--accent)' },`,
-    `  { text: ${JSON.stringify(narration.slice(0, 120))}, size: 22, weight: 400 },`,
-    `], { x: 'center', y: ${Math.round(height * 0.72)}, width: ${Math.round(width * 0.84)}, duration: ${scene._duration.toFixed(2)} }));`,
+    `// Code-driven visual component for Scene ${i + 1}`,
+    renderSceneComponent(scene, i, width, height, start, scene._duration.toFixed(2)),
     ``,
   );
 });
@@ -215,6 +293,13 @@ copyAsset('reel/engine.js',           'reel/engine.js');
 copyAsset('reel/engine.css',          'reel/engine.css');
 copyAsset('reel/virtual-clock.js',    'reel/virtual-clock.js');
 copyAsset('scripts/render.mjs',       'scripts/render.mjs');
+copyAsset('scripts/harness.mjs',      'scripts/harness.mjs');
+copyAsset('scripts/browser.mjs',      'scripts/browser.mjs');
+copyAsset('scripts/verify-purity.mjs','scripts/verify-purity.mjs');
+copyAsset('scripts/pixels.mjs',       'scripts/pixels.mjs');
+copyAsset('scripts/sheets.mjs',       'scripts/sheets.mjs');
+copyAsset('scripts/jobs.mjs',         'scripts/jobs.mjs');
+copyAsset('scripts/encode.mjs',       'scripts/encode.mjs');
 copyAsset('scripts/look.mjs',         'scripts/look.mjs');
 copyAsset('scripts/storyboard-validator.mjs', 'scripts/storyboard-validator.mjs');
 copyAsset('scripts/mix_audio.py',     'scripts/mix_audio.py');
@@ -238,6 +323,10 @@ const pkg = {
   version: '0.1.0',
   type:    'module',
   scripts: {
+    'harness':             'node scripts/harness.mjs',
+    'harness:doctor':      'node scripts/harness.mjs doctor',
+    'harness:verify':      'node scripts/harness.mjs verify',
+    'harness:all':         'node scripts/harness.mjs all',
     'look':                'node scripts/look.mjs',
     'validate:storyboard': 'node scripts/storyboard-validator.mjs STORYBOARD.md',
     'render:sheet':        'node scripts/render.mjs sheet',

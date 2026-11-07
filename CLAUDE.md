@@ -50,7 +50,7 @@ If you're not sure what a tool does — call it with the obvious parameters. The
 
 1. **Never write driver/helper scripts** to work around a tool's missing parameter. If you think a parameter is missing, check the tool schema again — it's probably there (`voice`, `language`, `orientation`, `parallelism`, `skipImages`, `skipTts`).
 2. **Never write a v2 or v3 of a script.** If the first approach fails, report the error and ask the user what to do.
-3. **Never retry a provider failure yourself.** The pipeline has retry logic built in. If Pollinations rate-limits: report it, suggest `PROVIDER_IMAGE=falai`, and stop.
+3. **Never retry a provider failure yourself.** The pipeline has retry logic built in. If a provider fails: report it and stop.
 4. **Never restart the MCP server.** The server picks up env from its launch context. If a voice or provider needs to change, set the right parameter in the tool call — `voice`, `language`, `parallelism`.
 5. **One tool call, then wait for the result.** Do not queue multiple tool calls before seeing what the first one returned.
 
@@ -60,9 +60,9 @@ If you're not sure what a tool does — call it with the obvious parameters. The
 
 > **The primary path is Path 2 (code-driven animation).** Every frame is a pure function of time `t`, rendered by Playwright + FFmpeg. This is what produces the high-quality, viral-style motion graphics clips. Path 1 (FFmpeg + AI images) is the fast fallback when Playwright is unavailable or the user wants a quick draft. Path 3 (auto-research) is for unattended batch.
 
-### Path 1 — You write the scenes + AI images (quick draft)
+### Path 1 — You write the scenes (code animation & user media)
 
-Your IDE model writes the scenes. FrameForge generates TTS + AI images + renders with FFmpeg.
+Your IDE model writes the scenes. FrameForge synthesizes TTS, binds user media (`image_path` / `video_path`) or procedural kinetic typography, and renders with FFmpeg.
 
 ```
 create_video_from_script({
@@ -70,15 +70,16 @@ create_video_from_script({
     {
       narration: "Text spoken aloud by the voice.",
       caption: "OVERLAY TEXT",                        // max 40 chars, burned into video
-      visual_description: "image prompt for AI"       // be specific and descriptive
+      visual_description: "concept description",      // used for card styling
+      image_path: "assets/photo.jpg",                 // optional: user manual image
+      video_path: "assets/clip.mp4"                   // optional: user manual video clip
     }
   ],
   title: "My Video",
   orientation: "landscape",    // "landscape" (1920×1080) or "portrait" (1080×1920 for Shorts/Reels)
   voice: "ml-IN-MidhunNeural", // optional: any edge-tts voice ID (auto-selected from language if omitted)
   language: "ml",              // optional: BCP-47 code — auto-selects voice (ml, hi, ta, te, zh, ja, ...)
-  imageStyle: "flat design, white background, bold primary colors",
-  parallelism: 1,              // keep at 1 for Pollinations; raise to 4 only with falai/replicate
+  parallelism: 1,
   withMusic: true
 })
 ```
@@ -90,13 +91,13 @@ Output files appear in `.frameforge-files/`:
 - `short_1_<id>.mp4` — auto-extracted vertical Short
 - `video_meta.json` — title, description, tags
 
-> **No API keys needed.** `edge-tts` (voice) and `pollinations` (images) are both free. If Pollinations is slow, tell the user to set `PROVIDER_IMAGE=falai` in `.env`.
+> **No API keys needed.** `edge-tts` (voice) runs offline and visual cards render procedurally with FFmpeg/Playwright. 100% deterministic, zero diffusion artifacts.
 
 ---
 
 ### Path 2 — Code-driven animated video (Playwright + FFmpeg, no AI images)
 
-Use this when: the user wants motion graphics, Pollinations is unavailable, or they ask for "animated", "code-rendered", "explainer", "reel", or "YouTube-style" video. Every frame is a pure function of time `t`.
+Use this when: the user wants motion graphics, explainer, reel, or YouTube-style video. Every frame is a pure function of time `t`.
 
 > **Iron rule:** Never use `Math.random()`, `Date.now()`, `setTimeout`, or module-level mutable state in scene code. Use `hash(i)` from `reel/engine.js` for deterministic randomness.
 
@@ -220,7 +221,7 @@ get_job_status({ jobId })   // poll every 30s until status = "SUCCEEDED"
 | `render_animation` | Playwright renderer: `sheet` / `strip` / `storyboard` / `crop` / `full` / `mux` / `kit` / `look` |
 | `multi_voice_tts` | TTS per-call: `edge-tts` · `elevenlabs` · `voxforge` · `azure` · `openai` · `webhook` |
 | `export_to_editor` | Send finished animation to Premiere / Resolve / CapCut / After Effects / Remotion |
-| `external_platform_call` | HTTP bridge to VoxForge, Runway, Kling, Pika, or any platform |
+| `external_platform_call` | HTTP bridge to **any** app — pass `platformUrl` directly, no env setup needed |
 
 **Secondary — FFmpeg + AI images (fast draft, no Playwright needed):**
 
@@ -267,6 +268,47 @@ VOXFORGE_URL=https://api.voxforge.io    # or your self-hosted URL
 VOXFORGE_KEY=vf-...
 VOXFORGE_VOICE=my-cloned-voice-id
 ```
+
+---
+
+## CUSTOM APP MCP — connect any app instantly
+
+`external_platform_call` connects to any HTTP app **without touching `.env`** — pass `platformUrl` directly:
+
+```
+// Connect any custom app or MCP-enabled tool right now
+external_platform_call({
+  action: "ingest",
+  platformUrl: "http://localhost:8080",   // your app's base URL
+  platformKey: "optional-api-key",        // omit if no auth
+  files: [".frameforge-files/final.mp4"]
+})
+
+// Drive editing operations in your custom app
+external_platform_call({
+  action: "edit",
+  platformUrl: "http://localhost:8080",
+  operations: [
+    { op: "cut",        at: 4.5 },
+    { op: "color",      clip: 0, lut: "/luts/film.cube" },
+    { op: "caption",    at: 2.0, duration: 3.0, text: "Intro", position: "bottom" },
+    { op: "transition", between: [0, 1], type: "dissolve", duration: 0.5 }
+  ]
+})
+
+// Use a named preset (auto-fills default paths for known apps)
+external_platform_call({
+  action: "render",
+  platformName: "resolve",   // premiere | resolve | runway | voxforge | capcut | ...
+  metadata: { exportPath: "/exports/final.mp4" }
+})
+```
+
+**Your app only needs to accept POST JSON.** FrameForge sends:
+- `ingest` → `multipart/form-data` with the files
+- `edit` → `{ operations: [...], source: "frameforge" }`
+- `render` → `{ scenes: [...], productionId: "...", ...metadata }`
+- `status` → `GET /<statusPath>/<jobId>`
 
 ---
 
@@ -394,9 +436,9 @@ Supply any of these per scene — FrameForge only generates what you don't suppl
 **`create_video_from_script` returns `passed: false`:** Check `qcReport.checks` for the failed gate:
 - `resolution`: an `image_path` file has wrong dimensions — use `visual_description` instead
 - `no_audio`: TTS failed — check `edge-tts` is installed
-- `black_frames`: image generation failed for a scene — tell user about Pollinations and suggest `PROVIDER_IMAGE=falai`
+- `black_frames`: visual asset invalid — verify image_path / video_path file paths or use default code-driven visual cards
 
-**Image generation fails silently:** FrameForge falls back to a dark background automatically. The video still renders.
+**Visual fallback:** FrameForge renders crisp code-driven animated cards automatically when no manual media is supplied. The video always renders cleanly.
 
 **Any other tool error:** Report the exact error message to the user. Do not attempt to fix it by editing source files.
 

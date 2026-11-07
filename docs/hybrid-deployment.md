@@ -13,7 +13,7 @@ The pipeline divides cleanly into two execution tiers:
 |-------|--------------|--------------|------------------------|
 | Research (A) | LLM API call to Groq | ~50 MB | ✅ Yes |
 | Script (B) | LLM API call to Groq | ~50 MB | ✅ Yes |
-| Assets (C) | HTTP to Pollinations + edge-tts process | ~120 MB | ✅ Yes |
+| Assets (C) | TTS synthesis + media resolution | ~80 MB | ✅ Yes |
 | Render (D) | FFmpeg zoompan 1920×1080, zoompan | ~800 MB peak | ❌ No (512 MB limit) |
 | Shorts (D2) | FFmpeg 16:9→9:16 crop | ~400 MB | ❌ No |
 | Package (E) | File ops + manifest | ~30 MB | ✅ Yes |
@@ -271,7 +271,7 @@ R2 public buckets serve at `https://pub-xxx.r2.dev/` — free CDN for your video
 | Video storage | Cloudflare R2 (10 GB/month free) | $0 |
 | Tunnel | Tailscale (personal free — 3 devices) | $0 |
 | LLM | Groq free tier (dev quota) | $0 |
-| Image generation | Pollinations (unlimited free) | $0 |
+| Visuals | Code-driven animation + user media | $0 |
 | TTS | edge-tts (free, runs locally) | $0 |
 | Delivery | file copy / webhook (free) | $0 |
 | **TOTAL** | | **$0/month** |

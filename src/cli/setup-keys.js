@@ -31,12 +31,9 @@
  *     openai     — OpenAI TTS. Uses OPENAI_API_KEY.
  *     webhook    — Any TTS endpoint. Set WEBHOOK_TTS_URL.
  *
- *   Image (scene visuals):
- *     pollinations — Free, no key. Best default.
- *     falai        — High quality, fast. Get key: fal.ai
- *     replicate    — FLUX models. Get key: replicate.com
- *     dalle        — DALL-E 3. Uses OPENAI_API_KEY.
- *     webhook      — Any image endpoint. Set WEBHOOK_IMAGE_URL.
+ *   Visuals & Media:
+ *     code-driven — Default. Crisp kinetic typography and cards. 0 keys needed.
+ *     user-media  — Directly supply image_path or video_path per scene.
  */
 
 'use strict';
@@ -128,7 +125,7 @@ function checkEnv(envPath) {
     { key: 'PROVIDER_TTS',   label: 'TTS provider',    optional: false },
     { key: 'ELEVENLABS_API_KEY', label: 'ElevenLabs key', optional: true, needs: env.PROVIDER_TTS === 'elevenlabs' },
     { key: 'AZURE_SPEECH_KEY',   label: 'Azure key',      optional: true, needs: env.PROVIDER_TTS === 'azure' },
-    { key: 'PROVIDER_IMAGE', label: 'Image provider',  optional: false },
+    { key: 'PROVIDER_IMAGE', label: 'Image provider',  optional: true },
     { key: 'FALAI_API_KEY',  label: 'fal.ai key',      optional: true,  needs: env.PROVIDER_IMAGE === 'falai' },
     { key: 'REPLICATE_API_KEY', label: 'Replicate key', optional: true, needs: env.PROVIDER_IMAGE === 'replicate' },
     { key: 'PUBLISH_WEBHOOK_URL', label: 'Publish webhook URL', optional: true },
@@ -175,7 +172,7 @@ Press Enter to accept a default. Ctrl+C to cancel.
   ✅  No keys are required to make videos.
       Your IDE writes the scenes — FrameForge uses free providers by default:
         • edge-tts  — free voice (no account)
-        • pollinations — free images (no account)
+        • code-driven animation — free motion graphics (no account, zero keys)
         • FFmpeg — free local render (already on your machine)
 
       You only need keys for the auto-research pipeline (FrameForge writes the
@@ -267,18 +264,19 @@ Press Enter to accept a default. Ctrl+C to cancel.
   }
 
   // ── Image ─────────────────────────────────────────────────────────────────
-  section('3 / 5  —  Image Generation Provider');
-  console.log('  Used for: generating AI visuals for each scene.');
-  console.log('  Skip this if you supply your own images (--no-images).');
-  console.log('  Free option: Pollinations (no key needed).\n');
+  section('3 / 5  —  Visuals & Image Provider (optional)');
+  console.log('  Default: Code-driven animations, kinetic typography, and user-provided media.');
+  console.log('  Zero keys needed for high quality vector animation.');
+  console.log('  Select a diffusion provider only if you explicitly want AI-generated pictures.\n');
 
   cfg.PROVIDER_IMAGE = await menu('Choose image provider', [
-    ['pollinations', 'Pollinations — free, no key, FLUX model. Best default.'],
-    ['falai',        'fal.ai — high quality, fast. Get key: fal.ai'],
+    ['none',         'None (Recommended) — code-driven animations & user media. Zero keys, best quality.'],
+    ['pollinations', 'Pollinations — free AI images (no key needed, FLUX model)'],
+    ['falai',        'fal.ai — fast cloud diffusion. Get key: fal.ai'],
     ['replicate',    'Replicate FLUX-schnell. Get key: replicate.com'],
-    ['dalle',        'DALL-E 3 (uses OPENAI_API_KEY above)'],
+    ['dalle',        'DALL-E 3 (uses OPENAI_API_KEY)'],
     ['webhook',      'Custom/external image API endpoint'],
-  ], 'pollinations');
+  ], 'none');
 
   if (cfg.PROVIDER_IMAGE === 'falai') {
     cfg.FALAI_API_KEY = await askSecret('  fal.ai API key');

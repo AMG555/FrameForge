@@ -49,7 +49,11 @@ class FactCheckerReviewGate {
     this.stateMachine = stateMachine;
     this.notifyUrl    = notifyUrl || process.env.REVIEW_NOTIFY_URL || '';
     this.reviewsDir   = reviewsDir;
-    fs.mkdirSync(reviewsDir, { recursive: true });
+    try {
+      fs.mkdirSync(reviewsDir, { recursive: true });
+    } catch {
+      // Best-effort in restricted/sandbox environments
+    }
   }
 
   // ── Gate evaluation ───────────────────────────────────────────────────────

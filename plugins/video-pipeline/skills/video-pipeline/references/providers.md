@@ -76,7 +76,17 @@ OPENAI_API_KEY=sk-...
 
 ---
 
-## Image Providers (`PROVIDER_IMAGE`)
+## Visuals & Media
+
+FrameForge is **code-driven first**. By default, scenes render using vector animations, kinetic typography, and user-provided media (`image_path` / `video_path`). Diffusion image generation is optional and disabled by default.
+
+### Code-driven animation (default)
+```bash
+# Default mode — zero keys needed, broadcast vector quality
+# Automatically creates animated cards, syntax blocks, terminals, and typography
+```
+
+### Optional Diffusion Image Providers (`ENABLE_AI_IMAGES=true`)
 
 ### pollinations (default — free, no key)
 ```bash
@@ -144,8 +154,7 @@ Bob discovers MCP servers from `~/.bob/mcp.json`:
         "PROVIDER_LLM": "watsonx",
         "WATSONX_API_KEY": "${WATSONX_API_KEY}",
         "WATSONX_PROJECT_ID": "${WATSONX_PROJECT_ID}",
-        "PROVIDER_TTS": "edge-tts",
-        "PROVIDER_IMAGE": "pollinations"
+        "PROVIDER_TTS": "edge-tts"
       }
     }
   }
