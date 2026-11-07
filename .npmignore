@@ -7,6 +7,7 @@ src/integration.test.js
 
 # Dev scripts
 scripts/
+!scripts/html-renderer/
 .github/
 .cursor/
 .kiro/
@@ -22,8 +23,6 @@ docs/
 # Cloudflare worker (separate deployment, not needed for npx)
 cloudflare-mcp/
 
-# Plugin skill files (large, optional — available on GitHub)
-plugins/
 
 # Render config
 render.yaml
