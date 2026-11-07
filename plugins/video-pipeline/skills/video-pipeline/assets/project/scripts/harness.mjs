@@ -18,12 +18,12 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { doctorBrowser, launchHarnessBrowser } from '../lib/browser.mjs';
-import { verifyScenePurity } from '../lib/verify-purity.mjs';
-import { renderSheet, renderStrip, renderCrop, renderStoryboard } from '../lib/sheets.mjs';
-import { renderFrameJobs } from '../lib/jobs.mjs';
-import { encodeFramesToMp4 } from '../lib/encode.mjs';
-import { analyzeImageFile } from '../lib/pixels.mjs';
+import { doctorBrowser, launchHarnessBrowser } from './browser.mjs';
+import { verifyScenePurity } from './verify-purity.mjs';
+import { renderSheet, renderStrip, renderCrop, renderStoryboard } from './sheets.mjs';
+import { renderFrameJobs } from './jobs.mjs';
+import { encodeFramesToMp4 } from './encode.mjs';
+import { analyzeImageFile } from './pixels.mjs';
 import { spawnSync } from 'child_process';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -86,8 +86,13 @@ async function cmdStoryboard() {
   const sbPath = flags.file ? path.resolve(CWD, flags.file) : resolveProjectFile('STORYBOARD.md');
   console.log(`📋 Validating Storyboard: ${sbPath}`);
 
-  const validatorScript = path.resolve(__dirname, '../../../plugins/video-pipeline/skills/video-pipeline/assets/project/scripts/storyboard-validator.mjs');
-  if (fs.existsSync(validatorScript)) {
+  const validatorCandidates = [
+    path.join(__dirname, 'storyboard-validator.mjs'),
+    path.join(CWD, 'scripts', 'storyboard-validator.mjs'),
+    path.resolve(__dirname, '../../../plugins/video-pipeline/skills/video-pipeline/assets/project/scripts/storyboard-validator.mjs'),
+  ];
+  const validatorScript = validatorCandidates.find(p => fs.existsSync(p));
+  if (validatorScript) {
     const res = spawnSync('node', [validatorScript, sbPath], { stdio: 'inherit' });
     if (res.status !== 0) {
       console.error('❌ Storyboard gate failed. Fix storyboard before proceeding to code.');

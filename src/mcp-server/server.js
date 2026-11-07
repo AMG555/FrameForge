@@ -1082,7 +1082,7 @@ Requires: npm install playwright && npx playwright install chromium (one-time se
       required: ['projectDir', 'mode'],
       properties: {
         projectDir:  { type: 'string', description: 'The directory created by scaffold_animation_project' },
-        mode:        { type: 'string', enum: ['sheet', 'stills', 'strip', 'storyboard', 'crop', 'full', 'mux', 'kit', 'look'], description: 'Render mode' },
+        mode:        { type: 'string', enum: ['sheet', 'stills', 'strip', 'storyboard', 'crop', 'full', 'mux', 'kit', 'look', 'verify', 'doctor', 'pixels'], description: 'Render mode' },
         timestamps:  { type: 'array', items: {}, description: 'For mode="stills": [t1, t2, ...]. For mode="strip": [startSeconds, endSeconds]. For mode="crop": ["9:16", t]. For mode="sheet": omit or pass shot times.' },
         audioPath:   { type: 'string', description: 'Audio file to mux in (for mode="full" or "mux")' },
         workers:     { type: 'number', default: 4, description: 'Parallel Playwright pages for mode="full"' },
@@ -1126,7 +1126,11 @@ Requires: npm install playwright && npx playwright install chromium (one-time se
         }
       }
 
-      const args = [renderScript, mode];
+      const harnessScript = pathMod.join(projectDir, 'scripts', 'harness.mjs');
+      const isHarnessMode = ['verify', 'doctor', 'pixels'].includes(mode);
+      const scriptToRun = (isHarnessMode && syncFs.existsSync(harnessScript)) ? harnessScript : renderScript;
+
+      const args = [scriptToRun, mode];
       if ((mode === 'stills' || mode === 'strip' || mode === 'crop') && sanitisedTimestamps.length > 0) {
         args.push(...sanitisedTimestamps);
       }
@@ -1169,6 +1173,15 @@ Requires: npm install playwright && npx playwright install chromium (one-time se
         }
       }
 
+      let purityReport = null;
+      const purityReportFile = pathMod.join(outDir, 'check', 'purity_report.json');
+      if (mode === 'verify' && syncFs.existsSync(purityReportFile)) {
+        try {
+          purityReport = JSON.parse(syncFs.readFileSync(purityReportFile, 'utf8'));
+          outputPath = purityReportFile;
+        } catch (_) {}
+      }
+
       const passed = exitCode === 0;
 
       return {
@@ -1176,6 +1189,7 @@ Requires: npm install playwright && npx playwright install chromium (one-time se
         passed,
         exitCode,
         outputPath,
+        purityReport,
         projectDir,
         stdout: stdout.slice(-2000),
         stderr: passed ? undefined : stderr.slice(-1000),

@@ -197,25 +197,37 @@ publish_video(productionId, masterPath="output/my-topic/html-render/out/video.mp
 | `cue(sfxName, t, vol)` | Trigger sound effect at time t |
 | `faceAt(layout, t)` | Position talking-head face (FULL, SPLIT, PIP) |
 | `hash(i)` | Deterministic PRNG float [0, 1) for index i |
+| `boilSeed(key, t)` | Deterministic stepped float [0, 1) in 1/12s window |
+| `kf(t, keys, ease)` | Keyframe interpolation with easing curves |
+| `onTwos(t)` | Quantize time to 12 fps (traditional animation on twos) |
+| `seg(t, a, b)` | Clamp t into [0, 1] interval progress |
+| `pulse(t, k)` | Exponential impulse peak at t=0, decaying with rate k |
+| `shots(timeline)` | Time-ordered shot registry fn(t, lt, dur) for parallel render |
 | `on(t => ...)` | Raw per-frame compute (for custom animations) |
 
 ---
 
-## Storyboard Gates & Review Modes
+## Storyboard Gates, Purity Verification & Review Modes
 
 ```bash
-# 1. Pre-render diagnostic linter (checks fonts, missing sound, text clipping, NaN)
-node scripts/look.mjs
+# 1. Diagnostic & Setup checks
+node scripts/harness.mjs doctor        # Verify Chrome, GPU flags (D3D11/Metal), WebGL context
+node scripts/look.mjs                  # Pre-render linter (fonts, clipping, NaN transforms)
 
-# 2. Gate stills & review commands
-node scripts/render.mjs storyboard     # 4 keyframes (0%, 33%, 66%, 100%)
-node scripts/render.mjs sheet          # 4x4 or NxM contact sheet (0.5s interval)
-node scripts/render.mjs strip 1.0 1.5  # Horizontal frame strip (motion check)
-node scripts/render.mjs crop 9:16      # Focal-point mobile crop preview
-node scripts/render.mjs stills 0 5 12  # Specific timestamp stills
+# 2. Purity verification gate (3-point repeat, wander, cold-jump test)
+node scripts/harness.mjs verify        # Must pass a===b and a===c across 9 sampled timestamps
 
-# 3. Master render & encode
-node scripts/render.mjs full           # Full encode (parallel workers, resumable, BT.709)
+# 3. Gate stills & review commands
+node scripts/harness.mjs storyboard    # 4 keyframes (0%, 33%, 66%, 100%) or validate STORYBOARD.md
+node scripts/harness.mjs sheet         # Contact sheet (0.5s interval)
+node scripts/harness.mjs strip 1.0 1.5 # Horizontal frame strip (motion check)
+node scripts/harness.mjs crop 9:16     # Focal-point mobile crop preview
+node scripts/harness.mjs pixels        # Blind-spot frame analysis (blank, blown, corner-confined)
+
+# 4. Master render & encode
+node scripts/harness.mjs frames        # Resumable atomic frame render (.tmp + renameSync)
+node scripts/harness.mjs encode        # BT.709 color-tagged master encode + audio mux
+node scripts/harness.mjs all           # Complete gate-checked end-to-end production
 node scripts/render.mjs mux            # Re-mux audio only (no re-render)
 node scripts/render.mjs kit            # Editor kit (Premiere/Resolve XML)
 ```

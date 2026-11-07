@@ -86,8 +86,13 @@ async function cmdStoryboard() {
   const sbPath = flags.file ? path.resolve(CWD, flags.file) : resolveProjectFile('STORYBOARD.md');
   console.log(`📋 Validating Storyboard: ${sbPath}`);
 
-  const validatorScript = path.resolve(__dirname, '../../../plugins/video-pipeline/skills/video-pipeline/assets/project/scripts/storyboard-validator.mjs');
-  if (fs.existsSync(validatorScript)) {
+  const validatorCandidates = [
+    path.join(CWD, 'scripts', 'storyboard-validator.mjs'),
+    path.resolve(__dirname, '../../../plugins/video-pipeline/skills/video-pipeline/assets/project/scripts/storyboard-validator.mjs'),
+    path.join(__dirname, 'storyboard-validator.mjs'),
+  ];
+  const validatorScript = validatorCandidates.find(p => fs.existsSync(p));
+  if (validatorScript) {
     const res = spawnSync('node', [validatorScript, sbPath], { stdio: 'inherit' });
     if (res.status !== 0) {
       console.error('❌ Storyboard gate failed. Fix storyboard before proceeding to code.');

@@ -653,8 +653,20 @@ try {
     case 'full':       await modeFull();       break;
     case 'mux':        await modeMux();        break;
     case 'kit':        await modeKit();        break;
+    case 'verify':
+    case 'doctor':
+    case 'pixels': {
+      const harnessPath = path.join(__dirname, 'harness.mjs');
+      if (fs.existsSync(harnessPath)) {
+        const { spawnSync } = _require('child_process');
+        const res = spawnSync(process.execPath, [harnessPath, mode, ...process.argv.slice(3)], { stdio: 'inherit' });
+        process.exit(res.status ?? 0);
+      }
+      die(`harness.mjs not found in ${__dirname}`);
+      break;
+    }
     default:
-      die(`Unknown mode: ${mode}\nUsage: render.mjs [sheet|stills|strip|storyboard|crop|full|mux|kit] [options]`);
+      die(`Unknown mode: ${mode}\nUsage: render.mjs [sheet|stills|strip|storyboard|crop|full|mux|kit|verify|doctor|pixels] [options]`);
   }
 } catch (err) {
   die(String(err.stack || err));

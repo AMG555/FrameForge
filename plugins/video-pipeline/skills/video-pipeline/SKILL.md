@@ -185,8 +185,9 @@ validate_storyboard({ storyboardPath: ".frameforge-files/my-anim/STORYBOARD.md" 
 
 // 4. Write real animation in edit.js (pure functions of t — read ANIMATION_GUIDE.md)
 
-// 5. Pre-flight linter
+// 5. Pre-flight linter & purity verification (3-point repeat, wander, cold-jump)
 render_animation({ projectDir: ".frameforge-files/my-anim/", mode: "look" })
+render_animation({ projectDir: ".frameforge-files/my-anim/", mode: "verify" })
 
 // 6. Review stills (at least one sheet per shot, one strip per key motion)
 render_animation({ projectDir: ".frameforge-files/my-anim/", mode: "sheet" })
