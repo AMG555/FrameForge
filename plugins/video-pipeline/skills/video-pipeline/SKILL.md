@@ -41,7 +41,7 @@ IDE Agent (IBM Bob / Codex / opencode / Cursor / Windsurf / Claude Code)
     │  LLM provider:   PROVIDER_LLM=groq|openrouter|anthropic|gemini
     │                              |mistral|together|cerebras|openai
     │                              |ollama|webhook
-    │  TTS provider:   PROVIDER_TTS=edge-tts|elevenlabs|azure|openai|webhook
+    │  TTS provider:   PROVIDER_TTS=edge-tts|voxforge|elevenlabs|azure|openai|webhook
     │  Visuals:        Code-driven animations (default) + user media (video_path / image_path)
     │
     ▼  Optional: queue_full_pipeline

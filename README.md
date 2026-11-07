@@ -219,6 +219,7 @@ Switch any provider with one `.env` change — no code changes.
 | Provider | Free? | Key needed |
 |----------|-------|------------|
 | `edge-tts` | ✅ free, offline | none — **default** |
+| `voxforge` | ✅ free, local/private | none — `VOXFORGE_URL` ([VoxForge](https://github.com/AMG555/VoxForge)) |
 | `elevenlabs` | paid | `ELEVENLABS_API_KEY` |
 | `azure` | paid | `AZURE_SPEECH_KEY` + `AZURE_SPEECH_REGION` |
 | `openai` | paid | `OPENAI_API_KEY` |

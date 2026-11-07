@@ -279,13 +279,18 @@ multi_voice_tts({
 })
 ```
 
-Supported `platform` values: `edge-tts` · `elevenlabs` · `azure` · `openai` · `webhook`
+Supported `platform` values: `edge-tts` · `voxforge` · `elevenlabs` · `azure` · `openai` · `webhook`
 
 ### Default for all videos
 
 Set in `.env`:
 
 ```env
+# Example A: VoxForge (free, local/private multi-engine neural TTS & voice cloning in Rust)
+PROVIDER_TTS=voxforge
+VOXFORGE_URL=http://localhost:5005   # or https://api.voxforge.io (github.com/AMG555/VoxForge)
+
+# Example B: ElevenLabs (cloud voice cloning)
 PROVIDER_TTS=elevenlabs
 ELEVENLABS_API_KEY=sk_...
 TTS_VOICE=Rachel            # optional — provider default used if omitted

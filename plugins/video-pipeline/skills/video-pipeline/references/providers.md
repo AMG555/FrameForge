@@ -52,6 +52,17 @@ PROVIDER_TTS=edge-tts
 # Voice list: edge-tts --list-voices
 ```
 
+### voxforge (free, private multi-engine neural TTS & voice cloning in Rust)
+```bash
+PROVIDER_TTS=voxforge
+VOXFORGE_URL=http://localhost:5005   # or your self-hosted VoxForge workstation URL
+# Optional:
+VOXFORGE_KEY=...                     # optional auth token if enabled
+VOXFORGE_VOICE=default               # voice/clone reference
+VOXFORGE_MODEL=voxforge-v1           # engine model (XTTS, Piper, Kokoro, Whisper)
+```
+Repo: [AMG555/VoxForge](https://github.com/AMG555/VoxForge) — local, private neural TTS & voice cloning workstation.
+
 ### elevenlabs (voice cloning)
 ```bash
 PROVIDER_TTS=elevenlabs
