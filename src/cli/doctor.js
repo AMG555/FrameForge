@@ -73,19 +73,26 @@ if (ffprobe.status === 0) {
   hasCriticalFailure = true;
 }
 
-// 4. Voice Engine (edge-tts or Cloud API)
+// 4. Voice Engine (edge-tts, VoxForge, or Cloud API)
 const edgeTts = spawnSync('edge-tts', ['--version'], { encoding: 'utf8', timeout: 5000, shell: process.platform === 'win32' });
-const hasCloudTts = Boolean(process.env.ELEVENLABS_API_KEY || process.env.AZURE_SPEECH_KEY || process.env.OPENAI_API_KEY || process.env.CUSTOM_TTS_URL);
+const hasCloudTts = Boolean(
+  process.env.ELEVENLABS_API_KEY ||
+  process.env.AZURE_SPEECH_KEY ||
+  process.env.OPENAI_API_KEY ||
+  process.env.CUSTOM_TTS_URL ||
+  process.env.WEBHOOK_TTS_URL ||
+  process.env.VOXFORGE_URL
+);
 
 if (edgeTts.status === 0) {
   pass('Voice Engine', `edge-tts CLI available (${(edgeTts.stdout || '').trim()})`);
 } else if (hasCloudTts) {
-  pass('Voice Engine', 'Cloud TTS API configured via environment');
+  pass('Voice Engine', 'TTS provider (VoxForge or Cloud API) configured via environment');
 } else {
   warn(
     'Voice Engine',
-    'Neither edge-tts CLI nor cloud TTS API detected',
-    'Run "pip install edge-tts" for free offline voiceover, or set OPENAI_API_KEY / ELEVENLABS_API_KEY in .env'
+    'Neither edge-tts CLI nor configured TTS provider detected',
+    'Run "pip install edge-tts" for free offline voiceover, set VOXFORGE_URL (VoxForge), or set OPENAI_API_KEY / ELEVENLABS_API_KEY in .env'
   );
 }
 
