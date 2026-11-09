@@ -97,7 +97,7 @@ const indexHtml = `<!DOCTYPE html>
   <!-- Preload primary typeface — must resolve before frame 0 (fonts.ready gate) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&family=Noto+Sans+Malayalam:wght@400;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="reel/engine.css">
   <style>
     /* Project-level overrides — edit here */
@@ -105,7 +105,7 @@ const indexHtml = `<!DOCTYPE html>
       --primary: #ffffff;
       --accent:  #3b82f6;
       --bg:      #0d1117;
-      --font:    'Archivo', system-ui, sans-serif;
+      --font:    'Archivo', 'Nirmala UI', 'Noto Sans Malayalam', 'Malayalam Sangam MN', 'Kartika', system-ui, sans-serif;
     }
   </style>
 </head>

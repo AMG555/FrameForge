@@ -39,8 +39,19 @@ const extras = [];
 for (let i = 1; i < argv.length; i++) {
   const arg = argv[i];
   if (arg.startsWith('--')) {
-    const [k, v] = arg.slice(2).split('=');
-    flags[k] = v ?? true;
+    const eqIdx = arg.indexOf('=');
+    if (eqIdx !== -1) {
+      const k = arg.slice(2, eqIdx);
+      const v = arg.slice(eqIdx + 1);
+      flags[k] = v;
+    } else {
+      const k = arg.slice(2);
+      if (i + 1 < argv.length && !argv[i + 1].startsWith('--')) {
+        flags[k] = argv[++i];
+      } else {
+        flags[k] = true;
+      }
+    }
   } else {
     extras.push(arg);
   }
@@ -56,7 +67,7 @@ function resolveProjectFile(filename, fallback) {
 const HTML_FILE   = flags.html ? path.resolve(CWD, flags.html) : resolveProjectFile('index.html', resolveProjectFile('studio.html'));
 const OUT_DIR     = flags.outDir ? path.resolve(CWD, flags.outDir) : path.join(CWD, 'out');
 const CHECK_DIR   = path.join(OUT_DIR, 'check');
-const FRAMES_DIR  = path.join(OUT_DIR, 'frames');
+const FRAMES_DIR  = flags.frames ? path.resolve(CWD, flags.frames) : flags.out ? path.resolve(CWD, flags.out) : path.join(OUT_DIR, 'frames');
 const PURITY_LOG  = path.join(CHECK_DIR, 'purity_report.json');
 
 fs.mkdirSync(OUT_DIR, { recursive: true });
@@ -214,17 +225,19 @@ async function cmdFrames() {
   const fps = parseInt(flags.fps || '30', 10);
   const workers = parseInt(flags.workers || '4', 10);
   const duration = flags.duration ? parseFloat(flags.duration) : 2.0;
-  const totalFrames = Math.round(duration * fps);
+  const first = flags.first !== undefined ? parseInt(flags.first, 10) : 0;
+  const last = flags.last !== undefined ? parseInt(flags.last, 10) : (Math.round(duration * fps) - 1);
+  const totalFrames = last - first + 1;
 
-  console.log(`📦 Rendering Frame Range [0..${totalFrames - 1}] (${duration}s @ ${fps}fps, workers=${workers})`);
+  console.log(`📦 Rendering Frame Range [${first}..${last}] (${totalFrames} frames @ ${fps}fps, workers=${workers})`);
   const { browser } = await launchHarnessBrowser();
 
   const res = await renderFrameJobs({
     browser,
     htmlPath: HTML_FILE,
     framesDir: FRAMES_DIR,
-    first: 0,
-    last: totalFrames - 1,
+    first,
+    last,
     fps,
     workers,
     width: parseInt(flags.width || '1920', 10),

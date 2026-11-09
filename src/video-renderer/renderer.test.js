@@ -93,6 +93,14 @@ describe('VideoRenderer._captionFilter', () => {
       assert.ok(textMatch[1].length <= 45, `Caption not truncated: length=${textMatch[1].length}`);
     }
   });
+
+  it('preserves Malayalam Unicode characters and enables text_shaping=1', () => {
+    const renderer = new VideoRenderer();
+    if (!renderer.font) return;
+    const filter = renderer._captionFilter('ഫ്രെയിംഫോർജ്');
+    assert.ok(filter.includes('text_shaping=1'), 'Expected text_shaping=1 for Indic text');
+    assert.ok(filter.includes('ഫ്രെയിംഫോർജ്'), 'Expected Malayalam Unicode text preserved in filter');
+  });
 });
 
 describe('VideoRenderer._discoverScenes', () => {

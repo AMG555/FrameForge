@@ -88,6 +88,10 @@ async function runAssets({ productionId, scenes, parallelism = 1, skipTts = fals
         caption:   scene.caption,
         camera:    scene.camera_hint || scene.camera || 'static',
         focalPoint: scene.focal_point || null,
+        narration: scene.narration || '',
+        visualDescription: scene.visual_description || scene.narration || '',
+        musicMood: scene.music_mood || 'neutral',
+        language:  scene.language || '',
       };
     }));
     results.push(...batchResults);

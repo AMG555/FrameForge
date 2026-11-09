@@ -331,7 +331,7 @@ export function shots(shotList = []) {
  * @param {{ font, color, x, y, size, weight, align, opacity, duration }} opts
  */
 export function text(str, {
-  font     = '48px/1.3 system-ui',
+  font     = '48px/1.3 "Nirmala UI", "Noto Sans Malayalam", "Malayalam Sangam MN", "Kartika", system-ui, sans-serif',
   color    = '#ffffff',
   x        = 'center',
   y        = 100,

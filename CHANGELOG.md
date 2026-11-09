@@ -4,6 +4,27 @@ All notable changes to FrameForge are documented here.
 
 ---
 
+## [2.3.5] — 2026-11-09
+
+### Added
+- **Integrated Code-Driven Scene Animator** (`src/video-renderer/scene-animator.js`):
+  - Dynamic 24fps HTML5/Canvas animation generator adhering to pure-function-of-time contract `seek(t)`
+  - Contextual motion graphic themes: Code IDE/terminal typing, Data charts & counters, Network node graphs, Flow diagrams, and floating Ken-Burns image cards
+  - Dynamic gradient backgrounds with ambient particle systems and perspective motion grids
+  - High-performance Chromium harness rendering + direct FFmpeg BT.709 H.264 VUI muxing
+- **Full Multilingual & Malayalam Font Support**:
+  - Direct font resolver for Malayalam & Indic scripts (`Nirmala.ttc`, `Noto Sans Malayalam`, `Malayalam Sangam MN`, `Kartika`, `Meera`, `Manjari`)
+  - FFmpeg `text_shaping=1` HarfBuzz layout integration preserving complex conjuncts, chillu letters, and viramas
+  - Unicode-safe slicing and UTF-8 handling in caption and narration filters
+  - Updated `engine.css`, `engine.js`, and `new-project.mjs` typography stacks for seamless multilingual rendering
+
+### Fixed
+- Replaced static solid-color slideshow fallback in `renderer.js` with live code-driven animation engine
+- Fixed `--flag value` space-separated argument parsing in `harness.mjs` CLI
+- Fixed `--out` directory path resolution in `cmdFrames` frame exporter
+
+---
+
 ## [2.3.4] — 2026-11-09
 
 ### Added

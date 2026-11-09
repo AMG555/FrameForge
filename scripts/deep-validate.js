@@ -20,7 +20,7 @@ check('batch handling',              code.includes('Array.isArray(body)'));
 check('ping handler',                code.includes("method === 'ping'"));
 check('notifications/init',          code.includes("notifications/initialized"));
 check('body size limit',             code.includes('MAX_BODY_BYTES'));
-check('SERVER_INFO version 2.3.4',   code.includes("version: '2.3.4'"));
+check('SERVER_INFO version 2.3.5',   code.includes("version: '2.3.5'"));
 check('18 tools defined (incl get_job_status)', code.includes('get_job_status'));
 check('export_to_editor tool defined', code.includes('export_to_editor'));
 check('voxforge TTS provider', code.includes('voxforge'));
@@ -293,7 +293,7 @@ check('cf-worker has checkRateLimit',   cfWorker.includes('checkRateLimit'));
 check('cf-worker hashes token (SHA-256)', cfWorker.includes('SHA-256'));
 check('cf-worker uses RATE_LIMITS KV',  cfWorker.includes('env.RATE_LIMITS'));
 check('cf-worker returns 429 on limit', cfWorker.includes('429'));
-check('cf-worker version 2.3.4',        cfWorker.includes("'2.3.4'"));
+check('cf-worker version 2.3.5',        cfWorker.includes("'2.3.5'"));
 check('wrangler.toml has kv_namespaces',fs.readFileSync('./cloudflare-mcp/wrangler.toml','utf8').includes('kv_namespaces'));
 
 // ── plugins/skills present ────────────────────────────────────────────────

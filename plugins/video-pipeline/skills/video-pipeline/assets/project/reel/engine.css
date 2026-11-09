@@ -21,9 +21,9 @@
   --danger:    #ef4444;
 
   /* Typography scale */
-  --font-body:    -apple-system, "Segoe UI", system-ui, sans-serif;
+  --font-body:    -apple-system, "Segoe UI", "Nirmala UI", "Noto Sans Malayalam", "Malayalam Sangam MN", "Kartika", "Meera", "Manjari", system-ui, sans-serif;
   --font-mono:    "Fira Code", "Cascadia Code", "Consolas", monospace;
-  --font-display: "Archivo", "Segoe UI", system-ui, sans-serif;
+  --font-display: "Archivo", "Nirmala UI", "Noto Sans Malayalam", "Malayalam Sangam MN", "Kartika", "Meera", "Manjari", -apple-system, "Segoe UI", system-ui, sans-serif;
 
   /* Spacing */
   --gap-sm:  8px;

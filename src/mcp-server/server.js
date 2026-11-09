@@ -1372,7 +1372,7 @@ Operations (used with action="edit"):
 
 const SERVER_INFO = {
   name:    'video-pipeline',
-  version: '2.3.4',
+  version: '2.3.5',
 };
 
 const CAPABILITIES = {

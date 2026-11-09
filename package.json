@@ -1,6 +1,6 @@
 {
   "name": "@amg555/frameforge-mcp",
-  "version": "2.3.4",
+  "version": "2.3.5",
   "description": "FrameForge — AI video production engine for agentic IDEs. npx @amg555/frameforge-mcp. FFmpeg + TTS run on your machine. 17 MCP tools.",
   "publishConfig": {
     "access": "public"
@@ -30,7 +30,7 @@
     "start:local-render": "cross-env RENDER_MODE=full WORKER_PORT=3211 node src/worker/server-render-free.js",
     "db:migrate": "node scripts/db-migrate.js",
     "validate": "node scripts/deep-validate.js",
-    "test": "node --test src/pipeline/retry-policy.test.js src/pipeline/telemetry.test.js src/pipeline/artifact-manifest.test.js src/pipeline/artifact-retention.test.js src/pipeline/external-adapter.test.js src/workflows/publishing.test.js src/workflows/script.test.js src/animation/animation-system.test.js src/fact-checker/review-gate.test.js src/fact-checker/checker.test.js src/utils/log-redaction.test.js src/worker/server-render-free.test.js src/worker/server.test.js src/mcp-server/server.test.js src/quality-gate/gate.test.js src/shorts-extractor/extractor.test.js src/audio-mixer/mixer.test.js src/video-renderer/renderer.test.js plugins/video-pipeline/skills/video-pipeline/assets/project/reel/engine.test.js src/harness/lib/pixels.test.js src/harness/lib/verify-purity.test.js src/harness/harness.test.js src/integration.test.js",
+    "test": "node --test src/pipeline/retry-policy.test.js src/pipeline/telemetry.test.js src/pipeline/artifact-manifest.test.js src/pipeline/artifact-retention.test.js src/pipeline/external-adapter.test.js src/workflows/publishing.test.js src/workflows/script.test.js src/animation/animation-system.test.js src/fact-checker/review-gate.test.js src/fact-checker/checker.test.js src/utils/log-redaction.test.js src/worker/server-render-free.test.js src/worker/server.test.js src/mcp-server/server.test.js src/quality-gate/gate.test.js src/shorts-extractor/extractor.test.js src/audio-mixer/mixer.test.js src/video-renderer/scene-animator.test.js src/video-renderer/renderer.test.js plugins/video-pipeline/skills/video-pipeline/assets/project/reel/engine.test.js src/harness/lib/pixels.test.js src/harness/lib/verify-purity.test.js src/harness/harness.test.js src/integration.test.js",
     "lint": "echo 'No linter configured — add eslint for production'",
     "check-credentials": "node src/utils/log-redaction.js",
     "generate-assets": "node scripts/generate-initial-assets.js",

@@ -29,6 +29,26 @@ const DEFAULT_FILES_DIR = process.env.N8N_FILES_DIR || path.join(os.homedir(), '
 
 const { buildCameraFilter, selectCameraHint } = require('../animation/animation-system');
 const { AudioMixer }                          = require('../audio-mixer/mixer');
+const { generateSceneHtml }                   = require('./scene-animator');
+const { findChromePath }                      = require('../harness/lib/browser.mjs');
+
+// ── Cross-platform Indic / Malayalam font resolver ────────────────────────────
+const INDIC_FONTS = [
+  // Windows
+  'C:\\Windows\\Fonts\\Nirmala.ttc',
+  'C:\\Windows\\Fonts\\NirmalaB.ttf',
+  'C:\\Windows\\Fonts\\Nirmala.ttf',
+  'C:\\Windows\\Fonts\\kartika.ttf',
+  'C:\\Windows\\Fonts\\kartikab.ttf',
+  // macOS
+  '/System/Library/Fonts/Supplemental/Malayalam Sangam MN.ttc',
+  '/System/Library/Fonts/Supplemental/Malayalam MN.ttc',
+  // Linux
+  '/usr/share/fonts/opentype/noto/NotoSansMalayalam-Bold.ttf',
+  '/usr/share/fonts/truetype/noto/NotoSansMalayalam-Bold.ttf',
+  '/usr/share/fonts/truetype/malayalam/Meera.ttf',
+  '/usr/share/fonts/truetype/lohit-malayalam/Lohit-Malayalam.ttf',
+];
 
 // ── Cross-platform font resolver ──────────────────────────────────────────────
 // Checked in priority order. First existing file wins. Covers:
@@ -61,10 +81,16 @@ const FONTS = [
 ];
 
 /** Return the first font file that exists, or '' if none found. */
-function resolveFont() {
+function resolveFont(text = '') {
   // Allow explicit override via FFMPEG_FONT env var
   const override = process.env.FFMPEG_FONT;
   if (override && fs.existsSync(override)) return override;
+
+  const hasIndic = /[\u0D00-\u0D7F\u0900-\u0DFF]/.test(text || '');
+  if (hasIndic) {
+    const indicFont = INDIC_FONTS.find(f => f && fs.existsSync(f));
+    if (indicFont) return indicFont;
+  }
   return FONTS.find(f => f && fs.existsSync(f)) || '';
 }
 
@@ -80,23 +106,46 @@ class VideoRenderer {
   }
 
   /**
-   * Render a single scene: image or video clip + voice → scene_N_out.mp4
+   * Render a single scene: code-driven animated video or clip + voice → scene_N_out.mp4
    *
    * @param {{
-   *   sceneIndex:   number,
-   *   imagePath?:   string,
-   *   videoPath?:   string,   // optional user clip / B-roll
-   *   voicePath:    string,
-   *   caption?:     string,
-   *   camera?:      string,   // camera_hint from scene schema v1.0.0
-   *   focalPoint?:  { x: number, y: number },
-   *   manifest?:    ArtifactManifest  // optional — enables idempotency
-   *   renderWidth?: number,   // default 1920
-   *   renderHeight?: number,  // default 1080
+   *   sceneIndex:         number,
+   *   imagePath?:         string,
+   *   videoPath?:         string,   // optional user clip / B-roll
+   *   voicePath:          string,
+   *   caption?:           string,
+   *   narration?:         string,
+   *   visualDescription?: string,
+   *   visualType?:        string,
+   *   language?:          string,
+   *   musicMood?:         string,
+   *   camera?:            string,   // camera_hint from scene schema v1.0.0
+   *   focalPoint?:        { x: number, y: number },
+   *   manifest?:          ArtifactManifest  // optional — enables idempotency
+   *   renderWidth?:       number,   // default 1920
+   *   renderHeight?:      number,   // default 1080
+   *   fps?:               number,   // default 24
    * }} opts
    * @returns {string} outputPath
    */
-  renderScene({ sceneIndex, imagePath, videoPath, voicePath, caption = '', camera, focalPoint, manifest, renderWidth = 1920, renderHeight = 1080 } = {}) {
+  renderScene({
+    sceneIndex,
+    imagePath,
+    videoPath,
+    voicePath,
+    caption = '',
+    narration = '',
+    visualDescription = '',
+    visualType = 'code_animation',
+    language = '',
+    musicMood = 'neutral',
+    camera,
+    focalPoint,
+    manifest,
+    renderWidth = 1920,
+    renderHeight = 1080,
+    fps = 24,
+  } = {}) {
     const outputPath = path.join(this.vdir, `scene_${sceneIndex}_out.mp4`);
 
     // Idempotency: skip if already rendered and manifest says so
@@ -108,83 +157,107 @@ class VideoRenderer {
     fs.mkdirSync(this.vdir, { recursive: true });
 
     // Duration from voice file.
-    // No hard 60s cap — long scenes (documentary, lecture, podcast) can run as long as
-    // the narration dictates. The per-scene ffmpeg timeout (5 min) is the real ceiling.
-    //
-    // Fix: guard voicePath=null/undefined before calling ffprobe.
-    // _getAudioDuration(null) → ffprobe stdout empty → parseFloat('') = NaN → clampedDur=NaN
-    // → ffmpeg receives "-t NaN" → scene silently produces 0-byte output → concat breaks A/V sync.
     if (!voicePath || !fs.existsSync(voicePath)) {
       throw new Error(`Scene ${sceneIndex} render failed: voicePath is missing or does not exist (${voicePath})`);
     }
     const dur        = this._getAudioDuration(voicePath);
     const clampedDur = Math.max(2, Number.isFinite(dur) ? dur + 0.15 : 3.15);
 
-    const mediaSource    = videoPath || imagePath;
-    const captionFilter  = this._captionFilter(caption);
+    const isVideoInput = Boolean(videoPath) || (videoPath && /\.(mp4|mov|webm|mkv|m4v)$/i.test(videoPath));
 
-    // No image and no video: procedural motion-graphics scene.
-    // Cycles through sleek modern palettes with vignette shading.
-    if (!mediaSource) {
-      const PALETTES = ['0d1117', '0f172a', '13111c', '0c1a24', '18181b'];
-      const bgColor  = PALETTES[sceneIndex % PALETTES.length];
-      const vfFilters = ['vignette=PI/4'];
-      if (captionFilter) vfFilters.push(captionFilter);
-      const vf = vfFilters.join(',');
+    // Priority 1: User-supplied video clip
+    if (isVideoInput) {
+      const captionFilter = this._captionFilter(caption);
+      const scaleFilter = `scale=${renderWidth}:${renderHeight}:force_original_aspect_ratio=increase:flags=lanczos,crop=${renderWidth}:${renderHeight}`;
+      const vf = [scaleFilter, captionFilter].filter(Boolean).join(',');
 
       const result = spawnSync('ffmpeg', [
         '-nostdin', '-y', '-threads', '2',
-        '-f', 'lavfi', '-i', `color=c=#${bgColor}:s=${renderWidth}x${renderHeight}:r=30`,
-        '-i', voicePath,
-        '-map', '0:v:0', '-map', '1:a:0',
-        // apad=whole_dur pads audio to exactly clampedDur so -t never truncates mid-word.
-        // Specifying whole_dur is mandatory: without it -apad on a color source runs forever.
+        '-stream_loop', '-1', '-i', videoPath, '-i', voicePath,
+        '-vf', vf || `scale=${renderWidth}:${renderHeight},format=yuv420p`,
         '-af', `apad=whole_dur=${clampedDur}`,
         '-t', String(clampedDur),
-        '-vf', vf,
+        '-map', '0:v:0', '-map', '1:a:0',
         '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '22',
         '-profile:v', 'high', '-level', '4.1',
         '-color_range', 'tv', '-colorspace', 'bt709',
         '-color_primaries', 'bt709', '-color_trc', 'bt709',
-        '-pix_fmt', 'yuv420p',
+        '-x264-params', 'colorprim=bt709:transfer=bt709:colormatrix=bt709',
         '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-ac', '2',
         '-movflags', '+faststart',
+        '-pix_fmt', 'yuv420p',
         outputPath,
       ], { timeout: 5 * 60 * 1000, encoding: 'utf8' });
 
       if (result.status !== 0) {
-        throw new Error(`Scene ${sceneIndex} (no-image fallback) render failed: ${(result.stderr || '').slice(-300)}`);
+        const err = `Scene ${sceneIndex} render failed: ${(result.stderr || '').slice(-300)}`;
+        manifest?.setSceneFailed(sceneIndex, err);
+        throw new Error(err);
       }
+
       manifest?.setSceneRendered(sceneIndex, outputPath);
       return outputPath;
     }
 
-    const isVideoInput = Boolean(videoPath) || /\.(mp4|mov|webm|mkv|m4v)$/i.test(mediaSource);
+    // Priority 2: Code-driven animated video scene via Chromium + Harness
+    // Produces pure-function-of-t 24fps motion graphics (kinetic typography,
+    // spring motion, animated particles, graphs, code typing, full multilingual Indic/Malayalam support).
+    const chrome = findChromePath();
+    if (chrome && process.env.FRAMEFORGE_NO_BROWSER !== '1') {
+      try {
+        return this._renderCodeAnimationScene({
+          sceneIndex,
+          imagePath,
+          voicePath,
+          caption,
+          narration,
+          visualDescription,
+          clampedDur,
+          renderWidth,
+          renderHeight,
+          fps,
+          outputPath,
+          manifest,
+          musicMood,
+        });
+      } catch (err) {
+        console.warn(`[Renderer] Code-driven browser scene render failed (${err.message}), falling back to procedural animation`);
+      }
+    }
 
+    // Priority 3: Procedural dynamic animated fallback (dynamic moving gradients / camera drift)
+    const captionFilter = this._captionFilter(caption);
     let inputArgs = [];
     let vf = '';
 
-    if (isVideoInput) {
-      // Loop video clip if shorter than duration, scale/crop to target resolution
-      inputArgs = ['-stream_loop', '-1', '-i', mediaSource, '-i', voicePath];
-      const scaleFilter = `scale=${renderWidth}:${renderHeight}:force_original_aspect_ratio=increase:flags=lanczos,crop=${renderWidth}:${renderHeight}`;
-      vf = [scaleFilter, captionFilter].filter(Boolean).join(',');
-    } else {
-      // Image input with AnimationSystem camera motion
-      inputArgs = ['-loop', '1', '-i', mediaSource, '-i', voicePath];
+    if (imagePath && fs.existsSync(imagePath)) {
+      inputArgs = ['-loop', '1', '-i', imagePath, '-i', voicePath];
       const hint = camera || selectCameraHint(sceneIndex, focalPoint || {});
       const fx   = focalPoint ? { focalX: focalPoint.x, focalY: focalPoint.y } : {};
       const cameraFilter = buildCameraFilter(hint, { duration: clampedDur, w: renderWidth, h: renderHeight, ...fx });
       vf = [cameraFilter, captionFilter].filter(Boolean).join(',');
+    } else {
+      const PALETTES = [
+        { bg: '0d1117', c1: '38bdf8' },
+        { bg: '0f172a', c1: '818cf8' },
+        { bg: '13111c', c1: 'c084fc' },
+        { bg: '0c1a24', c1: '34d399' },
+        { bg: '18181b', c1: 'fbbf24' },
+      ];
+      const pal = PALETTES[sceneIndex % PALETTES.length];
+      inputArgs = [
+        '-f', 'lavfi', '-i', `gradients=s=${renderWidth}x${renderHeight}:r=30:c0=0x${pal.bg}:c1=0x${pal.c1}:speed=0.5:type=radial`,
+        '-i', voicePath,
+      ];
+      const vfFilters = ['vignette=PI/4'];
+      if (captionFilter) vfFilters.push(captionFilter);
+      vf = vfFilters.join(',');
     }
 
     const result = spawnSync('ffmpeg', [
       '-nostdin', '-y', '-threads', '2',
       ...inputArgs,
       '-vf', vf || `scale=${renderWidth}:${renderHeight},format=yuv420p`,
-      // apad=whole_dur pads audio to exactly clampedDur, preventing mid-word truncation
-      // when voice is fractionally shorter than clampedDur and avoiding infinite padding
-      // on looped-image inputs. -t then hard-caps output length at clampedDur.
       '-af', `apad=whole_dur=${clampedDur}`,
       '-t', String(clampedDur),
       '-map', '0:v:0', '-map', '1:a:0',
@@ -192,6 +265,7 @@ class VideoRenderer {
       '-profile:v', 'high', '-level', '4.1',
       '-color_range', 'tv', '-colorspace', 'bt709',
       '-color_primaries', 'bt709', '-color_trc', 'bt709',
+      '-x264-params', 'colorprim=bt709:transfer=bt709:colormatrix=bt709',
       '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-ac', '2',
       '-movflags', '+faststart',
       '-pix_fmt', 'yuv420p',
@@ -199,10 +273,95 @@ class VideoRenderer {
     ], { timeout: 5 * 60 * 1000, encoding: 'utf8' });
 
     if (result.status !== 0) {
-      const err = `Scene ${sceneIndex} render failed: ${(result.stderr || '').slice(-300)}`;
+      const err = `Scene ${sceneIndex} (no-image fallback) render failed: ${(result.stderr || '').slice(-300)}`;
       manifest?.setSceneFailed(sceneIndex, err);
       throw new Error(err);
     }
+
+    manifest?.setSceneRendered(sceneIndex, outputPath);
+    return outputPath;
+  }
+
+  _renderCodeAnimationScene({
+    sceneIndex,
+    imagePath,
+    voicePath,
+    caption,
+    narration,
+    visualDescription,
+    clampedDur,
+    renderWidth,
+    renderHeight,
+    fps = 24,
+    outputPath,
+    manifest,
+    musicMood,
+  }) {
+    const htmlContent = generateSceneHtml({
+      caption,
+      narration,
+      visualDescription,
+      imagePath,
+      duration: clampedDur,
+      width: renderWidth,
+      height: renderHeight,
+      sceneIndex,
+      musicMood,
+    });
+
+    const animHtmlPath = path.join(this.vdir, `scene_${sceneIndex}_anim.html`);
+    const framesDir    = path.join(this.vdir, `scene_${sceneIndex}_frames`);
+    fs.writeFileSync(animHtmlPath, htmlContent, 'utf8');
+    fs.mkdirSync(framesDir, { recursive: true });
+
+    const harnessBin = path.resolve(__dirname, '../harness/bin/harness.mjs');
+    const totalFrames = Math.max(1, Math.round(clampedDur * fps));
+    const lastFrame = totalFrames - 1;
+
+    const res = spawnSync(process.execPath, [
+      harnessBin,
+      'frames',
+      '--html', animHtmlPath,
+      '--out', framesDir,
+      '--fps', String(fps),
+      '--first', '0',
+      '--last', String(lastFrame),
+      '--workers', '4',
+    ], { encoding: 'utf8', timeout: 5 * 60 * 1000 });
+
+    if (res.status !== 0) {
+      throw new Error(`Harness frame rendering failed: ${(res.stderr || res.stdout || '').slice(-400)}`);
+    }
+
+    const framesPattern = path.join(framesDir, 'f%06d.jpg');
+    const encResult = spawnSync('ffmpeg', [
+      '-nostdin', '-y', '-threads', '2',
+      '-framerate', String(fps),
+      '-pattern_type', 'sequence',
+      '-i', framesPattern,
+      '-i', voicePath,
+      '-map', '0:v:0', '-map', '1:a:0',
+      '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20',
+      '-profile:v', 'high', '-level', '4.1',
+      '-color_range', 'tv', '-colorspace', 'bt709',
+      '-color_primaries', 'bt709', '-color_trc', 'bt709',
+      '-x264-params', 'colorprim=bt709:transfer=bt709:colormatrix=bt709',
+      '-pix_fmt', 'yuv420p',
+      '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-ac', '2',
+      '-af', `apad=whole_dur=${clampedDur}`,
+      '-t', String(clampedDur),
+      '-movflags', '+faststart',
+      outputPath,
+    ], { timeout: 5 * 60 * 1000, encoding: 'utf8' });
+
+    if (encResult.status !== 0) {
+      throw new Error(`Scene ${sceneIndex} video encode failed: ${(encResult.stderr || '').slice(-300)}`);
+    }
+
+    try {
+      fs.rmSync(framesDir, { recursive: true, force: true });
+      fs.unlinkSync(animHtmlPath);
+    } catch (_) {}
 
     manifest?.setSceneRendered(sceneIndex, outputPath);
     return outputPath;
@@ -276,19 +435,22 @@ class VideoRenderer {
 
   _captionFilter(caption) {
     if (!caption || !this.font) return '';
+    const resolvedFont = resolveFont(caption) || this.font;
+    if (!resolvedFont) return '';
+
+    const hasIndic = /[\u0D00-\u0D7F\u0900-\u0DFF]/.test(caption);
     // Sanitize caption for ffmpeg drawtext.
-    // Strip all characters that need ffmpeg escaping or that break the drawtext
-    // filter syntax. After stripping : and %, re-escaping them is a no-op — removed.
-    const safe = caption
-      .replace(/['"\\:;|<>{}[\]()!@#$%^&*+=]/g, '')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .slice(0, 45)
-      .toUpperCase();
+    // Strip syntax-breaking characters; preserve full Unicode letters & viramas.
+    const safe = Array.from(
+      caption.replace(/['"\\:;|<>{}[\]()!@#$%^&*+=]/g, '').replace(/\s+/g, ' ').trim()
+    ).slice(0, 45).join('');
     if (!safe) return '';
-    const safeFont = this.font.replace(/\\/g, '/').replace(/:/g, '\\:');
+
+    const safeText = hasIndic ? safe : safe.toUpperCase();
+    const safeFont = resolvedFont.replace(/\\/g, '/').replace(/:/g, '\\:');
+    const shaping = hasIndic ? ':text_shaping=1' : '';
     // Bottom-center, safe zone: 100px from bottom + UI button zone
-    return `drawtext=fontfile='${safeFont}':text='${safe}':fontsize=68:fontcolor=white:bordercolor=black:borderw=4:x=(w-text_w)/2:y=h-180:line_spacing=10`;
+    return `drawtext=fontfile='${safeFont}'${shaping}:text='${safeText}':fontsize=68:fontcolor=white:bordercolor=black:borderw=4:x=(w-text_w)/2:y=h-180:line_spacing=10`;
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────

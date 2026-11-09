@@ -42,13 +42,18 @@ async function runRender({ productionId, sceneAssets, withMusic = true, musicVol
     const idx = asset.sceneId - 1;
     try {
       const scenePath = renderer.renderScene({
-        sceneIndex: idx,
-        imagePath:  asset.imagePath,
-        videoPath:  asset.videoPath,
-        voicePath:  asset.voicePath,
-        caption:    asset.caption || '',
-        camera:     asset.camera  || 'static',
-        focalPoint: asset.focalPoint || null,
+        sceneIndex:        idx,
+        imagePath:         asset.imagePath,
+        videoPath:         asset.videoPath,
+        voicePath:         asset.voicePath,
+        caption:           asset.caption || '',
+        narration:         asset.narration || '',
+        visualDescription: asset.visualDescription || '',
+        visualType:        asset.visualType || 'code_animation',
+        musicMood:         asset.musicMood || 'neutral',
+        language:          asset.language || '',
+        camera:            asset.camera  || 'static',
+        focalPoint:        asset.focalPoint || null,
         renderWidth,
         renderHeight,
       });
