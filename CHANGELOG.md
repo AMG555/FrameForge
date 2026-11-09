@@ -4,6 +4,31 @@ All notable changes to FrameForge are documented here.
 
 ---
 
+## [2.4.6] — 2026-11-10
+
+### Enhanced
+- **High-Quality Volumetric 2D Character Anatomy (`src/video-renderer/scene-animator.js`)**:
+  - Replaced all single-stroke stick limbs with solid anatomical contoured polygons:
+    - Contoured muscular thighs (quadriceps curve), articulated knee joints, gastrocnemius calf curves, and realistic ankles.
+    - Solid contoured upper arms and forearms tapering to wrists; fully articulated hands with solid palms, opposable thumbs, and 4 individual fingers for each pose (`natural`, `dress_shirt`, `hold_spear`, `sewing`, `thinker`, `peace_gesture`, `shiver`, `cover_body`).
+    - Anatomical head contour with cranium dome, temples, cheekbones, sculpted jawline, chin, and ears with antihelix and lobe.
+    - Almond eyes with sclera, colored iris, pupil, specular catchlights, eyelid crease, and blinking animation over pure-$t$.
+    - Sculpted nose bridge and nostril curves; expressive lips with oral cavity and teeth line modulated by sine speech waves.
+    - Layered volumetric styled hair: modern textured pompadour/fade, or lush flowing prehistoric locks.
+    - Modern tailored suit jacket/blazer with notched lapels, shirt collar, silk tie, belt with polished buckle, trousers with center pressed crease, and leather oxford shoes.
+    - Prehistoric animal hide tunic with ragged deckle hem, rawhide stitching, and carved bone toggle buckle, or bare human body with natural skin contours and 5 distinct toes.
+- **Production-Grade Environmental Backdrops**:
+  - `doodle_dressing`: Hardwood herringbone parquet floor with individual planks and specular reflection sheen, architectural wainscoting trim, luxury dark walnut wardrobe closet with warm internal LED downlight, upper storage shelf, and 4 styled garments on wooden hangers, alongside an arched full-length brass mirror with crystal reflection.
+  - `doodle_modern_vs_prehistoric`: Split-screen comparison featuring a modern penthouse with twilight city skyline and illuminated skyscrapers on the left, an African savannah sunset with volcanic mountain ridges and flat-canopy acacia trees on the right, joined by a central glowing timeline rift (`300,000 BCE ───▶ PRESENT`).
+  - `doodle_shiver_cold`: Frigid Ice Age glacial valley with jagged snow-covered crags, wind-carved snow dunes, howling blizzard streaks, breath condensation plumes, and volumetric golden dawn sunbeams.
+  - `doodle_hunter_savannah`: Wide African savannah horizon under glowing sun with swaying golden grass stalks and flaked obsidian/flint spear.
+  - `doodle_sewing_needle`: Prehistoric cavern shelter with stone cave walls, ancient cave paintings, glowing campfire hearth with red embers, and high-precision inspection loupe showing extreme close-up of drilled ivory bone needle and sinew stitching.
+  - `doodle_shame_reflection`: Tranquil forest pool with mossy river rocks, water ripples, mirrored reflection, and radiant cognitive awareness halo.
+  - `doodle_tribe_meeting`: Misty valley with monolithic standing stones, two tribal figures meeting in peace, and glowing golden connection arc.
+  - `doodle_thinking_future`: Primeval starlit night sky with crescent moon, granite boulder, and luminous thought constellation.
+
+---
+
 ## [2.4.5] — 2026-11-10
 
 ### Fixed
