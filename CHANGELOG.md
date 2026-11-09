@@ -4,6 +4,29 @@ All notable changes to FrameForge are documented here.
 
 ---
 
+## [2.3.4] — 2026-11-09
+
+### Added
+- **Full Code-Driven Video Production Harness** (`src/harness/`, `bin/harness.mjs`, `npx frameforge-harness`):
+  - H1 Browser resolution & GPU auto-selection (Direct3D11 / Metal / ANGLE)
+  - H2 Deterministic frame stepper & virtual clock injection
+  - H3 Resumable atomic frame worker pool (`.tmp` + `renameSync`, <1000B corruption checks)
+  - H4 Visual review generators: contact sheets, motion strips, 9:16 mobile crop previews
+  - H5 3-point history-leak & frame purity verification gate ($a === b \land a === c$) with `frames_sha256` digest
+  - H6 Pixel luminance and blind-spot frame math (blank, blown, corner-confined detection)
+  - H7 Determinism primitives in `engine.js` (`boilSeed`, `kf`, `onTwos`, `seg`, `pulse`, `shots`)
+  - H8 Broadcast-grade BT.709 color encoding & x264 VUI parameter tags
+  - H9 Unified CLI commands (`doctor`, `storyboard`, `verify`, `sheet`, `strip`, `crop`, `pixels`, `frames`, `encode`, `all`)
+- **MCP `render_animation` parity**: added `verify`, `doctor`, `pixels` modes and structured `purityReport` return object.
+- **VoxForge**: added `VOXFORGE_URL` detection to system doctor and documented in all provider tables.
+
+### Fixed
+- Fixed relative module imports in scaffolded projects (`./browser.mjs`, etc.).
+- Enforced BT.709 color tags across all procedural scene fallbacks in `renderer.js`.
+- Included `plugins/` skill templates and assets in npm package distribution.
+
+---
+
 ## [2.3.2] — 2026-11-06
 
 ### Added
