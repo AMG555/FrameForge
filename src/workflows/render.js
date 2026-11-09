@@ -36,6 +36,7 @@ async function runRender({
   theme = '',
   title = '',
   language = '',
+  showCaptions = false,
 }) {
   const sm        = new StateMachine({ mode: 'file', stateDir: STATE_DIR });
   const retryPol  = new RetryPolicy({ maxAttempts: 2, baseDelayMs: 15000 });
@@ -77,6 +78,7 @@ async function runRender({
         speed:             asset.speed,
         clipVolume:        asset.clipVolume,
         colorGrade:        asset.colorGrade,
+        showCaptions:      asset.showCaptions !== undefined ? asset.showCaptions : showCaptions,
         renderWidth,
         renderHeight,
       });

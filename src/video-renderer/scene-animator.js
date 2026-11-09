@@ -497,6 +497,13 @@ window.seek = async (t) => {
 </html>`;
 }
 
+// ── Captions Requested Detector ───────────────────────────────────────────────
+/** Returns true ONLY if caller explicitly asks for on-screen captions or subtitles in prompt. */
+function detectCaptionsRequested(text = '') {
+  if (!text || typeof text !== 'string') return false;
+  return /(?:with|show|display|include|enable|add)\s+(?:captions?|subtitles?|sub-titles?|subs?)|(?:captions?|subtitles?)\s*[:=]\s*(?:true|yes|1|on|always)/i.test(text);
+}
+
 // ── HTML Scene Code Generator ──────────────────────────────────────────────────
 /**
  * Generate a complete, self-contained HTML scene conforming to window.seek(t).
@@ -517,7 +524,13 @@ function generateSceneHtml({
   width = 1920,
   height = 1080,
   sceneIndex = 0,
+  showCaptions = false,
 } = {}) {
+  const captionsWanted = Boolean(
+    showCaptions ||
+    detectCaptionsRequested(`${caption} ${narration} ${topic} ${visualDescription} ${style} ${title}`) ||
+    process.env.FRAMEFORGE_SHOW_CAPTIONS === '1'
+  );
   const aestheticKey = detectAesthetic({
     topic,
     style,
@@ -627,6 +640,7 @@ function spring(t, delay = 0, tension = ${aesthetic.springTension}, friction = $
   return 1 - Math.exp(-omega * dt);
 }
 
+const SHOW_CAPTIONS = ${JSON.stringify(captionsWanted)};
 const AESTHETIC = ${JSON.stringify(aestheticKey)};
 const BG_TYPE = ${JSON.stringify(aesthetic.backgroundType)};
 const COMP_THEME = ${JSON.stringify(compTheme)};
@@ -742,9 +756,47 @@ function drawMainScene(t) {
   ctx.save();
   const p = Math.min(1, Math.max(0, t / window.DURATION));
   const enterSpring = spring(t, 0.05, 170, 13);
-  const camZoom = 1.0 + Math.sin(t * 0.45) * 0.02 + p * 0.04;
-  const camPanX = Math.sin(t * 0.35) * 12;
-  const camPanY = Math.cos(t * 0.28) * 6;
+
+  // Multi-Shot Dynamic Director: cut camera framing every 5-7s to keep pacing energetic
+  const shotDur = 5.5;
+  const shotIdx = Math.floor(t / shotDur);
+  const shotLocalT = t - shotIdx * shotDur;
+  const shotCutSpring = spring(shotLocalT, 0.02, 220, 18);
+  const shotProgress = (t % shotDur) / shotDur;
+
+  let targetZoom = 1.0;
+  let targetPanX = 0;
+  let targetPanY = 0;
+
+  if (window.DURATION > 6.5) {
+    const angle = shotIdx % 4;
+    if (angle === 1) {
+      targetZoom = 1.14 + shotProgress * 0.03;
+      targetPanX = -40 + Math.sin(t * 0.4) * 8;
+      targetPanY = -12;
+    } else if (angle === 2) {
+      targetZoom = 1.20 + shotProgress * 0.03;
+      targetPanX = 40 + Math.cos(t * 0.4) * 8;
+      targetPanY = -18;
+    } else if (angle === 3) {
+      targetZoom = 1.08 + shotProgress * 0.02;
+      targetPanX = Math.sin(t * 0.3) * 12;
+      targetPanY = 12;
+    } else {
+      targetZoom = 1.02 + shotProgress * 0.03;
+      targetPanX = Math.sin(t * 0.3) * 12;
+      targetPanY = Math.cos(t * 0.25) * 6;
+    }
+  } else {
+    targetZoom = 1.0 + Math.sin(t * 0.45) * 0.02 + p * 0.04;
+    targetPanX = Math.sin(t * 0.35) * 12;
+    targetPanY = Math.cos(t * 0.28) * 6;
+  }
+
+  const camZoom = 1.0 + (targetZoom - 1.0) * Math.min(1, Math.max(0, shotCutSpring));
+  const camPanX = targetPanX * Math.min(1, Math.max(0, shotCutSpring));
+  const camPanY = targetPanY * Math.min(1, Math.max(0, shotCutSpring));
+
   ctx.translate(W / 2 + camPanX, H * 0.50 + camPanY);
   ctx.scale(Math.min(1.04, Math.max(0.88, enterSpring)) * camZoom, Math.min(1.04, Math.max(0.88, enterSpring)) * camZoom);
   ctx.translate(-W / 2, -H * 0.50);
@@ -828,6 +880,12 @@ function drawMainScene(t) {
     ctx.translate(x, y);
     ctx.scale(scale, scale);
 
+    // Soft ground contact shadow
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
+    ctx.beginPath();
+    ctx.ellipse(0, legLength, 34, 7, 0, 0, Math.PI * 2);
+    ctx.fill();
+
     const blink = (t % 3.2 < 0.14) ? 0.15 : 1.0;
     const mouthTalk = Math.abs(Math.sin(t * 14)) * 4;
     const torsoTopY = -torsoHeight;
@@ -903,6 +961,22 @@ function drawMainScene(t) {
     const eyeR = 4 * blink;
     sCircle(-12, eyeY, Math.max(1, eyeR), seed + 23, '#0f172a', 2, '#0f172a');
     sCircle(12, eyeY, Math.max(1, eyeR), seed + 24, '#0f172a', 2, '#0f172a');
+
+    // Specular eye highlights
+    if (blink > 0.4) {
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(-14, eyeY - 1.5, 1.2, 0, Math.PI * 2);
+      ctx.arc(10, eyeY - 1.5, 1.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Warm cheek blush
+    ctx.fillStyle = 'rgba(251, 113, 133, 0.28)';
+    ctx.beginPath();
+    ctx.ellipse(-14, headCenterY + 12, 6, 3.5, 0, 0, Math.PI * 2);
+    ctx.ellipse(14, headCenterY + 12, 6, 3.5, 0, 0, Math.PI * 2);
+    ctx.fill();
 
     // Eyebrows
     if (expression === 'shivering') {
@@ -2084,8 +2158,8 @@ function drawMainScene(t) {
 function drawCinematicOverlay(t) {
   ctx.save();
 
-  // Subtitles / Spoken Narration - dynamic sentence progression across time
-  if (NARRATION && NARRATION.trim().length > 0) {
+  // Subtitles / Spoken Narration - ONLY rendered when explicitly asked in prompt or options
+  if (SHOW_CAPTIONS && NARRATION && NARRATION.trim().length > 0) {
     // Split narration into natural spoken sentence chunks
     const sentences = NARRATION.split(/[.!?;|]+/).map(s => s.trim()).filter(Boolean);
 
@@ -2234,6 +2308,7 @@ module.exports = {
   generateSceneCodeWithLLM,
   detectAesthetic,
   detectComponentTheme,
+  detectCaptionsRequested,
   getScriptFontStack,
   AESTHETICS,
   REGIONAL_FONTS,

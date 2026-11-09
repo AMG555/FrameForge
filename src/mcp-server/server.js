@@ -420,6 +420,7 @@ const TOOLS = {
         theme,
         title,
         language,
+        showCaptions,
       });
 
       if (!renderResult.passed) {
@@ -584,10 +585,11 @@ Example scene:
         topic:          { type: 'string',  description: 'Overall topic/genre for visual aesthetic and background motion (e.g. "Kerala history", "crypto finance", "AI robotics")' },
         style:          { type: 'string',  description: 'Visual style/theme override (e.g. cinematic_documentary, finance_executive, cyber_tech, retro_synthwave, nature_organic, hype_sports, minimal_luxury, breaking_news, cosmic_space)' },
         theme:          { type: 'string',  description: 'Theme preset alias' },
+        showCaptions:   { type: 'boolean', default: false, description: 'Display on-screen synchronized subtitles/captions. Default false (clean canvas without text unless explicitly requested in prompt).' },
         productionId:   { type: 'string',  description: 'Optional — reuse an existing productionId' },
       },
     },
-    handler: async ({ scenes, title = 'FrameForge Video', orientation = 'landscape', voice, language, skipTts = false, parallelism = 1, withMusic = true, musicVolume = 0.07, topic = '', style = '', theme = '', productionId }) => {
+    handler: async ({ scenes, title = 'FrameForge Video', orientation = 'landscape', voice, language, skipTts = false, parallelism = 1, withMusic = true, musicVolume = 0.07, topic = '', style = '', theme = '', showCaptions = false, productionId }) => {
       const { runAssets } = require('../workflows/assets');
       const { runRender } = require('../workflows/render');
 
@@ -663,6 +665,7 @@ Example scene:
         theme,
         title,
         language,
+        showCaptions,
       });
       const renderResult = await runRender({
         productionId: pid,
@@ -676,6 +679,7 @@ Example scene:
         theme,
         title,
         language,
+        showCaptions,
       });
 
       if (!renderResult.passed) {
@@ -1633,7 +1637,7 @@ Allows the agent in Claude Code, Cursor, or any IDE to inspect the visual output
 
 const SERVER_INFO = {
   name:    'video-pipeline',
-  version: '2.4.3',
+  version: '2.4.4',
 };
 
 const CAPABILITIES = {

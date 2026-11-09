@@ -116,9 +116,9 @@ async function runScript({
 
   const facts = claims.slice(0, 8).map(c => c.safe_wording || c.claim).join('; ');
 
-  // If targetDuration is given, adjust scene count guidance (≈ 5s/scene).
-  // No ceiling — long-form documentaries, lectures, and podcasts may need hundreds of scenes.
-  const targetScenes = targetDuration ? Math.max(5, Math.round(targetDuration / 5)) : sceneCount;
+  // If targetDuration is given, adjust scene count guidance (≈ 4.5-5s per scene for high retention).
+  // No ceiling — long-form documentaries, lectures, and podcasts scale dynamically.
+  const targetScenes = targetDuration ? Math.max(8, Math.ceil(targetDuration / 4.5)) : Math.max(sceneCount, 55);
 
   const raw = await retryPol.executeStage('Script', async () => {
     const system = [
@@ -136,7 +136,7 @@ async function runScript({
       `STYLE: ${style}`,
       `LANGUAGE: ${language}`,
       '',
-      `Write exactly ${targetScenes} scenes (schema_version "2.0.0"). Each scene must have:`,
+      `Write exactly ${targetScenes} scenes (schema_version "2.0.0"). High visual pacing: 4-6 seconds per scene (12-25 spoken words). Never write monolithic 30-50s static scenes. Each scene must have:`,
       'scene_id (integer), schema_version "2.0.0",',
       'narration (15-35 words in the specified language, spoken aloud),',
       'caption (3-6 words UPPERCASE, text overlay),',

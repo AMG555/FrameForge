@@ -7,6 +7,7 @@ const {
   wrapCodeInHarnessHtml,
   detectAesthetic,
   detectComponentTheme,
+  detectCaptionsRequested,
   getScriptFontStack,
   AESTHETICS,
   REGIONAL_FONTS,
@@ -157,6 +158,42 @@ describe('scene-animator generateSceneHtml', () => {
     const html0 = generateSceneHtml({ topic: 'AI software', sceneIndex: 0 });
     const html1 = generateSceneHtml({ topic: 'AI software', sceneIndex: 1 });
     assert.notEqual(html0, html1);
+  });
+
+  it('disables on-screen subtitles by default unless requested in prompt or options', () => {
+    const htmlNoCap = generateSceneHtml({
+      topic: 'Space Exploration',
+      narration: 'The rocket lifts off into the night sky.',
+    });
+    assert.ok(htmlNoCap.includes('SHOW_CAPTIONS = false'));
+
+    const htmlWithCap = generateSceneHtml({
+      topic: 'Space Exploration with subtitles',
+      narration: 'The rocket lifts off into the night sky.',
+    });
+    assert.ok(htmlWithCap.includes('SHOW_CAPTIONS = true'));
+
+    const htmlExplicit = generateSceneHtml({
+      topic: 'Space Exploration',
+      narration: 'The rocket lifts off into the night sky.',
+      showCaptions: true,
+    });
+    assert.ok(htmlExplicit.includes('SHOW_CAPTIONS = true'));
+  });
+});
+
+describe('scene-animator detectCaptionsRequested', () => {
+  it('returns true when prompt asks for captions or subtitles', () => {
+    assert.equal(detectCaptionsRequested('video with subtitles'), true);
+    assert.equal(detectCaptionsRequested('show captions please'), true);
+    assert.equal(detectCaptionsRequested('include captions'), true);
+    assert.equal(detectCaptionsRequested('subtitles: true'), true);
+  });
+
+  it('returns false when no captions requested', () => {
+    assert.equal(detectCaptionsRequested('Ancient Human Clothing Evolution'), false);
+    assert.equal(detectCaptionsRequested(''), false);
+    assert.equal(detectCaptionsRequested(null), false);
   });
 });
 

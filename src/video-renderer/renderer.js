@@ -171,7 +171,14 @@ class VideoRenderer {
     speed = 1.0,
     clipVolume = 0,
     colorGrade = null,
+    showCaptions = false,
   } = {}) {
+    const { detectCaptionsRequested } = require('./scene-animator');
+    const effectiveShowCaptions = Boolean(
+      showCaptions ||
+      detectCaptionsRequested(`${caption} ${narration} ${topic} ${style} ${visualDescription}`) ||
+      process.env.FRAMEFORGE_SHOW_CAPTIONS === '1'
+    );
     const outputPath = path.join(this.vdir, `scene_${sceneIndex}_out.mp4`);
 
     // Idempotency: skip if already rendered and manifest says so
@@ -197,7 +204,7 @@ class VideoRenderer {
       const startSec = parseTimestamp(trimStart != null ? trimStart : startTime);
       const sp = buildSpeedFilters(speed);
 
-      const captionFilter = this._captionFilter(caption);
+      const captionFilter = effectiveShowCaptions ? this._captionFilter(caption) : '';
       const scaleFilter = `scale=${renderWidth}:${renderHeight}:force_original_aspect_ratio=increase:flags=lanczos,crop=${renderWidth}:${renderHeight}`;
       const colorFilter = buildColorFilter(colorGrade);
 
@@ -285,6 +292,7 @@ class VideoRenderer {
           outputPath,
           manifest,
           musicMood,
+          showCaptions: effectiveShowCaptions,
         });
       } catch (err) {
         console.warn(`[Renderer] Code-driven browser scene render failed (${err.message}), falling back to procedural animation`);
@@ -292,7 +300,7 @@ class VideoRenderer {
     }
 
     // Priority 3: Procedural dynamic animated fallback (dynamic moving gradients / camera drift)
-    const captionFilter = this._captionFilter(caption);
+    const captionFilter = effectiveShowCaptions ? this._captionFilter(caption) : '';
     let inputArgs = [];
     let vf = '';
 
@@ -324,12 +332,12 @@ class VideoRenderer {
       '-af', `apad=whole_dur=${clampedDur}`,
       '-t', String(clampedDur),
       '-map', '0:v:0', '-map', '1:a:0',
-      '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '22',
+      '-c:v', 'libx264', '-preset', 'fast', '-crf', '17',
       '-profile:v', 'high', '-level', '4.1',
       '-color_range', 'tv', '-colorspace', 'bt709',
       '-color_primaries', 'bt709', '-color_trc', 'bt709',
-      '-x264-params', 'colorprim=bt709:transfer=bt709:colormatrix=bt709',
-      '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-ac', '2',
+      '-x264-params', 'colorprim=bt709:transfer=bt709:colormatrix=bt709:aq-mode=3:deblock=-1,-1',
+      '-c:a', 'aac', '-b:a', '320k', '-ar', '48000', '-ac', '2',
       '-movflags', '+faststart',
       '-pix_fmt', 'yuv420p',
       outputPath,
@@ -366,6 +374,7 @@ class VideoRenderer {
     outputPath,
     manifest,
     musicMood,
+    showCaptions = false,
   }) {
     let htmlContent;
     if (html && typeof html === 'string' && html.trim().length > 0) {
@@ -399,6 +408,7 @@ class VideoRenderer {
         height: renderHeight,
         sceneIndex,
         musicMood,
+        showCaptions,
       });
     }
 
@@ -434,13 +444,13 @@ class VideoRenderer {
       '-i', framesPattern,
       '-i', voicePath,
       '-map', '0:v:0', '-map', '1:a:0',
-      '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20',
+      '-c:v', 'libx264', '-preset', 'fast', '-crf', '17',
       '-profile:v', 'high', '-level', '4.1',
       '-color_range', 'tv', '-colorspace', 'bt709',
       '-color_primaries', 'bt709', '-color_trc', 'bt709',
-      '-x264-params', 'colorprim=bt709:transfer=bt709:colormatrix=bt709',
+      '-x264-params', 'colorprim=bt709:transfer=bt709:colormatrix=bt709:aq-mode=3:deblock=-1,-1',
       '-pix_fmt', 'yuv420p',
-      '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-ac', '2',
+      '-c:a', 'aac', '-b:a', '320k', '-ar', '48000', '-ac', '2',
       '-af', `apad=whole_dur=${clampedDur}`,
       '-t', String(clampedDur),
       '-movflags', '+faststart',

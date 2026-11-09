@@ -99,6 +99,7 @@ function parseArgs(argv) {
     topic: '', topicsFile: '', language: 'en',
     style: 'educational comedy', channels: ['file'],
     orientation: 'landscape',
+    captions: false, subtitles: false,
     scenesFile: '', scriptFile: '', mediaDir: '',
     shorts: true, dryRun: false,
     noResearch: false, noScript: false, noImages: false, noTts: false, noPublish: false,
@@ -115,6 +116,9 @@ function parseArgs(argv) {
       case '--language':      args.language    = (argv[++i] || 'en').toLowerCase(); break;
       case '--orientation':   args.orientation = (argv[++i] || 'landscape').toLowerCase(); break;
       case '--portrait':      args.orientation = 'portrait'; break;
+      case '--captions':
+      case '--subtitles':
+      case '--with-captions': args.captions = true; break;
       case '--style':         args.style       = argv[++i] || args.style; break;
       case '--channels':      args.channels    = (argv[++i] || 'file').split(',').map(s => s.trim()); break;
       case '--no-research':   args.noResearch  = true; break;
@@ -436,6 +440,7 @@ async function runSingleVideo(args, topic, outDir, workflows) {
     title,
     style: args.style || '',
     language: args.language,
+    showCaptions: Boolean(args.captions || args.subtitles),
     renderWidth,
     renderHeight,
   });

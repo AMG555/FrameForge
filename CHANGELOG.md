@@ -4,6 +4,38 @@ All notable changes to FrameForge are documented here.
 
 ---
 
+## [2.4.4] — 2026-11-09
+
+### Added
+- **Optional Captions via Prompt / Flag (`src/video-renderer/scene-animator.js`, `src/video-renderer/renderer.js`, `src/cli/make.js`)**:
+  - Captions, subtitle pills, and on-screen text are now disabled by default (`SHOW_CAPTIONS = false`).
+  - Added `detectCaptionsRequested(text)` to automatically enable captions when explicitly asked in prompt (e.g. `with captions`, `show captions`, `add subtitles`, `subtitles: true`).
+  - Added CLI flags `--captions`, `--subtitles`, `--with-captions` to `src/cli/make.js`.
+  - Added `showCaptions` option to MCP tools `create_video_from_script` and `publish_video`.
+  - Guarded all FFmpeg video-clip subtitle burn-in filters with `effectiveShowCaptions`.
+
+- **Multi-Shot Dynamic Camera Director (`src/video-renderer/scene-animator.js`)**:
+  - Scenes longer than 6.5s automatically trigger dynamic multi-shot camera cuts every 5.5s (`shotDur = 5.5`).
+  - Progresses cleanly through 4 cinematic angles: Wide establishing $\to$ Medium push-in $\to$ Action close-up $\to$ Dynamic high angle using spring transition interpolations (`shotCutSpring`), eliminating static camera stagnation.
+
+- **Pacing & Duration Scaling (`src/workflows/script.js`)**:
+  - Upgraded target scene count formula to `targetDuration ? Math.max(8, Math.ceil(targetDuration / 4.5)) : Math.max(sceneCount, 55)` to guarantee tight 4-6 second scene pacing matching high-retention video essay benchmarks.
+  - LLM instructions explicitly require 12-25 words per scene to prevent monolithic 30-50s static scenes.
+
+### Enhanced
+- **Visual Rendering Quality Polish (`src/video-renderer/scene-animator.js`)**:
+  - Ground contact drop shadows (`ellipse(0, legLength, 34, 7)`) anchor all characters to the ground plane.
+  - Specular eye highlights and warm rosy cheek blush (`rgba(251, 113, 133, 0.28)`) enhance character expressiveness.
+  - Round line caps (`ctx.lineCap = 'round'`, `ctx.lineJoin = 'round'`) for clean, hand-crafted doodle aesthetics.
+
+- **Near-Lossless FFmpeg Encoding (`src/video-renderer/renderer.js`)**:
+  - Upgraded CRF from 20/22 to `17` (visually lossless).
+  - Upgraded encoding preset from `veryfast` to `fast` for superior inter-frame motion estimation.
+  - Added `-x264-params aq-mode=3:deblock=-1,-1` to eliminate gradient banding on dark animated canvas backgrounds while preserving razor-sharp vector line art.
+  - Upgraded audio output stream to 320 kbps AAC stereo.
+
+---
+
 ## [2.4.3] — 2026-11-09
 
 ### Enhanced

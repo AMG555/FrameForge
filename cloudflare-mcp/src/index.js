@@ -60,7 +60,7 @@ export default {
       return Response.json({
         status:     configured ? 'ok' : 'degraded',
         worker:     'frameforge-mcp',
-        version:    '2.4.3',
+        version:    '2.4.4',
         configured,
         rateLimit: {
           enabled:      !!env.RATE_LIMITS,
@@ -264,7 +264,7 @@ async function handleRPC(body, env) {
         protocolVersion: '2024-11-05',
         serverInfo: {
           name:    'frameforge',
-          version: '2.4.3',
+          version: '2.4.4',
           status:  configured ? 'ready' : 'not_configured',
           // IDEs that surface _meta will show this warning in the tools panel
           ...(configured ? {} : {
@@ -459,6 +459,7 @@ const TOOL_DEFINITIONS = [
         theme:       { type: 'string' },
         language:    { type: 'string' },
         orientation: { type: 'string', enum: ['landscape', 'portrait'], default: 'landscape' },
+        showCaptions:{ type: 'boolean', default: false, description: 'Display on-screen synchronized subtitles/captions. Default false (clean canvas without text unless explicitly requested in prompt).' },
         withMusic:   { type: 'boolean', default: true },
         channels:    { type: 'array', items: { type: 'string' }, default: ['file'] },
       },
