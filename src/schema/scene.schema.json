@@ -12,6 +12,9 @@
     "video_path": { "type": "string", "description": "Optional path to user-supplied video clip or B-roll" },
     "image_path": { "type": "string", "description": "Optional path to user-supplied static image" },
     "audio_path": { "type": "string", "description": "Optional path to user-supplied pre-recorded voiceover" },
+    "html": { "type": "string", "description": "Optional self-contained HTML animation page conforming to window.seek(t)" },
+    "code": { "type": "string", "description": "Optional canvas drawing JavaScript code executed for time t in window.seek" },
+    "animation_code": { "type": "string", "description": "Alias for code" },
     "visual_description": { "type": "string", "minLength": 1 },
     "character": {
       "type": "object",

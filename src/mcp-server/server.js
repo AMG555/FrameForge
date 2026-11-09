@@ -1524,7 +1524,7 @@ Features:
 
 const SERVER_INFO = {
   name:    'video-pipeline',
-  version: '2.3.8',
+  version: '2.3.9',
 };
 
 const CAPABILITIES = {

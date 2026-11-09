@@ -406,6 +406,21 @@ function sfc32(a, b, c, d) {
 }
 const hash = (i) => sfc32(i * 19 + 42, i * 29 + 1337, i * 13 + 7, 99)();
 
+// Animation Primitives & Easing
+function clamp(val, min = 0, max = 1) { return Math.max(min, Math.min(max, val)); }
+function lerp(t, a, b, t0 = 0, t1 = 1) {
+  if (t <= t0) return a;
+  if (t >= t1) return b;
+  return a + (b - a) * ((t - t0) / (t1 - t0));
+}
+function easeIn(t) { return clamp(t, 0, 1) ** 2; }
+function easeOut(t) { const c = clamp(t, 0, 1); return 1 - (1 - c) ** 2; }
+function easeInOut(t) { const c = clamp(t, 0, 1); return c < 0.5 ? 2 * c * c : 1 - (-2 * c + 2) ** 2 / 2; }
+function boilSeed(t, seed = 0) {
+  const frame12 = Math.floor(t * 12);
+  return hash(seed * 1000 + frame12);
+}
+
 // Spring dynamics
 function spring(t, delay = 0, tension = 180, friction = 14) {
   const dt = t - delay;

@@ -163,5 +163,12 @@ describe('scene-animator wrapCodeInHarnessHtml', () => {
     assert.ok(html.includes('window.seek = async (t) =>'));
     assert.ok(html.includes(customCode));
     assert.ok(html.includes('Noto Sans Malayalam'));
+    assert.ok(html.includes('function spring('));
+    assert.ok(html.includes('function lerp('));
+    assert.ok(html.includes('function clamp('));
+    assert.ok(html.includes('function easeIn('));
+    assert.ok(html.includes('function easeOut('));
+    assert.ok(html.includes('function easeInOut('));
+    assert.ok(html.includes('function boilSeed('));
   });
 });

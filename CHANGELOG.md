@@ -4,6 +4,16 @@ All notable changes to FrameForge are documented here.
 
 ---
 
+## [2.3.9] — 2026-11-09
+
+### Enhanced
+- **Code-Driven Animation Primitives (`src/video-renderer/scene-animator.js`)**:
+  - Expanded `wrapCodeInHarnessHtml` runtime environment with standard animation and easing helpers: `clamp`, `lerp`, `easeIn`, `easeOut`, `easeInOut`, and `boilSeed` (12fps hand-drawn wobble).
+  - Explicitly registered `html`, `code`, and `animation_code` in `src/schema/scene.schema.json` for first-class schema validation and tool discovery.
+  - Verified pure-function-of-time canvas code execution pipeline: scene code → Playwright virtual clock headless capture → FFmpeg BT.709 H.264/AAC MP4 encode.
+
+---
+
 ## [2.3.8] — 2026-11-09
 
 ### Fixed & Enhanced
