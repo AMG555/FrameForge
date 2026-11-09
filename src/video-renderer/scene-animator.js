@@ -45,6 +45,19 @@ function getScriptFontStack(text = '', language = '') {
 
 // ── Aesthetic Definitions ──────────────────────────────────────────────────────
 const AESTHETICS = {
+  hand_drawn_doodle: {
+    name: 'Hand-Drawn Doodle',
+    palettes: [
+      { bg0: '#ffffff', bg1: '#faf7f2', bg2: '#f6f1e8', stroke: '#1c1917', strokeAlt: '#44403c', accent: '#c2410c', accent2: '#d97706', cardBg: 'rgba(255, 255, 255, 0.95)', cardBorder: 'rgba(28, 25, 23, 0.25)', tag: 'DOODLE', isLight: true },
+      { bg0: '#fdfbf7', bg1: '#f8f4eb', bg2: '#f3ece0', stroke: '#18181b', strokeAlt: '#3f3f46', accent: '#15803d', accent2: '#b45309', cardBg: 'rgba(255, 255, 255, 0.95)', cardBorder: 'rgba(24, 24, 27, 0.25)', tag: 'SKETCH', isLight: true },
+      { bg0: '#fcfaf5', bg1: '#f7f2e7', bg2: '#f0e8d8', stroke: '#0f172a', strokeAlt: '#334155', accent: '#0369a1', accent2: '#c2410c', cardBg: 'rgba(255, 255, 255, 0.95)', cardBorder: 'rgba(15, 23, 42, 0.25)', tag: 'INK', isLight: true },
+    ],
+    fontFamily: (script) => script ? `${script}, 'Caveat', 'Patrick Hand', 'Comic Sans MS', cursive, sans-serif` : `'Caveat', 'Patrick Hand', 'Segoe UI', cursive, sans-serif`,
+    fontDisplayWeight: '700',
+    backgroundType: 'paper_texture',
+    springTension: 160,
+    springFriction: 14,
+  },
   cyber_tech: {
     name: 'Cyber Tech',
     palettes: [
@@ -191,6 +204,7 @@ function detectAesthetic({
   // Explicit override wins
   const explicit = (theme || style || '').toLowerCase().trim();
   if (AESTHETICS[explicit]) return explicit;
+  if (/doodle|sketch|hand[-\s]?drawn|drawing|white background|cream background|cartoon|illustration/i.test(explicit)) return 'hand_drawn_doodle';
   if (/cyber|tech|code|ai|crypto|hacker|futur/i.test(explicit)) return 'cyber_tech';
   if (/doc|history|ancient|story|cinema|kerala|temple|culture/i.test(explicit)) return 'cinematic_documentary';
   if (/finan|market|stock|money|invest|crypto|business/i.test(explicit)) return 'finance_executive';
@@ -203,6 +217,12 @@ function detectAesthetic({
 
   // Keyword scan across all textual signals (English + Multilingual)
   const combined = `${topic} ${title} ${visualDescription} ${narration} ${caption} ${musicMood}`.toLowerCase();
+
+  // Hand-Drawn Doodle / Sketch / Cartoon
+  if (/(?:^|[^\w])(doodle|sketch|hand[-\s]?drawn|drawing|white background|cream background|paper|cartoon)(?:[^\w]|$)/.test(combined)
+      || /ഡൂഡിൽ|വര|വരച്ച|ചിത്രരചന|रेखाचित्र|कार्टून/.test(combined)) {
+    return 'hand_drawn_doodle';
+  }
 
   // Cosmic Space / Quantum / Orbital
   if (/(?:^|[^\w])(quantum|astronomy|galaxy|universe|space|mars|satellite|telescope|cosmos|interstellar|orbit|gps|satellites)(?:[^\w]|$)/.test(combined)
@@ -263,9 +283,10 @@ function detectAesthetic({
 /**
  * Detect the graphic entity to render on the full canvas for a given scene.
  */
-function detectComponentTheme({ visualDescription = '', caption = '', narration = '', topic = '', imagePath = null, aesthetic = 'cyber_tech' } = {}) {
+function detectComponentTheme({ visualDescription = '', visual_description = '', prompt = '', caption = '', narration = '', topic = '', imagePath = null, aesthetic = 'cyber_tech' } = {}) {
   if (imagePath) return 'image';
-  const text = `${visualDescription} ${caption} ${narration} ${topic}`.toLowerCase();
+  const visDesc = visualDescription || visual_description || prompt || '';
+  const text = `${visDesc} ${caption} ${narration} ${topic}`.toLowerCase();
 
   // ── Doodled Character Actions (Human Stories, History, Evolution, Daily Life) ──
   // 1. Microscope / Lice Theory / Parasite / Genetics (Scene 7)
@@ -310,13 +331,19 @@ function detectComponentTheme({ visualDescription = '', caption = '', narration 
     return 'doodle_shame_reflection';
   }
 
-  // 8. Dressing / Wardrobe / Wearing Clothes / Outfit / Morning Routine (Scene 1, 11)
+  // 8. Modern vs Prehistoric Human Comparison (Scene 2)
+  if (/(?:^|[^\w])(modern vs ancient|modern human|fashionable|modern vs prehistoric|split-screen|split screen|transformation|then and now|evolution of human)(?:[^\w]|$)/i.test(text)
+      || /ഫാഷൻ|ആധുനിക മനുഷ്യൻ|പുരാതന മനുഷ്യൻ|കടകളോ|ആധുനികവും പുരാതനവും/.test(text)) {
+    return 'doodle_modern_vs_prehistoric';
+  }
+
+  // 9. Dressing / Wardrobe / Wearing Clothes / Outfit / Morning Routine (Scene 1, 11)
   if (/(?:^|[^\w])(dress|dressing|wearing clothes|shirt|wardrobe|closet|hanger|outfit|choose clothes|wear|garment|wedding dress|interview|daily habit|why we wear clothes)(?:[^\w]|$)/i.test(text)
-      || /വസ്ത്രധാരണം|ധരിച്ചിട്ടുണ്ടാ|ഷർട്ട്|തിരഞ്ഞെടുത്തത്|തുണി എടുത്തിടുകയല്ല|കല്യാണത്തിന്|ഇന്റർവ്യൂ|ആമുഖം: വസ്ത്രധാരണം|വസ്ത്രം തിരഞ്ഞെടുക്കുമ്പോൾ|വസ്ത്രം തിരഞ്ഞെടുക്കും/.test(text)) {
+      || /വസ്ത്രധാരണം|ധരിച്ചിട്ടുണ്ടാ|ധരിച്ച|വസ്ത്രം ധരിക്കാൻ|വസ്ത്രത്തിന്|വസ്ത്രം തിരഞ്ഞെടുക്കു|ഷർട്ട്|തിരഞ്ഞെടുത്തത്|തുണി എടുത്തിടുകയല്ല|കല്യാണത്തിന്|ഇന്റർവ്യൂ|ആമുഖം: വസ്ത്രധാരണം|വസ്ത്രം തിരഞ്ഞെടുക്കുമ്പോൾ|വസ്ത്രം തിരഞ്ഞെടുക്കും/.test(text)) {
     return 'doodle_dressing';
   }
 
-  // 9. General Human Character
+  // 10. General Human Character
   if (/(?:^|[^\w])(human|person|man|woman|people|child|guy|doodle|character|actor)(?:[^\w]|$)/i.test(text)
       || /മനുഷ്യൻ|ആളുകൾ|വ്യക്തി/.test(text)) {
     return 'doodle_general_human';
@@ -520,6 +547,8 @@ function generateSceneHtml({
   title = '',
   language = '',
   musicMood = 'neutral',
+  camera = 'auto',
+  cameraHint = 'auto',
   duration = 3,
   width = 1920,
   height = 1080,
@@ -598,6 +627,7 @@ function generateSceneHtml({
 <canvas id="stage" width="${width}" height="${height}"></canvas>
 <script>
 window.DURATION = ${clampedDur};
+window.CAMERA_HINT = ${JSON.stringify(camera || cameraHint || 'auto')};
 const canvas = document.getElementById('stage');
 const ctx = canvas.getContext('2d');
 const W = ${width};
@@ -658,6 +688,10 @@ const FONT_DISPLAY = ${JSON.stringify(fontDisplay)};
 const FONT_BODY = ${JSON.stringify(fontBody)};
 const FONT_WEIGHT = ${JSON.stringify(aesthetic.fontDisplayWeight)};
 const IMAGE_SRC = ${JSON.stringify(imageDataUri)};
+const IS_LIGHT = ${Boolean(pal.isLight)};
+const STROKE_COLOR = ${JSON.stringify(pal.isLight ? (pal.stroke || '#1c1917') : '#f8fafc')};
+const STROKE_ALT = ${JSON.stringify(pal.isLight ? (pal.strokeAlt || '#44403c') : 'rgba(255, 255, 255, 0.7)')};
+const AMBIENT_LINE = ${JSON.stringify(pal.isLight ? 'rgba(28, 25, 23, 0.22)' : 'rgba(255, 255, 255, 0.25)')};
 
 let cachedImage = null;
 if (IMAGE_SRC) {
@@ -677,7 +711,24 @@ function drawBackground(t) {
   ctx.fillRect(0, 0, W, H);
 
   ctx.save();
-  if (BG_TYPE === 'grid_perspective') {
+  if (BG_TYPE === 'paper_texture' || IS_LIGHT) {
+    // Subtle paper grain / parchment texture
+    ctx.strokeStyle = 'rgba(120, 80, 40, 0.04)';
+    ctx.lineWidth = 1;
+    for (let y = 40; y < H; y += 40) {
+      const wobble = Math.sin(y * 0.1) * 3;
+      ctx.beginPath();
+      ctx.moveTo(0, y + wobble);
+      ctx.lineTo(W, y - wobble);
+      ctx.stroke();
+    }
+    // Subtle organic vignette
+    const vig = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.45, W / 2, H / 2, Math.max(W, H) * 0.75);
+    vig.addColorStop(0, 'rgba(0, 0, 0, 0)');
+    vig.addColorStop(1, 'rgba(120, 90, 60, 0.08)');
+    ctx.fillStyle = vig;
+    ctx.fillRect(0, 0, W, H);
+  } else if (BG_TYPE === 'grid_perspective') {
     // 3D Perspective Grid
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
     ctx.lineWidth = 1;
@@ -754,51 +805,61 @@ function drawBackground(t) {
 // ── Full-Canvas Cinematic Visual Directors ─────────────────────────────────────
 function drawMainScene(t) {
   ctx.save();
-  const p = Math.min(1, Math.max(0, t / window.DURATION));
+  // Continuous audio-driven cinematic camera movement (no fixed interval timer cuts)
+  const dur = window.DURATION || 3;
+  const p = Math.min(1, Math.max(0, t / dur));
   const enterSpring = spring(t, 0.05, 170, 13);
-
-  // Multi-Shot Dynamic Director: cut camera framing every 5-7s to keep pacing energetic
-  const shotDur = 5.5;
-  const shotIdx = Math.floor(t / shotDur);
-  const shotLocalT = t - shotIdx * shotDur;
-  const shotCutSpring = spring(shotLocalT, 0.02, 220, 18);
-  const shotProgress = (t % shotDur) / shotDur;
+  const camHint = (window.CAMERA_HINT || 'auto').toLowerCase();
 
   let targetZoom = 1.0;
   let targetPanX = 0;
   let targetPanY = 0;
 
-  if (window.DURATION > 6.5) {
-    const angle = shotIdx % 4;
-    if (angle === 1) {
-      targetZoom = 1.14 + shotProgress * 0.03;
-      targetPanX = -40 + Math.sin(t * 0.4) * 8;
-      targetPanY = -12;
-    } else if (angle === 2) {
-      targetZoom = 1.20 + shotProgress * 0.03;
-      targetPanX = 40 + Math.cos(t * 0.4) * 8;
-      targetPanY = -18;
-    } else if (angle === 3) {
-      targetZoom = 1.08 + shotProgress * 0.02;
-      targetPanX = Math.sin(t * 0.3) * 12;
-      targetPanY = 12;
-    } else {
-      targetZoom = 1.02 + shotProgress * 0.03;
-      targetPanX = Math.sin(t * 0.3) * 12;
-      targetPanY = Math.cos(t * 0.25) * 6;
-    }
+  if (camHint === 'slow_zoom_in' || camHint === 'zoom_in') {
+    targetZoom = 1.0 + p * 0.08;
+    targetPanX = Math.sin(t * 0.4) * 6;
+    targetPanY = Math.cos(t * 0.3) * 4;
+  } else if (camHint === 'slow_zoom_out' || camHint === 'zoom_out') {
+    targetZoom = 1.08 - p * 0.08;
+    targetPanX = Math.sin(t * 0.4) * 6;
+    targetPanY = Math.cos(t * 0.3) * 4;
+  } else if (camHint === 'pan_left') {
+    targetZoom = 1.02;
+    targetPanX = 25 - p * 50;
+    targetPanY = Math.cos(t * 0.3) * 3;
+  } else if (camHint === 'pan_right') {
+    targetZoom = 1.02;
+    targetPanX = -25 + p * 50;
+    targetPanY = Math.cos(t * 0.3) * 3;
+  } else if (camHint === 'tilt_up') {
+    targetZoom = 1.03;
+    targetPanX = Math.sin(t * 0.3) * 4;
+    targetPanY = 20 - p * 40;
+  } else if (camHint === 'tilt_down') {
+    targetZoom = 1.03;
+    targetPanX = Math.sin(t * 0.3) * 4;
+    targetPanY = -20 + p * 40;
+  } else if (camHint === 'ken_burns') {
+    targetZoom = 1.0 + p * 0.06;
+    targetPanX = -18 + p * 36;
+    targetPanY = 12 - p * 24;
+  } else if (camHint === 'static') {
+    targetZoom = 1.0;
+    targetPanX = 0;
+    targetPanY = 0;
   } else {
-    targetZoom = 1.0 + Math.sin(t * 0.45) * 0.02 + p * 0.04;
-    targetPanX = Math.sin(t * 0.35) * 12;
-    targetPanY = Math.cos(t * 0.28) * 6;
+    // 'auto' or narrative default: subtle organic breathing and smooth forward progression
+    targetZoom = 1.0 + Math.sin(p * Math.PI * 0.5) * 0.04;
+    targetPanX = Math.sin(t * 0.35) * 8;
+    targetPanY = Math.cos(t * 0.28) * 4;
   }
 
-  const camZoom = 1.0 + (targetZoom - 1.0) * Math.min(1, Math.max(0, shotCutSpring));
-  const camPanX = targetPanX * Math.min(1, Math.max(0, shotCutSpring));
-  const camPanY = targetPanY * Math.min(1, Math.max(0, shotCutSpring));
+  const camZoom = targetZoom;
+  const camPanX = targetPanX;
+  const camPanY = targetPanY;
 
   ctx.translate(W / 2 + camPanX, H * 0.50 + camPanY);
-  ctx.scale(Math.min(1.04, Math.max(0.88, enterSpring)) * camZoom, Math.min(1.04, Math.max(0.88, enterSpring)) * camZoom);
+  ctx.scale(Math.min(1.02, Math.max(0.92, enterSpring)) * camZoom, Math.min(1.02, Math.max(0.92, enterSpring)) * camZoom);
   ctx.translate(-W / 2, -H * 0.50);
 
   const cx = W / 2;
@@ -810,7 +871,7 @@ function drawMainScene(t) {
     return Math.sin(seed * 19.37 + step * 2.41) * mag;
   }
 
-  function sLine(x1, y1, x2, y2, seed, color = '#f8fafc', width = 3.5) {
+  function sLine(x1, y1, x2, y2, seed, color = STROKE_COLOR, width = 3.5) {
     ctx.save();
     ctx.strokeStyle = color;
     ctx.lineWidth = width;
@@ -825,7 +886,7 @@ function drawMainScene(t) {
     ctx.restore();
   }
 
-  function sCircle(x, y, r, seed, color = '#f8fafc', width = 3, fillColor = null) {
+  function sCircle(x, y, r, seed, color = STROKE_COLOR, width = 3, fillColor = null) {
     ctx.save();
     if (fillColor) {
       ctx.fillStyle = fillColor;
@@ -850,7 +911,7 @@ function drawMainScene(t) {
     ctx.restore();
   }
 
-  function sRect(x, y, w, h, seed, color = '#f8fafc', width = 3, fillColor = null) {
+  function sRect(x, y, w, h, seed, color = STROKE_COLOR, width = 3, fillColor = null) {
     ctx.save();
     if (fillColor) {
       ctx.fillStyle = fillColor;
@@ -874,75 +935,107 @@ function drawMainScene(t) {
     expression = 'talking',
     clothing = 'none',
     armPose = 'natural',
+    showShadow = false,
+    showBlush = false,
+    showSpecular = false,
     seed = 100,
   } = {}) {
     ctx.save();
     ctx.translate(x, y);
     ctx.scale(scale, scale);
 
-    // Soft ground contact shadow
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
-    ctx.beginPath();
-    ctx.ellipse(0, legLength, 34, 7, 0, 0, Math.PI * 2);
-    ctx.fill();
+    // Ground contact shadow: strictly conditional (default false)
+    if (showShadow) {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
+      ctx.beginPath();
+      ctx.ellipse(0, legLength, 34, 7, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
     const blink = (t % 3.2 < 0.14) ? 0.15 : 1.0;
     const mouthTalk = Math.abs(Math.sin(t * 14)) * 4;
     const torsoTopY = -torsoHeight;
     const torsoBottomY = 0;
+    const shoulderW = 28;
 
-    // Torso Clothing Fills
+    // High quality contoured torso silhouette (organic human form, never stick figure)
     if (clothing === 'pelt') {
+      // Prehistoric animal pelt tunic with textured ragged hem
       ctx.fillStyle = '#b45309';
       ctx.beginPath();
-      ctx.moveTo(-24 + wb(seed, 2), torsoTopY);
-      ctx.lineTo(24 + wb(seed + 1, 2), torsoTopY);
-      ctx.lineTo(32 + wb(seed + 2, 2), torsoBottomY + 28);
-      ctx.lineTo(-28 + wb(seed + 3, 2), torsoBottomY + 28);
+      ctx.moveTo(-shoulderW + wb(seed, 2), torsoTopY);
+      ctx.lineTo(shoulderW + wb(seed + 1, 2), torsoTopY);
+      ctx.lineTo(shoulderW + 6 + wb(seed + 2, 2), torsoBottomY + 22);
+      ctx.lineTo(-shoulderW - 6 + wb(seed + 3, 2), torsoBottomY + 22);
       ctx.closePath();
       ctx.fill();
-      sLine(-28, torsoBottomY + 2, 32, torsoBottomY + 2, seed + 4, '#78350f', 4);
+
+      // Pelt border stitching & waist wrap
+      sLine(-shoulderW - 6, torsoBottomY + 22, shoulderW + 6, torsoBottomY + 22, seed + 4, '#78350f', 4);
+      sLine(-shoulderW, torsoBottomY - 8, shoulderW, torsoBottomY - 8, seed + 5, '#451a03', 3);
+      // Asymmetric fur shoulder wrap
+      sLine(-shoulderW, torsoTopY, shoulderW - 10, torsoTopY + 24, seed + 6, '#78350f', 3.5);
     } else if (clothing === 'shirt') {
+      // Modern tailored shirt/jacket with collar and button placket
       ctx.fillStyle = ACCENT;
       ctx.beginPath();
-      ctx.moveTo(-26 + wb(seed, 2), torsoTopY);
-      ctx.lineTo(26 + wb(seed + 1, 2), torsoTopY);
-      ctx.lineTo(28 + wb(seed + 2, 2), torsoBottomY + 12);
-      ctx.lineTo(-28 + wb(seed + 3, 2), torsoBottomY + 12);
+      ctx.moveTo(-shoulderW + wb(seed, 2), torsoTopY);
+      ctx.lineTo(shoulderW + wb(seed + 1, 2), torsoTopY);
+      ctx.lineTo(shoulderW + 2 + wb(seed + 2, 2), torsoBottomY + 12);
+      ctx.lineTo(-shoulderW - 2 + wb(seed + 3, 2), torsoBottomY + 12);
       ctx.closePath();
       ctx.fill();
+
+      // Collar lines & placket
       sLine(-14, torsoTopY, 0, torsoTopY + 18, seed + 4, '#ffffff', 3);
       sLine(14, torsoTopY, 0, torsoTopY + 18, seed + 5, '#ffffff', 3);
       sLine(0, torsoTopY + 18, 0, torsoBottomY + 10, seed + 6, '#ffffff', 2.5);
     } else if (clothing === 'cloak') {
+      // Flowing draped mantle
       ctx.fillStyle = '#0f766e';
       ctx.beginPath();
-      ctx.moveTo(-32, torsoTopY - 6);
-      ctx.lineTo(32, torsoTopY - 6);
-      ctx.lineTo(44, torsoBottomY + 32);
-      ctx.lineTo(-44, torsoBottomY + 32);
+      ctx.moveTo(-shoulderW - 8, torsoTopY - 6);
+      ctx.lineTo(shoulderW + 8, torsoTopY - 6);
+      ctx.lineTo(shoulderW + 18, torsoBottomY + 32);
+      ctx.lineTo(-shoulderW - 18, torsoBottomY + 32);
       ctx.closePath();
       ctx.fill();
+      sLine(-shoulderW - 8, torsoTopY - 6, -shoulderW - 18, torsoBottomY + 32, seed + 7, '#134e4a', 3.5);
+      sLine(shoulderW + 8, torsoTopY - 6, shoulderW + 18, torsoBottomY + 32, seed + 8, '#134e4a', 3.5);
     } else {
-      sLine(0, torsoTopY, 0, torsoBottomY, seed + 7, '#fcd34d', 4);
-      sLine(-15, torsoTopY + 30, -2, torsoTopY + 40, seed + 8, 'rgba(255,255,255,0.3)', 2);
-      sLine(15, torsoTopY + 30, 2, torsoTopY + 40, seed + 9, 'rgba(255,255,255,0.3)', 2);
-    }
-    sLine(0, torsoTopY, 0, torsoBottomY, seed + 10, '#f8fafc', 4);
+      // Natural contoured human torso (shoulders, ribcage, waist, hips)
+      ctx.fillStyle = IS_LIGHT ? 'rgba(217, 119, 6, 0.12)' : 'rgba(254, 243, 199, 0.22)';
+      ctx.beginPath();
+      ctx.moveTo(-shoulderW + wb(seed, 1.5), torsoTopY + 5);
+      ctx.lineTo(shoulderW + wb(seed + 1, 1.5), torsoTopY + 5);
+      ctx.quadraticCurveTo(shoulderW - 6 + wb(seed + 2, 1.5), torsoTopY + torsoHeight * 0.5, shoulderW - 4, torsoBottomY);
+      ctx.lineTo(-shoulderW + 4, torsoBottomY);
+      ctx.quadraticCurveTo(-shoulderW + 6 + wb(seed + 3, 1.5), torsoTopY + torsoHeight * 0.5, -shoulderW + wb(seed, 1.5), torsoTopY + 5);
+      ctx.closePath();
+      ctx.fill();
 
-    // Head
-    const headCenterY = torsoTopY - headRadius - 6 + wb(seed + 11, 1.5);
-    sCircle(0, headCenterY, headRadius, seed + 12, '#f8fafc', 3.5, '#fef3c7');
+      // Contoured torso outline strokes
+      sLine(-shoulderW, torsoTopY + 5, -shoulderW + 4, torsoBottomY, seed + 7, STROKE_COLOR, 3.5);
+      sLine(shoulderW, torsoTopY + 5, shoulderW - 4, torsoBottomY, seed + 8, STROKE_COLOR, 3.5);
+      sLine(-shoulderW + 4, torsoBottomY, shoulderW - 4, torsoBottomY, seed + 9, STROKE_COLOR, 3);
+      // Subtle collarbone / rib accents
+      sLine(-16, torsoTopY + 16, -2, torsoTopY + 22, seed + 10, STROKE_ALT, 2);
+      sLine(16, torsoTopY + 16, 2, torsoTopY + 22, seed + 11, STROKE_ALT, 2);
+    }
+
+    // Head (expressive contoured skull)
+    const headCenterY = torsoTopY - headRadius - 6 + wb(seed + 12, 1.5);
+    sCircle(0, headCenterY, headRadius, seed + 13, STROKE_COLOR, 3.5, '#fef3c7');
 
     // Hair
     if (hairStyle === 'wild') {
-      for (let h = 0; h < 6; h++) {
-        const hairAng = -Math.PI * 0.85 + (h / 5) * Math.PI * 0.7;
+      for (let h = 0; h < 7; h++) {
+        const hairAng = -Math.PI * 0.88 + (h / 6) * Math.PI * 0.76;
         const hx1 = Math.cos(hairAng) * headRadius;
         const hy1 = headCenterY + Math.sin(hairAng) * headRadius;
-        const hx2 = Math.cos(hairAng) * (headRadius + 22 + wb(seed + 13 + h, 4));
-        const hy2 = headCenterY + Math.sin(hairAng) * (headRadius + 22 + wb(seed + 14 + h, 4));
-        sLine(hx1, hy1, hx2, hy2, seed + 15 + h, '#78350f', 3.5);
+        const hx2 = Math.cos(hairAng) * (headRadius + 24 + wb(seed + 14 + h, 4));
+        const hy2 = headCenterY + Math.sin(hairAng) * (headRadius + 24 + wb(seed + 15 + h, 4));
+        sLine(hx1, hy1, hx2, hy2, seed + 16 + h, '#78350f', 3.5);
       }
     } else if (hairStyle === 'modern') {
       ctx.fillStyle = '#1e293b';
@@ -958,12 +1051,12 @@ function drawMainScene(t) {
 
     // Eyes
     const eyeY = headCenterY + 4;
-    const eyeR = 4 * blink;
+    const eyeR = 4.2 * blink;
     sCircle(-12, eyeY, Math.max(1, eyeR), seed + 23, '#0f172a', 2, '#0f172a');
     sCircle(12, eyeY, Math.max(1, eyeR), seed + 24, '#0f172a', 2, '#0f172a');
 
-    // Specular eye highlights
-    if (blink > 0.4) {
+    // Specular eye highlights: only when explicitly enabled
+    if (showSpecular && blink > 0.4) {
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
       ctx.arc(-14, eyeY - 1.5, 1.2, 0, Math.PI * 2);
@@ -971,12 +1064,14 @@ function drawMainScene(t) {
       ctx.fill();
     }
 
-    // Warm cheek blush
-    ctx.fillStyle = 'rgba(251, 113, 133, 0.28)';
-    ctx.beginPath();
-    ctx.ellipse(-14, headCenterY + 12, 6, 3.5, 0, 0, Math.PI * 2);
-    ctx.ellipse(14, headCenterY + 12, 6, 3.5, 0, 0, Math.PI * 2);
-    ctx.fill();
+    // Rosy cheek blush: strictly conditional (default false)
+    if (showBlush || expression === 'blushing' || expression === 'shame') {
+      ctx.fillStyle = 'rgba(251, 113, 133, 0.28)';
+      ctx.beginPath();
+      ctx.ellipse(-14, headCenterY + 12, 6, 3.5, 0, 0, Math.PI * 2);
+      ctx.ellipse(14, headCenterY + 12, 6, 3.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
     // Eyebrows
     if (expression === 'shivering') {
@@ -1012,93 +1107,102 @@ function drawMainScene(t) {
       sLine(-8, mouthY, 8, mouthY, seed + 34, '#0f172a', 2.5);
     }
 
-    // Legs
+    // Legs with articulated knees and planted feet
     const hipY = torsoBottomY;
     if (armPose === 'sewing' || armPose === 'thinker') {
-      sLine(-10, hipY, -45, hipY + 45, seed + 35, '#f8fafc', 4);
-      sLine(-45, hipY + 45, 10, hipY + 50, seed + 36, '#f8fafc', 4);
-      sLine(10, hipY, 45, hipY + 45, seed + 37, '#f8fafc', 4);
-      sLine(45, hipY + 45, -10, hipY + 50, seed + 38, '#f8fafc', 4);
+      // Cross-legged seated pose
+      sLine(-14, hipY, -48, hipY + 45, seed + 35, STROKE_COLOR, 4);
+      sLine(-48, hipY + 45, 12, hipY + 50, seed + 36, STROKE_COLOR, 4);
+      sLine(14, hipY, 48, hipY + 45, seed + 37, STROKE_COLOR, 4);
+      sLine(48, hipY + 45, -12, hipY + 50, seed + 38, STROKE_COLOR, 4);
     } else if (armPose === 'hold_spear') {
+      // Dynamic walking gait
       const legSwing = Math.sin(t * 5.5);
       const l1KneeX = -15 + legSwing * 22;
       const l1KneeY = hipY + legLength * 0.55;
       const l1FootX = -15 + legSwing * 38;
       const l1FootY = hipY + legLength;
-      sLine(-10, hipY, l1KneeX, l1KneeY, seed + 39, '#f8fafc', 4);
-      sLine(l1KneeX, l1KneeY, l1FootX, l1FootY, seed + 40, '#f8fafc', 4);
+      sLine(-14, hipY, l1KneeX, l1KneeY, seed + 39, STROKE_COLOR, 4);
+      sLine(l1KneeX, l1KneeY, l1FootX, l1FootY, seed + 40, STROKE_COLOR, 4);
+      sLine(l1FootX, l1FootY, l1FootX + 16, l1FootY, seed + 41, STROKE_COLOR, 3.5);
 
       const l2KneeX = 15 - legSwing * 22;
       const l2KneeY = hipY + legLength * 0.55;
       const l2FootX = 15 - legSwing * 38;
       const l2FootY = hipY + legLength;
-      sLine(10, hipY, l2KneeX, l2KneeY, seed + 41, '#f8fafc', 4);
-      sLine(l2KneeX, l2KneeY, l2FootX, l2FootY, seed + 42, '#f8fafc', 4);
+      sLine(14, hipY, l2KneeX, l2KneeY, seed + 42, STROKE_COLOR, 4);
+      sLine(l2KneeX, l2KneeY, l2FootX, l2FootY, seed + 43, STROKE_COLOR, 4);
+      sLine(l2FootX, l2FootY, l2FootX + 16, l2FootY, seed + 44, STROKE_COLOR, 3.5);
     } else {
-      sLine(-12, hipY, -14, hipY + legLength, seed + 43, '#f8fafc', 4);
-      sLine(12, hipY, 14, hipY + legLength, seed + 44, '#f8fafc', 4);
-      sLine(-14, hipY + legLength, -24, hipY + legLength, seed + 45, '#f8fafc', 3.5);
-      sLine(14, hipY + legLength, 24, hipY + legLength, seed + 46, '#f8fafc', 3.5);
+      // Standing legs with natural knee contour and planted feet
+      const lKneeX = -15 + wb(seed + 39, 1);
+      const rKneeX = 15 + wb(seed + 40, 1);
+      const kneeY = hipY + legLength * 0.52;
+      const footY = hipY + legLength;
+      sLine(-16, hipY, lKneeX, kneeY, seed + 41, STROKE_COLOR, 4);
+      sLine(lKneeX, kneeY, -16, footY, seed + 42, STROKE_COLOR, 4);
+      sLine(-16, footY, -28, footY, seed + 43, STROKE_COLOR, 3.5);
+
+      sLine(16, hipY, rKneeX, kneeY, seed + 44, STROKE_COLOR, 4);
+      sLine(rKneeX, kneeY, 16, footY, seed + 45, STROKE_COLOR, 4);
+      sLine(16, footY, 28, footY, seed + 46, STROKE_COLOR, 3.5);
     }
 
-    // Arms & Hands
+    // Arms & Hands with natural articulated elbows and gestures
     const shoulderY = torsoTopY + 12;
     if (armPose === 'shiver') {
       const shivA = Math.sin(t * 34) * 3;
-      sLine(-20, shoulderY, 16 + shivA, shoulderY + 35, seed + 47, '#f8fafc', 4);
-      sLine(20, shoulderY, -16 + shivA, shoulderY + 35, seed + 48, '#f8fafc', 4);
+      sLine(-shoulderW, shoulderY, 16 + shivA, shoulderY + 35, seed + 47, STROKE_COLOR, 4);
+      sLine(shoulderW, shoulderY, -16 + shivA, shoulderY + 35, seed + 48, STROKE_COLOR, 4);
     } else if (armPose === 'hold_spear') {
-      const spearX = -45;
-      sLine(-18, shoulderY, -35, shoulderY + 30, seed + 49, '#f8fafc', 4);
-      sLine(-35, shoulderY + 30, spearX, shoulderY + 5, seed + 50, '#f8fafc', 4);
-      sLine(spearX, -torsoHeight - 130, spearX, hipY + legLength + 10, seed + 51, '#92400e', 5);
-      ctx.fillStyle = '#64748b';
+      // Holding spear with grip
+      const spearSway = Math.sin(t * 5.5) * 6;
+      sLine(-shoulderW, shoulderY, -10, shoulderY + 28, seed + 49, STROKE_COLOR, 4);
+      sLine(-10, shoulderY + 28, 12, shoulderY + 14, seed + 50, STROKE_COLOR, 4);
+      // Spear pole passing through hands
+      const spearX = 18 + spearSway;
+      sLine(spearX - 25, cy - 140, spearX + 35, cy + 180, seed + 51, '#78350f', 5.5);
+      // Flint spearhead bound with sinew
+      ctx.fillStyle = '#94a3b8';
       ctx.beginPath();
-      ctx.moveTo(spearX, -torsoHeight - 165);
-      ctx.lineTo(spearX - 10, -torsoHeight - 128);
-      ctx.lineTo(spearX + 10, -torsoHeight - 128);
+      ctx.moveTo(spearX - 25, cy - 140);
+      ctx.lineTo(spearX - 32, cy - 180);
+      ctx.lineTo(spearX - 18, cy - 170);
       ctx.closePath();
       ctx.fill();
-      sLine(18, shoulderY, 35, shoulderY + 25 + Math.sin(t * 5.5) * 20, seed + 52, '#f8fafc', 4);
-      sLine(35, shoulderY + 25 + Math.sin(t * 5.5) * 20, 48, shoulderY + 45, seed + 53, '#f8fafc', 4);
+      sLine(spearX - 28, cy - 140, spearX - 20, cy - 150, seed + 52, '#f59e0b', 3);
     } else if (armPose === 'sewing') {
-      sLine(-18, shoulderY, -35, shoulderY + 40, seed + 54, '#f8fafc', 4);
-      sLine(-35, shoulderY + 40, -18, shoulderY + 55, seed + 55, '#f8fafc', 4);
-      const sewCycle = Math.sin(t * 4);
-      const handX = 20 + sewCycle * 25;
-      const handY = shoulderY + 45 - Math.cos(t * 4) * 15;
-      sLine(18, shoulderY, 38, shoulderY + 25, seed + 56, '#f8fafc', 4);
-      sLine(38, shoulderY + 25, handX, handY, seed + 57, '#f8fafc', 4);
-      sLine(handX - 5, handY - 10, handX + 18, handY + 12, seed + 58, '#fef08a', 3.5);
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(handX - 5, handY - 10);
-      ctx.quadraticCurveTo(handX - 25, handY - 25, 0, hipY + 10);
-      ctx.stroke();
+      // Left hand holds stretched pelt, right hand drives bone needle with sinew
+      const sewPull = Math.sin(t * 4) * 14;
+      sLine(-shoulderW, shoulderY, -40, shoulderY + 38, seed + 53, STROKE_COLOR, 4);
+      sLine(-40, shoulderY + 38, -15, shoulderY + 45, seed + 54, STROKE_COLOR, 4);
+      sLine(shoulderW, shoulderY, 35 + sewPull * 0.5, shoulderY + 28, seed + 55, STROKE_COLOR, 4);
+      sLine(35 + sewPull * 0.5, shoulderY + 28, 10 + sewPull, shoulderY + 42, seed + 56, STROKE_COLOR, 4);
     } else if (armPose === 'cover_body') {
-      sLine(-18, shoulderY, -12, hipY - 10, seed + 59, '#f8fafc', 4);
-      sLine(18, shoulderY, 12, hipY - 10, seed + 60, '#f8fafc', 4);
-    } else if (armPose === 'dress_shirt') {
-      sLine(-18, shoulderY, -38, shoulderY + 30, seed + 61, '#f8fafc', 4);
-      sLine(-38, shoulderY + 30, -22, hipY - 5, seed + 62, '#f8fafc', 4);
-      const adjustY = shoulderY + 8 + Math.sin(t * 3) * 6;
-      sLine(18, shoulderY, 35, shoulderY + 15, seed + 63, '#f8fafc', 4);
-      sLine(35, shoulderY + 15, 10, adjustY, seed + 64, '#f8fafc', 4);
-    } else if (armPose === 'peace_gesture') {
-      sLine(-18, shoulderY, -26, shoulderY + 40, seed + 65, '#f8fafc', 4);
-      sLine(18, shoulderY, 40, shoulderY - 10 + Math.sin(t * 2) * 5, seed + 66, '#f8fafc', 4);
-      sLine(40, shoulderY - 10 + Math.sin(t * 2) * 5, 45, shoulderY - 35, seed + 67, '#f8fafc', 4);
+      // Protective covering gesture
+      sLine(-shoulderW, shoulderY, 10, shoulderY + 28, seed + 57, STROKE_COLOR, 4);
+      sLine(shoulderW, shoulderY, -10, shoulderY + 48, seed + 58, STROKE_COLOR, 4);
     } else if (armPose === 'thinker') {
-      sLine(18, shoulderY, 36, hipY + 15, seed + 68, '#f8fafc', 4);
-      sLine(36, hipY + 15, 8, headCenterY + 18, seed + 69, '#f8fafc', 4);
-      sLine(-18, shoulderY, -30, hipY + 25, seed + 70, '#f8fafc', 4);
+      // Rodin-style contemplative pose: hand under chin, elbow on knee
+      sLine(shoulderW, shoulderY, 15, shoulderY + 42, seed + 59, STROKE_COLOR, 4);
+      sLine(15, shoulderY + 42, 6, headCenterY + 20, seed + 60, STROKE_COLOR, 4);
+      sLine(-shoulderW, shoulderY, -30, shoulderY + 45, seed + 61, STROKE_COLOR, 4);
+    } else if (armPose === 'dress_shirt') {
+      // Examining clothes, touching button / adjusting collar
+      sLine(-shoulderW, shoulderY, -14, shoulderY + 22, seed + 62, STROKE_COLOR, 4);
+      sLine(shoulderW, shoulderY, 14, shoulderY + 22, seed + 63, STROKE_COLOR, 4);
+    } else if (armPose === 'peace_gesture') {
+      // Open welcoming hand
+      sLine(-shoulderW, shoulderY, -35, shoulderY + 30, seed + 64, STROKE_COLOR, 4);
+      sLine(shoulderW, shoulderY, 35, shoulderY + 15, seed + 65, STROKE_COLOR, 4);
+      sLine(35, shoulderY + 15, 52, shoulderY + 2, seed + 66, STROKE_COLOR, 3.5);
     } else {
-      const gArm = Math.sin(t * 2.5) * 12;
-      sLine(-18, shoulderY, -35, shoulderY + 35, seed + 71, '#f8fafc', 4);
-      sLine(-35, shoulderY + 35, -42, shoulderY + 60, seed + 72, '#f8fafc', 4);
-      sLine(18, shoulderY, 35, shoulderY + 20 - gArm, seed + 73, '#f8fafc', 4);
-      sLine(35, shoulderY + 20 - gArm, 45, shoulderY + 5 - gArm, seed + 74, '#f8fafc', 4);
+      // Natural expressive speaking arms with subtle breathing gesture
+      const gArm = Math.sin(t * 3.5) * 8;
+      sLine(-shoulderW, shoulderY, -shoulderW - 8, shoulderY + 38, seed + 67, STROKE_COLOR, 4);
+      sLine(-shoulderW - 8, shoulderY + 38, -shoulderW - 14, shoulderY + 68, seed + 68, STROKE_COLOR, 4);
+      sLine(shoulderW, shoulderY, shoulderW + 12, shoulderY + 32 - gArm, seed + 69, STROKE_COLOR, 4);
+      sLine(shoulderW + 12, shoulderY + 32 - gArm, shoulderW + 24, shoulderY + 18 - gArm, seed + 70, STROKE_COLOR, 4);
     }
 
     ctx.restore();
@@ -1110,7 +1214,7 @@ function drawMainScene(t) {
     const beat2 = spring(t, window.DURATION * 0.35, 180, 16);
     const beat3 = spring(t, window.DURATION * 0.70, 190, 16);
 
-    sLine(cx - W * 0.45, cy + 220, cx + W * 0.45, cy + 220, 10, 'rgba(255,255,255,0.25)', 2.5);
+    sLine(cx - W * 0.45, cy + 220, cx + W * 0.45, cy + 220, 10, AMBIENT_LINE, 2.5);
 
     // Clothes rack on left (sways in beat 1)
     sLine(cx - 360, cy + 220, cx - 360, cy - 140, 11, '#94a3b8', 5);
@@ -1174,44 +1278,120 @@ function drawMainScene(t) {
       seed: 101,
     });
 
+  } else if (COMP_THEME === 'doodle_modern_vs_prehistoric') {
+    // Split-screen comparison: Modern stylish human on left vs Prehistoric human on right
+    const dur = window.DURATION || 3;
+    const bridgeSpring = spring(t, dur * 0.35, 170, 15);
+
+    // Natural ground line
+    sLine(cx - W * 0.45, cy + 220, cx + W * 0.45, cy + 220, 10, AMBIENT_LINE, 2.5);
+
+    // Subtle split-screen center divider
+    ctx.save();
+    ctx.setLineDash([10, 10]);
+    sLine(cx, cy - 220, cx, cy + 200, 20, AMBIENT_LINE, 2);
+    ctx.restore();
+
+    // Modern human on left
+    drawDoodleCharacter({
+      x: cx - 260,
+      y: cy + 140,
+      scale: 1.3,
+      hairStyle: 'modern',
+      expression: 'talking',
+      clothing: 'shirt',
+      armPose: 'dress_shirt',
+      seed: 120,
+    });
+
+    // Prehistoric human on right
+    drawDoodleCharacter({
+      x: cx + 260,
+      y: cy + 140,
+      scale: 1.3,
+      hairStyle: 'wild',
+      expression: 'curious',
+      clothing: 'none',
+      armPose: 'natural',
+      seed: 121,
+    });
+
+    // Dynamic timeline bridge / evolution arc connecting them
+    if (bridgeSpring > 0.05) {
+      ctx.save();
+      ctx.globalAlpha = Math.min(0.85, bridgeSpring * 0.85);
+      ctx.strokeStyle = ACCENT;
+      ctx.lineWidth = 3;
+      ctx.setLineDash([8, 8]);
+      ctx.beginPath();
+      ctx.moveTo(cx - 200, cy - 30);
+      ctx.quadraticCurveTo(cx, cy - 140, cx + 200, cy - 30);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Center compass / timeline knot
+      sCircle(cx, cy - 85, 24, 820, ACCENT, 3, IS_LIGHT ? '#ffffff' : 'rgba(15, 23, 42, 0.9)');
+      sCircle(cx, cy - 85, 10, 821, STROKE_COLOR, 2, STROKE_COLOR);
+      ctx.restore();
+    }
+
   } else if (COMP_THEME === 'doodle_shiver_cold') {
-    // Beat 1: Shivering in cold -> Beat 2: NOT FOR COLD stamp -> Beat 3: NOT FOR PROTECTION stamp
-    const stamp1 = spring(t, window.DURATION * 0.38, 220, 15);
-    const stamp2 = spring(t, window.DURATION * 0.72, 220, 15);
+    // Narrative beat progression based strictly on audio duration (window.DURATION)
+    const dur = window.DURATION || 3;
+    const beat2 = spring(t, dur * 0.45, 160, 15);
 
-    sLine(cx - W * 0.45, cy + 220, cx + W * 0.45, cy + 220, 10, 'rgba(255,255,255,0.2)', 2);
+    // Natural ground line
+    sLine(cx - W * 0.45, cy + 220, cx + W * 0.45, cy + 220, 10, AMBIENT_LINE, 2);
 
-    // Freezing wind streaks rushing across
-    for (let w = 0; w < 14; w++) {
-      const windX = ((t * 750 + w * 210) % (W + 600)) - 300;
-      const windY = cy - 250 + (w * 42) + Math.sin(t * 3.5 + w) * 15;
-      sLine(windX, windY, windX + 170, windY + 5, 200 + w, 'rgba(255,255,255,0.3)', 2);
+    // Freezing wind streaks (rush during cold beat, calm as sun breaks)
+    const windAlpha = Math.max(0, 1 - beat2 * 0.85);
+    if (windAlpha > 0.05) {
+      for (let w = 0; w < 14; w++) {
+        const windX = ((t * 750 + w * 210) % (W + 600)) - 300;
+        const windY = cy - 250 + (w * 42) + Math.sin(t * 3.5 + w) * 15;
+        const windColor = (IS_LIGHT ? 'rgba(100,116,139,' : 'rgba(255,255,255,') + (0.35 * windAlpha) + ')';
+        sLine(windX, windY, windX + 170, windY + 5, 200 + w, windColor, 2);
+      }
     }
 
     // Drifting snow particles
-    for (let sp = 0; sp < 25; sp++) {
-      const px = ((sp * 85 + t * 450) % W);
-      const py = (sp * 45 + t * 90) % H;
-      sCircle(px, py, 2.5, 300 + sp, '#e0f2fe', 1, '#ffffff');
+    for (let sp = 0; sp < 22; sp++) {
+      const px = ((sp * 85 + t * 400) % W);
+      const py = (sp * 45 + t * 80) % H;
+      sCircle(px, py, 2.2, 300 + sp, '#e0f2fe', 1, '#ffffff');
     }
 
-    // Shivering breath vapor cloud (calms in Beat 3)
-    if (stamp2 < 0.8) {
+    // Shivering breath vapor cloud (calms in Beat 2)
+    if (beat2 < 0.7) {
       const breathPhase = (t * 2.2) % 1;
       const bCloudX = cx - 50 + breathPhase * 60;
       const bCloudY = cy - 90 - breathPhase * 25;
-      ctx.fillStyle = 'rgba(224, 242, 254, ' + ((1 - breathPhase) * 0.5) + ')';
+      ctx.fillStyle = 'rgba(224, 242, 254, ' + ((1 - breathPhase) * 0.45) + ')';
       ctx.beginPath();
       ctx.arc(bCloudX, bCloudY, 15 + breathPhase * 25, 0, Math.PI * 2);
       ctx.fill();
     }
 
-    // Main character: shivers in Beat 1 & 2, then realizes / curious in Beat 3
-    const isShivering = stamp2 < 0.7;
+    // Warm golden sunlight breaks in (visual myth-busting revelation)
+    if (beat2 > 0.05) {
+      ctx.save();
+      ctx.globalAlpha = Math.min(0.6, beat2 * 0.6);
+      const sunBeamGrad = ctx.createRadialGradient(cx + 180, cy - 220, 20, cx + 180, cy - 100, 320);
+      sunBeamGrad.addColorStop(0, 'rgba(251, 191, 36, 0.4)');
+      sunBeamGrad.addColorStop(1, 'rgba(251, 191, 36, 0)');
+      ctx.fillStyle = sunBeamGrad;
+      ctx.beginPath();
+      ctx.arc(cx + 180, cy - 180, 260, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Main character: shivers in cold beat, then pauses and looks at arms in wonder as sun illuminates
+    const isShivering = beat2 < 0.6;
     const vibX = isShivering ? Math.sin(t * 38) * 4.5 : 0;
     const vibY = isShivering ? Math.cos(t * 32) * 2 : 0;
     drawDoodleCharacter({
-      x: cx - 120 + vibX,
+      x: cx - 100 + beat2 * 80 + vibX,
       y: cy + 140 + vibY,
       scale: 1.35,
       hairStyle: 'wild',
@@ -1220,38 +1400,6 @@ function drawMainScene(t) {
       armPose: isShivering ? 'shiver' : 'thinker',
       seed: 102,
     });
-
-    // Stamp 1: NOT FOR COLD (slams down in Beat 2)
-    if (stamp1 > 0.05) {
-      ctx.save();
-      const s1X = cx + 240;
-      const s1Y = cy - 100;
-      ctx.translate(s1X, s1Y);
-      ctx.scale(stamp1, stamp1);
-      sCircle(0, 0, 50, 400, 'rgba(239,68,68,0.9)', 4);
-      sLine(-36, -36, 36, 36, 401, 'rgba(239,68,68,0.95)', 4.5);
-      ctx.font = 'bold 20px monospace';
-      ctx.fillStyle = '#ef4444';
-      ctx.textAlign = 'center';
-      ctx.fillText('NOT FOR COLD', 0, 75);
-      ctx.restore();
-    }
-
-    // Stamp 2: NOT FOR PROTECTION (slams down in Beat 3)
-    if (stamp2 > 0.05) {
-      ctx.save();
-      const s2X = cx + 240;
-      const s2Y = cy + 90;
-      ctx.translate(s2X, s2Y);
-      ctx.scale(stamp2, stamp2);
-      sCircle(0, 0, 50, 410, 'rgba(239,68,68,0.9)', 4);
-      sLine(-36, -36, 36, 36, 411, 'rgba(239,68,68,0.95)', 4.5);
-      ctx.font = 'bold 20px monospace';
-      ctx.fillStyle = '#ef4444';
-      ctx.textAlign = 'center';
-      ctx.fillText('NOT FOR PROTECTION', 0, 75);
-      ctx.restore();
-    }
 
   } else if (COMP_THEME === 'doodle_hunter_savannah') {
     // Beat 1: Walking with spear -> Beat 2: Swatting mosquitoes -> Beat 3: Pausing alert
@@ -1369,15 +1517,12 @@ function drawMainScene(t) {
       ctx.restore();
     }
 
-    // Timeline badge in Beat 3
+    // Ancient stone strata and bone needle engraving in Beat 3
     if (badgeSpring > 0.05) {
       ctx.save();
-      ctx.globalAlpha = Math.min(1, badgeSpring);
-      sRect(cx + 120, cy + 140, 300, 42, 670, '#d4af37', 2.5, 'rgba(15, 23, 42, 0.85)');
-      ctx.font = 'bold 16px monospace';
-      ctx.fillStyle = '#fef08a';
-      ctx.textAlign = 'center';
-      ctx.fillText('BONE NEEDLE • 120,000 YEARS', cx + 270, cy + 167);
+      ctx.globalAlpha = Math.min(0.65, badgeSpring * 0.65);
+      sLine(cx + 140, cy + 150, cx + 420, cy + 150, 670, '#d4af37', 2);
+      sLine(cx + 180, cy + 168, cx + 380, cy + 168, 671, '#d4af37', 1.5);
       ctx.restore();
     }
 
@@ -1452,12 +1597,8 @@ function drawMainScene(t) {
       ctx.translate(haloX, haloY);
       ctx.scale(haloSpring, haloSpring);
       sCircle(0, 0, 48, 760, '#38bdf8', 3);
-      sCircle(0, 0, 18, 761, '#ffffff', 2.5);
+      sCircle(0, 0, 24, 761, STROKE_ALT, 2);
       sCircle(0, 0, 8, 762, '#38bdf8', 1, '#38bdf8');
-      ctx.font = 'bold 16px monospace';
-      ctx.fillStyle = '#38bdf8';
-      ctx.textAlign = 'center';
-      ctx.fillText('THEORY OF MIND', 0, 72);
       ctx.restore();
     }
 
@@ -1467,7 +1608,7 @@ function drawMainScene(t) {
     const greet = spring(t, window.DURATION * 0.38, 190, 15);
     const arcSpring = spring(t, window.DURATION * 0.68, 200, 15);
 
-    sLine(cx - W * 0.45, cy + 220, cx + W * 0.45, cy + 220, 10, 'rgba(255,255,255,0.2)', 2);
+    sLine(cx - W * 0.45, cy + 220, cx + W * 0.45, cy + 220, 10, AMBIENT_LINE, 2);
 
     // Left Clan Member walks toward center
     const leftX = cx - 380 + Math.min(1, approach) * 160;
@@ -1495,10 +1636,10 @@ function drawMainScene(t) {
       seed: 107,
     });
 
-    // Glowing connection arc and symbols in Beat 3
+    // Glowing connection arc in Beat 3
     if (arcSpring > 0.05) {
       ctx.save();
-      ctx.globalAlpha = Math.min(1, arcSpring);
+      ctx.globalAlpha = Math.min(0.85, arcSpring * 0.85);
       ctx.strokeStyle = ACCENT;
       ctx.lineWidth = 3;
       ctx.setLineDash([8, 8]);
@@ -1508,13 +1649,8 @@ function drawMainScene(t) {
       ctx.stroke();
       ctx.setLineDash([]);
 
-      sCircle(cx, cy - 65, 34, 800, ACCENT, 3, 'rgba(15, 23, 42, 0.85)');
-      ctx.font = 'bold 22px monospace';
-      ctx.fillStyle = ACCENT;
-      ctx.textAlign = 'center';
-      ctx.fillText('🤝', cx, cy - 56);
-      ctx.font = 'bold 16px monospace';
-      ctx.fillText('CLOTHING AS SOCIAL LANGUAGE', cx, cy + 15);
+      sCircle(cx, cy - 65, 28, 800, ACCENT, 3, IS_LIGHT ? '#ffffff' : 'rgba(15, 23, 42, 0.85)');
+      sCircle(cx, cy - 65, 12, 801, STROKE_COLOR, 2, STROKE_COLOR);
       ctx.restore();
     }
 
@@ -1534,7 +1670,7 @@ function drawMainScene(t) {
     ctx.fill();
 
     // Large rock boulder for thinker
-    ctx.fillStyle = '#334155';
+    ctx.fillStyle = IS_LIGHT ? '#78716c' : '#334155';
     ctx.beginPath();
     ctx.ellipse(cx - 140, cy + 175, 85, 55, 0, 0, Math.PI * 2);
     ctx.fill();
@@ -1559,9 +1695,9 @@ function drawMainScene(t) {
       ctx.translate(cloudX, cloudY);
       ctx.scale(cloudSpring, cloudSpring);
 
-      sCircle(-180, 160, 12, 850, '#ffffff', 2, '#ffffff');
-      sCircle(-140, 120, 18, 851, '#ffffff', 2, '#ffffff');
-      sCircle(-90, 70, 24, 852, '#ffffff', 2, '#ffffff');
+      sCircle(-180, 160, 12, 850, STROKE_COLOR, 2, '#ffffff');
+      sCircle(-140, 120, 18, 851, STROKE_COLOR, 2, '#ffffff');
+      sCircle(-90, 70, 24, 852, STROKE_COLOR, 2, '#ffffff');
 
       ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
       ctx.beginPath();
@@ -1570,6 +1706,9 @@ function drawMainScene(t) {
       ctx.arc(70, 0, 55, 0, Math.PI * 2);
       ctx.arc(0, 30, 60, 0, Math.PI * 2);
       ctx.fill();
+      ctx.strokeStyle = STROKE_COLOR;
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
 
       // Inside thought cloud: Tomorrow's sunrise & stretched hide on rack in Beat 3
       if (ideaSpring > 0.1) {
@@ -1584,11 +1723,6 @@ function drawMainScene(t) {
 
         ctx.fillStyle = '#b45309';
         ctx.fillRect(-28, -20, 56, 32);
-
-        ctx.font = 'bold 15px monospace';
-        ctx.fillStyle = '#d97706';
-        ctx.textAlign = 'center';
-        ctx.fillText('💡 PLANNING FOR TOMORROW', 0, 52);
       }
       ctx.restore();
     }
@@ -1598,7 +1732,7 @@ function drawMainScene(t) {
     const scopeSpring = spring(t, window.DURATION * 0.30, 180, 15);
     const treeSpring = spring(t, window.DURATION * 0.65, 200, 15);
 
-    sLine(cx - W * 0.45, cy + 220, cx + W * 0.45, cy + 220, 10, 'rgba(255,255,255,0.2)', 2);
+    sLine(cx - W * 0.45, cy + 220, cx + W * 0.45, cy + 220, 10, AMBIENT_LINE, 2);
 
     // Early human scratching pelt with itch lines
     drawDoodleCharacter({
@@ -1647,28 +1781,18 @@ function drawMainScene(t) {
         sLine(-100, 0, -20, 0, 940, '#f8fafc', 4);
         sCircle(-20, 0, 7, 941, '#d4af37', 2, '#d4af37');
 
-        sLine(-20, 0, 60, -45, 942, '#38bdf8', 4);
-        ctx.font = 'bold 14px monospace';
-        ctx.fillStyle = '#38bdf8';
-        ctx.textAlign = 'left';
-        ctx.fillText('HEAD LICE (HAIR)', 70, -42);
+        sLine(-20, 0, 75, -45, 942, '#38bdf8', 4);
+        sCircle(82, -45, 8, 943, '#38bdf8', 2, '#38bdf8');
 
-        sLine(-20, 0, 60, 45, 943, '#f43f5e', 4);
-        ctx.fillStyle = '#f43f5e';
-        ctx.fillText('BODY LICE (CLOTHES)', 70, 48);
-
-        sRect(-90, 80, 180, 32, 950, '#d4af37', 2, 'rgba(212, 175, 55, 0.25)');
-        ctx.font = 'bold 14px monospace';
-        ctx.fillStyle = '#fef08a';
-        ctx.textAlign = 'center';
-        ctx.fillText('170,000 YEARS AGO', 0, 101);
+        sLine(-20, 0, 75, 45, 944, '#f43f5e', 4);
+        sCircle(82, 45, 8, 945, '#f43f5e', 2, '#f43f5e');
       }
       ctx.restore();
     }
 
   } else if (COMP_THEME === 'doodle_general_human') {
     // General Expressive Doodled Human Narrator
-    sLine(cx - W * 0.4, cy + 220, cx + W * 0.4, cy + 220, 10, 'rgba(255,255,255,0.2)', 2);
+    sLine(cx - W * 0.4, cy + 220, cx + W * 0.4, cy + 220, 10, AMBIENT_LINE, 2);
     drawDoodleCharacter({
       x: cx,
       y: cy + 140,

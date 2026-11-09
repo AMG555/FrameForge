@@ -4,6 +4,30 @@ All notable changes to FrameForge are documented here.
 
 ---
 
+## [2.4.5] — 2026-11-10
+
+### Fixed
+- **Browser Code Animation Dispatch in `src/video-renderer/renderer.js`**:
+  - Fixed `ReferenceError: camera is not defined` inside `_renderCodeAnimationScene`. Previously, missing parameter destructuring caused the browser animation engine to throw on every scene, silently falling back to static FFmpeg image slideshows.
+  - Added full pass-through of `camera`, `visualType`, and `focalPoint` into `_renderCodeAnimationScene`.
+- **Manifest Ingest Preservation (`src/workflows/ingest.js`, `src/workflows/assets.js`)**:
+  - `normaliseIngestScene` now retains `prompt`, `style`, and `theme`, and falls back to `raw.prompt` for `visual_description`.
+  - Added `--theme` and `--aesthetic` CLI options to `src/cli/make.js`.
+
+### Enhanced
+- **Audio-Driven Continuous Camera Director (`src/video-renderer/scene-animator.js`)**:
+  - Replaced hardcoded timer modulo cuts with continuous trajectory over `p = t / window.DURATION`.
+  - Camera movements (`slow_zoom_in`, `slow_zoom_out`, `pan_left`, `pan_right`, `tilt_up`, `tilt_down`, `ken_burns`, `static`, and `auto`) now smoothly scale to exact narration length.
+- **Max-Quality Organic Doodle Anatomy (`src/video-renderer/scene-animator.js`)**:
+  - Overhauled `drawDoodleCharacter`: replaced straight vertical spine line with contoured human torso (shoulders, ribcage, waist, hips), clavicle accents, articulated knees, and planted feet.
+  - Removed forced ground drop shadows, forced rosy cheek blush, and forced specular eye highlights.
+- **Light Parchment Hand-Drawn Inking Aesthetic (`hand_drawn_doodle`)**:
+  - Warm parchment paper backgrounds (`#faf7f2`, `#f6f1e8`, `#fdfbf7`) with dark charcoal inking (`#1c1917`), subtle line grain, and organic 12fps line boil.
+  - Removed all unwanted text stamps and banners (`NOT FOR COLD`, `THEORY OF MIND`, etc.) from narrative doodle themes.
+  - Added `doodle_modern_vs_prehistoric` split-screen comparison theme.
+
+---
+
 ## [2.4.4] — 2026-11-09
 
 ### Added

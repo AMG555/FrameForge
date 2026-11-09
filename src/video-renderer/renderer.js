@@ -278,11 +278,14 @@ class VideoRenderer {
           caption,
           narration,
           visualDescription,
+          visualType,
           topic,
           style,
           theme,
           title,
           language,
+          camera,
+          focalPoint,
           html,
           code,
           clampedDur,
@@ -360,11 +363,14 @@ class VideoRenderer {
     caption,
     narration,
     visualDescription,
+    visualType = 'code_animation',
     topic = '',
     style = '',
     theme = '',
     title = '',
     language = '',
+    camera = 'auto',
+    focalPoint = null,
     html = null,
     code = null,
     clampedDur,
@@ -393,6 +399,7 @@ class VideoRenderer {
         topic,
       });
     } else {
+      const effectiveCam = camera || selectCameraHint(sceneIndex, focalPoint || {});
       htmlContent = generateSceneHtml({
         caption,
         narration,
@@ -409,6 +416,8 @@ class VideoRenderer {
         sceneIndex,
         musicMood,
         showCaptions,
+        camera: effectiveCam,
+        cameraHint: effectiveCam,
       });
     }
 

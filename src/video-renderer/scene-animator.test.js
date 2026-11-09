@@ -52,6 +52,12 @@ describe('scene-animator detectAesthetic', () => {
   it('detects cosmic_space for astronomy and quantum physics', () => {
     assert.equal(detectAesthetic({ topic: 'Deep space galaxy exploration and quantum universe' }), 'cosmic_space');
   });
+
+  it('detects hand_drawn_doodle for doodle, sketch, and drawing prompts', () => {
+    assert.equal(detectAesthetic({ topic: '2D Hand-drawn Animated Doodle Documentary about human clothes' }), 'hand_drawn_doodle');
+    assert.equal(detectAesthetic({ style: 'doodle' }), 'hand_drawn_doodle');
+    assert.equal(detectAesthetic({ theme: 'sketch' }), 'hand_drawn_doodle');
+  });
 });
 
 describe('scene-animator getScriptFontStack', () => {

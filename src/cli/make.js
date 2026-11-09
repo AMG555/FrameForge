@@ -98,6 +98,7 @@ function parseArgs(argv) {
     mode: 'full-auto',
     topic: '', topicsFile: '', language: 'en',
     style: 'educational comedy', channels: ['file'],
+    theme: '',
     orientation: 'landscape',
     captions: false, subtitles: false,
     scenesFile: '', scriptFile: '', mediaDir: '',
@@ -120,6 +121,8 @@ function parseArgs(argv) {
       case '--subtitles':
       case '--with-captions': args.captions = true; break;
       case '--style':         args.style       = argv[++i] || args.style; break;
+      case '--theme':
+      case '--aesthetic':     args.theme       = argv[++i] || ''; break;
       case '--channels':      args.channels    = (argv[++i] || 'file').split(',').map(s => s.trim()); break;
       case '--no-research':   args.noResearch  = true; break;
       case '--no-script':     args.noScript    = true; break;
@@ -423,6 +426,7 @@ async function runSingleVideo(args, topic, outDir, workflows) {
     topic,
     title,
     style: args.style || '',
+    theme: args.theme || '',
     language: args.language,
     voice: resolvedVoice,
   });
@@ -439,6 +443,7 @@ async function runSingleVideo(args, topic, outDir, workflows) {
     topic,
     title,
     style: args.style || '',
+    theme: args.theme || '',
     language: args.language,
     showCaptions: Boolean(args.captions || args.subtitles),
     renderWidth,

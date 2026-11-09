@@ -167,8 +167,11 @@ function normaliseIngestScene(raw, index, baseDir = process.cwd()) {
     schema_version: '1.0.0',
     narration,
     caption,
+    prompt:         String(raw.prompt || '').trim(),
+    style:          String(raw.style || '').trim(),
+    theme:          String(raw.theme || '').trim(),
     // visual_description used by AI image generation — blank means no AI image needed
-    visual_description: String(raw.visual_description || raw.description || narration || '').trim(),
+    visual_description: String(raw.visual_description || raw.description || raw.prompt || narration || '').trim(),
     video_path:   videoPath,
     image_path:   imagePath,
     audio_path:   audioPath,
