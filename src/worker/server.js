@@ -102,6 +102,16 @@ async function executeJob(job) {
         result = await editor.editAndAssemble(job.payload);
         break;
       }
+      case 'generate_scene_code': {
+        const { TOOLS } = require('../mcp-server/server');
+        result = await TOOLS.generate_scene_code.handler(job.payload);
+        break;
+      }
+      case 'preview_scene': {
+        const { TOOLS } = require('../mcp-server/server');
+        result = await TOOLS.preview_scene.handler(job.payload);
+        break;
+      }
       default: throw new Error(`Unknown job type: ${job.type}`);
     }
     job.status      = 'SUCCEEDED';

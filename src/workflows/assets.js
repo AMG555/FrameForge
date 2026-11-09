@@ -73,6 +73,22 @@ async function runAssets({
         visualType = 'user_image';
       }
 
+      // Automatically synthesize custom programmatic Canvas animation code with LLM if available
+      let sceneCode = scene.code || scene.animation_code || null;
+      if (!scene.video_path && !scene.image_path && !scene.html && !sceneCode) {
+        try {
+          const { generateSceneCodeWithLLM } = require('../video-renderer/scene-animator');
+          sceneCode = await generateSceneCodeWithLLM({
+            visualDescription: scene.visual_description || scene.narration,
+            caption:           scene.caption,
+            narration:         scene.narration,
+            topic:             scene.topic || topic,
+            style:             scene.style || style,
+            language:          scene.language || language,
+          });
+        } catch (_) {}
+      }
+
       // ── TTS / User Audio ───────────────────────────────────────────────
       // Priority: audio_path (pre-recorded) > TTS synthesis.
       // --no-tts / skipTts: skip synthesis (scene must have audio_path or silence is used).
@@ -108,7 +124,7 @@ async function runAssets({
         musicMood: scene.music_mood || 'neutral',
         language:  scene.language || language || '',
         html:      scene.html || null,
-        code:      scene.code || scene.animation_code || null,
+        code:      sceneCode,
         startTime: scene.start_time != null ? scene.start_time : scene.trim_start,
         endTime:   scene.end_time != null ? scene.end_time : scene.trim_end,
         speed:     scene.speed != null ? scene.speed : 1.0,

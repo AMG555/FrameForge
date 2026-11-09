@@ -4,6 +4,30 @@ All notable changes to FrameForge are documented here.
 
 ---
 
+## [2.4.0] — 2026-11-09
+
+### Added
+- **MCP Tool `generate_scene_code` (`src/mcp-server/server.js`, `cloudflare-mcp/src/index.js`)**:
+  - Synthesizes pure-function-of-time canvas drawing code for `window.seek(t)` matching the Claude Opus 5.5 / `ClaudeAnimationBase` contract.
+  - LLM-assisted scene code synthesis with automatic procedural fallback (supporting celestial orbits, candlestick graphs, neural nets, 3D wireframe polyhedra).
+  - Automatically wraps generated code with `wrapCodeInHarnessHtml` for headless Chromium execution.
+- **MCP Tool `preview_scene` (`src/mcp-server/server.js`, `cloudflare-mcp/src/index.js`)**:
+  - Renders still frame previews (PNGs) of any scene at specified timestamps (defaults to `[0.1, duration/2, duration - 0.1]`).
+  - Implements the Layer 3 inspection / feedback loop, letting IDE agents (Claude Code, Cursor, Windsurf) visually inspect keyframes before encoding.
+- **Automatic Scene Code Synthesis (`src/workflows/assets.js`)**:
+  - Automatically invokes `generateSceneCodeWithLLM` when scenes lack pre-rendered media, ensuring all agent-generated videos are true code animations rather than static slideshows.
+
+### Enhanced
+- **Full-Canvas Layout & Dynamic Scaling (`src/video-renderer/scene-animator.js`)**:
+  - Eliminated bottom glassmorphic rectangle card that caused PowerPoint-style slideshow appearances.
+  - Replaced with floating cinematic kinetic typography (subtle top title, bottom caption at `0.92H`, minimal progress line).
+  - Centered visual animations at `0.50H` with 1.4×–1.5× scale expansion.
+- **Playwright Dependencies for Production (`package.json`)**:
+  - Moved `playwright` and `playwright-core` from `devDependencies` to production `dependencies` so `npx` and standard npm installs run headless Chromium out of the box without falling back to FFmpeg image loops.
+  - Expanded `findChromePath` in `src/harness/lib/browser.mjs` and `scripts/render.mjs` to auto-detect Microsoft Edge (`msedge.exe`), Brave, and system Chromium on Windows, macOS, and Linux.
+
+---
+
 ## [2.3.9] — 2026-11-09
 
 ### Enhanced

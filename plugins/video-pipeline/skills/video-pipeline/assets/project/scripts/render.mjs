@@ -39,9 +39,13 @@ let chromium;
 try {
   ({ chromium } = await import('playwright'));
 } catch (_) {
-  process.stderr.write('\n[render] ERROR: Playwright is required for browser frame rendering.\n');
-  process.stderr.write('         Install via: npm install playwright && npx playwright install chromium\n\n');
-  process.exit(1);
+  try {
+    ({ chromium } = await import('playwright-core'));
+  } catch (err2) {
+    process.stderr.write('\n[render] ERROR: Playwright is required for browser frame rendering.\n');
+    process.stderr.write('         Install via: npm install playwright && npx playwright install chromium\n\n');
+    process.exit(1);
+  }
 }
 
 const _require     = createRequire(import.meta.url);

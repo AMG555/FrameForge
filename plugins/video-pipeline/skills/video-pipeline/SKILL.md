@@ -26,7 +26,8 @@ IDE Agent (IBM Bob / Codex / opencode / Cursor / Windsurf / Claude Code)
     │
     ▼  Cloudflare Remote MCP (recommended) ─────────────────────────────
     │  https://video-mcp.YOUR_SUBDOMAIN.workers.dev/mcp
-    │  19 tools: create_video_from_script · edit_video · render_from_scenes
+    │  21 tools: create_video_from_script · edit_video · render_from_scenes
+    │            generate_scene_code · preview_scene
     │            ingest_media · edit_scenes · render_tts · multi_voice_tts
     │            generate_scene_image · assemble_video · publish_video
     │            research_topic · write_script · external_platform_call
@@ -145,7 +146,8 @@ FrameForge renders full-canvas, broadcast-quality motion graphics (24fps pure fu
 
 - **Option A — Natural Description:** Provide `visual_description` (e.g. "Earth rotating with 4 satellite orbits and microwave beams intersecting"). FrameForge automatically synthesizes a full-canvas procedural 3D/2D animation entity (orbital mechanics, 3D DNA helix, candlestick charts, neural mesh, 3D wireframe polyhedra).
 - **Option B — Direct Agent Code:** Provide `html` (complete page with `window.DURATION` & `window.seek(t)`) or `code` (canvas drawing instructions for `t`). FrameForge executes your program directly via headless Chromium.
-- **Option C — Multilingual & Regional Scripts:** Pass `language: "ml"` (Malayalam), `"hi"` (Hindi), etc. Native DirectWrite/HarfBuzz font stacks (`Nirmala UI`, `Noto Sans Malayalam`) render conjuncts without broken glyphs.
+- **Option C — Generate & Inspect (Layer 3 Loop):** Call `generate_scene_code({ visual_description, style })` to synthesize canvas drawing code. Then call `preview_scene({ html, timestamps: [0.1, 1.5, 2.9] })` to render PNG stills to disk, visually verify the scene in the IDE, tweak if needed, and pass into `create_video_from_script`.
+- **Option D — Multilingual & Regional Scripts:** Pass `language: "ml"` (Malayalam), `"hi"` (Hindi), etc. Native DirectWrite/HarfBuzz font stacks (`Nirmala UI`, `Noto Sans Malayalam`) render conjuncts without broken glyphs.
 
 ```js
 create_video_from_script({
@@ -317,10 +319,11 @@ marks that production FAILED and moves to the next topic.
 | LLM   | openai      | `OPENAI_API_KEY`          | GPT-4o / o1                    |
 | LLM   | ollama      | _(none)_                  | Local, OLLAMA_BASE_URL         |
 | TTS   | edge-tts    | _(none)_                  | Free, offline, 300+ voices     |
+| TTS   | voxforge    | `VOXFORGE_URL` + `_KEY`   | Local neural TTS & cloning (Rust) |
 | TTS   | elevenlabs  | `ELEVENLABS_API_KEY`      | Voice cloning                  |
 | TTS   | azure       | `AZURE_SPEECH_KEY`        | Enterprise                     |
 | TTS   | openai      | `OPENAI_API_KEY`          | High quality                   |
-| Visual| code-driven | _(none)_                  | Default — kinetic cards & typography |
+| Visual| code-driven | _(none)_                  | Default — pure-t canvas animation & kinetic text |
 | Visual| user-media  | _(none)_                  | Caller `image_path` / `video_path`   |
 
 ---
@@ -346,9 +349,9 @@ marks that production FAILED and moves to the next topic.
 ## Key files
 
 ```
-src/mcp-server/server.js          MCP HTTP server (17 tools, port 3210)
-src/mcp-server/stdio.js           MCP stdio server (17 tools)
-cloudflare-mcp/src/index.js       Cloudflare Workers Remote MCP proxy
+src/mcp-server/server.js          MCP HTTP server (21 tools, port 3210)
+src/mcp-server/stdio.js           MCP stdio server (21 tools)
+cloudflare-mcp/src/index.js       Cloudflare Workers Remote MCP proxy (21 tools)
 src/pipeline/providers.js         LLM / TTS / Image abstraction (env-var-switchable providers)
 src/pipeline/state-machine.js     File + PostgreSQL production state
 src/pipeline/retry-policy.js      Exponential backoff, stage timeouts

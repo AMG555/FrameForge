@@ -182,6 +182,14 @@ async function dispatchJob(job) {
       const editor = new VideoEditor({ filesDir: FILES_DIR });
       return editor.editAndAssemble(payload);
     }
+    case 'generate_scene_code': {
+      const { TOOLS } = require('../mcp-server/server');
+      return TOOLS.generate_scene_code.handler(payload);
+    }
+    case 'preview_scene': {
+      const { TOOLS } = require('../mcp-server/server');
+      return TOOLS.preview_scene.handler(payload);
+    }
     case 'full_pipeline': return runFullPipeline(payload, job.id);
     default: throw new Error(`Unknown job type: ${type}`);
   }

@@ -415,3 +415,49 @@ describe('edit_video tool definition', () => {
     assert.ok(src.includes("VideoEditor"), 'VideoEditor fallback missing in external_platform_call');
   });
 });
+
+// ── Pure-t Code Animation & Preview tools ──────────────────────────────────────
+
+describe('generate_scene_code and preview_scene tools', () => {
+  const { TOOLS } = require('./server');
+
+  it('generate_scene_code is registered in TOOLS', () => {
+    assert.ok(TOOLS.generate_scene_code, 'generate_scene_code missing from TOOLS');
+    assert.equal(typeof TOOLS.generate_scene_code.handler, 'function');
+  });
+
+  it('generate_scene_code schema requires visual_description', () => {
+    assert.equal(TOOLS.generate_scene_code.inputSchema.type, 'object');
+    assert.deepEqual(TOOLS.generate_scene_code.inputSchema.required, ['visual_description']);
+    assert.ok(TOOLS.generate_scene_code.inputSchema.properties.visual_description);
+    assert.ok(TOOLS.generate_scene_code.inputSchema.properties.caption);
+    assert.ok(TOOLS.generate_scene_code.inputSchema.properties.narration);
+    assert.ok(TOOLS.generate_scene_code.inputSchema.properties.style);
+    assert.ok(TOOLS.generate_scene_code.inputSchema.properties.language);
+  });
+
+  it('generate_scene_code handler produces valid pure-t harness HTML', async () => {
+    const res = await TOOLS.generate_scene_code.handler({
+      visual_description: 'Cosmic galaxy spiral with glowing star clusters and event horizon',
+      caption: 'COSMIC VOYAGE',
+      narration: 'Into the infinite depths of spacetime.',
+      style: 'cosmic_space',
+      duration: 3,
+      width: 1920,
+      height: 1080,
+    });
+    assert.ok(res.success);
+    assert.equal(typeof res.html, 'string');
+    assert.ok(res.html.includes('window.seek'), 'harness HTML must expose window.seek(t)');
+    assert.ok(res.html.includes('1920'), 'HTML must declare target canvas width');
+    assert.ok(res.html.includes('1080'), 'HTML must declare target canvas height');
+  });
+
+  it('preview_scene is registered in TOOLS', () => {
+    assert.ok(TOOLS.preview_scene, 'preview_scene missing from TOOLS');
+    assert.equal(typeof TOOLS.preview_scene.handler, 'function');
+    assert.ok(TOOLS.preview_scene.inputSchema.properties.code);
+    assert.ok(TOOLS.preview_scene.inputSchema.properties.html);
+    assert.ok(TOOLS.preview_scene.inputSchema.properties.timestamps);
+  });
+});

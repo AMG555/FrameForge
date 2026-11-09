@@ -60,7 +60,7 @@ export default {
       return Response.json({
         status:     configured ? 'ok' : 'degraded',
         worker:     'frameforge-mcp',
-        version:    '2.3.9',
+        version:    '2.4.0',
         configured,
         rateLimit: {
           enabled:      !!env.RATE_LIMITS,
@@ -264,7 +264,7 @@ async function handleRPC(body, env) {
         protocolVersion: '2024-11-05',
         serverInfo: {
           name:    'frameforge',
-          version: '2.3.9',
+          version: '2.4.0',
           status:  configured ? 'ready' : 'not_configured',
           // IDEs that surface _meta will show this warning in the tools panel
           ...(configured ? {} : {
@@ -499,6 +499,36 @@ const TOOL_DEFINITIONS = [
       },
     },
   },
+  {
+    name: 'generate_scene_code',
+    description: 'Generate pure-function-of-t JavaScript HTML5 Canvas drawing code for a scene brief matching the Claude Opus 5.5 contract.',
+    inputSchema: {
+      type: 'object', required: ['visual_description'],
+      properties: {
+        visual_description: { type: 'string', description: 'Visual direction and motion description' },
+        caption:            { type: 'string', description: 'Headline' },
+        narration:          { type: 'string', description: 'Spoken text' },
+        topic:              { type: 'string' },
+        style:              { type: 'string' },
+        language:           { type: 'string', default: 'en' },
+        duration:           { type: 'number', default: 3 },
+      },
+    },
+  },
+  {
+    name: 'preview_scene',
+    description: 'Render still frame previews (PNGs) of an animated scene at specified timestamps for visual inspection and verification.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        code:               { type: 'string', description: 'Canvas drawing code' },
+        html:               { type: 'string', description: 'Full HTML page' },
+        visual_description: { type: 'string' },
+        duration:           { type: 'number', default: 3 },
+        timestamps:         { type: 'array', items: { type: 'number' } },
+      },
+    },
+  },
 ];
 
 // ── Tool handlers (proxy to Worker API) ──────────────────────────────────────
@@ -517,6 +547,8 @@ const TOOL_HANDLERS = {
   render_from_scenes:  (args, env) => proxyJob('render_from_scenes', args, env),
   external_platform_call: (args, env) => proxyJob('external_platform_call', args, env),
   create_video_from_script: (args, env) => proxyJob('create_video_from_script', args, env),
+  generate_scene_code: (args, env) => proxyJob('generate_scene_code', args, env),
+  preview_scene:       (args, env) => proxyJob('preview_scene',       args, env),
   edit_video:          (args, env) => proxyJob('edit_video',     args, env),
   multi_voice_tts:     (args, env) => proxyJob('multi_voice_tts', args, env),
   queue_full_pipeline: async (args, env) => {

@@ -1518,13 +1518,122 @@ Features:
     },
   },
 
+  // ── Tool 20: Generate Scene Code ──────────────────────────────────────────
+  // Writes pure-function-of-t Canvas drawing code using LLM or procedural synthesis
+  generate_scene_code: {
+    description: `Generate pure-function-of-t JavaScript HTML5 Canvas drawing code for a scene.
+Matches the Claude Opus 5.5 / ClaudeAnimationBase contract where every frame is a pure mathematical function of time t.
+Returns the raw code and complete wrapped HTML ready for headless browser execution.`,
+    inputSchema: {
+      type: 'object',
+      required: ['visual_description'],
+      properties: {
+        visual_description: { type: 'string', description: 'Visual direction and motion description of the scene' },
+        caption:            { type: 'string', description: 'Headline / key concept' },
+        narration:          { type: 'string', description: 'Voiceover narration text' },
+        topic:              { type: 'string', description: 'Overall video topic' },
+        style:              { type: 'string', description: 'Aesthetic / genre (cosmic_space, cyber_tech, cinematic_documentary, finance_executive, retro_synthwave, nature_organic, hype_sports, minimal_luxury, breaking_news, warm_creative)' },
+        language:           { type: 'string', default: 'en', description: 'Language code (e.g. en, ml, hi, ta)' },
+        duration:           { type: 'number', default: 3, description: 'Duration in seconds' },
+        width:              { type: 'number', default: 1920 },
+        height:             { type: 'number', default: 1080 },
+      },
+    },
+    handler: async ({ visual_description, caption = '', narration = '', topic = '', style = '', language = 'en', duration = 3, width = 1920, height = 1080 }) => {
+      const { generateSceneCodeWithLLM, wrapCodeInHarnessHtml, generateSceneHtml } = require('../video-renderer/scene-animator');
+      let code = await generateSceneCodeWithLLM({ visualDescription: visual_description, caption, narration, topic, style, language, duration, width, height });
+      let html;
+      if (code) {
+        html = wrapCodeInHarnessHtml({ code, duration, width, height, language, style, topic });
+      } else {
+        html = generateSceneHtml({ visualDescription: visual_description, caption, narration, topic, style, language, duration, width, height });
+      }
+      return { code: code || '// Procedural animation used', html, duration, width, height, success: true };
+    },
+  },
+
+  // ── Tool 21: Preview Scene ───────────────────────────────────────────────
+  // Renders still preview frames at specified timestamps so the agent can inspect them
+  preview_scene: {
+    description: `Render still frame previews (PNGs) of an animated scene at specified timestamps (default: 0.1s, duration/2, duration - 0.1s).
+Allows the agent in Claude Code, Cursor, or any IDE to inspect the visual output, verify fonts, colors, and compositions, and patch the code before encoding. Satisfies Layer 3 verification loop.`,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        code:               { type: 'string', description: 'Raw JavaScript canvas drawing code for window.seek(t)' },
+        html:               { type: 'string', description: 'Complete self-contained HTML page conforming to window.seek(t)' },
+        visual_description: { type: 'string', description: 'Visual description (used to generate scene if code/html omitted)' },
+        caption:            { type: 'string' },
+        narration:          { type: 'string' },
+        topic:              { type: 'string' },
+        style:              { type: 'string' },
+        language:           { type: 'string', default: 'en' },
+        duration:           { type: 'number', default: 3 },
+        timestamps:         { type: 'array', items: { type: 'number' }, description: 'Timestamps in seconds to capture (default: [0.1, duration/2, duration - 0.1])' },
+        width:              { type: 'number', default: 1920 },
+        height:             { type: 'number', default: 1080 },
+      },
+    },
+    handler: async ({ code, html, visual_description = '', caption = '', narration = '', topic = '', style = '', language = 'en', duration = 3, timestamps, width = 1920, height = 1080 }) => {
+      const { wrapCodeInHarnessHtml, generateSceneHtml } = require('../video-renderer/scene-animator');
+      const { launchHarnessBrowser } = require('../harness/lib/browser.mjs');
+      const { openPageWithVirtualClock } = require('../harness/lib/capture.mjs');
+      const syncFs = require('fs');
+      const pathMod = require('path');
+
+      let htmlContent = html;
+      if (!htmlContent) {
+        if (code) {
+          htmlContent = wrapCodeInHarnessHtml({ code, duration, width, height, language, style, topic });
+        } else {
+          htmlContent = generateSceneHtml({ visualDescription: visual_description, caption, narration, topic, style, language, duration, width, height });
+        }
+      }
+
+      const previewDir = pathMod.join(FILES_DIR, 'previews');
+      syncFs.mkdirSync(previewDir, { recursive: true });
+      const tempHtmlPath = pathMod.join(previewDir, `preview_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.html`);
+      syncFs.writeFileSync(tempHtmlPath, htmlContent, 'utf8');
+
+      const tsList = Array.isArray(timestamps) && timestamps.length > 0
+        ? timestamps
+        : [0.1, Number((duration / 2).toFixed(2)), Number((duration - 0.1).toFixed(2))];
+
+      const { browser } = await launchHarnessBrowser();
+      const captures = [];
+
+      try {
+        const page = await openPageWithVirtualClock(browser, tempHtmlPath, { width, height });
+        const { captureFrame } = require('../harness/lib/capture.mjs');
+        for (const t of tsList) {
+          const buf = await captureFrame(page, t, { type: 'image/png' });
+          const outPng = pathMod.join(previewDir, `still_t${t.toString().replace('.', '_')}_${Date.now()}.png`);
+          syncFs.writeFileSync(outPng, buf);
+          captures.push({ timestamp: t, path: outPng, sizeBytes: buf.length });
+        }
+      } finally {
+        await browser.close();
+        try { syncFs.unlinkSync(tempHtmlPath); } catch (_) {}
+      }
+
+      return {
+        previews: captures,
+        count: captures.length,
+        width,
+        height,
+        duration,
+        message: 'Preview stills captured. You can read the image files from disk to inspect the visual composition.'
+      };
+    },
+  },
+
 };
 
 // ── MCP protocol handler (MCP 2024-11-05 spec) ───────────────────────────
 
 const SERVER_INFO = {
   name:    'video-pipeline',
-  version: '2.3.9',
+  version: '2.4.0',
 };
 
 const CAPABILITIES = {

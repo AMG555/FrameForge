@@ -20,12 +20,16 @@ check('batch handling',              code.includes('Array.isArray(body)'));
 check('ping handler',                code.includes("method === 'ping'"));
 check('notifications/init',          code.includes("notifications/initialized"));
 check('body size limit',             code.includes('MAX_BODY_BYTES'));
-check('SERVER_INFO version 2.3.9',   code.includes("version: '2.3.9'"));
+check('SERVER_INFO version 2.4.0',   code.includes("version: '2.4.0'"));
 check('18 tools defined (incl get_job_status)', code.includes('get_job_status'));
 check('export_to_editor tool defined', code.includes('export_to_editor'));
 check('edit_video tool defined', code.includes('edit_video'));
+check('generate_scene_code tool defined', code.includes('generate_scene_code'));
+check('preview_scene tool defined', code.includes('preview_scene'));
 check('video-editor exists', fs.existsSync('./src/video-editor/editor.js'));
 check('voxforge TTS provider', code.includes('voxforge'));
+const pkg = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
+check('playwright in dependencies', Boolean(pkg.dependencies && pkg.dependencies.playwright));
 
 // ── No execSync with shell strings in renderer or extractor ───────────────
 console.log('\n=== Shell injection check ===');
@@ -295,7 +299,7 @@ check('cf-worker has checkRateLimit',   cfWorker.includes('checkRateLimit'));
 check('cf-worker hashes token (SHA-256)', cfWorker.includes('SHA-256'));
 check('cf-worker uses RATE_LIMITS KV',  cfWorker.includes('env.RATE_LIMITS'));
 check('cf-worker returns 429 on limit', cfWorker.includes('429'));
-check('cf-worker version 2.3.9',        cfWorker.includes("'2.3.9'"));
+check('cf-worker version 2.4.0',        cfWorker.includes("'2.4.0'"));
 check('wrangler.toml has kv_namespaces',fs.readFileSync('./cloudflare-mcp/wrangler.toml','utf8').includes('kv_namespaces'));
 
 // ── plugins/skills present ────────────────────────────────────────────────

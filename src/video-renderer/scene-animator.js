@@ -685,18 +685,18 @@ function drawBackground(t) {
 // ── Full-Canvas Cinematic Visual Directors ─────────────────────────────────────
 function drawMainScene(t) {
   ctx.save();
-  const enterSpring = spring(t, 0.05);
-  const sceneScale = Math.min(1.02, Math.max(0.9, enterSpring));
-  ctx.translate(W / 2, H * 0.40);
+  const enterSpring = spring(t, 0.05, 170, 13);
+  const sceneScale = Math.min(1.04, Math.max(0.88, enterSpring));
+  ctx.translate(W / 2, H * 0.50);
   ctx.scale(sceneScale, sceneScale);
-  ctx.translate(-W / 2, -H * 0.40);
+  ctx.translate(-W / 2, -H * 0.50);
 
   const cx = W / 2;
-  const cy = H * 0.40;
+  const cy = H * 0.50;
 
   if (COMP_THEME === 'celestial_orbit') {
     // 3D Celestial Body (Earth) with orbiting satellites & signal pulses
-    const earthR = Math.min(W, H) * 0.15;
+    const earthR = Math.min(W, H) * 0.22;
 
     // Atmospheric halo
     const haloGrad = ctx.createRadialGradient(cx, cy, earthR * 0.9, cx, cy, earthR * 1.45);
@@ -1168,69 +1168,60 @@ function drawMainScene(t) {
   ctx.restore();
 }
 
-// ── Cinematic Broadcast Lower-Third Overlay ────────────────────────────────────
+// ── Kinetic Typography & Broadcast Subtitle Overlay ─────────────────────────
 function drawCinematicOverlay(t) {
   ctx.save();
-  const textSpring = spring(t, 0.18);
-  const bannerY = H * 0.74 + (1 - textSpring) * 45;
-  const bannerH = H * 0.18;
-  const bannerW = W * 0.88;
-  const bannerX = (W - bannerW) / 2;
+  const textSpring = spring(t, 0.12, 190, 15);
+  const headlineAlpha = Math.min(1, Math.max(0, textSpring));
+  ctx.globalAlpha = headlineAlpha;
 
-  ctx.globalAlpha = Math.min(1, Math.max(0, textSpring));
+  // Kinetic Headline at top
+  const capY = H * 0.12 + (1 - textSpring) * -20;
 
-  // Glassmorphic Lower-Third Banner
-  ctx.fillStyle = 'rgba(8, 12, 22, 0.82)';
-  ctx.strokeStyle = CARD_BORDER;
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.roundRect(bannerX, bannerY, bannerW, bannerH, 16);
-  ctx.fill();
-  ctx.stroke();
+  // Tag Pill - minimal floating badge
+  if (TAG) {
+    ctx.font = 'bold 16px monospace';
+    ctx.fillStyle = ACCENT;
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
+    ctx.shadowBlur = 10;
+    ctx.textAlign = 'left';
+    ctx.fillText('// ' + TAG, 80, capY - 22);
+  }
 
-  // Accent Left Bar
-  ctx.fillStyle = ACCENT;
-  ctx.beginPath();
-  ctx.roundRect(bannerX + 16, bannerY + 16, 6, bannerH - 32, 3);
-  ctx.fill();
-
-  // Tag Pill
-  ctx.font = 'bold 13px monospace';
-  ctx.fillStyle = ACCENT;
-  ctx.textAlign = 'left';
-  ctx.fillText(TAG, bannerX + 38, bannerY + 36);
-
-  // Primary Caption Headline
-  ctx.font = FONT_WEIGHT + ' 44px ' + FONT_DISPLAY;
+  // Primary Caption Headline - crisp, heroic typography without opaque cards
+  ctx.font = FONT_WEIGHT + ' 50px ' + FONT_DISPLAY;
   ctx.fillStyle = '#ffffff';
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
-  ctx.shadowBlur = 16;
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
+  ctx.shadowBlur = 24;
   ctx.shadowOffsetY = 4;
   ctx.textAlign = 'left';
-  const cleanCap = CAPTION.length > 55 ? CAPTION.slice(0, 55) + '...' : CAPTION;
-  ctx.fillText(cleanCap, bannerX + 38, bannerY + 84);
+  const cleanCap = CAPTION.length > 60 ? CAPTION.slice(0, 60) + '...' : CAPTION;
+  ctx.fillText(cleanCap, 80, capY + 30);
 
-  // Subtitle / Narration preview
+  // Subtitle / Spoken Narration - bottom center clean broadcast subtitles
   if (NARRATION) {
-    ctx.font = '400 23px ' + FONT_BODY;
-    ctx.fillStyle = 'rgba(226, 232, 240, 0.88)';
-    ctx.shadowBlur = 8;
-    const cleanNarr = NARRATION.length > 95 ? NARRATION.slice(0, 95) + '...' : NARRATION;
-    ctx.fillText(cleanNarr, bannerX + 38, bannerY + 120);
+    const subSpring = spring(t, 0.22, 180, 16);
+    ctx.globalAlpha = Math.min(1, Math.max(0, subSpring));
+    ctx.font = '500 28px ' + FONT_BODY;
+    ctx.fillStyle = '#f8fafc';
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
+    ctx.shadowBlur = 18;
+    ctx.shadowOffsetY = 3;
+    ctx.textAlign = 'center';
+    const cleanNarr = NARRATION.length > 115 ? NARRATION.slice(0, 115) + '...' : NARRATION;
+    ctx.fillText(cleanNarr, W / 2, H * 0.92);
   }
   ctx.restore();
 
-  // Bottom Progress Scrubber
+  // Bottom Progress Indicator (minimal line)
   ctx.save();
   const progress = Math.min(1, Math.max(0, t / window.DURATION));
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
-  ctx.fillRect(0, H - 6, W, 6);
-
+  ctx.globalAlpha = 0.85;
   const progGrad = ctx.createLinearGradient(0, 0, W, 0);
   progGrad.addColorStop(0, ACCENT);
   progGrad.addColorStop(1, ACCENT2);
   ctx.fillStyle = progGrad;
-  ctx.fillRect(0, H - 6, W * progress, 6);
+  ctx.fillRect(0, H - 4, W * progress, 4);
   ctx.restore();
 }
 
@@ -1245,9 +1236,68 @@ window.seek = async (t) => {
 </html>`;
 }
 
+// ── LLM Creative Code Generator ──────────────────────────────────────────────
+/**
+ * Asks an LLM (Claude, Groq, Gemini, OpenAI, etc.) to write raw pure-function-of-t
+ * HTML5 Canvas animation code for a given scene brief.
+ * Returns raw JavaScript for window.seek = async (t) => { ... }, or null if unavailable.
+ */
+async function generateSceneCodeWithLLM({
+  visualDescription = '',
+  caption = '',
+  narration = '',
+  topic = '',
+  style = '',
+  language = '',
+  duration = 3,
+  width = 1920,
+  height = 1080,
+} = {}) {
+  try {
+    const { LLMProvider } = require('../pipeline/providers');
+    const llm = new LLMProvider();
+    const system = `You are an elite creative motion graphics developer writing high-end JavaScript Canvas animation code for video production.
+You write code where EVERY PIXEL IS A PURE FUNCTION OF TIME t (seconds).
+AVAILABLE VARIABLES:
+- canvas, ctx, W (${width}), H (${height}), DURATION (${duration}), FONT_DISPLAY, FONT_BODY
+AVAILABLE HELPERS:
+- spring(t, delay, tension, friction), lerp(t, a, b, t0, t1), clamp(val, min, max)
+- easeIn(t), easeOut(t), easeInOut(t), boilSeed(t, seed), hash(i)
+RULES:
+1. Every element must animate smoothly over time t [0..DURATION].
+2. Fill the canvas with rich visual geometry, vectors, animated nodes, characters, particles, or cinematic diagrams matching the prompt.
+3. NEVER use Math.random(), setTimeout, setInterval, Date.now(), performance.now().
+4. Output ONLY raw executable JavaScript code for the body of window.seek = async (t) => { ... }.
+5. NO markdown backticks, NO explanations. Start directly with JavaScript.`;
+
+    const user = `TOPIC: ${topic || 'Visual Explainer'}
+VISUAL DIRECTION: ${visualDescription || caption || 'Dynamic motion graphics'}
+KEY PHRASE: ${caption}
+NARRATION: ${narration}
+STYLE: ${style || 'cinematic'}
+DURATION: ${duration}s
+
+Write the canvas drawing code for time t.`;
+
+    const raw = await llm.chat({ system, user, temperature: 0.7, maxTokens: 4000 });
+    if (!raw) return null;
+    let cleanCode = raw.trim();
+    if (cleanCode.startsWith('```')) {
+      cleanCode = cleanCode.replace(/^```[a-z]*\n?/i, '').replace(/\n?```$/i, '').trim();
+    }
+    if (cleanCode.length > 20 && (cleanCode.includes('ctx.') || cleanCode.includes('fillRect'))) {
+      return cleanCode;
+    }
+    return null;
+  } catch (_) {
+    return null;
+  }
+}
+
 module.exports = {
   generateSceneHtml,
   wrapCodeInHarnessHtml,
+  generateSceneCodeWithLLM,
   detectAesthetic,
   detectComponentTheme,
   getScriptFontStack,

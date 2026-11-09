@@ -14,10 +14,23 @@ export function findChromePath(customPath = null) {
     process.env.CHROME_PATH,
     'C:/Program Files/Google/Chrome/Application/chrome.exe',
     'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
+    'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
+    'C:/Program Files/Microsoft/Edge/Application/msedge.exe',
+    'C:/Program Files/BraveSoftware/Brave-Browser/Application/brave.exe',
+    'C:/Program Files (x86)/BraveSoftware/Brave-Browser/Application/brave.exe',
     process.env.LOCALAPPDATA ? path.join(process.env.LOCALAPPDATA, 'Google/Chrome/Application/chrome.exe') : null,
+    process.env.LOCALAPPDATA ? path.join(process.env.LOCALAPPDATA, 'Microsoft/Edge/Application/msedge.exe') : null,
+    process.env.LOCALAPPDATA ? path.join(process.env.LOCALAPPDATA, 'BraveSoftware/Brave-Browser/Application/brave.exe') : null,
     '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
+    '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser',
+    '/Applications/Chromium.app/Contents/MacOS/Chromium',
     '/usr/bin/google-chrome',
     '/usr/bin/google-chrome-stable',
+    '/usr/bin/microsoft-edge',
+    '/usr/bin/microsoft-edge-stable',
+    '/usr/bin/brave-browser',
+    '/usr/bin/brave',
     '/usr/bin/chromium',
     '/usr/bin/chromium-browser',
     '/snap/bin/chromium',
@@ -78,7 +91,11 @@ export async function launchHarnessBrowser(opts = {}) {
   try {
     ({ chromium } = await import('playwright'));
   } catch (err) {
-    throw new Error('Playwright is required. Run: npm install playwright && npx playwright install chromium');
+    try {
+      ({ chromium } = await import('playwright-core'));
+    } catch (errCore) {
+      throw new Error('Playwright is required. Run: npm install playwright && npx playwright install chromium');
+    }
   }
 
   const execPath = findChromePath(opts.chromePath);
