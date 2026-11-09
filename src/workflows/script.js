@@ -67,6 +67,8 @@ function normaliseScene(raw, index) {
     image_path:    raw.image_path  || null,
     video_path:    raw.video_path  || null,
     audio_path:    raw.audio_path  || null,
+    html:          raw.html        || null,
+    code:          raw.code || raw.animation_code || null,
     metadata: {
       importance:     meta.importance    || 'medium',
       hook_potential: typeof meta.hook_potential === 'number' ? meta.hook_potential : 0.5,

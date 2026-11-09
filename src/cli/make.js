@@ -410,6 +410,9 @@ async function runSingleVideo(args, topic, outDir, workflows) {
     skipImages,
     skipTts:      args.noTts,
     enableAiImages,
+    topic,
+    title,
+    style: args.style || '',
   });
   log('Assets', `✅  ${assetsResult.sceneCount} scenes prepared`);
 
@@ -418,6 +421,9 @@ async function runSingleVideo(args, topic, outDir, workflows) {
   const renderResult = await runRender({
     productionId,
     sceneAssets: assetsResult.sceneAssets,
+    topic,
+    title,
+    style: args.style || '',
   });
   if (!renderResult.passed) {
     throw new Error(`Quality gate FAILED: ${JSON.stringify(renderResult.qcReport?.checks?.filter(c => !c.passed).map(c => c.name))}`);

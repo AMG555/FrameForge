@@ -60,7 +60,7 @@ export default {
       return Response.json({
         status:     configured ? 'ok' : 'degraded',
         worker:     'frameforge-mcp',
-        version:    '2.3.5',
+        version:    '2.3.6',
         configured,
         rateLimit: {
           enabled:      !!env.RATE_LIMITS,
@@ -264,7 +264,7 @@ async function handleRPC(body, env) {
         protocolVersion: '2024-11-05',
         serverInfo: {
           name:    'frameforge',
-          version: '2.3.5',
+          version: '2.3.6',
           status:  configured ? 'ready' : 'not_configured',
           // IDEs that surface _meta will show this warning in the tools panel
           ...(configured ? {} : {
@@ -447,13 +447,18 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: 'create_video_from_script',
-    description: 'Render a complete video from an IDE-authored scenes array. The IDE writes the script; FrameForge handles assets and rendering. Returns masterPath.',
+    description: 'Render a complete video from an IDE-authored scenes array. Supports code-driven animations, direct agent HTML/canvas code, and full-canvas procedural motion graphics. Returns masterPath.',
     inputSchema: {
       type: 'object', required: ['scenes'],
       properties: {
-        scenes:      { type: 'array', description: 'Scene objects with narration, image_prompt, caption, character_id fields' },
+        scenes:      { type: 'array', description: 'Scene objects with narration, caption, visual_description, html?, code?, camera_hint fields' },
         productionId:{ type: 'string' },
         title:       { type: 'string' },
+        topic:       { type: 'string' },
+        style:       { type: 'string' },
+        theme:       { type: 'string' },
+        language:    { type: 'string' },
+        orientation: { type: 'string', enum: ['landscape', 'portrait'], default: 'landscape' },
         withMusic:   { type: 'boolean', default: true },
         channels:    { type: 'array', items: { type: 'string' }, default: ['file'] },
       },

@@ -21,10 +21,22 @@ const STATE_DIR = `${FILES_DIR}/state`;
 
 /**
  * Render all scene assets into a final master video.
- * @param {{ productionId: string, sceneAssets: object[], withMusic?: boolean, musicVolume?: number }} opts
+ * @param {{ productionId: string, sceneAssets: object[], withMusic?: boolean, musicVolume?: number, renderWidth?: number, renderHeight?: number, topic?: string, style?: string, theme?: string, title?: string, language?: string }} opts
  * @returns {Promise<RenderResult>}
  */
-async function runRender({ productionId, sceneAssets, withMusic = true, musicVolume = 0.07, renderWidth = 1920, renderHeight = 1080 }) {
+async function runRender({
+  productionId,
+  sceneAssets,
+  withMusic = true,
+  musicVolume = 0.07,
+  renderWidth = 1920,
+  renderHeight = 1080,
+  topic = '',
+  style = '',
+  theme = '',
+  title = '',
+  language = '',
+}) {
   const sm        = new StateMachine({ mode: 'file', stateDir: STATE_DIR });
   const retryPol  = new RetryPolicy({ maxAttempts: 2, baseDelayMs: 15000 });
   const telemetry = new Telemetry({ mode: 'file', logPath: `${FILES_DIR}/usage.ndjson` });
@@ -50,10 +62,16 @@ async function runRender({ productionId, sceneAssets, withMusic = true, musicVol
         narration:         asset.narration || '',
         visualDescription: asset.visualDescription || '',
         visualType:        asset.visualType || 'code_animation',
+        topic:             asset.topic || topic || '',
+        style:             asset.style || style || '',
+        theme:             asset.theme || theme || '',
+        title:             asset.title || title || '',
         musicMood:         asset.musicMood || 'neutral',
-        language:          asset.language || '',
+        language:          asset.language || language || '',
         camera:            asset.camera  || 'static',
         focalPoint:        asset.focalPoint || null,
+        html:              asset.html || null,
+        code:              asset.code || null,
         renderWidth,
         renderHeight,
       });

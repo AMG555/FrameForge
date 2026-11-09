@@ -4,6 +4,30 @@ All notable changes to FrameForge are documented here.
 
 ---
 
+## [2.3.6] — 2026-11-09
+
+### Added
+- **Full-Canvas Cinematic Procedural Entities** (`src/video-renderer/scene-animator.js`):
+  - Completely eliminated the rigid PPT card slideshow pattern. Every scene now renders a living, full-canvas animated universe.
+  - 3D Celestial Orbital Simulation: Earth with rotating longitude/latitude wireframes, tilted elliptical orbits, orbiting satellites with solar panels, expanding spherical radio wavefront pulses, and ground target beacon.
+  - 3D Rotating DNA Double-Helix: Sinusoidal backbones with perspective depth, nucleotide base-pair rungs, and molecular spore drift.
+  - Full-Canvas Financial Candlesticks: Realistic Japanese candlesticks with upper/lower wicks, glowing Exponential Moving Average (EMA) ribbon curve, volume bars, and price tickers.
+  - 3D Tactical Radar Globe: Rotating spherical grid with 360-degree radar sweep sector and pinging incident coordinates.
+  - 3D Wireframe Polyhedra: Pure mathematical 3D perspective projection (octahedron/cubes) with coordinate axes.
+  - Historical Milestone Roadmaps: Flowing chronological paths with golden era seals and progressive illumination pulses.
+  - Full-Canvas Neural Mesh: 4-tier neural network with glowing energy packets traveling along active synapses.
+- **Direct Agent Code & HTML Execution** (`src/video-renderer/renderer.js`, `src/mcp-server/server.js`, `src/workflows/render.js`, `src/workflows/assets.js`):
+  - Added support for `html` (complete page conforming to `window.DURATION` and `window.seek(t)`) and `code` (canvas drawing instructions for `t`) across `create_video_from_script`, `render_from_scenes`, and workflow pipelines.
+  - Enables Claude Code, Opus 5.5, Cursor, and IBM Bob to write custom animation programs that FrameForge renders directly without template overrides.
+  - Added `wrapCodeInHarnessHtml()` helper to embed pure Canvas drawing code into a compliant virtual-clock harness page.
+- **Cinematic Broadcast Lower-Third Overlays**:
+  - Replaced repetitive center-card text with glassmorphic lower-third broadcast banners leaving the upper 75% of the frame completely open for motion graphics.
+  - Accent color left tab, tag pills, high-contrast drop-shadow typography, and subtle bottom progress bar.
+- **Multilingual Typography Integration**:
+  - Full native DirectWrite/HarfBuzz font support for Malayalam (`Nirmala UI`, `Noto Sans Malayalam`), Hindi/Devanagari, Tamil, Telugu, Arabic, and CJK with zero broken glyphs.
+
+---
+
 ## [2.3.5] — 2026-11-09
 
 ### Added

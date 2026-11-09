@@ -349,9 +349,14 @@ const TOOLS = {
         skipTts:      { type: 'boolean', default: false, description: 'Skip TTS synthesis (use audio_path in scenes)' },
         withMusic:    { type: 'boolean', default: true },
         musicVolume:  { type: 'number',  default: 0.07 },
+        topic:        { type: 'string',  description: 'Overall topic/genre for visual theme and aesthetic selection' },
+        style:        { type: 'string',  description: 'Visual style/theme override (e.g. cinematic_documentary, finance_executive, cyber_tech, retro_synthwave, nature_organic, hype_sports, minimal_luxury, breaking_news, cosmic_space)' },
+        theme:        { type: 'string',  description: 'Theme preset alias' },
+        title:        { type: 'string',  description: 'Video title' },
+        language:     { type: 'string',  description: 'BCP-47 language hint (e.g. ml, hi, en, ta)' },
       },
     },
-    handler: async ({ productionId, scenes, orientation = 'landscape', skipImages = false, skipTts = false, withMusic = true, musicVolume = 0.07 }) => {
+    handler: async ({ productionId, scenes, orientation = 'landscape', skipImages = false, skipTts = false, withMusic = true, musicVolume = 0.07, topic = '', style = '', theme = '', title = '', language = '' }) => {
       const syncFs = require('fs');
       const { runAssets }   = require('../workflows/assets');
       const { runRender }   = require('../workflows/render');
@@ -392,6 +397,11 @@ const TOOLS = {
         parallelism:  4,
         skipImages,
         skipTts,
+        topic,
+        style,
+        theme,
+        title,
+        language,
         imageWidth:  renderWidth,
         imageHeight: renderHeight,
       });
@@ -404,6 +414,11 @@ const TOOLS = {
         musicVolume,
         renderWidth,
         renderHeight,
+        topic,
+        style,
+        theme,
+        title,
+        language,
       });
 
       if (!renderResult.passed) {
@@ -518,8 +533,9 @@ Named presets (set EXTERNAL_PLATFORM_NAME to one of these and omit platformUrl):
     description: `Agent-first video creation. YOU (the IDE agent) provide the complete scenes array — FrameForge renders it.
 Features:
 - Code-driven animation and kinetic typography by default (broadcast quality, zero AI artifacts).
+- Supports direct agent/user code: pass "html" (complete page with window.seek(t)) or "code" (canvas drawing instructions for t).
+- Procedural full-canvas cinematic animations (celestial orbits, DNA helices, candlestick charts, neural nets, 3D wireframe geometry).
 - Supports manual user clips (video_path) and manual images (image_path).
-- Optional AI diffusion generation via enableAiImages: true.
 - No internal LLM or research required. Primary path for Claude Code, IBM Bob, Cursor, and any agentic IDE.
 
 Example scene:
@@ -527,6 +543,8 @@ Example scene:
   "narration": "The text spoken aloud in this scene",
   "caption": "OVERLAY TEXT",
   "visual_description": "Description of the scene visual / animation",
+  "html": "<!doctype html>... window.seek = async (t) => { ... }",
+  "code": "/* canvas drawing code for t */",
   "camera_hint": "zoom_in",
   "music_mood": "energetic",
   "image_path": "/optional/your/own/image.jpg",
@@ -537,7 +555,7 @@ Example scene:
       type: 'object',
       required: ['scenes'],
       properties: {
-        scenes:         { type: 'array',   description: 'Complete scenes array written by the agent. Each scene: { narration, caption, visual_description, camera_hint?, music_mood?, image_path?, video_path?, audio_path?, voice? }' },
+        scenes:         { type: 'array',   description: 'Complete scenes array written by the agent. Each scene: { narration, caption, visual_description, html?, code?, camera_hint?, music_mood?, image_path?, video_path?, audio_path?, voice? }' },
         title:          { type: 'string',  description: 'Video title' },
         orientation:    { type: 'string',  enum: ['landscape', 'portrait'], default: 'landscape', description: 'Output orientation. "landscape" = 1920×1080 (16:9, YouTube/desktop). "portrait" = 1080×1920 (9:16, TikTok/Reels/Shorts).' },
         voice:          { type: 'string',  description: 'edge-tts voice ID for all scenes, e.g. "ml-IN-MidhunNeural" (Malayalam male), "en-US-BrianNeural" (English). Per-scene voice field overrides this. Full list: edge-tts --list-voices' },
@@ -546,10 +564,13 @@ Example scene:
         parallelism:    { type: 'number',  default: 1, description: 'Concurrent TTS synthesis requests (default: 1).' },
         withMusic:      { type: 'boolean', default: true },
         musicVolume:    { type: 'number',  default: 0.07 },
+        topic:          { type: 'string',  description: 'Overall topic/genre for visual aesthetic and background motion (e.g. "Kerala history", "crypto finance", "AI robotics")' },
+        style:          { type: 'string',  description: 'Visual style/theme override (e.g. cinematic_documentary, finance_executive, cyber_tech, retro_synthwave, nature_organic, hype_sports, minimal_luxury, breaking_news, cosmic_space)' },
+        theme:          { type: 'string',  description: 'Theme preset alias' },
         productionId:   { type: 'string',  description: 'Optional — reuse an existing productionId' },
       },
     },
-    handler: async ({ scenes, title = 'FrameForge Video', orientation = 'landscape', voice, language, skipTts = false, parallelism = 1, withMusic = true, musicVolume = 0.07, productionId }) => {
+    handler: async ({ scenes, title = 'FrameForge Video', orientation = 'landscape', voice, language, skipTts = false, parallelism = 1, withMusic = true, musicVolume = 0.07, topic = '', style = '', theme = '', productionId }) => {
       const { runAssets } = require('../workflows/assets');
       const { runRender } = require('../workflows/render');
 
@@ -595,6 +616,12 @@ Example scene:
         video_path:         s.video_path         || null,
         audio_path:         s.audio_path         || null,
         voice:              s.voice              || null,  // per-scene voice override
+        html:               s.html               || null,
+        code:               s.code || s.animation_code || null,
+        topic:              s.topic              || topic || '',
+        style:              s.style              || style || '',
+        theme:              s.theme              || theme || '',
+        language:           s.language           || language || '',
         character:          s.character          || { character_id: 'none', pose: 'none', emotion: 'neutral', position: { x: 0.5, y: 0.8, scale: 1.0 } },
         focal_point:        s.focal_point        || { x: 0.5, y: 0.35, weight: 0.8 },
         overlay:            s.overlay            || { type: 'none' },
@@ -608,8 +635,31 @@ Example scene:
       const renderWidth  = orientation === 'portrait' ? 1080 : 1920;
       const renderHeight = orientation === 'portrait' ? 1920 : 1080;
 
-      const assetsResult = await runAssets({ productionId: pid, scenes: processedScenes, parallelism, skipTts, voice: resolvedVoice });
-      const renderResult = await runRender({ productionId: pid, sceneAssets: assetsResult.sceneAssets, withMusic, musicVolume, renderWidth, renderHeight });
+      const assetsResult = await runAssets({
+        productionId: pid,
+        scenes: processedScenes,
+        parallelism,
+        skipTts,
+        voice: resolvedVoice,
+        topic,
+        style,
+        theme,
+        title,
+        language,
+      });
+      const renderResult = await runRender({
+        productionId: pid,
+        sceneAssets: assetsResult.sceneAssets,
+        withMusic,
+        musicVolume,
+        renderWidth,
+        renderHeight,
+        topic,
+        style,
+        theme,
+        title,
+        language,
+      });
 
       if (!renderResult.passed) {
         return { productionId: pid, passed: false, qcReport: renderResult.qcReport };
@@ -1372,7 +1422,7 @@ Operations (used with action="edit"):
 
 const SERVER_INFO = {
   name:    'video-pipeline',
-  version: '2.3.5',
+  version: '2.3.6',
 };
 
 const CAPABILITIES = {

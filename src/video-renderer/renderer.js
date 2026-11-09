@@ -29,7 +29,7 @@ const DEFAULT_FILES_DIR = process.env.N8N_FILES_DIR || path.join(os.homedir(), '
 
 const { buildCameraFilter, selectCameraHint } = require('../animation/animation-system');
 const { AudioMixer }                          = require('../audio-mixer/mixer');
-const { generateSceneHtml }                   = require('./scene-animator');
+const { generateSceneHtml, wrapCodeInHarnessHtml, detectAesthetic, AESTHETICS } = require('./scene-animator');
 const { findChromePath }                      = require('../harness/lib/browser.mjs');
 
 // ── Cross-platform Indic / Malayalam font resolver ────────────────────────────
@@ -117,10 +117,16 @@ class VideoRenderer {
    *   narration?:         string,
    *   visualDescription?: string,
    *   visualType?:        string,
+   *   topic?:             string,
+   *   style?:             string,
+   *   theme?:             string,
+   *   title?:             string,
    *   language?:          string,
    *   musicMood?:         string,
    *   camera?:            string,   // camera_hint from scene schema v1.0.0
    *   focalPoint?:        { x: number, y: number },
+   *   html?:              string,   // direct agent/user pure-t HTML scene
+   *   code?:              string,   // direct agent/user canvas seek(t) drawing code
    *   manifest?:          ArtifactManifest  // optional — enables idempotency
    *   renderWidth?:       number,   // default 1920
    *   renderHeight?:      number,   // default 1080
@@ -137,10 +143,16 @@ class VideoRenderer {
     narration = '',
     visualDescription = '',
     visualType = 'code_animation',
+    topic = '',
+    style = '',
+    theme = '',
+    title = '',
     language = '',
     musicMood = 'neutral',
     camera,
     focalPoint,
+    html = null,
+    code = null,
     manifest,
     renderWidth = 1920,
     renderHeight = 1080,
@@ -212,6 +224,13 @@ class VideoRenderer {
           caption,
           narration,
           visualDescription,
+          topic,
+          style,
+          theme,
+          title,
+          language,
+          html,
+          code,
           clampedDur,
           renderWidth,
           renderHeight,
@@ -237,16 +256,13 @@ class VideoRenderer {
       const cameraFilter = buildCameraFilter(hint, { duration: clampedDur, w: renderWidth, h: renderHeight, ...fx });
       vf = [cameraFilter, captionFilter].filter(Boolean).join(',');
     } else {
-      const PALETTES = [
-        { bg: '0d1117', c1: '38bdf8' },
-        { bg: '0f172a', c1: '818cf8' },
-        { bg: '13111c', c1: 'c084fc' },
-        { bg: '0c1a24', c1: '34d399' },
-        { bg: '18181b', c1: 'fbbf24' },
-      ];
-      const pal = PALETTES[sceneIndex % PALETTES.length];
+      const aestheticKey = detectAesthetic({ topic, style, theme, title, narration, visualDescription, caption, language, musicMood });
+      const aesthetic = AESTHETICS[aestheticKey] || AESTHETICS.cyber_tech;
+      const pal = aesthetic.palettes[sceneIndex % aesthetic.palettes.length];
+      const c0 = (pal.bg0 || '#0d1117').replace('#', '');
+      const c1 = (pal.accent || '#38bdf8').replace('#', '');
       inputArgs = [
-        '-f', 'lavfi', '-i', `gradients=s=${renderWidth}x${renderHeight}:r=30:c0=0x${pal.bg}:c1=0x${pal.c1}:speed=0.5:type=radial`,
+        '-f', 'lavfi', '-i', `gradients=s=${renderWidth}x${renderHeight}:r=30:c0=0x${c0}:c1=0x${c1}:speed=0.5:type=radial`,
         '-i', voicePath,
       ];
       const vfFilters = ['vignette=PI/4'];
@@ -289,6 +305,13 @@ class VideoRenderer {
     caption,
     narration,
     visualDescription,
+    topic = '',
+    style = '',
+    theme = '',
+    title = '',
+    language = '',
+    html = null,
+    code = null,
     clampedDur,
     renderWidth,
     renderHeight,
@@ -297,17 +320,40 @@ class VideoRenderer {
     manifest,
     musicMood,
   }) {
-    const htmlContent = generateSceneHtml({
-      caption,
-      narration,
-      visualDescription,
-      imagePath,
-      duration: clampedDur,
-      width: renderWidth,
-      height: renderHeight,
-      sceneIndex,
-      musicMood,
-    });
+    let htmlContent;
+    if (html && typeof html === 'string' && html.trim().length > 0) {
+      htmlContent = html;
+      if (!htmlContent.includes('window.DURATION')) {
+        htmlContent = htmlContent.replace('<script>', `<script>\nwindow.DURATION = ${clampedDur};\n`);
+      }
+    } else if (code && typeof code === 'string' && code.trim().length > 0) {
+      htmlContent = wrapCodeInHarnessHtml({
+        code,
+        duration: clampedDur,
+        width: renderWidth,
+        height: renderHeight,
+        language,
+        style,
+        topic,
+      });
+    } else {
+      htmlContent = generateSceneHtml({
+        caption,
+        narration,
+        visualDescription,
+        imagePath,
+        topic,
+        style,
+        theme,
+        title,
+        language,
+        duration: clampedDur,
+        width: renderWidth,
+        height: renderHeight,
+        sceneIndex,
+        musicMood,
+      });
+    }
 
     const animHtmlPath = path.join(this.vdir, `scene_${sceneIndex}_anim.html`);
     const framesDir    = path.join(this.vdir, `scene_${sceneIndex}_frames`);

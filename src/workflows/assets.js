@@ -21,10 +21,21 @@ const VDIR      = `${FILES_DIR}/video_tmp`;
 
 /**
  * Prepare all scene visuals (user media or code animation) and TTS audio in parallel batches.
- * @param {{ productionId: string, scenes: object[], parallelism?: number, skipTts?: boolean, voice?: string }} opts
+ * @param {{ productionId: string, scenes: object[], parallelism?: number, skipTts?: boolean, voice?: string, topic?: string, style?: string, theme?: string, title?: string, language?: string }} opts
  * @returns {Promise<AssetsResult>}
  */
-async function runAssets({ productionId, scenes, parallelism = 1, skipTts = false, voice = null }) {
+async function runAssets({
+  productionId,
+  scenes,
+  parallelism = 1,
+  skipTts = false,
+  voice = null,
+  topic = '',
+  style = '',
+  theme = '',
+  title = '',
+  language = '',
+}) {
   const ttsGen    = new TTSProvider();
   const sm        = new StateMachine({ mode: 'file', stateDir: STATE_DIR });
   const retryPol  = new RetryPolicy({ maxAttempts: 3, baseDelayMs: 8000 });
@@ -90,8 +101,14 @@ async function runAssets({ productionId, scenes, parallelism = 1, skipTts = fals
         focalPoint: scene.focal_point || null,
         narration: scene.narration || '',
         visualDescription: scene.visual_description || scene.narration || '',
+        topic:     scene.topic || topic || '',
+        style:     scene.style || style || '',
+        theme:     scene.theme || theme || '',
+        title:     scene.title || title || '',
         musicMood: scene.music_mood || 'neutral',
-        language:  scene.language || '',
+        language:  scene.language || language || '',
+        html:      scene.html || null,
+        code:      scene.code || scene.animation_code || null,
       };
     }));
     results.push(...batchResults);

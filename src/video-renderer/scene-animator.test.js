@@ -2,64 +2,166 @@
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const { generateSceneHtml, detectTheme, FONT_STACK } = require('./scene-animator');
+const {
+  generateSceneHtml,
+  wrapCodeInHarnessHtml,
+  detectAesthetic,
+  detectComponentTheme,
+  getScriptFontStack,
+  AESTHETICS,
+  REGIONAL_FONTS,
+} = require('./scene-animator');
 
-describe('scene-animator detectTheme', () => {
-  it('detects code theme from visual description keywords', () => {
-    assert.equal(detectTheme({ visualDescription: 'Code editor typing javascript API endpoint' }), 'code');
-    assert.equal(detectTheme({ caption: 'Terminal npm run deploy' }), 'code');
+describe('scene-animator detectAesthetic', () => {
+  it('detects cinematic_documentary for history and cultural topics', () => {
+    assert.equal(detectAesthetic({ topic: 'Ancient temples and history of Kerala' }), 'cinematic_documentary');
+    assert.equal(detectAesthetic({ style: 'documentary' }), 'cinematic_documentary');
   });
 
-  it('detects chart theme from analytics keywords', () => {
-    assert.equal(detectTheme({ visualDescription: 'Animated bar chart and metric statistics' }), 'chart');
-    assert.equal(detectTheme({ caption: 'Revenue growth percent' }), 'chart');
+  it('detects finance_executive for market and crypto topics', () => {
+    assert.equal(detectAesthetic({ topic: 'Stock market investing and bitcoin trading' }), 'finance_executive');
+    assert.equal(detectAesthetic({ style: 'financial' }), 'finance_executive');
   });
 
-  it('detects nodes theme from network / architecture keywords', () => {
-    assert.equal(detectTheme({ visualDescription: 'Connected neural nodes and cloud pipeline' }), 'nodes');
+  it('detects cyber_tech for coding, AI, and developer tools', () => {
+    assert.equal(detectAesthetic({ topic: 'Python compiler and neural network architecture' }), 'cyber_tech');
+    assert.equal(detectAesthetic({ style: 'cyberpunk' }), 'cyber_tech');
   });
 
-  it('detects diagram theme from process keywords', () => {
-    assert.equal(detectTheme({ visualDescription: 'Step by step workflow cycle' }), 'diagram');
+  it('detects retro_synthwave for 80s, arcade, and synthwave keywords', () => {
+    assert.equal(detectAesthetic({ topic: '80s arcade neon nights retrowave' }), 'retro_synthwave');
   });
 
-  it('prioritizes image theme when imagePath is provided', () => {
-    assert.equal(detectTheme({ visualDescription: 'Code editor', imagePath: '/path/to/img.png' }), 'image');
+  it('detects nature_organic for biology and environmental topics', () => {
+    assert.equal(detectAesthetic({ topic: 'Forest wildlife and climate conservation' }), 'nature_organic');
   });
 
-  it('falls back to kinetic theme for general concepts', () => {
-    assert.equal(detectTheme({ visualDescription: 'Futuristic motion graphics' }), 'kinetic');
+  it('detects hype_sports for fitness and action topics', () => {
+    assert.equal(detectAesthetic({ topic: 'Extreme sports championship speed workout' }), 'hype_sports');
+  });
+
+  it('detects minimal_luxury for premium architectural design', () => {
+    assert.equal(detectAesthetic({ topic: 'Modern luxury architectural minimalism' }), 'minimal_luxury');
+  });
+
+  it('detects breaking_news for urgent reports and alerts', () => {
+    assert.equal(detectAesthetic({ topic: 'Breaking news urgent alert investigation' }), 'breaking_news');
+  });
+
+  it('detects cosmic_space for astronomy and quantum physics', () => {
+    assert.equal(detectAesthetic({ topic: 'Deep space galaxy exploration and quantum universe' }), 'cosmic_space');
+  });
+});
+
+describe('scene-animator getScriptFontStack', () => {
+  it('resolves Malayalam font stack for Malayalam language or text', () => {
+    const stack1 = getScriptFontStack('', 'ml');
+    assert.ok(stack1.includes('Noto Sans Malayalam'));
+    assert.ok(stack1.includes('Nirmala UI'));
+
+    const stack2 = getScriptFontStack('കേരള ചരിത്രം');
+    assert.ok(stack2.includes('Noto Sans Malayalam'));
+  });
+
+  it('resolves Devanagari font stack for Hindi', () => {
+    const stack = getScriptFontStack('भारत का इतिहास', 'hi');
+    assert.ok(stack.includes('Noto Sans Devanagari'));
+  });
+
+  it('returns null for standard Latin text without language hint', () => {
+    assert.equal(getScriptFontStack('Hello World', 'en'), null);
+  });
+});
+
+describe('scene-animator detectComponentTheme', () => {
+  it('detects code component', () => {
+    assert.equal(detectComponentTheme({ visualDescription: 'Code editor typing javascript API function' }), 'code');
+  });
+
+  it('detects chart component', () => {
+    assert.equal(detectComponentTheme({ visualDescription: 'Animated bar chart and analytics statistics' }), 'chart');
+  });
+
+  it('detects quote component', () => {
+    assert.equal(detectComponentTheme({ visualDescription: 'Historical quote from the author' }), 'quote');
+  });
+
+  it('detects metric component', () => {
+    assert.equal(detectComponentTheme({ visualDescription: 'Key performance metric percentage counter' }), 'metric');
+  });
+
+  it('detects timeline component', () => {
+    assert.equal(detectComponentTheme({ visualDescription: 'Evolution timeline milestone phases' }), 'timeline');
+  });
+
+  it('detects celestial_orbit component for orbital and satellite science', () => {
+    assert.equal(detectComponentTheme({ visualDescription: 'Earth rotating with 4 satellite orbits and microwave beams' }), 'celestial_orbit');
+  });
+
+  it('detects dna_helix component for genetics and biology', () => {
+    assert.equal(detectComponentTheme({ visualDescription: 'DNA double helix rotating with base pairs' }), 'dna_helix');
+  });
+
+  it('detects radar_globe component for world tactical navigation', () => {
+    assert.equal(detectComponentTheme({ visualDescription: 'Global map radar sweep locating incident' }), 'radar_globe');
+  });
+
+  it('detects speed_action component for high energy sports', () => {
+    assert.equal(detectComponentTheme({ visualDescription: 'High velocity athletic speed streaks' }), 'speed_action');
+  });
+
+  it('prioritizes image when imagePath is given', () => {
+    assert.equal(detectComponentTheme({ imagePath: '/path/to/img.png' }), 'image');
   });
 });
 
 describe('scene-animator generateSceneHtml', () => {
-  it('includes Malayalam font stack in FONT_STACK', () => {
-    assert.ok(FONT_STACK.includes('Nirmala UI'));
-    assert.ok(FONT_STACK.includes('Noto Sans Malayalam'));
+  it('generates unique HTML customized for documentary aesthetic with Malayalam fonts', () => {
+    const html = generateSceneHtml({
+      topic: 'കേരള ചരിത്രം',
+      caption: 'പുരാതന സാമ്രാജ്യങ്ങൾ',
+      narration: 'കേരളത്തിന്റെ പുരാതന ചരിത്രത്തിലേക്ക് ഒരു യാത്ര',
+      language: 'ml',
+      duration: 3,
+    });
+    assert.ok(html.includes('AESTHETIC = "cinematic_documentary"'));
+    assert.ok(html.includes('Noto Sans Malayalam'));
+    assert.ok(html.includes('window.DURATION = 3;'));
+    assert.ok(html.includes('window.seek = async (t) =>'));
+    assert.ok(html.includes('പുരാതന സാമ്രാജ്യങ്ങൾ'));
   });
 
-  it('generates HTML containing window.DURATION and window.seek', () => {
+  it('generates unique HTML customized for finance aesthetic', () => {
     const html = generateSceneHtml({
-      caption: 'മലയാളം ശീർഷകം',
-      narration: 'വിവരണ ടെക്സ്റ്റ്',
+      topic: 'Bitcoin market investing and stocks',
+      caption: 'MARKET TRENDS',
+      duration: 2.5,
+    });
+    assert.ok(html.includes('AESTHETIC = "finance_executive"'));
+    assert.ok(html.includes('BG_TYPE = "candlestick_charts"'));
+    assert.ok(html.includes('MARKET TRENDS'));
+  });
+
+  it('cycles color palettes across scene indexes', () => {
+    const html0 = generateSceneHtml({ topic: 'AI software', sceneIndex: 0 });
+    const html1 = generateSceneHtml({ topic: 'AI software', sceneIndex: 1 });
+    assert.notEqual(html0, html1);
+  });
+});
+
+describe('scene-animator wrapCodeInHarnessHtml', () => {
+  it('wraps agent custom canvas code into a pure-t harness page', () => {
+    const customCode = 'ctx.fillStyle = "#fff"; ctx.arc(100, 100, 20, 0, Math.PI * 2); ctx.fill();';
+    const html = wrapCodeInHarnessHtml({
+      code: customCode,
       duration: 4.5,
       width: 1920,
       height: 1080,
+      language: 'ml',
     });
     assert.ok(html.includes('window.DURATION = 4.5;'));
     assert.ok(html.includes('window.seek = async (t) =>'));
-    assert.ok(html.includes('മലയാളം ശീർഷകം'));
-    assert.ok(html.includes('വിവരണ ടെക്സ്റ്റ്'));
-  });
-
-  it('embeds font-family stack in canvas typography', () => {
-    const html = generateSceneHtml({ caption: 'Test' });
+    assert.ok(html.includes(customCode));
     assert.ok(html.includes('Noto Sans Malayalam'));
-    assert.ok(html.includes('Nirmala UI'));
-  });
-
-  it('clamps minimum duration to 1 second', () => {
-    const html = generateSceneHtml({ duration: 0.2 });
-    assert.ok(html.includes('window.DURATION = 1;'));
   });
 });

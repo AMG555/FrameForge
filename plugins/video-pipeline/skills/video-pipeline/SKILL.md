@@ -137,21 +137,36 @@ npm run setup
 
 ## Workflow (step-by-step)
 
-### Path 1 — Agent-First (FFmpeg + AI images)
+### Path 1 — Agent-First (Code-Driven Motion Graphics or Direct Custom Code)
 
-**You are already running an LLM — use it.** Write the scenes yourself and hand
-them to FrameForge for rendering. No `GROQ_API_KEY` or any other LLM key needed.
-FrameForge only runs FFmpeg, TTS, and image generation:
+**You are already running an LLM (Claude Code / Opus 5.5 / Cursor / Bob) — use it.**
+Write the scenes yourself and hand them to FrameForge for rendering. No external API key needed.
+FrameForge renders full-canvas, broadcast-quality motion graphics (24fps pure function of `t`) with zero slideshow/card patterns:
 
-```
+- **Option A — Natural Description:** Provide `visual_description` (e.g. "Earth rotating with 4 satellite orbits and microwave beams intersecting"). FrameForge automatically synthesizes a full-canvas procedural 3D/2D animation entity (orbital mechanics, 3D DNA helix, candlestick charts, neural mesh, 3D wireframe polyhedra).
+- **Option B — Direct Agent Code:** Provide `html` (complete page with `window.DURATION` & `window.seek(t)`) or `code` (canvas drawing instructions for `t`). FrameForge executes your program directly via headless Chromium.
+- **Option C — Multilingual & Regional Scripts:** Pass `language: "ml"` (Malayalam), `"hi"` (Hindi), etc. Native DirectWrite/HarfBuzz font stacks (`Nirmala UI`, `Noto Sans Malayalam`) render conjuncts without broken glyphs.
+
+```js
 create_video_from_script({
+  topic: "GPS Satellites and Orbital Mechanics",
+  style: "cosmic_space",
+  language: "en",
   scenes: [
-    { narration: "WiFi sends data as radio waves...", caption: "RADIO WAVES",
-      visual_description: "router emitting waves, flat illustration" },
-    { narration: "Your device picks up the signal...", caption: "YOUR DEVICE",
-      visual_description: "laptop receiving signal, clean diagram" }
+    {
+      narration: "GPS uses trilateration from atomic clock satellites orbiting Earth.",
+      caption: "TRILATERATION",
+      visual_description: "3D Earth rotating with 4 satellite orbits and microwave beams converging",
+      // Optional: you can pass your own Canvas code or complete HTML:
+      // code: "ctx.fillStyle = '#0c1116'; ctx.fillRect(0,0,W,H); ..."
+    },
+    {
+      narration: "Relativistic time dilation requires nanosecond daily corrections.",
+      caption: "TIME DILATION",
+      visual_description: "Quantum atomic clock oscillation with compounding nanosecond curve"
+    }
   ],
-  title: "How WiFi Works"
+  title: "How GPS Actually Works"
 })
 ```
 
@@ -159,8 +174,6 @@ Then deliver it:
 ```
 publish_video({ productionId, masterPath, channels: ["file"] })
 ```
-
-> **Image generation fallback:** If the configured image provider is unavailable, FrameForge automatically falls back to a dark-background placeholder per scene — the render completes. Switch to `PROVIDER_IMAGE=falai` for a more reliable free provider.
 
 ### Path 2 — Code-Driven Animated Video (Playwright + ffmpeg, no AI images)
 
