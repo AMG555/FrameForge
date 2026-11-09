@@ -268,52 +268,52 @@ function detectComponentTheme({ visualDescription = '', caption = '', narration 
   const text = `${visualDescription} ${caption} ${narration} ${topic}`.toLowerCase();
 
   // ── Doodled Character Actions (Human Stories, History, Evolution, Daily Life) ──
-  // 1. Microscope / Lice Theory / Parasite / Genetics (170,000 Years Lice Proof)
+  // 1. Microscope / Lice Theory / Parasite / Genetics (Scene 7)
   if (/(?:^|[^\w])(lice|louse|microscope|fiber|weave|parasite|lice evolution|genetic biology proof)(?:[^\w]|$)/i.test(text)
       || /പേൻ|പേൻ തിയറി|തലയിലെ പേൻ|ശരീരത്തിലെ പേൻ|ലൈസ് തിയറി|മൈക്രോസ്കോപ്പ്/.test(text)) {
     return 'doodle_microscope_lice';
   }
 
-  // 2. Dressing / Wardrobe / Wearing Clothes / Outfit / Morning Routine / Choosing clothes
-  if (/(?:^|[^\w])(dress|dressing|wearing clothes|shirt|wardrobe|closet|hanger|outfit|choose clothes|wear|garment|wedding dress|interview|daily habit|why we wear clothes)(?:[^\w]|$)/i.test(text)
-      || /വസ്ത്രധാരണം|ധരിച്ചിട്ടുണ്ടാ|ഷർട്ട്|തിരഞ്ഞെടുത്തത്|തുണി എടുത്തിടുകയല്ല|കല്യാണത്തിന്|ഇന്റർവ്യൂ|ആമുഖം: വസ്ത്രധാരണം|വസ്ത്രം തിരഞ്ഞെടുക്കുമ്പോൾ|വസ്ത്രം തിരഞ്ഞെടുക്കും/.test(text)) {
-    return 'doodle_dressing';
-  }
-
-  // 3. Shivering / Cold / Protection Flaw / Winter / Freezing (e.g. myth busting cold defense)
+  // 2. Shivering / Cold / Protection Flaw / Winter / Freezing (Scene 2, 6)
   if (/(?:^|[^\w])(shiver|shivering|cold|freeze|freezing|ice|winter|teeth|chatter|protection flaw)(?:[^\w]|$)/i.test(text)
-      || /തണുപ്പ്|വിറയ്ക്കുക|തണുപ്പിൽ|തണുപ്പിൽ നിന്ന്|പരിക്കു|തള്ളിക്കളയുന്നു|ശരീരത്തെ സംരക്ഷിക്കാൻ|ശരീര സംരക്ഷണം|സാധാരണ ധാരണകൾ/.test(text)) {
+      || /സാധാരണ ധാരണകൾ|തണുപ്പും സംരക്ഷണവും|തള്ളിക്കളയുന്നു|ശരീരത്തെ സംരക്ഷിക്കാൻ|ശരീര സംരക്ഷണം|വിറയ്ക്കുക|തണുപ്പിൽ നിന്ന് രക്ഷ നേടാൻ|തണുപ്പ് എന്ന കാരണം|തണുപ്പുള്ള സ്ഥലങ്ങളിലേക്ക്/.test(text)) {
     return 'doodle_shiver_cold';
   }
 
-  // 4. Meeting Tribes / Social Language / Status / Community / Strangers
+  // 3. Hunter in Savannah / Wild / Blazing Sun / Spear / Mosquitoes (Scene 5)
+  if (/(?:^|[^\w])(savannah|savanna|spear|hunter|hunting|africa savannah|foraging|wild jungle|mosquito|mosquitoes|thorns)(?:[^\w]|$)/i.test(text)
+      || /കാട്ടിൽ നഗ്നരായി|നഗ്നരായിട്ടാണ്|കൊടുംചൂട്|കൊതുകുകടി|മുള്ളുകൾ|കുന്തം|കാട്ടിലെ ലക്ഷക്കണക്കിന്/.test(text)) {
+    return 'doodle_hunter_savannah';
+  }
+
+  // 4. Meeting Tribes / Social Language / Status / Community / Strangers (Scene 10)
   if (/(?:^|[^\w])(tribe|tribal|clan|stranger|meeting strangers|social language|status in society|hierarchy|friend or enemy)(?:[^\w]|$)/i.test(text)
       || /കൂട്ടമായി|സമൂഹം|അപരിചിത|ഗോത്രം|ശത്രു|സുഹൃത്ത്|സാമൂഹിക ഭാഷ|സാമൂഹിക|സ്ഥാനം തിരിച്ചറിഞ്ഞിരുന്നത്/.test(text)) {
     return 'doodle_tribe_meeting';
   }
 
-  // 5. Future Planning / Cognitive Revolution / Tomorrow / Foresight / Campfire thinking
+  // 5. Future Planning / Cognitive Revolution / Tomorrow / Foresight / Campfire thinking (Scene 8)
   if (/(?:^|[^\w])(planning for tomorrow|future planning|cognitive revolution|thinking future|contemplate|foresight|ian gilligan)(?:[^\w]|$)/i.test(text)
       || /നാളത്തേക്ക്|പ്ലാൻ|ഭാവി|ഭാവിയെ കുറിച്ച്|ബുദ്ധി ഉപയോഗിച്ച്|ചിന്തയിലെ മാറ്റം|ഇയാൻ ഗില്ലിഗൻ|ചിന്തിക്കാൻ തുടങ്ങി/.test(text)) {
     return 'doodle_thinking_future';
   }
 
-  // 6. Hunter in Savannah / Wild / Blazing Sun / Spear / Mosquitoes / Naked in Jungle
-  if (/(?:^|[^\w])(savannah|savanna|spear|hunter|hunting|africa savannah|foraging|wild jungle|naked|clothless|mosquito|mosquitoes|thorns)(?:[^\w]|$)/i.test(text)
-      || /വേട്ട|വേട്ടയാടി|ആഫ്രിക്കൻ കാടുകളിൽ|കാട്ടിൽ നഗ്നരായി|നഗ്നരായിട്ടാണ്|കൊടുംചൂട്|കൊതുകുകടി|മുള്ളുകൾ|കുന്തം|കാട്ടിലെ ലക്ഷക്കണക്കിന്/.test(text)) {
-    return 'doodle_hunter_savannah';
-  }
-
-  // 7. Bone Needle / Sewing / Stitching / Animal Pelt / Prehistoric Tools
+  // 6. Bone Needle / Sewing / Stitching / Animal Pelt / Prehistoric Tools (Scene 4)
   if (/(?:^|[^\w])(needle|bone needle|needles|sew|sewing|stitch|stitching|thread|animal hide|leather hide|hide sewing|fur pelt|tailor|sewing tools)(?:[^\w]|$)/i.test(text)
       || /സൂചി|സൂചിയും|തുന്ന|തുന്നാൻ|തോൽ തുന്നാൻ|തുന്നൽ|തോൽ തുന്നാനുള്ള/.test(text)) {
     return 'doodle_sewing_needle';
   }
 
-  // 8. Shame / Mirror / Reflection / Water / Self Awareness / Theory of Mind
+  // 7. Shame / Mirror / Reflection / Water / Self Awareness / Theory of Mind (Scene 3, 9)
   if (/(?:^|[^\w])(shame|blush|embarrass|mirror|reflection|water pool|theory of mind|how others see|self-aware|identity|looking at me|psychology|mind-shift)(?:[^\w]|$)/i.test(text)
-      || /നാണം|നാണം മറയ്ക്കാൻ|കണ്ണാടി|പ്രതിഫലനം|മറ്റുള്ളവർ എന്നെ|തിയറി ഓഫ് മൈൻഡ്|സ്വന്തം ശരീരം മറച്ചു|വ്യക്തിത്വം|ശ്രദ്ധിക്കുന്നുണ്ട്|യഥാർത്ഥ രഹസ്യം|മനഃശാസ്ത്ര/.test(text)) {
+      || /കണ്ണാടി|പ്രതിഫലനം|മറ്റുള്ളവർ എന്നെ|തിയറി ഓഫ് മൈൻഡ്|സ്വന്തം ശരീരം മറച്ചു|വ്യക്തിത്വം|ശ്രദ്ധിക്കുന്നുണ്ട്|യഥാർത്ഥ രഹസ്യം|നാണം മറയ്ക്കാൻ/.test(text)) {
     return 'doodle_shame_reflection';
+  }
+
+  // 8. Dressing / Wardrobe / Wearing Clothes / Outfit / Morning Routine (Scene 1, 11)
+  if (/(?:^|[^\w])(dress|dressing|wearing clothes|shirt|wardrobe|closet|hanger|outfit|choose clothes|wear|garment|wedding dress|interview|daily habit|why we wear clothes)(?:[^\w]|$)/i.test(text)
+      || /വസ്ത്രധാരണം|ധരിച്ചിട്ടുണ്ടാ|ഷർട്ട്|തിരഞ്ഞെടുത്തത്|തുണി എടുത്തിടുകയല്ല|കല്യാണത്തിന്|ഇന്റർവ്യൂ|ആമുഖം: വസ്ത്രധാരണം|വസ്ത്രം തിരഞ്ഞെടുക്കുമ്പോൾ|വസ്ത്രം തിരഞ്ഞെടുക്കും/.test(text)) {
+    return 'doodle_dressing';
   }
 
   // 9. General Human Character
@@ -740,10 +740,13 @@ function drawBackground(t) {
 // ── Full-Canvas Cinematic Visual Directors ─────────────────────────────────────
 function drawMainScene(t) {
   ctx.save();
+  const p = Math.min(1, Math.max(0, t / window.DURATION));
   const enterSpring = spring(t, 0.05, 170, 13);
-  const sceneScale = Math.min(1.04, Math.max(0.88, enterSpring));
-  ctx.translate(W / 2, H * 0.50);
-  ctx.scale(sceneScale, sceneScale);
+  const camZoom = 1.0 + Math.sin(t * 0.45) * 0.02 + p * 0.04;
+  const camPanX = Math.sin(t * 0.35) * 12;
+  const camPanY = Math.cos(t * 0.28) * 6;
+  ctx.translate(W / 2 + camPanX, H * 0.50 + camPanY);
+  ctx.scale(Math.min(1.04, Math.max(0.88, enterSpring)) * camZoom, Math.min(1.04, Math.max(0.88, enterSpring)) * camZoom);
   ctx.translate(-W / 2, -H * 0.50);
 
   const cx = W / 2;
@@ -1027,12 +1030,15 @@ function drawMainScene(t) {
     ctx.restore();
   }
 
-  // ── Doodled Character Narrative Themes ────────────────────────────────────
+  // ── Doodled Character Narrative Themes (3-Beat Progressive Choreography) ─
   if (COMP_THEME === 'doodle_dressing') {
-    // Modern Dressing Room & Mirror Reflection
+    // Beat 1: Browsing wardrobe -> Beat 2: Trying shirt -> Beat 3: Looking in mirror reflection
+    const beat2 = spring(t, window.DURATION * 0.35, 180, 16);
+    const beat3 = spring(t, window.DURATION * 0.70, 190, 16);
+
     sLine(cx - W * 0.45, cy + 220, cx + W * 0.45, cy + 220, 10, 'rgba(255,255,255,0.25)', 2.5);
 
-    // Clothes rack on left
+    // Clothes rack on left (sways in beat 1)
     sLine(cx - 360, cy + 220, cx - 360, cy - 140, 11, '#94a3b8', 5);
     sLine(cx - 410, cy + 220, cx - 310, cy + 220, 12, '#94a3b8', 5);
     sLine(cx - 420, cy - 140, cx - 180, cy - 140, 13, '#cbd5e1', 5);
@@ -1053,96 +1059,132 @@ function drawMainScene(t) {
       ctx.fill();
     }
 
-    // Mirror on right
+    // Mirror on right - emerges and glows in Beat 2 & 3
     const mirrorX = cx + 320;
     const mirrorY = cy + 20;
-    ctx.fillStyle = 'rgba(56, 189, 248, 0.08)';
+    ctx.fillStyle = 'rgba(56, 189, 248, ' + (0.05 + beat2 * 0.08) + ')';
     ctx.beginPath();
     ctx.roundRect(mirrorX - 85, mirrorY - 210, 170, 390, 24);
     ctx.fill();
-    ctx.strokeStyle = '#d4af37';
+    ctx.strokeStyle = beat3 > 0.5 ? '#f59e0b' : '#94a3b8';
     ctx.lineWidth = 4;
     ctx.stroke();
 
-    // Reflected character in mirror (faint glow)
-    ctx.save();
-    ctx.globalAlpha = 0.55;
-    drawDoodleCharacter({
-      x: mirrorX,
-      y: cy + 120,
-      scale: 1.05,
-      hairStyle: 'modern',
-      expression: 'smiling',
-      clothing: 'shirt',
-      armPose: 'dress_shirt',
-      seed: 88,
-    });
-    ctx.restore();
+    // Reflected character in mirror (smiling and thumbs up in beat 3)
+    if (beat2 > 0.1) {
+      ctx.save();
+      ctx.globalAlpha = Math.min(0.65, beat2 * 0.65);
+      drawDoodleCharacter({
+        x: mirrorX,
+        y: cy + 120,
+        scale: 1.05,
+        hairStyle: 'modern',
+        expression: beat3 > 0.5 ? 'smiling' : 'curious',
+        clothing: 'shirt',
+        armPose: beat3 > 0.5 ? 'peace_gesture' : 'dress_shirt',
+        seed: 88,
+      });
+      ctx.restore();
+    }
 
-    // Main character in center
+    // Main character moves progressively from rack -> center -> mirror
+    const charX = cx - 220 + beat2 * 170 + beat3 * 60;
     drawDoodleCharacter({
-      x: cx - 40,
+      x: charX,
       y: cy + 140,
       scale: 1.35,
       hairStyle: 'modern',
-      expression: 'talking',
+      expression: beat3 > 0.5 ? 'smiling' : 'talking',
       clothing: 'shirt',
-      armPose: 'dress_shirt',
+      armPose: beat2 > 0.5 ? 'dress_shirt' : 'natural',
       seed: 101,
     });
 
   } else if (COMP_THEME === 'doodle_shiver_cold') {
-    // Freezing Wind & Shivering Early Human
+    // Beat 1: Shivering in cold -> Beat 2: NOT FOR COLD stamp -> Beat 3: NOT FOR PROTECTION stamp
+    const stamp1 = spring(t, window.DURATION * 0.38, 220, 15);
+    const stamp2 = spring(t, window.DURATION * 0.72, 220, 15);
+
     sLine(cx - W * 0.45, cy + 220, cx + W * 0.45, cy + 220, 10, 'rgba(255,255,255,0.2)', 2);
 
     // Freezing wind streaks rushing across
-    for (let w = 0; w < 12; w++) {
-      const windX = ((t * 700 + w * 220) % (W + 600)) - 300;
-      const windY = cy - 250 + (w * 45) + Math.sin(t * 3 + w) * 15;
-      sLine(windX, windY, windX + 160, windY + 5, 200 + w, 'rgba(255,255,255,0.3)', 2);
+    for (let w = 0; w < 14; w++) {
+      const windX = ((t * 750 + w * 210) % (W + 600)) - 300;
+      const windY = cy - 250 + (w * 42) + Math.sin(t * 3.5 + w) * 15;
+      sLine(windX, windY, windX + 170, windY + 5, 200 + w, 'rgba(255,255,255,0.3)', 2);
     }
 
     // Drifting snow particles
-    for (let p = 0; p < 25; p++) {
-      const px = ((p * 85 + t * 450) % W);
-      const py = (p * 45 + t * 90) % H;
-      sCircle(px, py, 2.5, 300 + p, '#e0f2fe', 1, '#ffffff');
+    for (let sp = 0; sp < 25; sp++) {
+      const px = ((sp * 85 + t * 450) % W);
+      const py = (sp * 45 + t * 90) % H;
+      sCircle(px, py, 2.5, 300 + sp, '#e0f2fe', 1, '#ffffff');
     }
 
-    // Shivering breath vapor cloud
-    const breathPhase = (t * 2.2) % 1;
-    const bCloudX = cx + 25 + breathPhase * 60;
-    const bCloudY = cy - 90 - breathPhase * 25;
-    ctx.fillStyle = 'rgba(224, 242, 254, ' + ((1 - breathPhase) * 0.5) + ')';
-    ctx.beginPath();
-    ctx.arc(bCloudX, bCloudY, 15 + breathPhase * 25, 0, Math.PI * 2);
-    ctx.fill();
+    // Shivering breath vapor cloud (calms in Beat 3)
+    if (stamp2 < 0.8) {
+      const breathPhase = (t * 2.2) % 1;
+      const bCloudX = cx - 50 + breathPhase * 60;
+      const bCloudY = cy - 90 - breathPhase * 25;
+      ctx.fillStyle = 'rgba(224, 242, 254, ' + ((1 - breathPhase) * 0.5) + ')';
+      ctx.beginPath();
+      ctx.arc(bCloudX, bCloudY, 15 + breathPhase * 25, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
-    // Main shivering character
-    const vibX = Math.sin(t * 38) * 4.5;
-    const vibY = Math.cos(t * 32) * 2;
+    // Main character: shivers in Beat 1 & 2, then realizes / curious in Beat 3
+    const isShivering = stamp2 < 0.7;
+    const vibX = isShivering ? Math.sin(t * 38) * 4.5 : 0;
+    const vibY = isShivering ? Math.cos(t * 32) * 2 : 0;
     drawDoodleCharacter({
-      x: cx + vibX,
+      x: cx - 120 + vibX,
       y: cy + 140 + vibY,
       scale: 1.35,
       hairStyle: 'wild',
-      expression: 'shivering',
+      expression: isShivering ? 'shivering' : 'curious',
       clothing: 'none',
-      armPose: 'shiver',
+      armPose: isShivering ? 'shiver' : 'thinker',
       seed: 102,
     });
 
-    // Big crossed out cold icon on right
-    sCircle(cx + 340, cy - 80, 55, 400, 'rgba(239,68,68,0.85)', 4);
-    sLine(cx + 300, cy - 120, cx + 380, cy - 40, 401, 'rgba(239,68,68,0.95)', 4.5);
-    ctx.font = 'bold 22px monospace';
-    ctx.fillStyle = '#ef4444';
-    ctx.textAlign = 'center';
-    ctx.fillText('NOT FOR COLD', cx + 340, cy - 5);
+    // Stamp 1: NOT FOR COLD (slams down in Beat 2)
+    if (stamp1 > 0.05) {
+      ctx.save();
+      const s1X = cx + 240;
+      const s1Y = cy - 100;
+      ctx.translate(s1X, s1Y);
+      ctx.scale(stamp1, stamp1);
+      sCircle(0, 0, 50, 400, 'rgba(239,68,68,0.9)', 4);
+      sLine(-36, -36, 36, 36, 401, 'rgba(239,68,68,0.95)', 4.5);
+      ctx.font = 'bold 20px monospace';
+      ctx.fillStyle = '#ef4444';
+      ctx.textAlign = 'center';
+      ctx.fillText('NOT FOR COLD', 0, 75);
+      ctx.restore();
+    }
+
+    // Stamp 2: NOT FOR PROTECTION (slams down in Beat 3)
+    if (stamp2 > 0.05) {
+      ctx.save();
+      const s2X = cx + 240;
+      const s2Y = cy + 90;
+      ctx.translate(s2X, s2Y);
+      ctx.scale(stamp2, stamp2);
+      sCircle(0, 0, 50, 410, 'rgba(239,68,68,0.9)', 4);
+      sLine(-36, -36, 36, 36, 411, 'rgba(239,68,68,0.95)', 4.5);
+      ctx.font = 'bold 20px monospace';
+      ctx.fillStyle = '#ef4444';
+      ctx.textAlign = 'center';
+      ctx.fillText('NOT FOR PROTECTION', 0, 75);
+      ctx.restore();
+    }
 
   } else if (COMP_THEME === 'doodle_hunter_savannah') {
-    // Blazing African Savannah Hunter with Spear
-    // Blazing midday sun
+    // Beat 1: Walking with spear -> Beat 2: Swatting mosquitoes -> Beat 3: Pausing alert
+    const walkProg = Math.min(1, Math.max(0, t / window.DURATION));
+    const swatting = (t % 2.4 > 1.2);
+
+    // Blazing midday sun with undulating rays
     const sunR = 75 + Math.sin(t * 2) * 6;
     ctx.fillStyle = '#f59e0b';
     ctx.beginPath();
@@ -1165,27 +1207,31 @@ function drawMainScene(t) {
       sLine(gx, cy + 220, gx + sway, cy + 140, 500 + g, '#d97706', 2.5);
     }
 
-    // Buzzing mosquitoes orbiting
-    for (let m = 0; m < 3; m++) {
-      const mx = cx + 40 + Math.sin(t * 8 + m * 2) * 65;
-      const my = cy - 80 + Math.cos(t * 7 + m * 2) * 45;
-      sCircle(mx, my, 2, 550 + m, '#0f172a', 1.5, '#ef4444');
+    // Buzzing mosquitoes orbiting hunter
+    const charX = cx - 180 + walkProg * 240;
+    for (let m = 0; m < 4; m++) {
+      const mx = charX + 50 + Math.sin(t * 8 + m * 2) * 65;
+      const my = cy - 60 + Math.cos(t * 7 + m * 2) * 45;
+      sCircle(mx, my, 2.5, 550 + m, '#0f172a', 1.5, '#ef4444');
     }
 
-    // Walking early hunter
+    // Walking early hunter with spear
     drawDoodleCharacter({
-      x: cx - 40,
+      x: charX,
       y: cy + 140,
       scale: 1.35,
       hairStyle: 'wild',
-      expression: 'talking',
+      expression: swatting ? 'shivering' : 'talking',
       clothing: 'none',
       armPose: 'hold_spear',
       seed: 103,
     });
 
   } else if (COMP_THEME === 'doodle_sewing_needle') {
-    // Prehistoric Campfire & Bone Needle Sewing
+    // Beat 1: Seated by campfire -> Beat 2: Zoom loupe with bone needle -> Beat 3: Timeline badges
+    const loupeSpring = spring(t, window.DURATION * 0.32, 180, 15);
+    const badgeSpring = spring(t, window.DURATION * 0.68, 200, 15);
+
     // Campfire with animated flames and sparks
     const fireX = cx - 380;
     const fireY = cy + 180;
@@ -1197,16 +1243,15 @@ function drawMainScene(t) {
       ctx.quadraticCurveTo(fireX + (f - 2) * 8, fireY - flH, fireX - 10 + f * 12, fireY);
       ctx.fill();
     }
-    // Floating fire sparks
     for (let sp = 0; sp < 8; sp++) {
       const sx = fireX + Math.sin(t * 4 + sp) * 35;
       const sy = fireY - 30 - ((t * 80 + sp * 35) % 140);
       sCircle(sx, sy, 2, 600 + sp, '#fbbf24', 1, '#fbbf24');
     }
 
-    // Sitting craftsman with hide on lap
+    // Seated human stitching hide with bone needle
     drawDoodleCharacter({
-      x: cx - 110,
+      x: cx - 120,
       y: cy + 140,
       scale: 1.35,
       hairStyle: 'wild',
@@ -1216,39 +1261,57 @@ function drawMainScene(t) {
       seed: 104,
     });
 
-    // Zoomed-in bone needle microscope circle on right
-    const lensX = cx + 280;
-    const lensY = cy - 10;
-    const lensR = 145;
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
-    ctx.beginPath();
-    ctx.arc(lensX, lensY, lensR, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = '#d4af37';
-    ctx.lineWidth = 5;
-    ctx.stroke();
+    // Zoomed loupe expands open in Beat 2
+    if (loupeSpring > 0.05) {
+      ctx.save();
+      const lensX = cx + 270;
+      const lensY = cy - 20;
+      ctx.translate(lensX, lensY);
+      ctx.scale(loupeSpring, loupeSpring);
 
-    // Two thick leather pelt pieces being stitched
-    sLine(lensX - 90, lensY - 20, lensX + 90, lensY - 20, 650, '#92400e', 8);
-    sLine(lensX - 90, lensY + 20, lensX + 90, lensY + 20, 651, '#78350f', 8);
+      const lensR = 140;
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+      ctx.beginPath();
+      ctx.arc(0, 0, lensR, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#d4af37';
+      ctx.lineWidth = 5;
+      ctx.stroke();
 
-    // Drilled bone needle piercing through
-    const nWiggle = Math.sin(t * 4) * 20;
-    sLine(lensX - 45 + nWiggle, lensY - 65, lensX + 25 + nWiggle, lensY + 55, 652, '#fef08a', 6);
-    sCircle(lensX - 40 + nWiggle, lensY - 58, 4, 653, '#0f172a', 1.5, '#0f172a'); // Eyelet
+      // Two thick leather pelt pieces being stitched
+      sLine(-85, -20, 85, -20, 650, '#92400e', 8);
+      sLine(-85, 20, 85, 20, 651, '#78350f', 8);
 
-    // Stitches
-    for (let st = 0; st < 6; st++) {
-      const stX = lensX - 70 + st * 28;
-      sLine(stX, lensY - 22, stX + 8, lensY + 22, 660 + st, '#ffffff', 3.5);
+      // Drilled bone needle piercing through with animated wiggle
+      const nWiggle = Math.sin(t * 4.5) * 18;
+      sLine(-45 + nWiggle, -65, 25 + nWiggle, 55, 652, '#fef08a', 6);
+      sCircle(-40 + nWiggle, -58, 4, 653, '#0f172a', 1.5, '#0f172a');
+
+      // Stitches across pelts
+      for (let st = 0; st < 6; st++) {
+        const stX = -70 + st * 28;
+        sLine(stX, -22, stX + 8, 22, 660 + st, '#ffffff', 3.5);
+      }
+      ctx.restore();
     }
-    ctx.font = 'bold 18px monospace';
-    ctx.fillStyle = '#d4af37';
-    ctx.textAlign = 'center';
-    ctx.fillText('BONE NEEDLE • 120,000 YEARS', lensX, lensY + lensR + 32);
+
+    // Timeline badge in Beat 3
+    if (badgeSpring > 0.05) {
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, badgeSpring);
+      sRect(cx + 120, cy + 140, 300, 42, 670, '#d4af37', 2.5, 'rgba(15, 23, 42, 0.85)');
+      ctx.font = 'bold 16px monospace';
+      ctx.fillStyle = '#fef08a';
+      ctx.textAlign = 'center';
+      ctx.fillText('BONE NEEDLE • 120,000 YEARS', cx + 270, cy + 167);
+      ctx.restore();
+    }
 
   } else if (COMP_THEME === 'doodle_shame_reflection') {
-    // Water Pool Reflection & Theory of Mind
+    // Beat 1: Looking down -> Beat 2: Water reflection & blushing -> Beat 3: Theory of Mind halo
+    const refSpring = spring(t, window.DURATION * 0.30, 180, 15);
+    const haloSpring = spring(t, window.DURATION * 0.65, 190, 15);
+
     const poolX = cx;
     const poolY = cy + 180;
     ctx.fillStyle = 'rgba(14, 165, 233, 0.15)';
@@ -1269,22 +1332,24 @@ function drawMainScene(t) {
       ctx.stroke();
     }
 
-    // Inverted rippling reflection of character in water
-    ctx.save();
-    ctx.globalAlpha = 0.35;
-    ctx.translate(cx, poolY + 20);
-    ctx.scale(1.2, -0.75);
-    drawDoodleCharacter({
-      x: 0,
-      y: 0,
-      scale: 1.0,
-      hairStyle: 'wild',
-      expression: 'surprised',
-      clothing: 'none',
-      armPose: 'cover_body',
-      seed: 700,
-    });
-    ctx.restore();
+    // Inverted rippling reflection of character in water (clarifies in Beat 2)
+    if (refSpring > 0.1) {
+      ctx.save();
+      ctx.globalAlpha = Math.min(0.45, refSpring * 0.45);
+      ctx.translate(cx, poolY + 20);
+      ctx.scale(1.2, -0.75);
+      drawDoodleCharacter({
+        x: 0,
+        y: 0,
+        scale: 1.0,
+        hairStyle: 'wild',
+        expression: 'surprised',
+        clothing: 'none',
+        armPose: 'cover_body',
+        seed: 700,
+      });
+      ctx.restore();
+    }
 
     // Standing character looking down and covering body
     drawDoodleCharacter({
@@ -1292,77 +1357,98 @@ function drawMainScene(t) {
       y: cy + 120,
       scale: 1.35,
       hairStyle: 'wild',
-      expression: 'surprised',
+      expression: refSpring > 0.4 ? 'surprised' : 'talking',
       clothing: 'none',
-      armPose: 'cover_body',
+      armPose: refSpring > 0.4 ? 'cover_body' : 'natural',
       seed: 105,
     });
 
-    // Blushing cheeks
-    sCircle(cx - 18, cy - 10, 7, 750, 'rgba(244,63,94,0.6)', 1, 'rgba(244,63,94,0.6)');
-    sCircle(cx + 18, cy - 10, 7, 751, 'rgba(244,63,94,0.6)', 1, 'rgba(244,63,94,0.6)');
+    // Blushing cheeks appear in Beat 2
+    if (refSpring > 0.3) {
+      const blushA = Math.min(0.7, refSpring * 0.7);
+      sCircle(cx - 18, cy - 8, 7, 750, 'rgba(244,63,94,' + blushA + ')', 1, 'rgba(244,63,94,' + blushA + ')');
+      sCircle(cx + 18, cy - 8, 7, 751, 'rgba(244,63,94,' + blushA + ')', 1, 'rgba(244,63,94,' + blushA + ')');
+    }
 
-    // Overhead Theory of Mind Thought Halo
-    const haloX = cx + 180;
-    const haloY = cy - 120;
-    sCircle(haloX, haloY, 55, 760, '#38bdf8', 3);
-    // Eye icon inside halo
-    sCircle(haloX, haloY, 20, 761, '#ffffff', 2.5);
-    sCircle(haloX, haloY, 8, 762, '#38bdf8', 1, '#38bdf8');
-    ctx.font = 'bold 18px monospace';
-    ctx.fillStyle = '#38bdf8';
-    ctx.textAlign = 'center';
-    ctx.fillText('THEORY OF MIND', haloX, haloY + 78);
+    // Theory of Mind Thought Halo in Beat 3
+    if (haloSpring > 0.05) {
+      ctx.save();
+      const haloX = cx + 180;
+      const haloY = cy - 120;
+      ctx.translate(haloX, haloY);
+      ctx.scale(haloSpring, haloSpring);
+      sCircle(0, 0, 48, 760, '#38bdf8', 3);
+      sCircle(0, 0, 18, 761, '#ffffff', 2.5);
+      sCircle(0, 0, 8, 762, '#38bdf8', 1, '#38bdf8');
+      ctx.font = 'bold 16px monospace';
+      ctx.fillStyle = '#38bdf8';
+      ctx.textAlign = 'center';
+      ctx.fillText('THEORY OF MIND', 0, 72);
+      ctx.restore();
+    }
 
   } else if (COMP_THEME === 'doodle_tribe_meeting') {
-    // Two Clans Meeting & Communicating via Clothing Language
+    // Beat 1: Walking toward center -> Beat 2: Greet & check patterns -> Beat 3: Social language arc
+    const approach = spring(t, 0.05, 140, 16);
+    const greet = spring(t, window.DURATION * 0.38, 190, 15);
+    const arcSpring = spring(t, window.DURATION * 0.68, 200, 15);
+
     sLine(cx - W * 0.45, cy + 220, cx + W * 0.45, cy + 220, 10, 'rgba(255,255,255,0.2)', 2);
 
-    // Left Clan Member (Mountain Clan with Pelt & Peace Gesture)
+    // Left Clan Member walks toward center
+    const leftX = cx - 380 + Math.min(1, approach) * 160;
     drawDoodleCharacter({
-      x: cx - 220,
+      x: leftX,
       y: cy + 140,
       scale: 1.3,
       hairStyle: 'wild',
       expression: 'talking',
       clothing: 'pelt',
-      armPose: 'peace_gesture',
+      armPose: greet > 0.5 ? 'peace_gesture' : 'natural',
       seed: 106,
     });
 
-    // Right Clan Member (River Clan with Cloak & Feather)
+    // Right Clan Member walks toward center
+    const rightX = cx + 380 - Math.min(1, approach) * 160;
     drawDoodleCharacter({
-      x: cx + 220,
+      x: rightX,
       y: cy + 140,
       scale: 1.3,
       hairStyle: 'feather',
       expression: 'curious',
       clothing: 'cloak',
-      armPose: 'natural',
+      armPose: greet > 0.5 ? 'peace_gesture' : 'natural',
       seed: 107,
     });
 
-    // Glowing connection arc and communication symbols between them
-    ctx.strokeStyle = ACCENT;
-    ctx.lineWidth = 3;
-    ctx.setLineDash([8, 8]);
-    ctx.beginPath();
-    ctx.moveTo(cx - 160, cy);
-    ctx.quadraticCurveTo(cx, cy - 100, cx + 160, cy);
-    ctx.stroke();
-    ctx.setLineDash([]);
+    // Glowing connection arc and symbols in Beat 3
+    if (arcSpring > 0.05) {
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, arcSpring);
+      ctx.strokeStyle = ACCENT;
+      ctx.lineWidth = 3;
+      ctx.setLineDash([8, 8]);
+      ctx.beginPath();
+      ctx.moveTo(leftX + 40, cy);
+      ctx.quadraticCurveTo(cx, cy - 100, rightX - 40, cy);
+      ctx.stroke();
+      ctx.setLineDash([]);
 
-    // Central status emblem
-    sCircle(cx, cy - 65, 36, 800, ACCENT, 3, 'rgba(15, 23, 42, 0.85)');
-    ctx.font = 'bold 24px monospace';
-    ctx.fillStyle = ACCENT;
-    ctx.textAlign = 'center';
-    ctx.fillText('🤝', cx, cy - 56);
-    ctx.font = 'bold 18px monospace';
-    ctx.fillText('CLOTHING AS SOCIAL LANGUAGE', cx, cy + 15);
+      sCircle(cx, cy - 65, 34, 800, ACCENT, 3, 'rgba(15, 23, 42, 0.85)');
+      ctx.font = 'bold 22px monospace';
+      ctx.fillStyle = ACCENT;
+      ctx.textAlign = 'center';
+      ctx.fillText('🤝', cx, cy - 56);
+      ctx.font = 'bold 16px monospace';
+      ctx.fillText('CLOTHING AS SOCIAL LANGUAGE', cx, cy + 15);
+      ctx.restore();
+    }
 
   } else if (COMP_THEME === 'doodle_thinking_future') {
-    // Prehistoric Thinker & Planning for Tomorrow
+    // Beat 1: Seated thinker by fire -> Beat 2: Thought cloud floats up -> Beat 3: Tomorrow's rack & tools
+    const cloudSpring = spring(t, window.DURATION * 0.32, 170, 14);
+    const ideaSpring = spring(t, window.DURATION * 0.65, 190, 15);
+
     // Starlit night and crescent moon
     ctx.fillStyle = '#fef08a';
     ctx.beginPath();
@@ -1391,102 +1477,120 @@ function drawMainScene(t) {
       seed: 108,
     });
 
-    // Expanding thought cloud overhead
-    const cloudX = cx + 180;
-    const cloudY = cy - 80;
-    const cloudScale = spring(t, 0.15, 170, 14);
+    // Expanding thought cloud overhead in Beat 2
+    if (cloudSpring > 0.05) {
+      const cloudX = cx + 180;
+      const cloudY = cy - 80;
+      ctx.save();
+      ctx.translate(cloudX, cloudY);
+      ctx.scale(cloudSpring, cloudSpring);
 
-    ctx.save();
-    ctx.translate(cloudX, cloudY);
-    ctx.scale(cloudScale, cloudScale);
+      sCircle(-180, 160, 12, 850, '#ffffff', 2, '#ffffff');
+      sCircle(-140, 120, 18, 851, '#ffffff', 2, '#ffffff');
+      sCircle(-90, 70, 24, 852, '#ffffff', 2, '#ffffff');
 
-    // Thought bubbles leading up
-    sCircle(-180, 160, 12, 850, '#ffffff', 2, '#ffffff');
-    sCircle(-140, 120, 18, 851, '#ffffff', 2, '#ffffff');
-    sCircle(-90, 70, 24, 852, '#ffffff', 2, '#ffffff');
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+      ctx.beginPath();
+      ctx.arc(-70, 0, 55, 0, Math.PI * 2);
+      ctx.arc(0, -25, 65, 0, Math.PI * 2);
+      ctx.arc(70, 0, 55, 0, Math.PI * 2);
+      ctx.arc(0, 30, 60, 0, Math.PI * 2);
+      ctx.fill();
 
-    // Main cloud body
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
-    ctx.beginPath();
-    ctx.arc(-70, 0, 55, 0, Math.PI * 2);
-    ctx.arc(0, -25, 65, 0, Math.PI * 2);
-    ctx.arc(70, 0, 55, 0, Math.PI * 2);
-    ctx.arc(0, 30, 60, 0, Math.PI * 2);
-    ctx.fill();
+      // Inside thought cloud: Tomorrow's sunrise & stretched hide on rack in Beat 3
+      if (ideaSpring > 0.1) {
+        ctx.fillStyle = '#f59e0b';
+        ctx.beginPath();
+        ctx.arc(0, 15, 30, Math.PI, Math.PI * 2);
+        ctx.fill();
 
-    // Inside thought cloud: Tomorrow's sunrise & stretched hide on rack
-    ctx.fillStyle = '#f59e0b';
-    ctx.beginPath();
-    ctx.arc(0, 15, 30, Math.PI, Math.PI * 2);
-    ctx.fill();
+        sLine(-35, 15, -35, -25, 860, '#78350f', 3);
+        sLine(35, 15, 35, -25, 861, '#78350f', 3);
+        sLine(-40, -25, 40, -25, 862, '#78350f', 3);
 
-    // Drying frame rack
-    sLine(-45, 15, -45, -35, 860, '#78350f', 4);
-    sLine(45, 15, 45, -35, 861, '#78350f', 4);
-    sLine(-50, -30, 50, -30, 862, '#78350f', 4);
-    sRect(-35, -28, 70, 40, 863, '#92400e', 3, '#b45309');
+        ctx.fillStyle = '#b45309';
+        ctx.fillRect(-28, -20, 56, 32);
 
-    ctx.restore();
-
-    ctx.font = 'bold 20px monospace';
-    ctx.fillStyle = '#facc15';
-    ctx.textAlign = 'center';
-    ctx.fillText('💡 PLANNING FOR TOMORROW', cloudX, cloudY + 95);
+        ctx.font = 'bold 15px monospace';
+        ctx.fillStyle = '#d97706';
+        ctx.textAlign = 'center';
+        ctx.fillText('💡 PLANNING FOR TOMORROW', 0, 52);
+      }
+      ctx.restore();
+    }
 
   } else if (COMP_THEME === 'doodle_microscope_lice') {
-    // The Lice Theory & Genetic Divergence Proof
-    // Left scratching character
+    // Beat 1: Scratching pelt -> Beat 2: Giant microscope slides in -> Beat 3: Divergence tree
+    const scopeSpring = spring(t, window.DURATION * 0.30, 180, 15);
+    const treeSpring = spring(t, window.DURATION * 0.65, 200, 15);
+
+    sLine(cx - W * 0.45, cy + 220, cx + W * 0.45, cy + 220, 10, 'rgba(255,255,255,0.2)', 2);
+
+    // Early human scratching pelt with itch lines
     drawDoodleCharacter({
-      x: cx - 290,
+      x: cx - 240,
       y: cy + 140,
       scale: 1.35,
       hairStyle: 'wild',
-      expression: 'curious',
+      expression: 'shivering',
       clothing: 'pelt',
       armPose: 'shiver',
       seed: 109,
     });
 
-    // Massive microscope lens on right
-    const lensX = cx + 140;
-    const lensY = cy + 10;
-    const lensR = 190;
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.94)';
-    ctx.beginPath();
-    ctx.arc(lensX, lensY, lensR, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = '#d4af37';
-    ctx.lineWidth = 6;
-    ctx.stroke();
-
-    // Fabric thread weave lines in lens background
-    for (let f = -4; f <= 4; f++) {
-      sLine(lensX - 140, lensY + f * 28, lensX + 140, lensY + f * 28, 900 + f, 'rgba(255,255,255,0.12)', 2);
-      sLine(lensX + f * 28, lensY - 140, lensX + f * 28, lensY + 140, 920 + f, 'rgba(255,255,255,0.12)', 2);
+    for (let it = 0; it < 3; it++) {
+      const itX = cx - 290 - it * 12;
+      const itY = cy + 50 + it * 20;
+      sLine(itX, itY, itX + 18, itY - 14, 900 + it, '#f59e0b', 2.5);
     }
 
-    // Branching evolutionary divergence diagram inside lens
-    sLine(lensX - 120, lensY, lensX - 40, lensY, 940, '#ffffff', 4);
-    sCircle(lensX - 40, lensY, 8, 941, '#d4af37', 2, '#d4af37'); // Divergence point
+    // Microscope slides in in Beat 2
+    if (scopeSpring > 0.05) {
+      const lensX = cx + 180;
+      const lensY = cy;
+      const lensR = 150;
 
-    // Head lice branch
-    sLine(lensX - 40, lensY, lensX + 80, lensY - 60, 942, '#38bdf8', 4);
-    ctx.font = 'bold 16px monospace';
-    ctx.fillStyle = '#38bdf8';
-    ctx.textAlign = 'left';
-    ctx.fillText('HEAD LICE (HAIR)', lensX + 90, lensY - 56);
+      ctx.save();
+      ctx.translate(lensX, lensY);
+      ctx.scale(scopeSpring, scopeSpring);
 
-    // Body lice branch (clothes only)
-    sLine(lensX - 40, lensY, lensX + 80, lensY + 60, 943, '#f43f5e', 4);
-    ctx.fillStyle = '#f43f5e';
-    ctx.fillText('BODY LICE (CLOTHES)', lensX + 90, lensY + 64);
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.95)';
+      ctx.beginPath();
+      ctx.arc(0, 0, lensR, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#d4af37';
+      ctx.lineWidth = 6;
+      ctx.stroke();
 
-    // Divergence date highlight badge
-    sRect(lensX - 110, lensY + 105, 220, 36, 950, '#d4af37', 2, 'rgba(212, 175, 55, 0.2)');
-    ctx.font = 'bold 16px monospace';
-    ctx.fillStyle = '#fef08a';
-    ctx.textAlign = 'center';
-    ctx.fillText('170,000 YEARS AGO', lensX, lensY + 129);
+      // Fabric weave grid lines inside lens
+      for (let g = -4; g <= 4; g++) {
+        sLine(g * 24, -lensR * 0.8, g * 24, lensR * 0.8, 920 + g, 'rgba(56, 189, 248, 0.15)', 2);
+        sLine(-lensR * 0.8, g * 24, lensR * 0.8, g * 24, 930 + g, 'rgba(56, 189, 248, 0.15)', 2);
+      }
+
+      // Divergence tree in Beat 3
+      if (treeSpring > 0.1) {
+        sLine(-100, 0, -20, 0, 940, '#f8fafc', 4);
+        sCircle(-20, 0, 7, 941, '#d4af37', 2, '#d4af37');
+
+        sLine(-20, 0, 60, -45, 942, '#38bdf8', 4);
+        ctx.font = 'bold 14px monospace';
+        ctx.fillStyle = '#38bdf8';
+        ctx.textAlign = 'left';
+        ctx.fillText('HEAD LICE (HAIR)', 70, -42);
+
+        sLine(-20, 0, 60, 45, 943, '#f43f5e', 4);
+        ctx.fillStyle = '#f43f5e';
+        ctx.fillText('BODY LICE (CLOTHES)', 70, 48);
+
+        sRect(-90, 80, 180, 32, 950, '#d4af37', 2, 'rgba(212, 175, 55, 0.25)');
+        ctx.font = 'bold 14px monospace';
+        ctx.fillStyle = '#fef08a';
+        ctx.textAlign = 'center';
+        ctx.fillText('170,000 YEARS AGO', 0, 101);
+      }
+      ctx.restore();
+    }
 
   } else if (COMP_THEME === 'doodle_general_human') {
     // General Expressive Doodled Human Narrator
@@ -1976,49 +2080,70 @@ function drawMainScene(t) {
   ctx.restore();
 }
 
-// ── Kinetic Typography & Broadcast Subtitle Overlay ─────────────────────────
+// ── Sentence-Synchronized Broadcast Subtitles Overlay ───────────────────────
 function drawCinematicOverlay(t) {
   ctx.save();
-  const textSpring = spring(t, 0.12, 190, 15);
-  const headlineAlpha = Math.min(1, Math.max(0, textSpring));
-  ctx.globalAlpha = headlineAlpha;
 
-  // Kinetic Headline at top
-  const capY = H * 0.12 + (1 - textSpring) * -20;
+  // Subtitles / Spoken Narration - dynamic sentence progression across time
+  if (NARRATION && NARRATION.trim().length > 0) {
+    // Split narration into natural spoken sentence chunks
+    const sentences = NARRATION.split(/[.!?;|]+/).map(s => s.trim()).filter(Boolean);
 
-  // Tag Pill - minimal floating badge
-  if (TAG) {
-    ctx.font = 'bold 16px monospace';
-    ctx.fillStyle = ACCENT;
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
-    ctx.shadowBlur = 10;
-    ctx.textAlign = 'left';
-    ctx.fillText('// ' + TAG, 80, capY - 22);
-  }
+    const count = Math.max(1, sentences.length);
+    const sentDur = window.DURATION / count;
+    const currIdx = Math.min(count - 1, Math.floor(t / sentDur));
+    const activeText = sentences[currIdx] || NARRATION;
 
-  // Primary Caption Headline - crisp, heroic typography without opaque cards
-  ctx.font = FONT_WEIGHT + ' 50px ' + FONT_DISPLAY;
-  ctx.fillStyle = '#ffffff';
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
-  ctx.shadowBlur = 24;
-  ctx.shadowOffsetY = 4;
-  ctx.textAlign = 'left';
-  const cleanCap = CAPTION.length > 60 ? CAPTION.slice(0, 60) + '...' : CAPTION;
-  ctx.fillText(cleanCap, 80, capY + 30);
+    // Sentence local spring transition (smooth entrance per sentence)
+    const localT = t - currIdx * sentDur;
+    const sentSpring = spring(localT, 0.04, 210, 16);
+    const sentAlpha = Math.min(1, Math.max(0, sentSpring));
+    const sentSlideY = (1 - sentSpring) * 10;
 
-  // Subtitle / Spoken Narration - bottom center clean broadcast subtitles
-  if (NARRATION) {
-    const subSpring = spring(t, 0.22, 180, 16);
-    ctx.globalAlpha = Math.min(1, Math.max(0, subSpring));
-    ctx.font = '500 28px ' + FONT_BODY;
-    ctx.fillStyle = '#f8fafc';
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
-    ctx.shadowBlur = 18;
-    ctx.shadowOffsetY = 3;
+    ctx.save();
+    ctx.globalAlpha = sentAlpha;
+    ctx.font = '500 32px ' + FONT_BODY;
     ctx.textAlign = 'center';
-    const cleanNarr = NARRATION.length > 115 ? NARRATION.slice(0, 115) + '...' : NARRATION;
-    ctx.fillText(cleanNarr, W / 2, H * 0.92);
+
+    // Word wrap if sentence is long (> 58 chars)
+    const maxChars = 56;
+    const words = activeText.split(' ');
+    const lines = [];
+    let currentLine = '';
+    for (let w = 0; w < words.length; w++) {
+      const testLine = currentLine ? currentLine + ' ' + words[w] : words[w];
+      if (testLine.length > maxChars && currentLine.length > 0) {
+        lines.push(currentLine);
+        currentLine = words[w];
+      } else {
+        currentLine = testLine;
+      }
+    }
+    if (currentLine) lines.push(currentLine);
+
+    const subBaseY = H * 0.90 + sentSlideY;
+    const lineSpacing = 44;
+    const startY = subBaseY - ((lines.length - 1) * lineSpacing) / 2;
+
+    for (let l = 0; l < lines.length; l++) {
+      const ly = startY + l * lineSpacing;
+      // Soft translucent background backing for broadcast legibility
+      const textMetrics = ctx.measureText(lines[l]);
+      const pillW = textMetrics.width + 40;
+      ctx.fillStyle = 'rgba(6, 9, 14, 0.72)';
+      ctx.beginPath();
+      ctx.roundRect((W - pillW) / 2, ly - 28, pillW, 38, 8);
+      ctx.fill();
+
+      // Subtitle text with subtle glow
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
+      ctx.shadowBlur = 12;
+      ctx.fillText(lines[l], W / 2, ly);
+    }
+    ctx.restore();
   }
+
   ctx.restore();
 
   // Bottom Progress Indicator (minimal line)

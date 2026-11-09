@@ -4,6 +4,34 @@ All notable changes to FrameForge are documented here.
 
 ---
 
+## [2.4.3] — 2026-11-09
+
+### Enhanced
+- **Sentence-Synchronized Subtitles (`src/video-renderer/scene-animator.js`)**:
+  - Replaced static slide titles, topic banners, and category tags (`// CHRONICLE`, `// HERITAGE`, top headlines) with sentence-synchronized broadcast subtitles centered at bottom with subtle frosted glass backing pills.
+  - Automatically slices narration scripts into sentence beats keyed to duration (`DURATION / sentenceCount`) with smooth spring entrance transitions (`spring(localT, 0.04, 210, 16)`).
+  - Word wrapping for long sentences to prevent clipping.
+
+- **3-Beat Progressive Choreography & Dynamic Camera (`src/video-renderer/scene-animator.js`)**:
+  - Added multi-beat progression across all 9 doodle themes:
+    - `doodle_dressing`: Beat 1 browsing wardrobe $\to$ Beat 2 trying on shirt $\to$ Beat 3 smiling & waving in glowing amber mirror.
+    - `doodle_shiver_cold`: Beat 1 shivering alone $\to$ Beat 2 "NOT FOR COLD" stamp $\to$ Beat 3 "NOT FOR PROTECTION" stamp with character contemplating.
+    - `doodle_hunter_savannah`: Character walking with spear across savannah grass swatting mosquitoes under sun.
+    - `doodle_sewing_needle`: Campfire $\to$ loupe zoom into bone needle stitching animal hide $\to$ archaeological timeline badge.
+    - `doodle_shame_reflection`: Looking down $\to$ water reflection ripples clear $\to$ blush & Theory of Mind halo.
+    - `doodle_tribe_meeting`: Two clans approach $\to$ peace greeting $\to$ social language connection arc.
+    - `doodle_thinking_future`: Campfire thinker $\to$ thought cloud $\to$ planning for tomorrow tools & sunrise.
+    - `doodle_microscope_lice`: Character scratching itching pelt $\to$ microscope slide $\to$ head vs body lice divergence badge.
+  - Added subtle cinematic camera drift and breathing (`camZoom`, `camPanX`, `camPanY`) via progress $p = t / DURATION$.
+
+### Fixed
+- **Regex Parsing Bug in Template Literal (`src/video-renderer/scene-animator.js`)**:
+  - Fixed syntax error caused by unescaped newline in regex literal inside template literal string.
+- **Theme Detection Priority (`src/video-renderer/scene-animator.js`)**:
+  - Prioritized specific narrative themes (`doodle_microscope_lice`, `doodle_shiver_cold`, `doodle_hunter_savannah`, `doodle_tribe_meeting`, `doodle_thinking_future`, `doodle_sewing_needle`, `doodle_shame_reflection`) ahead of general wardrobe dressing to guarantee every scene gets its exact script-matched visual doodle.
+
+---
+
 ## [2.4.2] — 2026-11-09
 
 ### Added
