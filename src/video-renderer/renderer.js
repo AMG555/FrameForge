@@ -131,6 +131,13 @@ class VideoRenderer {
    *   renderWidth?:       number,   // default 1920
    *   renderHeight?:      number,   // default 1080
    *   fps?:               number,   // default 24
+   *   startTime?:         number|string,
+   *   trimStart?:         number|string,
+   *   endTime?:           number|string,
+   *   trimEnd?:           number|string,
+   *   speed?:             number,   // default 1.0
+   *   clipVolume?:        number,   // default 0 (voiceover primary)
+   *   colorGrade?:        string,   // cinematic, warm, cool, etc.
    * }} opts
    * @returns {string} outputPath
    */
@@ -157,6 +164,13 @@ class VideoRenderer {
     renderWidth = 1920,
     renderHeight = 1080,
     fps = 24,
+    startTime = 0,
+    trimStart,
+    endTime,
+    trimEnd,
+    speed = 1.0,
+    clipVolume = 0,
+    colorGrade = null,
   } = {}) {
     const outputPath = path.join(this.vdir, `scene_${sceneIndex}_out.mp4`);
 
@@ -179,17 +193,48 @@ class VideoRenderer {
 
     // Priority 1: User-supplied video clip
     if (isVideoInput) {
+      const { buildColorFilter, parseTimestamp, buildSpeedFilters } = require('../video-editor/editor');
+      const startSec = parseTimestamp(trimStart != null ? trimStart : startTime);
+      const sp = buildSpeedFilters(speed);
+
       const captionFilter = this._captionFilter(caption);
       const scaleFilter = `scale=${renderWidth}:${renderHeight}:force_original_aspect_ratio=increase:flags=lanczos,crop=${renderWidth}:${renderHeight}`;
-      const vf = [scaleFilter, captionFilter].filter(Boolean).join(',');
+      const colorFilter = buildColorFilter(colorGrade);
 
-      const result = spawnSync('ffmpeg', [
-        '-nostdin', '-y', '-threads', '2',
-        '-stream_loop', '-1', '-i', videoPath, '-i', voicePath,
-        '-vf', vf || `scale=${renderWidth}:${renderHeight},format=yuv420p`,
-        '-af', `apad=whole_dur=${clampedDur}`,
+      const vfList = [scaleFilter];
+      if (sp.speed !== 1.0) vfList.push(sp.videoFilter);
+      if (colorFilter) vfList.push(colorFilter);
+      if (captionFilter) vfList.push(captionFilter);
+      vfList.push('format=yuv420p');
+      const vf = vfList.join(',');
+
+      const ffmpegArgs = ['-nostdin', '-y', '-threads', '2'];
+
+      if (startSec > 0) {
+        ffmpegArgs.push('-ss', startSec.toFixed(3));
+      }
+
+      ffmpegArgs.push('-stream_loop', '-1', '-i', videoPath, '-i', voicePath);
+
+      if (clipVolume > 0) {
+        const caParts = [`[0:a]volume=${clipVolume.toFixed(2)}`];
+        if (sp.audioFilter) caParts.push(sp.audioFilter);
+        caParts.push('[ca]');
+        const filterComplex = `[0:v]${vf}[vout];` +
+          `${caParts.join(',')};` +
+          `[1:a]apad=whole_dur=${clampedDur}[va];` +
+          `[ca][va]amix=inputs=2:duration=first:dropout_transition=2[aout]`;
+        ffmpegArgs.push('-filter_complex', filterComplex, '-map', '[vout]', '-map', '[aout]');
+      } else {
+        ffmpegArgs.push(
+          '-vf', vf,
+          '-af', `apad=whole_dur=${clampedDur}`,
+          '-map', '0:v:0', '-map', '1:a:0'
+        );
+      }
+
+      ffmpegArgs.push(
         '-t', String(clampedDur),
-        '-map', '0:v:0', '-map', '1:a:0',
         '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '22',
         '-profile:v', 'high', '-level', '4.1',
         '-color_range', 'tv', '-colorspace', 'bt709',
@@ -198,8 +243,10 @@ class VideoRenderer {
         '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-ac', '2',
         '-movflags', '+faststart',
         '-pix_fmt', 'yuv420p',
-        outputPath,
-      ], { timeout: 5 * 60 * 1000, encoding: 'utf8' });
+        outputPath
+      );
+
+      const result = spawnSync('ffmpeg', ffmpegArgs, { timeout: 5 * 60 * 1000, encoding: 'utf8' });
 
       if (result.status !== 0) {
         const err = `Scene ${sceneIndex} render failed: ${(result.stderr || '').slice(-300)}`;
@@ -577,4 +624,9 @@ class VideoRenderer {
   }
 }
 
-module.exports = { VideoRenderer };
+module.exports = {
+  VideoRenderer,
+  resolveFont,
+  FONTS,
+  INDIC_FONTS,
+};

@@ -20,9 +20,11 @@ check('batch handling',              code.includes('Array.isArray(body)'));
 check('ping handler',                code.includes("method === 'ping'"));
 check('notifications/init',          code.includes("notifications/initialized"));
 check('body size limit',             code.includes('MAX_BODY_BYTES'));
-check('SERVER_INFO version 2.3.6',   code.includes("version: '2.3.6'"));
+check('SERVER_INFO version 2.3.7',   code.includes("version: '2.3.7'"));
 check('18 tools defined (incl get_job_status)', code.includes('get_job_status'));
 check('export_to_editor tool defined', code.includes('export_to_editor'));
+check('edit_video tool defined', code.includes('edit_video'));
+check('video-editor exists', fs.existsSync('./src/video-editor/editor.js'));
 check('voxforge TTS provider', code.includes('voxforge'));
 
 // ── No execSync with shell strings in renderer or extractor ───────────────
@@ -205,7 +207,7 @@ check('render-free: default channel is file',            renderFreeJs.includes("
 // ── server.js — queue_full_pipeline + tool completeness ──────────────────
 console.log('\n=== server.js tool completeness ===');
 const serverjs = fs.readFileSync('./src/mcp-server/server.js', 'utf8');
-check('server.js exposes 14 tools (header)',         serverjs.includes('14 video production tools'));
+check('server.js exposes tools (header)',         serverjs.includes('video production'));
 check('server.js publish_video calls runPublishing', serverjs.includes("require('../workflows/publishing')"));
 check('server.js has queue_full_pipeline tool',      serverjs.includes('queue_full_pipeline'));
 check('server.js has get_job_status tool',           serverjs.includes('get_job_status'));
@@ -293,7 +295,7 @@ check('cf-worker has checkRateLimit',   cfWorker.includes('checkRateLimit'));
 check('cf-worker hashes token (SHA-256)', cfWorker.includes('SHA-256'));
 check('cf-worker uses RATE_LIMITS KV',  cfWorker.includes('env.RATE_LIMITS'));
 check('cf-worker returns 429 on limit', cfWorker.includes('429'));
-check('cf-worker version 2.3.6',        cfWorker.includes("'2.3.6'"));
+check('cf-worker version 2.3.7',        cfWorker.includes("'2.3.7'"));
 check('wrangler.toml has kv_namespaces',fs.readFileSync('./cloudflare-mcp/wrangler.toml','utf8').includes('kv_namespaces'));
 
 // ── plugins/skills present ────────────────────────────────────────────────

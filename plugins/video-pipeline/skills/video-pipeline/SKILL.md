@@ -26,11 +26,11 @@ IDE Agent (IBM Bob / Codex / opencode / Cursor / Windsurf / Claude Code)
     │
     ▼  Cloudflare Remote MCP (recommended) ─────────────────────────────
     │  https://video-mcp.YOUR_SUBDOMAIN.workers.dev/mcp
-    │  17 tools: create_video_from_script · render_from_scenes
+    │  19 tools: create_video_from_script · edit_video · render_from_scenes
     │            ingest_media · edit_scenes · render_tts · multi_voice_tts
     │            generate_scene_image · assemble_video · publish_video
     │            research_topic · write_script · external_platform_call
-    │            queue_full_pipeline · get_job_status
+    │            queue_full_pipeline · get_job_status · export_to_editor
     │            scaffold_animation_project · validate_storyboard · render_animation
     │
     ▼  OR — Local stdio / HTTP MCP ────────────────────────────────────
@@ -228,6 +228,49 @@ for research and scripting, so `PROVIDER_LLM` + the matching API key are require
 3. render_from_scenes({ productionId })
 4. publish_video({ productionId, masterPath, channels: ["file"] })
 ```
+
+### Path 4 — Autonomous Local Video Editing (`edit_video`)
+
+When the user provides video clips (B-roll, screen recordings, camera footage) and audio/narration, FrameForge autonomously cuts, trims, color-grades, reframes, captions, and stitches them with seamless transitions locally:
+
+```js
+edit_video({
+  clips: [
+    {
+      video_path: "/path/to/clip1.mp4",
+      start_time: "00:05.5",
+      end_time: "00:15.0",
+      speed: 1.0,
+      color_grade: "cinematic",
+      caption: "AUTONOMOUS EDITING",
+      transition: "dissolve",
+      transition_duration: 0.5
+    },
+    {
+      video_path: "/path/to/clip2.mp4",
+      start_time: 0,
+      duration: 6.0,
+      speed: 0.8, // subtle slow-mo
+      color_grade: "cinematic",
+      caption: "SEAMLESS TRANSITIONS",
+      clip_volume: 0.3 // duck ambient sound
+    }
+  ],
+  audio_path: "/path/to/master_voiceover.m4a",
+  music_path: "/path/to/background_track.mp3",
+  music_volume: 0.07,
+  orientation: "landscape", // or "portrait" for Reels / TikTok / Shorts
+  auto_fit: true // automatically slice clips to fit total voiceover duration
+})
+```
+
+Supported features:
+- **Trimming & Cutting:** Accurate timestamp parsing (`"01:23.45"`, `"83.45s"`, numeric seconds).
+- **Speed Ramping:** `0.25x` to `4.0x` with chained `atempo` filters preserving pitch.
+- **Cinematic Color Grading:** `cinematic`, `warm`, `cool`, `vintage`, `bw`, `vibrant`, `cyberpunk`.
+- **Canvas Reframe:** `landscape` (1920×1080), `portrait` (1080×1920), `square` (1080×1080).
+- **Transitions:** `fade`, `dissolve`, `wipeleft`, `wiperight`, `slideup`, `slidedown`, `circleopen`, `smoothleft`.
+- **Audio Mixing & Ducking:** Original ambient audio level control, master voice track, background music with sidechain ducking and LUFS normalisation.
 
 ### Voice Synthesis (per call)
 

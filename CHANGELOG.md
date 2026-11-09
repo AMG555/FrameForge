@@ -4,6 +4,29 @@ All notable changes to FrameForge are documented here.
 
 ---
 
+## [2.3.7] — 2026-11-09
+
+### Added
+- **Autonomous Local Video Editor (`src/video-editor/editor.js`)**:
+  - Full-featured local FFmpeg video editing engine for autonomous agent workflows (inspired by `video-agent-skill`).
+  - `probeMedia`: `ffprobe` JSON parsing for duration, dimensions, fps, streams, codecs, and channels.
+  - `parseTimestamp`: Flexible timestamp parsing supporting numeric seconds, `"01:23.45"`, `"83.45s"`, `"01:02:03"`.
+  - `editClip`: Frame-accurate trimming, speed ramping (`0.25x` to `4.0x` with chained `atempo` pitch preservation), aspect ratio conforming (`16:9` landscape, `9:16` portrait, `1:1` square), color grading, and HarfBuzz captions.
+  - Cinematic color grading presets: `cinematic`, `warm`, `cool`, `vintage`, `bw`, `vibrant`, and `cyberpunk`.
+  - `concatClipsWithTransitions`: Seamless multi-clip transitions using FFmpeg `xfade` (`fade`, `dissolve`, `wipeleft`, `wiperight`, `slideup`, `slidedown`, `circleopen`, `smoothleft`) and `acrossfade`.
+  - `editAndAssemble`: End-to-end autonomous assembly with ambient clip audio volume, master voiceover overlay, and ducked background music with LUFS normalisation.
+  - Auto-fit mode: Automatically calculates clip durations so video length perfectly matches master voiceover length.
+  - `applyOperations`: Imperative operation dispatcher supporting `cut`, `trim`, `speed`, `color`, `caption`, `mute`, `transition`, and `assemble`.
+- **`edit_video` MCP Tool (`src/mcp-server/server.js`)**:
+  - Exposes dedicated autonomous video editor tool to Claude Code, Cursor, Windsurf, Bob, and Codex.
+  - Local fallback in `external_platform_call` for `action === 'edit'`: runs local `VideoEditor` instead of erroring out when no external platform is configured.
+  - Enhanced `create_video_from_script` and `VideoRenderer.renderScene()` to support `startTime`, `endTime`, `speed`, `clipVolume`, and `colorGrade` for user clips (`video_path`).
+- **Worker & Remote MCP Integration**:
+  - Registered `edit_video` in Cloudflare Remote MCP (`cloudflare-mcp/src/index.js`).
+  - Added `edit_video` job execution in background worker servers (`src/worker/server.js`, `src/worker/server-render-free.js`).
+
+---
+
 ## [2.3.6] — 2026-11-09
 
 ### Added

@@ -388,3 +388,30 @@ describe('MCP HTTP auth enforcement', () => {
     );
   });
 });
+
+// ── Autonomous Video Editor tool definition ────────────────────────────────────
+
+describe('edit_video tool definition', () => {
+  const { TOOLS } = require('./server');
+
+  it('edit_video is registered in TOOLS', () => {
+    assert.ok(TOOLS.edit_video, 'edit_video tool missing from TOOLS');
+    assert.equal(typeof TOOLS.edit_video.handler, 'function');
+  });
+
+  it('edit_video schema requires clips array', () => {
+    assert.equal(TOOLS.edit_video.inputSchema.type, 'object');
+    assert.deepEqual(TOOLS.edit_video.inputSchema.required, ['clips']);
+    assert.ok(TOOLS.edit_video.inputSchema.properties.clips);
+    assert.ok(TOOLS.edit_video.inputSchema.properties.audio_path);
+    assert.ok(TOOLS.edit_video.inputSchema.properties.music_path);
+    assert.ok(TOOLS.edit_video.inputSchema.properties.orientation);
+  });
+
+  it('external_platform_call supports local VideoEditor fallback for action=edit', () => {
+    assert.ok(TOOLS.external_platform_call, 'external_platform_call missing from TOOLS');
+    const src = require('fs').readFileSync(require.resolve('./server'), 'utf8');
+    assert.ok(src.includes("case 'edit':"), 'case edit missing');
+    assert.ok(src.includes("VideoEditor"), 'VideoEditor fallback missing in external_platform_call');
+  });
+});

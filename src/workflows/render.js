@@ -72,6 +72,11 @@ async function runRender({
         focalPoint:        asset.focalPoint || null,
         html:              asset.html || null,
         code:              asset.code || null,
+        startTime:         asset.startTime,
+        endTime:           asset.endTime,
+        speed:             asset.speed,
+        clipVolume:        asset.clipVolume,
+        colorGrade:        asset.colorGrade,
         renderWidth,
         renderHeight,
       });

@@ -109,6 +109,11 @@ async function runAssets({
         language:  scene.language || language || '',
         html:      scene.html || null,
         code:      scene.code || scene.animation_code || null,
+        startTime: scene.start_time != null ? scene.start_time : scene.trim_start,
+        endTime:   scene.end_time != null ? scene.end_time : scene.trim_end,
+        speed:     scene.speed != null ? scene.speed : 1.0,
+        clipVolume: scene.clip_volume != null ? scene.clip_volume : (scene.clipVolume != null ? scene.clipVolume : 0),
+        colorGrade: scene.color_grade || scene.colorGrade || null,
       };
     }));
     results.push(...batchResults);

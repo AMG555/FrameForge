@@ -177,6 +177,11 @@ async function dispatchJob(job) {
     case 'shorts':        return runShorts(payload);
     case 'package':       return runPackaging(payload);
     case 'publish':       return runPublishing(payload);
+    case 'edit_video': {
+      const { VideoEditor } = require('../video-editor/editor');
+      const editor = new VideoEditor({ filesDir: FILES_DIR });
+      return editor.editAndAssemble(payload);
+    }
     case 'full_pipeline': return runFullPipeline(payload, job.id);
     default: throw new Error(`Unknown job type: ${type}`);
   }

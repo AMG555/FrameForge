@@ -60,7 +60,7 @@ export default {
       return Response.json({
         status:     configured ? 'ok' : 'degraded',
         worker:     'frameforge-mcp',
-        version:    '2.3.6',
+        version:    '2.3.7',
         configured,
         rateLimit: {
           enabled:      !!env.RATE_LIMITS,
@@ -264,7 +264,7 @@ async function handleRPC(body, env) {
         protocolVersion: '2024-11-05',
         serverInfo: {
           name:    'frameforge',
-          version: '2.3.6',
+          version: '2.3.7',
           status:  configured ? 'ready' : 'not_configured',
           // IDEs that surface _meta will show this warning in the tools panel
           ...(configured ? {} : {
@@ -480,6 +480,25 @@ const TOOL_DEFINITIONS = [
       },
     },
   },
+  {
+    name: 'edit_video',
+    description: 'Autonomous local video editor. Cut, trim, speed-ramp, color-grade, reframe (16:9 / 9:16 / 1:1), add captions, apply xfade transitions, and mix audio with ducked background music.',
+    inputSchema: {
+      type: 'object', required: ['clips'],
+      properties: {
+        clips:               { type: 'array', description: 'Array of clip objects with video_path, start_time?, end_time?, duration?, speed?, clip_volume?, color_grade?, caption?, transition?' },
+        audio_path:          { type: 'string', description: 'Master voiceover / narration track' },
+        music_path:          { type: 'string', description: 'Background music track' },
+        music_volume:        { type: 'number', default: 0.08 },
+        orientation:         { type: 'string', enum: ['landscape', 'portrait', 'square'], default: 'landscape' },
+        color_grade:         { type: 'string', enum: ['none', 'cinematic', 'warm', 'cool', 'vintage', 'bw', 'vibrant', 'cyberpunk'] },
+        transition:          { type: 'string', default: 'fade' },
+        transition_duration: { type: 'number', default: 0.5 },
+        auto_fit:            { type: 'boolean', default: false },
+        output_path:         { type: 'string' },
+      },
+    },
+  },
 ];
 
 // ── Tool handlers (proxy to Worker API) ──────────────────────────────────────
@@ -498,6 +517,7 @@ const TOOL_HANDLERS = {
   render_from_scenes:  (args, env) => proxyJob('render_from_scenes', args, env),
   external_platform_call: (args, env) => proxyJob('external_platform_call', args, env),
   create_video_from_script: (args, env) => proxyJob('create_video_from_script', args, env),
+  edit_video:          (args, env) => proxyJob('edit_video',     args, env),
   multi_voice_tts:     (args, env) => proxyJob('multi_voice_tts', args, env),
   queue_full_pipeline: async (args, env) => {
     // Submit async job — returns immediately with jobId

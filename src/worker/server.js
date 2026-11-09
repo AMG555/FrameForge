@@ -96,6 +96,12 @@ async function executeJob(job) {
       case 'shorts':        result = await runShorts(job.payload); break;
       case 'package':       result = await runPackaging(job.payload); break;
       case 'publish':       result = await runPublishing(job.payload); break;
+      case 'edit_video': {
+        const { VideoEditor } = require('../video-editor/editor');
+        const editor = new VideoEditor({ filesDir: FILES_DIR });
+        result = await editor.editAndAssemble(job.payload);
+        break;
+      }
       default: throw new Error(`Unknown job type: ${job.type}`);
     }
     job.status      = 'SUCCEEDED';

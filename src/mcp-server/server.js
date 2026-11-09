@@ -1,13 +1,14 @@
 /**
  * FrameForge MCP Server — MCP 2024-11-05 spec compliant
  *
- * Exposes 14 video production tools via MCP.
- * Works with IBM Bob, Cursor, Windsurf, Codex, opencode, or any MCP-capable IDE.
+ * Exposes 19 video production & autonomous editing tools via MCP.
+ * Works with IBM Bob, Cursor, Windsurf, Codex, opencode, Claude Code, or any MCP-capable IDE.
  * Primary connection: Cloudflare Remote MCP (cloudflare-mcp/).
  * Alternative: stdio (src/mcp-server/stdio.js) or HTTP (this file).
  *
  * Primary path for agentic IDEs:
  *   create_video_from_script — IDE writes scenes, FrameForge renders (no internal LLM)
+ *   edit_video               — Autonomous local video editor (cut, trim, speed, grade, transition, mix)
  *   multi_voice_tts          — per-call TTS platform override
  *
  * Full pipeline path (FrameForge does the research + scripting):
@@ -15,7 +16,7 @@
  *   assemble_video, publish_video
  *
  * Edit path:
- *   ingest_media, edit_scenes, render_from_scenes, external_platform_call
+ *   edit_video, ingest_media, edit_scenes, render_from_scenes, external_platform_call, export_to_editor
  *
  * Start: node src/mcp-server/server.js   (or: npm start)
  * Port:  MCP_PORT env (default 3210)
@@ -482,8 +483,8 @@ Named presets (set EXTERNAL_PLATFORM_NAME to one of these and omit platformUrl):
 
       const adapter = new ExternalAdapter(adapterConfig);
 
-      // If no URL was provided via param or env, give a clear setup message
-      if (!adapter.isConfigured()) {
+      // If no URL was provided via param or env and action !== 'edit', give clear setup message
+      if (!adapter.isConfigured() && action !== 'edit') {
         throw new Error(
           'No platform URL configured. Either:\n' +
           '  • Pass platformUrl: "http://localhost:8080" (connects any custom app immediately)\n' +
@@ -500,12 +501,28 @@ Named presets (set EXTERNAL_PLATFORM_NAME to one of these and omit platformUrl):
           // Validate operations
           const ops = operations || [];
           if (ops.length === 0) throw new Error('action=edit requires at least one operation in the operations array');
-          const validOps = ['cut','trim','transition','color','caption','mute','speed','swap'];
+          const validOps = ['cut','trim','transition','color','caption','mute','speed','swap','assemble'];
           for (const [i, o] of ops.entries()) {
             if (!o.op) throw new Error(`operations[${i}] missing "op" field`);
             if (!validOps.includes(o.op)) throw new Error(`operations[${i}].op "${o.op}" not valid. Use: ${validOps.join(', ')}`);
           }
-          return adapter.renderScenes({ scenes: [], productionId: 'edit', options: { operations: ops, ...(metadata || {}) } });
+
+          if (adapter.isConfigured()) {
+            return adapter.renderScenes({ scenes: [], productionId: 'edit', options: { operations: ops, ...(metadata || {}) } });
+          }
+
+          // Fallback: Local autonomous VideoEditor execution
+          const { VideoEditor } = require('../video-editor/editor');
+          const localEditor = new VideoEditor({ filesDir: FILES_DIR });
+          return localEditor.applyOperations({
+            operations: ops,
+            files: files || [],
+            outputPath,
+            orientation: metadata?.orientation || 'landscape',
+            musicPath: metadata?.musicPath || metadata?.music_path,
+            musicVolume: metadata?.musicVolume != null ? metadata?.musicVolume : 0.08,
+            audioPath: metadata?.audioPath || metadata?.audio_path,
+          });
         }
 
         case 'render':
@@ -1416,13 +1433,98 @@ Operations (used with action="edit"):
     },
   },
 
+  // ── Tool 19: Autonomous Local Video Editor ──────────────────────────────
+  // Edit, cut, trim, speed-ramp, color-grade, reframe, add captions, and transition
+  // multiple video clips, and mix with voiceover & ducked background music locally.
+  edit_video: {
+    description: `Autonomous local video editor. Edit, cut, trim, speed-ramp, color-grade, reframe (16:9 landscape / 9:16 portrait / 1:1 square), add captions, apply xfade transitions, and mix clip audio with voiceover & ducked background music locally using FFmpeg. Fully autonomous — zero external APIs or subscriptions needed.
+
+Features:
+- Fast & frame-accurate trimming (start_time, end_time, duration).
+- Speed ramping (0.25x to 4.0x) with audio pitch preserving (atempo).
+- Cinematic color grading (cinematic, warm, cool, vintage, bw, vibrant, cyberpunk).
+- Broadcast-quality captions with HarfBuzz text shaping & multilingual Indic/Malayalam support.
+- Transitions: fade, dissolve, wipeleft, wiperight, slideup, slidedown, circleopen, smoothleft, etc.
+- Multi-track audio: clip ambient audio volume control, master voiceover, and background music with sidechain ducking.
+- Auto-fit mode: automatically calculates clip durations so video perfectly matches master audio length.`,
+    inputSchema: {
+      type: 'object',
+      required: ['clips'],
+      properties: {
+        clips: {
+          type: 'array',
+          description: 'Array of clip objects. Each clip: { video_path, start_time?, end_time?, duration?, speed?, clip_volume?, color_grade?, caption?, transition?, transition_duration?, audio_path? }',
+          items: {
+            type: 'object',
+            required: ['video_path'],
+            properties: {
+              video_path:          { type: 'string', description: 'Path to source video clip' },
+              start_time:          { type: ['number', 'string'], description: 'Start time offset (e.g. 5, "00:05", "01:23.45")' },
+              end_time:            { type: ['number', 'string'], description: 'End time offset (e.g. 15, "00:15")' },
+              duration:            { type: ['number', 'string'], description: 'Desired duration in seconds' },
+              speed:               { type: 'number', default: 1.0, description: 'Speed multiplier (e.g. 0.5 for 2x slow-mo, 1.5 for fast)' },
+              clip_volume:         { type: 'number', default: 1.0, description: 'Volume of original clip audio (0 to mute, 1.0 normal)' },
+              color_grade:         { type: 'string', enum: ['none', 'cinematic', 'warm', 'cool', 'vintage', 'bw', 'vibrant', 'cyberpunk'], description: 'Color grading preset' },
+              caption:             { type: 'string', description: 'Caption text to burn into the lower third of this clip' },
+              transition:          { type: 'string', default: 'fade', description: 'Transition into next clip (fade, dissolve, wipeleft, wiperight, slideup, slidedown, circleopen, none)' },
+              transition_duration: { type: 'number', default: 0.5, description: 'Duration of transition in seconds (default 0.5)' },
+              audio_path:          { type: 'string', description: 'Optional scene-specific audio/voice file' },
+            },
+          },
+        },
+        audio_path:          { type: 'string', description: 'Master voiceover / narration audio track across whole video' },
+        music_path:          { type: 'string', description: 'Background music track' },
+        music_volume:        { type: 'number', default: 0.08, description: 'Background music volume level (default 0.08)' },
+        orientation:         { type: 'string', enum: ['landscape', 'portrait', 'square'], default: 'landscape', description: 'Target canvas orientation' },
+        width:               { type: 'number', description: 'Custom canvas width (default 1920 for landscape, 1080 for portrait/square)' },
+        height:              { type: 'number', description: 'Custom canvas height (default 1080 for landscape, 1920 for portrait, 1080 for square)' },
+        color_grade:         { type: 'string', enum: ['none', 'cinematic', 'warm', 'cool', 'vintage', 'bw', 'vibrant', 'cyberpunk'], description: 'Global color grade fallback for all clips' },
+        transition:          { type: 'string', default: 'fade', description: 'Global transition fallback between clips' },
+        transition_duration: { type: 'number', default: 0.5, description: 'Global transition duration in seconds' },
+        auto_fit:            { type: 'boolean', default: false, description: 'Auto-adjust clip durations to match audio_path duration' },
+        output_path:         { type: 'string', description: 'Destination file path for the assembled MP4' },
+      },
+    },
+    handler: async ({
+      clips = [],
+      audio_path = null,
+      music_path = null,
+      music_volume = 0.08,
+      orientation = 'landscape',
+      width,
+      height,
+      color_grade = null,
+      transition = 'fade',
+      transition_duration = 0.5,
+      auto_fit = false,
+      output_path = null,
+    }) => {
+      const { VideoEditor } = require('../video-editor/editor');
+      const editor = new VideoEditor({ filesDir: FILES_DIR });
+      return editor.editAndAssemble({
+        clips,
+        audioPath: audio_path,
+        musicPath: music_path,
+        musicVolume: music_volume,
+        orientation,
+        width,
+        height,
+        colorGrade: color_grade,
+        transition,
+        transitionDuration: transition_duration,
+        autoFit: auto_fit,
+        outputPath: output_path,
+      });
+    },
+  },
+
 };
 
 // ── MCP protocol handler (MCP 2024-11-05 spec) ───────────────────────────
 
 const SERVER_INFO = {
   name:    'video-pipeline',
-  version: '2.3.6',
+  version: '2.3.7',
 };
 
 const CAPABILITIES = {

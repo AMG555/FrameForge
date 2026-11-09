@@ -9,7 +9,7 @@
 [![npm](https://img.shields.io/npm/v/@amg555/frameforge-mcp.svg?label=npm)](https://www.npmjs.com/package/@amg555/frameforge-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
-[![Version](https://img.shields.io/badge/version-2.3.6-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.3.7-blue.svg)](CHANGELOG.md)
 [![MCP Spec](https://img.shields.io/badge/MCP-2024--11--05-blue.svg)](https://modelcontextprotocol.io/)
 [![Tests](https://img.shields.io/badge/tests-539%20passing-brightgreen.svg)](#testing)
 
@@ -52,7 +52,7 @@ Add to your IDE's MCP config (works in Bob, Cursor, Windsurf, Codex, Claude Code
 }
 ```
 
-That's it. Your agent now has 17 video production tools. FFmpeg and TTS run on your machine — no cloud render costs.
+That's it. Your agent now has 19 video production & autonomous editing tools. FFmpeg and TTS run on your machine — no cloud render costs.
 
 ---
 
@@ -174,13 +174,14 @@ Any combination of `image_path`, `video_path`, `audio_path` works — FrameForge
 
 ## Tools
 
-17 tools, grouped by what you're doing:
+19 tools, grouped by what you're doing:
 
 **Make a video from your own script (no LLM key)**
 
 | Tool | What it does |
 |------|-------------|
-| `create_video_from_script` | Full render from scenes you provide — voice, images, FFmpeg, quality gate |
+| `create_video_from_script` | Full render from scenes you provide — voice, procedural motion graphics / custom code, FFmpeg, quality gate |
+| `edit_video` | Autonomous local video editor — cut, trim, speed-ramp, color-grade, reframe (16:9 / 9:16 / 1:1), add captions, apply xfade transitions, and mix audio |
 | `ingest_media` | Import your own clips, images, and audio into a scenes manifest |
 | `edit_scenes` | Update captions, swap media files, or append scenes to a manifest |
 | `render_from_scenes` | Re-render from an existing manifest, skipping research and scripting |
@@ -189,7 +190,8 @@ Any combination of `image_path`, `video_path`, `audio_path` works — FrameForge
 | `multi_voice_tts` | Override TTS provider per call without touching `.env` |
 | `generate_scene_image` | Generate one scene image via the configured image provider |
 | `publish_video` | Deliver the finished video via file copy or HTTP webhook |
-| `external_platform_call` | HTTP bridge to ElevenLabs, Runway, Replicate, or any custom platform |
+| `external_platform_call` | Bridge to ElevenLabs, Runway, VoxForge, or local FFmpeg editor fallback |
+| `export_to_editor` | Bridge/import into DaVinci Resolve, Premiere Pro, After Effects, Remotion, or CapCut |
 
 **Auto-research pipeline (needs a free LLM key)**
 

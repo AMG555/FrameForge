@@ -13,7 +13,7 @@
 ## Project Identity
 
 **Name:** FrameForge  
-**Version:** 2.3.6  
+**Version:** 2.3.7  
 **Repo:** https://github.com/AMG555/FrameForge  
 **Tagline:** AI video production engine for any agentic IDE — via Cloudflare Remote MCP.
 
@@ -104,7 +104,7 @@ File output / Webhook receiver
 | `src/cli/doctor.js` | Pre-flight checks |
 | `src/cli/make.js` | Standalone CLI |
 | `src/cli/setup-keys.js` | Interactive .env wizard |
-| `src/mcp-server/server.js` | HTTP MCP (port 3210) — 17 tools |
+| `src/mcp-server/server.js` | HTTP MCP (port 3210) — 19 tools |
 | `src/mcp-server/stdio.js` | Stdio MCP |
 | `src/worker/server.js` | Worker HTTP API (port 3211) |
 | `src/worker/server-render-free.js` | Render.com free tier worker |
