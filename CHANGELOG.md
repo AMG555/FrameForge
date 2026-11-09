@@ -4,6 +4,19 @@ All notable changes to FrameForge are documented here.
 
 ---
 
+## [2.4.1] — 2026-11-09
+
+### Fixed
+- **CLI & npx Invocation Handling (`src/mcp-server/stdio.js`, `package.json`)**:
+  - Registered `frameforge-make` binary alias in `package.json` so `npx --package=@amg555/frameforge-mcp frameforge-make` works immediately.
+  - Added CLI dispatch interception in `stdio.js` when flags or subcommands (`make`, `--topic`, `doctor`, `setup`, `harness`) are passed, preventing npx CLI invocations from hanging on stdio JSON-RPC stdin.
+- **Language & Orientation Forwarding in CLI (`src/cli/make.js`)**:
+  - Added `--orientation <landscape|portrait>` and `--portrait` flags.
+  - Forwarded `language` and auto-selected `voice` (`ml-IN-MidhunNeural`, `hi-IN-MadhurNeural`, etc.) to `runAssets` and `runRender`.
+  - Forwarded `renderWidth` and `renderHeight` to `runRender` so canvas dimensions match requested orientation.
+
+---
+
 ## [2.4.0] — 2026-11-09
 
 ### Added

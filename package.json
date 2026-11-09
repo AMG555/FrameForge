@@ -1,6 +1,6 @@
 {
   "name": "@amg555/frameforge-mcp",
-  "version": "2.4.0",
+  "version": "2.4.1",
   "description": "FrameForge — AI video production engine for agentic IDEs. npx @amg555/frameforge-mcp. FFmpeg + TTS run on your machine. 21 MCP tools.",
   "publishConfig": {
     "access": "public"
@@ -8,6 +8,7 @@
   "main": "src/mcp-server/server.js",
   "bin": {
     "frameforge": "src/cli/make.js",
+    "frameforge-make": "src/cli/make.js",
     "frameforge-mcp": "src/mcp-server/stdio.js",
     "frameforge-setup": "src/cli/setup-keys.js",
     "frameforge-doctor": "src/cli/doctor.js",

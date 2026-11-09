@@ -98,6 +98,7 @@ function parseArgs(argv) {
     mode: 'full-auto',
     topic: '', topicsFile: '', language: 'en',
     style: 'educational comedy', channels: ['file'],
+    orientation: 'landscape',
     scenesFile: '', scriptFile: '', mediaDir: '',
     shorts: true, dryRun: false,
     noResearch: false, noScript: false, noImages: false, noTts: false, noPublish: false,
@@ -112,6 +113,8 @@ function parseArgs(argv) {
       case '--script-file':   args.scriptFile  = argv[++i] || '';  break;
       case '--media-dir':     args.mediaDir    = argv[++i] || '';  break;
       case '--language':      args.language    = (argv[++i] || 'en').toLowerCase(); break;
+      case '--orientation':   args.orientation = (argv[++i] || 'landscape').toLowerCase(); break;
+      case '--portrait':      args.orientation = 'portrait'; break;
       case '--style':         args.style       = argv[++i] || args.style; break;
       case '--channels':      args.channels    = (argv[++i] || 'file').split(',').map(s => s.trim()); break;
       case '--no-research':   args.noResearch  = true; break;
@@ -399,9 +402,12 @@ async function runSingleVideo(args, topic, outDir, workflows) {
   // Pass stage-skip flags into scenes so runAssets can honour them
   const preparedScenes = scenes.map(s => ({
     ...s,
+    language:      s.language || args.language,
     _skipImageGen: skipImages,
     _skipTts:      args.noTts,
   }));
+
+  const resolvedVoice = LANGUAGE_VOICES[args.language] || null;
 
   const assetsResult = await runAssets({
     productionId,
@@ -413,17 +419,25 @@ async function runSingleVideo(args, topic, outDir, workflows) {
     topic,
     title,
     style: args.style || '',
+    language: args.language,
+    voice: resolvedVoice,
   });
   log('Assets', `✅  ${assetsResult.sceneCount} scenes prepared`);
 
   // ── Stage D: Render ────────────────────────────────────────────────────────
   logSection('Stage D: Video Render (FFmpeg)');
+  const renderWidth  = args.orientation === 'portrait' ? 1080 : 1920;
+  const renderHeight = args.orientation === 'portrait' ? 1920 : 1080;
+
   const renderResult = await runRender({
     productionId,
     sceneAssets: assetsResult.sceneAssets,
     topic,
     title,
     style: args.style || '',
+    language: args.language,
+    renderWidth,
+    renderHeight,
   });
   if (!renderResult.passed) {
     throw new Error(`Quality gate FAILED: ${JSON.stringify(renderResult.qcReport?.checks?.filter(c => !c.passed).map(c => c.name))}`);

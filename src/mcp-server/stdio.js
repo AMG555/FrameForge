@@ -34,6 +34,34 @@
 // Load config BEFORE requiring server.js so env vars are set when providers initialise
 require('../config/load-config').loadConfig();
 
+// ── CLI Dispatch Fallback ──────────────────────────────────────────────────
+// When run via `npx @amg555/frameforge-mcp` with CLI arguments (e.g. `make`, `--topic`,
+// `doctor`, `setup`, `harness`, or `--help`), dispatch to the CLI tool instead of
+// hanging on stdin JSON-RPC.
+const firstArg = process.argv[2];
+if (firstArg && (firstArg === 'make' || firstArg.startsWith('-') || firstArg === 'doctor' || firstArg === 'setup' || firstArg === 'harness')) {
+  if (firstArg === 'doctor') {
+    require('../cli/doctor');
+    return;
+  }
+  if (firstArg === 'setup') {
+    require('../cli/setup-keys');
+    return;
+  }
+  if (firstArg === 'harness') {
+    const harnessBin = require('path').resolve(__dirname, '../harness/bin/harness.mjs');
+    const { spawnSync } = require('child_process');
+    const res = spawnSync(process.execPath, [harnessBin, ...process.argv.slice(3)], { stdio: 'inherit' });
+    process.exit(res.status ?? 0);
+  }
+  // Otherwise dispatch to make.js (stripping 'make' if present)
+  if (firstArg === 'make') {
+    process.argv.splice(2, 1);
+  }
+  require('../cli/make');
+  return;
+}
+
 const readline = require('readline');
 const { handleMCPRequest } = require('./server');
 
