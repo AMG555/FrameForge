@@ -368,10 +368,38 @@ class TTSProvider {
    * picks by gender preference (TTS_VOICE_GENDER=male|female|default).
    *
    * @param {string} [explicitVoice]  voice passed by caller (takes priority)
+   * @param {string} [text]           narration text for language detection
    * @returns {string}
    */
-  selectNarratorVoice(explicitVoice) {
+  selectNarratorVoice(explicitVoice, text = '') {
     if (explicitVoice) return explicitVoice;
+
+    // Language detection for edge-tts
+    if (this.name === 'edge-tts' && text) {
+      const gender = (process.env.TTS_VOICE_GENDER || 'default').toLowerCase();
+      if (/[\u0D00-\u0D7F]/.test(text)) {
+        return gender === 'female' ? 'ml-IN-SobhanaNeural' : 'ml-IN-MidhunNeural';
+      }
+      if (/[\u0900-\u097F]/.test(text)) {
+        return gender === 'female' ? 'hi-IN-SwaraNeural' : 'hi-IN-MadhurNeural';
+      }
+      if (/[\u0B80-\u0BFF]/.test(text)) {
+        return gender === 'female' ? 'ta-IN-PallaviNeural' : 'ta-IN-ValluvarNeural';
+      }
+      if (/[\u0C00-\u0C7F]/.test(text)) {
+        return gender === 'female' ? 'te-IN-ShrutiNeural' : 'te-IN-MohanNeural';
+      }
+      if (/[\u4E00-\u9FFF]/.test(text)) {
+        return gender === 'female' ? 'zh-CN-XiaoxiaoNeural' : 'zh-CN-YunjianNeural';
+      }
+      if (/[\u3040-\u30FF]/.test(text)) {
+        return gender === 'female' ? 'ja-JP-NanamiNeural' : 'ja-JP-KeitaNeural';
+      }
+      if (/[\u0600-\u06FF]/.test(text)) {
+        return gender === 'female' ? 'ar-SA-ZariyahNeural' : 'ar-SA-HamedNeural';
+      }
+    }
+
     const voices  = NARRATOR_VOICES[this.name] || NARRATOR_VOICES['edge-tts'];
     const gender  = (process.env.TTS_VOICE_GENDER || 'default').toLowerCase();
     return voices[gender] || voices.default;
@@ -384,7 +412,7 @@ class TTSProvider {
    * @returns {Promise<string>} resolves with outputPath
    */
   async synthesize({ text, voice, outputPath }) {
-    const resolvedVoice = this.selectNarratorVoice(voice);
+    const resolvedVoice = this.selectNarratorVoice(voice, text);
     switch (this.name) {
       case 'edge-tts':   return this._edgeTTS({ text, voice: resolvedVoice, outputPath });
       case 'elevenlabs': return this._elevenLabs({ text, voice: resolvedVoice, outputPath });
@@ -464,27 +492,36 @@ class TTSProvider {
 
   async _edgeTTS({ text, voice, outputPath }) {
     const rawPath   = outputPath.replace(/\.[^.]+$/, '_raw.mp3');
-    const safeVoice = voice || NARRATOR_VOICES['edge-tts'].default;
+    const txtPath   = rawPath + '.txt';
+    const safeVoice = voice || this.selectNarratorVoice(null, text);
     // No artificial rate manipulation — use the voice's natural cadence.
     // Only a mild rate adjustment from env (e.g. TTS_RATE='+0%') is supported.
     const rate = this._overrides.rate || process.env.TTS_RATE || '+0%';
     return withRetry(async () => {
-      const _shell = process.platform === 'win32';
-      await new Promise((resolve, reject) => {
-        const proc = spawn('edge-tts', ['--voice', safeVoice, '--rate', rate, '--text', text, '--write-media', rawPath], { timeout: 40000, shell: _shell });
-        proc.on('close', code => code === 0 ? resolve() : reject(new Error(`edge-tts exited ${code}`)));
-        proc.on('error', reject);
-      });
-      // Normalise audio via FFmpeg — trim trailing silence, normalise levels
-      await new Promise((resolve, reject) => {
-        const proc = spawn('ffmpeg', ['-nostdin', '-y', '-threads', '2',
-          '-i', rawPath,
-          '-af', 'silenceremove=stop_periods=-1:stop_duration=0.3:stop_threshold=-40dB,highpass=f=80,volume=1.0,dynaudnorm=f=150:g=5:p=0.95',
-          '-ar', '48000', '-ac', '2', '-c:a', 'aac', '-b:a', '192k', outputPath], { timeout: 30000, shell: _shell });
-        proc.on('close', code => code === 0 ? resolve() : reject(new Error(`ffmpeg exited ${code}`)));
-        proc.on('error', reject);
-      });
-      await fs.unlink(rawPath).catch(() => {});
+      await fs.writeFile(txtPath, text, 'utf8');
+      try {
+        await new Promise((resolve, reject) => {
+          const proc = spawn('edge-tts', ['--voice', safeVoice, '--rate', rate, '--file', txtPath, '--write-media', rawPath], { timeout: 40000, shell: false });
+          let stderr = '';
+          proc.stderr?.on('data', d => { stderr += d; });
+          proc.on('close', code => code === 0 ? resolve() : reject(new Error(`edge-tts exited ${code}: ${stderr}`)));
+          proc.on('error', reject);
+        });
+        // Normalise audio via FFmpeg — trim trailing silence, normalise levels
+        await new Promise((resolve, reject) => {
+          const proc = spawn('ffmpeg', ['-nostdin', '-y', '-threads', '2',
+            '-i', rawPath,
+            '-af', 'silenceremove=stop_periods=-1:stop_duration=0.3:stop_threshold=-40dB,highpass=f=80,volume=1.0,dynaudnorm=f=150:g=5:p=0.95',
+            '-ar', '48000', '-ac', '2', '-c:a', 'aac', '-b:a', '192k', outputPath], { timeout: 30000 });
+          let stderr = '';
+          proc.stderr?.on('data', d => { stderr += d; });
+          proc.on('close', code => code === 0 ? resolve() : reject(new Error(`ffmpeg exited ${code}: ${stderr}`)));
+          proc.on('error', reject);
+        });
+      } finally {
+        await fs.unlink(txtPath).catch(() => {});
+        await fs.unlink(rawPath).catch(() => {});
+      }
       return outputPath;
     }, { maxAttempts: 3, baseDelayMs: 3000, label: 'TTS(edge-tts)' });
   }

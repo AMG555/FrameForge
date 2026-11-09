@@ -64,7 +64,9 @@ function resolveProjectFile(filename, fallback) {
   return inCwd;
 }
 
-const HTML_FILE   = flags.html ? path.resolve(CWD, flags.html) : resolveProjectFile('index.html', resolveProjectFile('studio.html'));
+const positionalHtml = extras.find(e => typeof e === 'string' && e.endsWith('.html'));
+const fixtureFallback = path.resolve(__dirname, '../test/fixtures/reference-scene.html');
+const HTML_FILE   = flags.html ? path.resolve(CWD, flags.html) : (positionalHtml ? path.resolve(CWD, positionalHtml) : resolveProjectFile('index.html', resolveProjectFile('studio.html', fixtureFallback)));
 const OUT_DIR     = flags.outDir ? path.resolve(CWD, flags.outDir) : path.join(CWD, 'out');
 const CHECK_DIR   = path.join(OUT_DIR, 'check');
 const FRAMES_DIR  = flags.frames ? path.resolve(CWD, flags.frames) : flags.out ? path.resolve(CWD, flags.out) : path.join(OUT_DIR, 'frames');

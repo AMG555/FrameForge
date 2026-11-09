@@ -4,6 +4,18 @@ All notable changes to FrameForge are documented here.
 
 ---
 
+## [2.3.8] — 2026-11-09
+
+### Fixed & Enhanced
+- **Multilingual Neural TTS Voice Routing (`src/pipeline/providers.js`)**:
+  - Automatically routes multilingual text to native neural voices: Malayalam (`ml-IN-MidhunNeural` / `ml-IN-SobhanaNeural`), Hindi (`hi-IN-MadhurNeural` / `hi-IN-SwaraNeural`), Tamil, Telugu, Chinese, Japanese, and Arabic.
+  - Eliminated Windows `shell: true` path space splitting and DEP0190 warnings in `_edgeTTS` by writing text to a UTF-8 temporary file and passing `--file` with `shell: false`.
+- **Harness CLI Positional Arguments (`src/harness/bin/harness.mjs`)**:
+  - Added support for positional `.html` scene files (e.g. `node harness.mjs verify my-scene.html`).
+  - Added automatic fallback to `reference-scene.html` fixture so `npm run harness:verify` runs cleanly without requiring a pre-existing root `index.html`.
+
+---
+
 ## [2.3.7] — 2026-11-09
 
 ### Added
