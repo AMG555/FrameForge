@@ -110,6 +110,17 @@ describe('scene-animator detectComponentTheme', () => {
     assert.equal(detectComponentTheme({ visualDescription: 'High velocity athletic speed streaks' }), 'speed_action');
   });
 
+  it('detects doodle character components for human action and evolution stories', () => {
+    assert.equal(detectComponentTheme({ visualDescription: 'Person choosing shirt from wardrobe rack', language: 'ml' }), 'doodle_dressing');
+    assert.equal(detectComponentTheme({ caption: 'Freezing cold wind shivering naked early human' }), 'doodle_shiver_cold');
+    assert.equal(detectComponentTheme({ narration: 'സൂചിയും മൃഗങ്ങളുടെ തോൽ തുന്നാനുള്ള ഉപകരണങ്ങളും' }), 'doodle_sewing_needle');
+    assert.equal(detectComponentTheme({ caption: 'African savannah hunter walking with spear' }), 'doodle_hunter_savannah');
+    assert.equal(detectComponentTheme({ caption: 'Looking in water reflection blush theory of mind' }), 'doodle_shame_reflection');
+    assert.equal(detectComponentTheme({ narration: 'അപരിചിതരായ ആളുകൾ തമ്മിൽ കാണാൻ തുടങ്ങി രണ്ടു ഗോത്രങ്ങൾ' }), 'doodle_tribe_meeting');
+    assert.equal(detectComponentTheme({ caption: 'Planning for tomorrow thinking by campfire' }), 'doodle_thinking_future');
+    assert.equal(detectComponentTheme({ caption: 'Lice evolution microscope 170,000 years ago' }), 'doodle_microscope_lice');
+  });
+
   it('prioritizes image when imagePath is given', () => {
     assert.equal(detectComponentTheme({ imagePath: '/path/to/img.png' }), 'image');
   });

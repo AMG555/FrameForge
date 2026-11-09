@@ -4,6 +4,18 @@ All notable changes to FrameForge are documented here.
 
 ---
 
+## [2.4.2] — 2026-11-09
+
+### Added
+- **Procedural Doodled Character Animation Engine (`src/video-renderer/scene-animator.js`)**:
+  - Pure-function-of-time character generator (`drawDoodleCharacter`) supporting expressive facial animations (talking, shivering, smiling, surprised), multiple hairstyles (wild, modern, feather), clothing types (none, pelt, shirt, cloak), and animated poses (hold_spear, shiver, sewing, dress_shirt, peace_gesture, thinker, natural).
+  - 12fps hand-drawn boiling wobble (`wb(seed, mag)`) and organic sketchy vector primitives (`sLine`, `sCircle`, `sRect`) conforming to the pure-$t$ rendering contract.
+  - 9 narrative-matched character scene themes: `doodle_dressing`, `doodle_shiver_cold`, `doodle_sewing_needle`, `doodle_hunter_savannah`, `doodle_shame_reflection`, `doodle_tribe_meeting`, `doodle_thinking_future`, `doodle_microscope_lice`, and `doodle_general_human`.
+  - Action-grounded theme detection in `detectComponentTheme`: Human narrative, evolution, psychology, and daily action scripts automatically map to physical character animations rather than abstract geometry.
+  - Enhanced LLM prompt in `generateSceneCodeWithLLM` directing AI models to animate expressive human figures actively performing narrated actions.
+
+---
+
 ## [2.4.1] — 2026-11-09
 
 ### Fixed
