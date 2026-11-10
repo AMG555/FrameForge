@@ -461,3 +461,64 @@ describe('generate_scene_code and preview_scene tools', () => {
     assert.ok(TOOLS.preview_scene.inputSchema.properties.timestamps);
   });
 });
+
+describe('verify_scene_quality and plan_video_edit tools', () => {
+  const { TOOLS } = require('./server');
+
+  it('verify_scene_quality is registered in TOOLS with valid schema', () => {
+    assert.ok(TOOLS.verify_scene_quality, 'verify_scene_quality missing from TOOLS');
+    assert.equal(typeof TOOLS.verify_scene_quality.handler, 'function');
+    assert.ok(TOOLS.verify_scene_quality.inputSchema.properties.htmlPath);
+    assert.ok(TOOLS.verify_scene_quality.inputSchema.properties.html);
+    assert.ok(TOOLS.verify_scene_quality.inputSchema.properties.code);
+    assert.ok(TOOLS.verify_scene_quality.inputSchema.properties.sheetPath);
+  });
+
+  it('verify_scene_quality handler rejects when neither htmlPath, html, nor code provided', async () => {
+    await assert.rejects(
+      () => TOOLS.verify_scene_quality.handler({}),
+      /Either htmlPath, html, or code must be provided/
+    );
+  });
+
+  it('plan_video_edit is registered in TOOLS with valid schema', () => {
+    assert.ok(TOOLS.plan_video_edit, 'plan_video_edit missing from TOOLS');
+    assert.equal(typeof TOOLS.plan_video_edit.handler, 'function');
+    assert.deepEqual(TOOLS.plan_video_edit.inputSchema.required, ['footage']);
+    assert.ok(TOOLS.plan_video_edit.inputSchema.properties.footage);
+    assert.ok(TOOLS.plan_video_edit.inputSchema.properties.goal);
+    assert.ok(TOOLS.plan_video_edit.inputSchema.properties.style);
+    assert.ok(TOOLS.plan_video_edit.inputSchema.properties.orientation);
+  });
+
+  it('plan_video_edit generates edit-plan.md and edit.json', async () => {
+    const fs = require('fs');
+    const os = require('os');
+    const path = require('path');
+    const tempDir = path.join(os.tmpdir(), `test_edit_${Date.now()}`);
+    fs.mkdirSync(tempDir, { recursive: true });
+
+    try {
+      const res = await TOOLS.plan_video_edit.handler({
+        footage: ['/tmp/clip1.mp4', '/tmp/clip2.mp4', '/tmp/clip3.mp4'],
+        goal: '30s dynamic action teaser',
+        style: 'fast_paced',
+        orientation: 'portrait',
+        output_dir: tempDir,
+      });
+
+      assert.ok(res.planPath);
+      assert.ok(res.editJsonPath);
+      assert.ok(fs.existsSync(res.planPath));
+      assert.ok(fs.existsSync(res.editJsonPath));
+      assert.ok(res.planMarkdown.includes('Video Edit Decision Plan'));
+      assert.ok(res.planMarkdown.includes('PORTRAIT'));
+      assert.ok(Array.isArray(res.editConfig.clips));
+      assert.equal(res.editConfig.clips.length > 0, true);
+      assert.equal(res.editConfig.orientation, 'portrait');
+      assert.ok(res.editConfig.clips[0].rationale);
+    } finally {
+      try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch (_) {}
+    }
+  });
+});

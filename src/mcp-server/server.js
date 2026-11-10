@@ -1,7 +1,7 @@
 /**
  * FrameForge MCP Server — MCP 2024-11-05 spec compliant
  *
- * Exposes 19 video production & autonomous editing tools via MCP.
+ * Exposes 23 video production & autonomous editing tools via MCP.
  * Works with IBM Bob, Cursor, Windsurf, Codex, opencode, Claude Code, or any MCP-capable IDE.
  * Primary connection: Cloudflare Remote MCP (cloudflare-mcp/).
  * Alternative: stdio (src/mcp-server/stdio.js) or HTTP (this file).
@@ -1635,13 +1635,233 @@ Allows the agent in Claude Code, Cursor, or any IDE to inspect the visual output
     },
   },
 
+  // ── Tool 22: Verify Scene Quality ─────────────────────────────────────────
+  // Closed-loop visual QA gate grading scene quality (1–10) across 4 axes
+  verify_scene_quality: {
+    description: `Run closed-loop visual QA grading (1–10 score) on an animated scene HTML file or code.
+Evaluates 4 critical visual axes: content presence (non-blank), proper exposure (non-blown), layout distribution (not corner-confined), and continuous motion delta (detects stuck/frozen PowerPoint slides). Generates an optional contact sheet and returns frame-by-frame scores, worst frames, and pass/fail gate status.`,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        htmlPath:   { type: 'string', description: 'Absolute or relative path to the scene HTML file' },
+        html:       { type: 'string', description: 'Inline HTML content if file not on disk' },
+        code:       { type: 'string', description: 'Raw JavaScript canvas drawing code (wrapped automatically if provided)' },
+        duration:   { type: 'number', default: 3, description: 'Duration of scene in seconds (used if code/html wrapped)' },
+        sampleRate: { type: 'number', default: 2, description: 'Samples per second to evaluate (default: 2 fps)' },
+        sheetPath:  { type: 'string', description: 'Optional path where contact sheet image should be written' },
+      },
+    },
+    handler: async ({ htmlPath, html, code, duration = 3, sampleRate = 2, sheetPath }) => {
+      const { verifySceneQuality } = require('../harness/lib/verify-quality.mjs');
+      const { launchHarnessBrowser } = require('../harness/lib/browser.mjs');
+      const syncFs = require('fs');
+      const pathMod = require('path');
+
+      let targetHtmlPath = htmlPath;
+      let tempCreated = false;
+
+      if (!targetHtmlPath) {
+        let content = html;
+        if (!content && code) {
+          const { wrapCodeInHarnessHtml } = require('../video-renderer/scene-animator');
+          content = wrapCodeInHarnessHtml({ code, duration });
+        }
+        if (!content) {
+          throw new Error('Either htmlPath, html, or code must be provided to verify_scene_quality.');
+        }
+        const qaDir = pathMod.join(FILES_DIR, 'qa');
+        syncFs.mkdirSync(qaDir, { recursive: true });
+        targetHtmlPath = pathMod.join(qaDir, `quality_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.html`);
+        syncFs.writeFileSync(targetHtmlPath, content, 'utf8');
+        tempCreated = true;
+      }
+
+      const { browser } = await launchHarnessBrowser();
+      try {
+        const result = await verifySceneQuality({
+          browser,
+          htmlPath: targetHtmlPath,
+          sheetPath,
+          sampleRate,
+        });
+        return result;
+      } finally {
+        await browser.close();
+        if (tempCreated) {
+          try { syncFs.unlinkSync(targetHtmlPath); } catch (_) {}
+        }
+      }
+    },
+  },
+
+  // ── Tool 23: Plan Video Edit ──────────────────────────────────────────────
+  // Plan / Approve / Render video editing workflow: generates edit-plan.md & edit.json
+  plan_video_edit: {
+    description: `Generate a structured Plan/Approve/Render video editing package for raw video footage.
+Analyzes input clips, segments narrative beats, calculates cut in/out timestamps, assigns transitions, speed ramps, and color grades, and writes:
+1. edit-plan.md — Human & agent readable decision list with rationale per cut and story beat breakdown.
+2. edit.json — Machine-executable configuration directly runnable via edit_video.`,
+    inputSchema: {
+      type: 'object',
+      required: ['footage'],
+      properties: {
+        footage:         { type: ['array', 'string'], description: 'List of video file paths, or a directory path containing footage' },
+        goal:            { type: 'string', default: 'Create a dynamic polished montage highlighting key moments', description: 'Narrative goal or editing instructions' },
+        target_duration: { type: 'number', description: 'Desired total output duration in seconds' },
+        orientation:     { type: 'string', enum: ['landscape', 'portrait', 'square'], default: 'landscape' },
+        style:           { type: 'string', enum: ['cinematic', 'fast_paced', 'documentary', 'vintage', 'cyberpunk', 'vibrant'], default: 'cinematic' },
+        audio_path:      { type: 'string', description: 'Optional master voiceover narration audio path' },
+        music_path:      { type: 'string', description: 'Optional background music track path' },
+        output_dir:      { type: 'string', description: 'Directory to write edit-plan.md and edit.json' },
+      },
+    },
+    handler: async ({ footage, goal = 'Create a dynamic polished montage', target_duration, orientation = 'landscape', style = 'cinematic', audio_path, music_path, output_dir }) => {
+      const syncFs = require('fs');
+      const pathMod = require('path');
+      const { VideoEditor } = require('../video-editor/editor');
+      const editor = new VideoEditor();
+
+      // 1. Resolve clip paths
+      let clipPaths = [];
+      if (typeof footage === 'string') {
+        if (syncFs.existsSync(footage) && syncFs.statSync(footage).isDirectory()) {
+          const validExts = ['.mp4', '.mov', '.mkv', '.webm', '.avi'];
+          clipPaths = syncFs.readdirSync(footage)
+            .filter(f => validExts.includes(pathMod.extname(f).toLowerCase()))
+            .map(f => pathMod.join(footage, f));
+        } else {
+          clipPaths = [footage];
+        }
+      } else if (Array.isArray(footage)) {
+        clipPaths = footage;
+      }
+
+      if (clipPaths.length === 0) {
+        throw new Error('No valid footage clips provided or found in directory.');
+      }
+
+      // 2. Probe clips
+      const probedClips = [];
+      for (const cp of clipPaths) {
+        let meta = { duration: 10, width: 1920, height: 1080 };
+        try {
+          if (syncFs.existsSync(cp)) {
+            meta = editor.probeMedia(cp);
+          }
+        } catch (_) {}
+        probedClips.push({ path: cp, ...meta });
+      }
+
+      // 3. Audio & Duration planning
+      let totalTarget = target_duration;
+      if (!totalTarget && audio_path && syncFs.existsSync(audio_path)) {
+        try {
+          const aMeta = editor.probeMedia(audio_path);
+          totalTarget = aMeta.duration;
+        } catch (_) {}
+      }
+      if (!totalTarget) {
+        totalTarget = style === 'fast_paced' ? 20 : 30;
+      }
+
+      // 4. Style configuration mapping
+      const styleConfig = {
+        cinematic:   { avgDuration: 5.0, speed: 1.0,  transition: 'dissolve', grade: 'cinematic' },
+        fast_paced:  { avgDuration: 2.2, speed: 1.25, transition: 'wipeleft', grade: 'vibrant' },
+        documentary: { avgDuration: 4.5, speed: 1.0,  transition: 'fade',     grade: 'warm' },
+        vintage:     { avgDuration: 3.5, speed: 0.95, transition: 'fade',     grade: 'vintage' },
+        cyberpunk:   { avgDuration: 2.5, speed: 1.2,  transition: 'circleopen', grade: 'cyberpunk' },
+        vibrant:     { avgDuration: 3.0, speed: 1.1,  transition: 'slideup',  grade: 'vibrant' },
+      }[style] || { avgDuration: 4.0, speed: 1.0, transition: 'fade', grade: 'cinematic' };
+
+      // 5. Build Cut Decision List
+      const clipCount = Math.max(1, Math.min(probedClips.length, Math.ceil(totalTarget / styleConfig.avgDuration)));
+      const segDur = totalTarget / clipCount;
+      const plannedClips = [];
+
+      const beatNames = ['Opening Hook', 'Context & Build-up', 'Core Revelation / Climax', 'Resolution & Outro'];
+
+      for (let i = 0; i < clipCount; i++) {
+        const src = probedClips[i % probedClips.length];
+        const clipDur = Number(segDur.toFixed(2));
+        const maxStart = Math.max(0, (src.duration || 10) - clipDur);
+        const startTime = Number((maxStart * 0.25 * (i % 3)).toFixed(2));
+        const endTime = Number((startTime + clipDur).toFixed(2));
+        const beatIndex = Math.min(beatNames.length - 1, Math.floor((i / clipCount) * beatNames.length));
+
+        plannedClips.push({
+          video_path: src.path,
+          start_time: startTime,
+          end_time: endTime,
+          duration: clipDur,
+          speed: styleConfig.speed,
+          color_grade: styleConfig.grade,
+          transition: i === clipCount - 1 ? 'none' : styleConfig.transition,
+          transition_duration: 0.5,
+          beat: beatNames[beatIndex],
+          rationale: `Selected for ${beatNames[beatIndex]} (${clipDur}s) with ${styleConfig.grade} color tone and ${styleConfig.speed}x pacing.`,
+        });
+      }
+
+      // 6. Build edit.json
+      const editJson = {
+        clips: plannedClips,
+        orientation,
+        audio_path: audio_path || null,
+        music_path: music_path || null,
+        music_volume: 0.08,
+        color_grade: styleConfig.grade,
+        transition: styleConfig.transition,
+        target_duration: totalTarget,
+      };
+
+      // 7. Build edit-plan.md
+      let planMd = `# 🎬 Video Edit Decision Plan\n\n`;
+      planMd += `**Goal**: ${goal}\n`;
+      planMd += `**Style**: ${style.toUpperCase()} | **Orientation**: ${orientation.toUpperCase()} | **Target Duration**: ${totalTarget.toFixed(1)}s | **Clips Count**: ${plannedClips.length}\n\n`;
+      planMd += `## 📋 Narrative Beat Architecture\n\n`;
+      planMd += `| Beat | Clip Index | Source Clip | In - Out | Duration | Speed | Color Grade | Transition | Rationale |\n`;
+      planMd += `| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |\n`;
+
+      plannedClips.forEach((c, idx) => {
+        const basename = pathMod.basename(c.video_path);
+        planMd += `| **${c.beat}** | #${idx + 1} | \`${basename}\` | ${c.start_time}s - ${c.end_time}s | ${c.duration}s | ${c.speed}x | ${c.color_grade} | ${c.transition} | ${c.rationale} |\n`;
+      });
+
+      planMd += `\n## 🎵 Audio Architecture\n\n`;
+      planMd += `- **Master Voiceover**: ${audio_path ? `\`${pathMod.basename(audio_path)}\` (Primary, ducks music by 18dB)` : 'None specified (using clip audio)'}\n`;
+      planMd += `- **Background Music**: ${music_path ? `\`${pathMod.basename(music_path)}\` (Ambient, volume: 0.08)` : 'None specified'}\n\n`;
+      planMd += `## 🚀 Execution & Approval\n\n`;
+      planMd += `To execute this edit plan autonomously, call the \`edit_video\` tool with the payload in \`edit.json\`.\n`;
+
+      // 8. Write outputs
+      const outDir = output_dir || pathMod.join(FILES_DIR, 'edits', `edit_${Date.now()}`);
+      syncFs.mkdirSync(outDir, { recursive: true });
+      const planPath = pathMod.join(outDir, 'edit-plan.md');
+      const jsonPath = pathMod.join(outDir, 'edit.json');
+
+      syncFs.writeFileSync(planPath, planMd, 'utf8');
+      syncFs.writeFileSync(jsonPath, JSON.stringify(editJson, null, 2), 'utf8');
+
+      return {
+        planPath,
+        editJsonPath: jsonPath,
+        planMarkdown: planMd,
+        editConfig: editJson,
+        clipCount: plannedClips.length,
+        totalDuration: totalTarget,
+        message: 'Edit plan and configuration generated. Review edit-plan.md, then pass edit.json to edit_video.',
+      };
+    },
+  },
+
 };
 
 // ── MCP protocol handler (MCP 2024-11-05 spec) ───────────────────────────
 
 const SERVER_INFO = {
   name:    'video-pipeline',
-  version: '2.4.8',
+  version: '2.4.9',
 };
 
 const CAPABILITIES = {

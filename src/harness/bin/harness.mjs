@@ -21,6 +21,7 @@ import { fileURLToPath } from 'url';
 import { doctorBrowser, launchHarnessBrowser } from '../lib/browser.mjs';
 import { openPageWithVirtualClock } from '../lib/capture.mjs';
 import { verifyScenePurity } from '../lib/verify-purity.mjs';
+import { verifySceneQuality } from '../lib/verify-quality.mjs';
 import { renderSheet, renderStrip, renderCrop, renderStoryboard } from '../lib/sheets.mjs';
 import { renderFrameJobs } from '../lib/jobs.mjs';
 import { encodeFramesToMp4 } from '../lib/encode.mjs';
@@ -305,12 +306,40 @@ async function cmdPixels() {
   }
 }
 
+async function cmdQuality() {
+  console.log(`🎯 Running Closed-Loop Visual QA Gate (1–10 Scoring) on: ${HTML_PATH}`);
+  const { browser } = await launchHarnessBrowser();
+  const sheetTarget = path.join(CHECK_DIR, 'sheet.jpg');
+  const res = await verifySceneQuality({
+    browser,
+    htmlPath: HTML_PATH,
+    sheetPath: sheetTarget,
+  });
+  await browser.close();
+
+  console.log(`  Overall Scene Score: ${res.overallScore}/10 [${res.passed ? 'PASSED ✅' : 'FAILED ❌'}]`);
+  console.log(`  Motion Delta: ${(res.motionDelta * 100).toFixed(0)}%`);
+  for (const f of res.sampledFrames) {
+    const issueStr = f.issues.length > 0 ? ` (${f.issues.join(', ')})` : '';
+    console.log(`    t=${f.time.toFixed(2)}s: ${f.score}/10${issueStr}`);
+  }
+
+  const qualityReportPath = path.join(CHECK_DIR, 'quality_report.json');
+  fs.writeFileSync(qualityReportPath, JSON.stringify(res, null, 2), 'utf8');
+  console.log(`  Quality report saved: ${qualityReportPath}`);
+
+  if (!res.passed && !flags['skip-quality']) {
+    throw new Error(`Scene failed closed-loop quality gate (Score: ${res.overallScore}/10). Fix worst frames: ${res.worstFrames.map(w => `${w.time}s`).join(', ')}`);
+  }
+}
+
 async function cmdAll() {
-  console.log('🚀 Running Complete Production Pipeline: Storyboard → Verify → Frames → Encode → Inspect');
+  console.log('🚀 Running Complete Production Pipeline: Storyboard → Verify → Quality → Frames → Encode → Inspect');
   await cmdDoctor();
   await cmdStoryboard();
   await cmdSheet();
   await cmdVerify();
+  await cmdQuality();
   await cmdFrames();
   await cmdEncode();
   console.log('\n✨ Production complete! Output ready at out/film.mp4');
@@ -321,6 +350,7 @@ try {
     case 'doctor':     await cmdDoctor();     break;
     case 'storyboard': await cmdStoryboard(); break;
     case 'verify':     await cmdVerify();     break;
+    case 'quality':    await cmdQuality();    break;
     case 'sheet':      await cmdSheet();      break;
     case 'strip':      await cmdStrip();      break;
     case 'crop':       await cmdCrop();       break;
@@ -329,7 +359,7 @@ try {
     case 'pixels':     await cmdPixels();     break;
     case 'all':        await cmdAll();        break;
     default:
-      console.log(`Usage: harness <doctor|storyboard|verify|sheet|strip|crop|frames|encode|pixels|all> [options]`);
+      console.log(`Usage: harness <doctor|storyboard|verify|quality|sheet|strip|crop|frames|encode|pixels|all> [options]`);
       break;
   }
 } catch (err) {

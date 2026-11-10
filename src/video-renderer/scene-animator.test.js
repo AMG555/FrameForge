@@ -131,6 +131,17 @@ describe('scene-animator detectComponentTheme', () => {
     assert.equal(detectComponentTheme({ prompt: 'Animated Subscribe button and notification bell outro' }), 'doodle_outro_subscribe');
   });
 
+  it('detects universal semantic visual archetypes for general knowledge topics', () => {
+    assert.equal(detectComponentTheme({ visualDescription: 'Comparison between electric cars versus gasoline combustion vehicles' }), 'versus_comparison');
+    assert.equal(detectComponentTheme({ visualDescription: 'Internal combustion engine gears and aerodynamic thrust mechanics' }), 'mechanism_physics');
+    assert.equal(detectComponentTheme({ visualDescription: 'Step by step manufacturing pipeline workflow stages' }), 'process_pipeline');
+    assert.equal(detectComponentTheme({ visualDescription: 'Psychology of cognitive insight and neural eureka spark' }), 'cognitive_insight');
+    assert.equal(detectComponentTheme({ visualDescription: 'High power magnification loupe inspecting micro detail' }), 'magnification_focus');
+    assert.equal(detectComponentTheme({ visualDescription: 'Masterclass whiteboard presentation explaining core principles' }), 'explainer_presentation');
+    // Universal fallback when no specific keywords match
+    assert.equal(detectComponentTheme({ visualDescription: 'General topic overview with no specialized keywords' }), 'explainer_presentation');
+  });
+
   it('prioritizes image when imagePath is given', () => {
     assert.equal(detectComponentTheme({ imagePath: '/path/to/img.png' }), 'image');
   });

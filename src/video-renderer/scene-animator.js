@@ -326,7 +326,7 @@ function detectComponentTheme({ visualDescription = '', visual_description = '',
   }
 
   // 7. Shame / Mirror / Reflection / Water / Self Awareness / Theory of Mind (Scene 3, 9)
-  if (/(?:^|[^\w])(shame|blush|embarrass|mirror|reflection|water pool|theory of mind|how others see|self-aware|identity|looking at me|psychology|mind-shift)(?:[^\w]|$)/i.test(text)
+  if (/(?:^|[^\w])(shame|blush|embarrass|mirror|reflection|water pool|theory of mind|how others see|self-aware|identity|looking at me|shame psychology|mind-shift)(?:[^\w]|$)/i.test(text)
       || /കണ്ണാടി|പ്രതിഫലനം|മറ്റുള്ളവർ എന്നെ|തിയറി ഓഫ് മൈൻഡ്|സ്വന്തം ശരീരം മറച്ചു|വ്യക്തിത്വം|ശ്രദ്ധിക്കുന്നുണ്ട്|യഥാർത്ഥ രഹസ്യം|നാണം മറയ്ക്കാൻ/.test(text)) {
     return 'doodle_shame_reflection';
   }
@@ -392,7 +392,7 @@ function detectComponentTheme({ visualDescription = '', visual_description = '',
   }
 
   // High Velocity Speed Action
-  if (/(?:^|[^\w])(sports|workout|gym|athlete|speed|streaks|race|championship|extreme|versus|vs|hype|adrenaline|power|velocity|fast)(?:[^\w]|$)/.test(text)
+  if (/(?:^|[^\w])(sports|workout|gym|athlete|speed|streaks|race|championship|extreme|hype|adrenaline|velocity|sprint|fast motion)(?:[^\w]|$)/.test(text)
       || /കായിക|മത്സര|വേഗത|വ്യായാമം|खेल|दौड़/.test(text)) {
     return 'speed_action';
   }
@@ -421,9 +421,9 @@ function detectComponentTheme({ visualDescription = '', visual_description = '',
     return 'chart';
   }
 
-  // Neural Network Nodes
-  if (/(?:^|[^\w])(network|node|nodes|ai|model|neural|pipeline|architecture|server|system|mesh|connect|synapse|deep learning)(?:[^\w]|$)/.test(text)
-      || /നെറ്റ്‌വർക്ക്|സിനാപ്സ്|ശൃംഖല|नेटवर्क/.test(text)) {
+  // Neural Network Nodes / AI Topology
+  if (/(?:^|[^\w])(network|nodes|neural network|neural net|distributed system|server mesh|deep learning)(?:[^\w]|$)/.test(text)
+      || /നെറ്റ്‌വർക്ക്|ശൃംഖല|नेटवर्क/.test(text)) {
     return 'nodes';
   }
 
@@ -433,16 +433,59 @@ function detectComponentTheme({ visualDescription = '', visual_description = '',
     return 'isometric_geometry';
   }
 
-  // Fallbacks matched to aesthetic
+  // ── Universal Semantic Visual Archetypes (General Content & Education) ──
+  // 1. Versus / Comparison / Split Screen
+  if (/(?:^|[^\w])(versus|vs|comparison|compare|pros and cons|pros vs cons|difference between|dichotomy|contrast|side-by-side|before and after|before vs after)(?:[^\w]|$)/i.test(text)
+      || /വ്യത്യാസം|താരതമ്യം|എതിര്|പോരാട്ടം|തമ്മിൽ|തുലനം|താരതമ്യപ്പെടുത്തൽ/.test(text)) {
+    return 'versus_comparison';
+  }
+
+  // 2. Mechanism / Physics / Machinery / Engine / Aerodynamics
+  if (/(?:^|[^\w])(engine|gear|gears|motor|physics|aerodynamics|thrust|turbine|propulsion|piston|hydraulic|kinetic|machine|machinery|circuit|mechanics|thermodynamics|levers|pulley|internal combustion|mechanical|cutaway|airflow|lift|rotor|dynamo)(?:[^\w]|$)/i.test(text)
+      || /യന്ത്രം|എഞ്ചിൻ|ഭൗതികശാസ്ത്രം|പ്രവർത്തനം|ചലനം|മെക്കാനിസം|ഭൗതികം/.test(text)) {
+    return 'mechanism_physics';
+  }
+
+  // 3. Process / Pipeline / Workflow / Stages / Assembly / Lifecycle
+  if (/(?:^|[^\w])(pipeline|workflow|step by step|steps|stages|phase|phases|production line|assembly|manufacturing|lifecycle|funnel|conveyor|sequence|how it works|how it is made|procedure)(?:[^\w]|$)/i.test(text)
+      || /ഘട്ടങ്ങൾ|പ്രക്രിയ|ഘട്ടം|ഉൽപ്പാദനം|വഴികൾ|പ്രവർത്തനരീതി/.test(text)) {
+    return 'process_pipeline';
+  }
+
+  // 4. Cognitive Insight / Psychology / Brain / Eureka / Revelation / Mind
+  if (/(?:^|[^\w])(mind|psychology|cognitive|brain|insight|revelation|eureka|intuition|subconscious|thinking|thought|contemplation|intelligence|mental|awareness|neuroscience|concept|idea|epiphany)(?:[^\w]|$)/i.test(text)
+      || /മനസ്സ്|ബുദ്ധി|ചിന്ത|മനഃശാസ്ത്രം|ജ്ഞാനം|മസ്തിഷ്കം|ബോധം/.test(text)) {
+    return 'cognitive_insight';
+  }
+
+  // 5. Magnification / Loupe / Macro Zoom / Scrutiny / Detailed Inspection
+  if (/(?:^|[^\w])(magnify|magnification|zoom|microscopic|macro|close up|closeup|inspection|loupe|examine|scrutiny|detail|focal point|focus in|specimen)(?:[^\w]|$)/i.test(text)
+      || /സൂക്ഷ്മ|പരിശോധന|വലുതാക്കി കാണുക|സൂക്ഷ്മമായി|നിരീക്ഷണം/.test(text)) {
+    return 'magnification_focus';
+  }
+
+  // 6. Explainer / Presentation / Tutorial / Masterclass Whiteboard / Breakdown
+  if (/(?:^|[^\w])(explain|explainer|presentation|lecture|teach|tutorial|whiteboard|blackboard|breakdown|guide|overview|theory|principles|fundamentals|introduction|summary|lesson|masterclass)(?:[^\w]|$)/i.test(text)
+      || /വിവരണം|പഠിപ്പിക്കുക|ക്ലാസ്|പാഠം|തത്വം|വിവരിക്കുക/.test(text)) {
+    return 'explainer_presentation';
+  }
+
+  // 7. Waveform / Audio / Sound / Acoustics / Equalizer
+  if (/(?:^|[^\w])(waveform|audio|sound|equalizer|frequency|acoustics|hz|decibel|music spectrum|voice waveform)(?:[^\w]|$)/i.test(text)
+      || /ശബ്ദതരംഗം|തരംഗം|സംഗീതം|ധ്വനി/.test(text)) {
+    return 'waveform';
+  }
+
+  // Fallbacks matched to aesthetic (rich semantic defaults, never sterile)
   if (aesthetic === 'cosmic_space') return 'celestial_orbit';
   if (aesthetic === 'cinematic_documentary') return 'doodle_general_human';
   if (aesthetic === 'finance_executive') return 'chart';
   if (aesthetic === 'nature_organic') return 'dna_helix';
   if (aesthetic === 'breaking_news') return 'radar_globe';
   if (aesthetic === 'cyber_tech') return 'nodes';
-  if (aesthetic === 'minimal_luxury') return 'isometric_geometry';
+  if (aesthetic === 'minimal_luxury') return 'explainer_presentation';
   if (aesthetic === 'hype_sports') return 'speed_action';
-  return 'waveform';
+  return 'explainer_presentation';
 }
 
 // ── Harness HTML Wrapper for User / Agent Code ────────────────────────────────
@@ -712,6 +755,8 @@ const IS_LIGHT = ${Boolean(pal.isLight)};
 const STROKE_COLOR = ${JSON.stringify(pal.isLight ? (pal.stroke || '#1c1917') : '#f8fafc')};
 const STROKE_ALT = ${JSON.stringify(pal.isLight ? (pal.strokeAlt || '#44403c') : 'rgba(255, 255, 255, 0.7)')};
 const AMBIENT_LINE = ${JSON.stringify(pal.isLight ? 'rgba(28, 25, 23, 0.22)' : 'rgba(255, 255, 255, 0.25)')};
+const TEXT_MAIN = ${JSON.stringify(pal.isLight ? '#1c1917' : '#f8fafc')};
+const TEXT_MUTED = ${JSON.stringify(pal.isLight ? '#78716c' : '#94a3b8')};
 
 let cachedImage = null;
 if (IMAGE_SRC) {
@@ -3313,7 +3358,679 @@ function drawMainScene(t) {
     ctx.drawImage(cachedImage, cx - imgW / 2, cy - imgH / 2, imgW, imgH);
     ctx.restore();
 
-  } else {
+  } else if (COMP_THEME === 'versus_comparison') {
+    // Universal Archetype: Split-Screen Versus / Comparison
+    const splitSpring = spring(t, 0.05, 180, 14);
+    const cardLeftSpring = spring(t, 0.15, 190, 15);
+    const cardRightSpring = spring(t, 0.28, 190, 15);
+    const badgeSpring = spring(t, 0.42, 220, 13);
+
+    // Center divider beam
+    const divAlpha = Math.min(1, Math.max(0, splitSpring));
+    ctx.save();
+    ctx.globalAlpha = divAlpha;
+    const seamGrad = ctx.createLinearGradient(0, cy - H * 0.42, 0, cy + H * 0.42);
+    seamGrad.addColorStop(0, 'rgba(255,255,255,0)');
+    seamGrad.addColorStop(0.5, ACCENT);
+    seamGrad.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.strokeStyle = seamGrad;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - H * 0.42);
+    ctx.lineTo(cx, cy + H * 0.42);
+    ctx.stroke();
+
+    // Seam energy sparks
+    for (let sp = 0; sp < 8; sp++) {
+      const spY = cy - H * 0.35 + ((sp * 95 + t * 240) % (H * 0.7));
+      const spR = 3 + Math.sin(t * 8 + sp) * 2;
+      ctx.fillStyle = ACCENT;
+      ctx.beginPath();
+      ctx.arc(cx, spY, spR, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // Left Card (Side A)
+    const cardW = Math.min(W * 0.38, 520);
+    const cardH = Math.min(H * 0.62, 540);
+    const leftX = cx - cardW - 35;
+    const cardY = cy - cardH / 2;
+
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, Math.max(0, cardLeftSpring));
+    ctx.translate(leftX + (1 - cardLeftSpring) * -60, cardY);
+    ctx.fillStyle = CARD_BG;
+    ctx.strokeStyle = CARD_BORDER;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(0, 0, cardW, cardH, 20);
+    ctx.fill();
+    ctx.stroke();
+
+    // Left Card Header & Accent Pill
+    ctx.fillStyle = 'rgba(56, 189, 248, 0.15)';
+    ctx.beginPath();
+    ctx.roundRect(24, 24, 110, 32, 16);
+    ctx.fill();
+    ctx.fillStyle = '#38bdf8';
+    ctx.font = 'bold 16px ' + FONT_DISPLAY;
+    ctx.fillText('OPTION A', 42, 45);
+
+    // Left Metrics / Feature Bars
+    for (let b = 0; b < 4; b++) {
+      const barY = 90 + b * 75;
+      const bProgress = Math.min(1, Math.max(0, spring(t, 0.3 + b * 0.1, 160, 14)));
+      ctx.fillStyle = IS_LIGHT ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.06)';
+      ctx.beginPath();
+      ctx.roundRect(24, barY + 22, cardW - 48, 14, 7);
+      ctx.fill();
+
+      ctx.fillStyle = '#38bdf8';
+      ctx.beginPath();
+      const fillW = (cardW - 48) * (0.45 + 0.15 * Math.sin(b * 1.5 + 2)) * bProgress;
+      ctx.roundRect(24, barY + 22, fillW, 14, 7);
+      ctx.fill();
+
+      // Feature icon / indicator
+      sCircle(36, barY + 8, 6, 100 + b, '#38bdf8', 2, '#38bdf8');
+      ctx.fillStyle = TEXT_MAIN;
+      ctx.font = '600 18px ' + FONT_DISPLAY;
+      ctx.fillText('ATTRIBUTE 0' + (b + 1), 54, barY + 14);
+    }
+    ctx.restore();
+
+    // Right Card (Side B)
+    const rightX = cx + 35;
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, Math.max(0, cardRightSpring));
+    ctx.translate(rightX + (1 - cardRightSpring) * 60, cardY);
+    ctx.fillStyle = CARD_BG;
+    ctx.strokeStyle = CARD_BORDER;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(0, 0, cardW, cardH, 20);
+    ctx.fill();
+    ctx.stroke();
+
+    // Right Card Header & Accent Pill
+    ctx.fillStyle = 'rgba(244, 63, 94, 0.15)';
+    ctx.beginPath();
+    ctx.roundRect(24, 24, 110, 32, 16);
+    ctx.fill();
+    ctx.fillStyle = '#f43f5e';
+    ctx.font = 'bold 16px ' + FONT_DISPLAY;
+    ctx.fillText('OPTION B', 42, 45);
+
+    // Right Metrics / Feature Bars
+    for (let b = 0; b < 4; b++) {
+      const barY = 90 + b * 75;
+      const bProgress = Math.min(1, Math.max(0, spring(t, 0.35 + b * 0.1, 160, 14)));
+      ctx.fillStyle = IS_LIGHT ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.06)';
+      ctx.beginPath();
+      ctx.roundRect(24, barY + 22, cardW - 48, 14, 7);
+      ctx.fill();
+
+      ctx.fillStyle = '#f43f5e';
+      ctx.beginPath();
+      const fillW = (cardW - 48) * (0.55 + 0.12 * Math.cos(b * 1.8 + 1)) * bProgress;
+      ctx.roundRect(24, barY + 22, fillW, 14, 7);
+      ctx.fill();
+
+      sCircle(36, barY + 8, 6, 200 + b, '#f43f5e', 2, '#f43f5e');
+      ctx.fillStyle = TEXT_MAIN;
+      ctx.font = '600 18px ' + FONT_DISPLAY;
+      ctx.fillText('ATTRIBUTE 0' + (b + 1), 54, barY + 14);
+    }
+    ctx.restore();
+
+    // Center VS Emblem Badge
+    ctx.save();
+    ctx.translate(cx, cy);
+    const bScale = Math.max(0, badgeSpring);
+    ctx.scale(bScale, bScale);
+    ctx.fillStyle = IS_LIGHT ? '#ffffff' : '#0f172a';
+    ctx.strokeStyle = ACCENT;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(0, 0, 48, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(0, 0, 42, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.font = '900 28px ' + FONT_DISPLAY;
+    ctx.fillStyle = ACCENT;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('VS', 0, 2);
+    ctx.restore();
+
+  } else if (COMP_THEME === 'mechanism_physics') {
+    // Universal Archetype: Mechanical Engineering, Cutaway Gears, Forces & Kinematics
+    const engSpring = spring(t, 0.05, 170, 14);
+    const vectorSpring = spring(t, 0.45, 180, 15);
+
+    // Background schematic blueprint grid lines
+    ctx.save();
+    ctx.strokeStyle = IS_LIGHT ? 'rgba(0,0,0,0.07)' : 'rgba(56, 189, 248, 0.12)';
+    ctx.lineWidth = 1;
+    for (let gx = cx - 450; gx <= cx + 450; gx += 60) {
+      ctx.beginPath(); ctx.moveTo(gx, cy - 320); ctx.lineTo(gx, cy + 320); ctx.stroke();
+    }
+    for (let gy = cy - 300; gy <= cy + 300; gy += 60) {
+      ctx.beginPath(); ctx.moveTo(cx - 480, gy); ctx.lineTo(cx + 480, gy); ctx.stroke();
+    }
+    ctx.strokeStyle = IS_LIGHT ? 'rgba(0,0,0,0.1)' : 'rgba(56, 189, 248, 0.2)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(cx, cy, 340, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+
+    // Helper: Draw precision technical gear with teeth
+    function drawGear(gx, gy, radius, teeth, rotAngle, color, axleColor) {
+      ctx.save();
+      ctx.translate(gx, gy);
+      ctx.rotate(rotAngle);
+      ctx.fillStyle = color;
+      ctx.strokeStyle = STROKE_COLOR;
+      ctx.lineWidth = 2.5;
+
+      ctx.beginPath();
+      const toothDepth = radius * 0.14;
+      for (let i = 0; i < teeth; i++) {
+        const a0 = (i * 2 * Math.PI) / teeth;
+        const a1 = a0 + (Math.PI / teeth) * 0.35;
+        const a2 = a0 + (Math.PI / teeth) * 0.65;
+        const a3 = a0 + (Math.PI / teeth);
+
+        const rIn = radius - toothDepth;
+        const rOut = radius + toothDepth;
+
+        if (i === 0) ctx.moveTo(rIn * Math.cos(a0), rIn * Math.sin(a0));
+        else ctx.lineTo(rIn * Math.cos(a0), rIn * Math.sin(a0));
+        ctx.lineTo(rOut * Math.cos(a1), rOut * Math.sin(a1));
+        ctx.lineTo(rOut * Math.cos(a2), rOut * Math.sin(a2));
+        ctx.lineTo(rIn * Math.cos(a3), rIn * Math.sin(a3));
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Hollow interior & spokes
+      ctx.beginPath();
+      ctx.arc(0, 0, radius * 0.62, 0, Math.PI * 2);
+      ctx.fillStyle = IS_LIGHT ? '#ffffff' : '#080d1a';
+      ctx.fill();
+      ctx.stroke();
+
+      // 4 Precision Spokes
+      for (let sp = 0; sp < 4; sp++) {
+        ctx.save();
+        ctx.rotate((sp * Math.PI) / 2);
+        ctx.fillStyle = color;
+        ctx.fillRect(-6, -radius * 0.58, 12, radius * 0.58 * 2);
+        ctx.restore();
+      }
+
+      // Center Axle Hub
+      ctx.beginPath();
+      ctx.arc(0, 0, radius * 0.25, 0, Math.PI * 2);
+      ctx.fillStyle = axleColor;
+      ctx.fill();
+      ctx.stroke();
+      sCircle(0, 0, radius * 0.1, 50, '#ffffff', 2, '#ffffff');
+
+      ctx.restore();
+    }
+
+    ctx.save();
+    const gScale = Math.min(1, Math.max(0, engSpring));
+    ctx.translate(cx, cy);
+    ctx.scale(gScale, gScale);
+    ctx.translate(-cx, -cy);
+
+    // Primary Gear Train (Interlocking 3 gears)
+    const gearSpeed = t * 1.4;
+    drawGear(cx - 150, cy, 140, 24, gearSpeed, IS_LIGHT ? '#e2e8f0' : '#1e293b', ACCENT);
+    drawGear(cx + 90, cy - 80, 105, 18, -gearSpeed * (24 / 18) + 0.17, IS_LIGHT ? '#cbd5e1' : '#334155', ACCENT2);
+    drawGear(cx + 175, cy + 95, 70, 12, gearSpeed * (24 / 12) + 0.25, IS_LIGHT ? '#94a3b8' : '#475569', '#10b981');
+
+    // Dynamic Kinematic Linkage / Piston
+    const pistonCycle = t * 3.5;
+    const crankR = 60;
+    const crankX = cx - 150 + Math.cos(gearSpeed) * crankR;
+    const crankY = cy + Math.sin(gearSpeed) * crankR;
+    const pistonY = cy + 180 + Math.sin(pistonCycle) * 35;
+    const pistonX = cx - 150;
+
+    sLine(crankX, crankY, pistonX, pistonY, 301, ACCENT, 5);
+    sCircle(crankX, crankY, 8, 302, '#ffffff', 2, ACCENT);
+    sCircle(pistonX, pistonY, 8, 303, '#ffffff', 2, ACCENT);
+
+    // Piston Head in Cylinder
+    ctx.fillStyle = IS_LIGHT ? '#64748b' : '#38bdf8';
+    ctx.fillRect(pistonX - 35, pistonY - 15, 70, 30);
+    ctx.strokeStyle = STROKE_COLOR;
+    ctx.lineWidth = 2.5;
+    ctx.strokeRect(pistonX - 35, pistonY - 15, 70, 30);
+
+    // Dynamic Force Vectors & Aerodynamic Flow Arrows
+    if (vectorSpring > 0.05) {
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, Math.max(0, vectorSpring));
+
+      const vX = cx + 290;
+      const vY = cy - 140;
+      sLine(vX, vY, vX + 110, vY, 401, '#10b981', 4);
+      ctx.fillStyle = '#10b981';
+      ctx.beginPath();
+      ctx.moveTo(vX + 125, vY);
+      ctx.lineTo(vX + 105, vY - 8);
+      ctx.lineTo(vX + 105, vY + 8);
+      ctx.closePath();
+      ctx.fill();
+      ctx.font = 'bold 15px ' + FONT_DISPLAY;
+      ctx.fillText('F_THRUST = 4.8 kN', vX, vY - 16);
+
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(cx - 150, cy, 185, -0.6, 0.6);
+      ctx.stroke();
+      ctx.fillStyle = '#f59e0b';
+      ctx.font = 'bold 15px ' + FONT_DISPLAY;
+      ctx.fillText('TORQUE = 320 Nm', cx - 210, cy - 195);
+      ctx.restore();
+    }
+
+    ctx.restore();
+
+  } else if (COMP_THEME === 'process_pipeline') {
+    // Universal Archetype: Multi-Stage Process / Pipeline / Supply Chain / Lifecycle
+    const pipeSpring = spring(t, 0.05, 170, 14);
+    const stages = [
+      { name: 'INGEST', label: '01 / SOURCE', desc: 'Raw Signals' },
+      { name: 'SYNTHESIS', label: '02 / TRANSFORM', desc: 'Active Process' },
+      { name: 'VALIDATION', label: '03 / VERIFY', desc: 'Quality Gate' },
+      { name: 'DEPLOYMENT', label: '04 / OUTPUT', desc: 'Master Release' },
+    ];
+
+    const pipeY = cy;
+    const startX = cx - 450;
+    const totalW = 900;
+    const segW = totalW / (stages.length - 1);
+
+    ctx.save();
+    const pScale = Math.min(1, Math.max(0, pipeSpring));
+    ctx.translate(cx, cy);
+    ctx.scale(pScale, pScale);
+    ctx.translate(-cx, -cy);
+
+    // Main Conduit Pipeline Track
+    const conduitG = ctx.createLinearGradient(startX, 0, startX + totalW, 0);
+    conduitG.addColorStop(0, ACCENT);
+    conduitG.addColorStop(0.5, '#38bdf8');
+    conduitG.addColorStop(1, '#10b981');
+
+    ctx.strokeStyle = IS_LIGHT ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.15)';
+    ctx.lineWidth = 14;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(startX, pipeY);
+    ctx.lineTo(startX + totalW, pipeY);
+    ctx.stroke();
+
+    ctx.strokeStyle = conduitG;
+    ctx.lineWidth = 6;
+    ctx.stroke();
+
+    // Flowing Data Packet Orbs along the conduit
+    for (let pk = 0; pk < 5; pk++) {
+      const pkProgress = ((t * 0.45 + pk * 0.22) % 1.0);
+      const pkX = startX + pkProgress * totalW;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(pkX, pipeY, 6, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = ACCENT;
+      ctx.globalAlpha = 0.4;
+      ctx.beginPath();
+      ctx.arc(pkX, pipeY, 14, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1.0;
+    }
+
+    // Stage Nodes & Info Cards
+    for (let s = 0; s < stages.length; s++) {
+      const st = stages[s];
+      const nodeX = startX + s * segW;
+      const nodeSpring = spring(t, 0.15 + s * 0.16, 180, 14);
+      const nodeAlpha = Math.min(1, Math.max(0, nodeSpring));
+
+      const activeStage = Math.min(stages.length - 1, Math.floor((t / window.DURATION) * stages.length));
+      const isActive = s === activeStage;
+
+      ctx.save();
+      ctx.globalAlpha = nodeAlpha;
+      ctx.translate(nodeX, pipeY);
+
+      const isTop = s % 2 === 0;
+      const cardOffsetY = isTop ? -180 : 70;
+      const cardW = 190;
+      const cardH = 95;
+
+      sLine(0, 0, 0, isTop ? -50 : 50, 500 + s, isActive ? ACCENT : STROKE_ALT, 2.5);
+
+      ctx.fillStyle = CARD_BG;
+      ctx.strokeStyle = isActive ? ACCENT : CARD_BORDER;
+      ctx.lineWidth = isActive ? 3 : 1.5;
+      ctx.beginPath();
+      ctx.roundRect(-cardW / 2, cardOffsetY, cardW, cardH, 14);
+      ctx.fill();
+      ctx.stroke();
+
+      if (isActive) {
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(-cardW / 2 + 4, cardOffsetY + 4, cardW - 8, cardH - 8, 10);
+        ctx.stroke();
+      }
+
+      ctx.textAlign = 'center';
+      ctx.font = 'bold 12px ' + FONT_DISPLAY;
+      ctx.fillStyle = isActive ? ACCENT : '#94a3b8';
+      ctx.fillText(st.label, 0, cardOffsetY + 26);
+
+      ctx.font = '800 16px ' + FONT_DISPLAY;
+      ctx.fillStyle = TEXT_MAIN;
+      ctx.fillText(st.name, 0, cardOffsetY + 52);
+
+      ctx.font = '500 13px ' + FONT_BODY;
+      ctx.fillStyle = TEXT_MUTED;
+      ctx.fillText(st.desc, 0, cardOffsetY + 76);
+
+      const nodeR = isActive ? 22 : 16;
+      ctx.fillStyle = IS_LIGHT ? '#ffffff' : '#0f172a';
+      ctx.beginPath();
+      ctx.arc(0, 0, nodeR, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = isActive ? ACCENT : '#64748b';
+      ctx.lineWidth = isActive ? 4 : 3;
+      ctx.beginPath();
+      ctx.arc(0, 0, nodeR, 0, Math.PI * 2);
+      ctx.stroke();
+
+      sCircle(0, 0, isActive ? 8 : 5, 520 + s, isActive ? '#ffffff' : '#94a3b8', 2, isActive ? ACCENT : '#64748b');
+
+      ctx.restore();
+    }
+
+    ctx.restore();
+
+  } else if (COMP_THEME === 'cognitive_insight') {
+    // Universal Archetype: Cognitive Psychology, Neural Eureka, Theory of Mind & Idea Spark
+    const brainSpring = spring(t, 0.05, 170, 14);
+    const eurekaSpring = spring(t, window.DURATION * 0.35, 160, 12);
+    const orbitSpring = spring(t, 0.40, 180, 15);
+
+    ctx.save();
+    const cScale = Math.min(1, Math.max(0, brainSpring));
+    ctx.translate(cx, cy);
+    ctx.scale(cScale, cScale);
+
+    // Concentric Thought Wave Ripples
+    for (let r = 0; r < 4; r++) {
+      const ripPhase = (t * 0.8 + r * 0.25) % 1.0;
+      const ripR = 90 + ripPhase * 240;
+      ctx.strokeStyle = ACCENT;
+      ctx.globalAlpha = Math.max(0, (1 - ripPhase) * 0.35);
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(0, 0, ripR, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1.0;
+
+    // Cerebral Neural Core / Brain Silhouette
+    const brainR = 120;
+    const coreGrad = ctx.createRadialGradient(0, -20, 20, 0, 0, brainR * 1.5);
+    coreGrad.addColorStop(0, '#fef08a');
+    coreGrad.addColorStop(0.3, ACCENT);
+    coreGrad.addColorStop(0.8, '#6366f1');
+    coreGrad.addColorStop(1, 'rgba(15, 23, 42, 0)');
+
+    ctx.fillStyle = coreGrad;
+    ctx.beginPath();
+    ctx.arc(0, 0, brainR * 1.4, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Neural Synapses
+    const synNodes = [
+      { x: -50, y: -60 }, { x: 0, y: -80 }, { x: 50, y: -60 },
+      { x: -80, y: -20 }, { x: -30, y: -20 }, { x: 30, y: -20 }, { x: 80, y: -20 },
+      { x: -60, y: 30 }, { x: 0, y: 25 }, { x: 60, y: 30 },
+      { x: -25, y: 70 }, { x: 25, y: 70 },
+    ];
+
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < synNodes.length; i++) {
+      for (let j = i + 1; j < synNodes.length; j++) {
+        const dx = synNodes[i].x - synNodes[j].x;
+        const dy = synNodes[i].y - synNodes[j].y;
+        const dist = Math.hypot(dx, dy);
+        if (dist < 75) {
+          ctx.beginPath();
+          ctx.moveTo(synNodes[i].x, synNodes[i].y);
+          ctx.lineTo(synNodes[j].x, synNodes[j].y);
+          ctx.stroke();
+
+          const pulse = (t * 2.5 + i * 0.3 + j * 0.2) % 1.0;
+          const px = synNodes[i].x + (synNodes[j].x - synNodes[i].x) * pulse;
+          const py = synNodes[i].y + (synNodes[j].y - synNodes[i].y) * pulse;
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(px, py, 2.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+
+    for (let n = 0; n < synNodes.length; n++) {
+      const sn = synNodes[n];
+      const fire = Math.sin(t * 8 + n * 1.3);
+      const dotR = 5 + (fire > 0.5 ? 2.5 : 0);
+      sCircle(sn.x, sn.y, dotR, 600 + n, '#ffffff', 2, fire > 0.3 ? '#fef08a' : ACCENT);
+    }
+
+    // Eureka Idea Spark Burst
+    if (eurekaSpring > 0.05) {
+      const eProgress = Math.min(1, Math.max(0, eurekaSpring));
+      ctx.save();
+      ctx.scale(eProgress, eProgress);
+
+      const rays = 12;
+      for (let ry = 0; ry < rays; ry++) {
+        const ang = (ry * Math.PI * 2) / rays + t * 0.4;
+        const len = 140 + Math.sin(t * 6 + ry) * 25;
+        ctx.strokeStyle = ry % 2 === 0 ? '#fef08a' : '#ffffff';
+        ctx.lineWidth = ry % 2 === 0 ? 3 : 1.5;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(ang) * 50, Math.sin(ang) * 50);
+        ctx.lineTo(Math.cos(ang) * len, Math.sin(ang) * len);
+        ctx.stroke();
+      }
+
+      sCircle(0, 0, 18, 650, '#ffffff', 3, '#f59e0b');
+      sCircle(0, 0, 8, 651, '#ffffff', 2, '#ffffff');
+      ctx.restore();
+    }
+
+    // Orbiting Insight Badges
+    if (orbitSpring > 0.05) {
+      const badges = ['PERCEPTION', 'COGNITION', 'INTUITION', 'INSIGHT'];
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, Math.max(0, orbitSpring));
+
+      for (let bg = 0; bg < badges.length; bg++) {
+        const bgAngle = (bg * Math.PI * 2) / badges.length + t * 0.35;
+        const bgX = Math.cos(bgAngle) * 310;
+        const bgY = Math.sin(bgAngle) * 190;
+
+        ctx.fillStyle = CARD_BG;
+        ctx.strokeStyle = CARD_BORDER;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(bgX - 65, bgY - 18, 130, 36, 18);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.font = 'bold 13px ' + FONT_DISPLAY;
+        ctx.fillStyle = TEXT_MAIN;
+        ctx.textAlign = 'center';
+        ctx.fillText(badges[bg], bgX, bgY + 5);
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(bgX, bgY);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    ctx.restore();
+
+  } else if (COMP_THEME === 'magnification_focus') {
+    // Universal Archetype: Optical Loupe, Precision Macro Zoom & Scrutiny Reticle
+    const focusSpring = spring(t, 0.05, 170, 14);
+    const loupeSpring = spring(t, 0.25, 180, 14);
+
+    // Deep research background grid & underlying specimen traces
+    ctx.save();
+    ctx.strokeStyle = IS_LIGHT ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.08)';
+    ctx.lineWidth = 1;
+    for (let gx = 0; gx < W; gx += 40) {
+      ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, H); ctx.stroke();
+    }
+    for (let gy = 0; gy < H; gy += 40) {
+      ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(W, gy); ctx.stroke();
+    }
+
+    for (let tr = 0; tr < 16; tr++) {
+      const trX = cx - 350 + tr * 48;
+      const trY = cy - 200 + ((tr * 73) % 400);
+      sLine(trX, trY, trX + 80, trY + 40, 700 + tr, IS_LIGHT ? 'rgba(0,0,0,0.15)' : 'rgba(56, 189, 248, 0.2)', 2);
+    }
+    ctx.restore();
+
+    // Floating Optical Loupe (Lissajous gentle inspection movement)
+    const loupeR = Math.min(W, H) * 0.26;
+    const lissX = cx + Math.sin(t * 1.1) * 70;
+    const lissY = cy + Math.cos(t * 0.85) * 45;
+
+    ctx.save();
+    const lScale = Math.min(1, Math.max(0, loupeSpring));
+    ctx.translate(lissX, lissY);
+    ctx.scale(lScale, lScale);
+
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+    ctx.beginPath();
+    ctx.arc(15, 20, loupeR, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Inside Magnified Specimen (Clipped Circle)
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(0, 0, loupeR - 8, 0, Math.PI * 2);
+    ctx.clip();
+
+    ctx.fillStyle = IS_LIGHT ? '#ffffff' : '#070f1e';
+    ctx.fillRect(-loupeR, -loupeR, loupeR * 2, loupeR * 2);
+
+    ctx.save();
+    ctx.scale(2.4, 2.4);
+    for (let m = -8; m <= 8; m++) {
+      sLine(m * 22, -loupeR, m * 22, loupeR, 720 + m, 'rgba(56, 189, 248, 0.3)', 1.5);
+      sLine(-loupeR, m * 22, loupeR, m * 22, 740 + m, 'rgba(56, 189, 248, 0.3)', 1.5);
+    }
+    sCircle(0, 0, 36, 760, '#f59e0b', 3, 'rgba(245, 158, 11, 0.2)');
+    sCircle(0, 0, 16, 761, '#ef4444', 2.5, '#ef4444');
+    for (let br = 0; br < 6; br++) {
+      const brA = (br * Math.PI * 2) / 6 + t * 0.5;
+      sLine(0, 0, Math.cos(brA) * 55, Math.sin(brA) * 55, 770 + br, ACCENT, 2.5);
+      sCircle(Math.cos(brA) * 55, Math.sin(brA) * 55, 5, 780 + br, '#ffffff', 1.5, ACCENT);
+    }
+    ctx.restore();
+
+    // Precision Crosshairs & Calibrated Reticle
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(-loupeR + 15, 0); ctx.lineTo(-25, 0);
+    ctx.moveTo(25, 0); ctx.lineTo(loupeR - 15, 0);
+    ctx.moveTo(0, -loupeR + 15); ctx.lineTo(0, -25);
+    ctx.moveTo(0, 25); ctx.lineTo(0, loupeR - 15);
+    ctx.stroke();
+
+    for (let deg = 0; deg < 36; deg++) {
+      const dRad = (deg * Math.PI * 2) / 36;
+      const isMajor = deg % 9 === 0;
+      const tLen = isMajor ? 16 : 8;
+      const rOut = loupeR - 12;
+      const rIn = rOut - tLen;
+      ctx.strokeStyle = isMajor ? ACCENT : 'rgba(255,255,255,0.4)';
+      ctx.lineWidth = isMajor ? 2 : 1;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(dRad) * rIn, Math.sin(dRad) * rIn);
+      ctx.lineTo(Math.cos(dRad) * rOut, Math.sin(dRad) * rOut);
+      ctx.stroke();
+    }
+    ctx.restore(); // End clipping
+
+    // Bezel
+    ctx.strokeStyle = '#d4af37';
+    ctx.lineWidth = 14;
+    ctx.beginPath();
+    ctx.arc(0, 0, loupeR, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.strokeStyle = '#fef08a';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(0, 0, loupeR - 6, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(0, 0, loupeR - 24, -1.8, -0.6);
+    ctx.stroke();
+
+    ctx.fillStyle = CARD_BG;
+    ctx.strokeStyle = ACCENT;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.roundRect(loupeR - 40, -loupeR - 10, 160, 48, 10);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.font = 'bold 12px monospace';
+    ctx.fillStyle = ACCENT;
+    ctx.fillText('MAGNIFY: 250%', loupeR - 26, -loupeR + 12);
+    ctx.fillStyle = TEXT_MAIN;
+    ctx.fillText('POS: ' + Math.round(lissX) + ', ' + Math.round(lissY), loupeR - 26, -loupeR + 28);
+
+    ctx.restore();
+
+  } else if (COMP_THEME === 'waveform') {
     // Kinetic Frequency Equalizer Waveform
     const bars = 36;
     const barW = (W * 0.7) / bars;
@@ -3330,6 +4047,153 @@ function drawMainScene(t) {
       ctx.fillStyle = barGrad;
       ctx.beginPath(); ctx.roundRect(bx, by, barW - 6, hVal, 4); ctx.fill();
     }
+
+  } else {
+    // Universal Semantic Default & Explainer Presentation (Whiteboard Masterclass & Concept Pillars)
+    const boardSpring = spring(t, 0.05, 170, 14);
+    const p1Spring = spring(t, 0.18, 190, 15);
+    const p2Spring = spring(t, 0.32, 190, 15);
+    const p3Spring = spring(t, 0.46, 190, 15);
+
+    const boardW = Math.min(W * 0.88, 1100);
+    const boardH = Math.min(H * 0.68, 620);
+    const boardX = cx - boardW / 2;
+    const boardY = cy - boardH / 2;
+
+    ctx.save();
+    const bScale = Math.min(1, Math.max(0, boardSpring));
+    ctx.translate(cx, cy);
+    ctx.scale(bScale, bScale);
+    ctx.translate(-cx, -cy);
+
+    // Architectural Frosted Glass Presentation Board
+    ctx.fillStyle = CARD_BG;
+    ctx.strokeStyle = CARD_BORDER;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.roundRect(boardX, boardY, boardW, boardH, 24);
+    ctx.fill();
+    ctx.stroke();
+
+    // Board Header Accent Bar
+    ctx.fillStyle = ACCENT;
+    ctx.beginPath();
+    ctx.roundRect(boardX + 32, boardY + 28, 6, 32, 3);
+    ctx.fill();
+
+    ctx.font = '800 22px ' + FONT_DISPLAY;
+    ctx.fillStyle = TEXT_MAIN;
+    ctx.textAlign = 'left';
+    ctx.fillText('CORE PRINCIPLES & ARCHITECTURE', boardX + 48, boardY + 50);
+
+    // Live Status Badge
+    ctx.fillStyle = 'rgba(16, 185, 129, 0.15)';
+    ctx.beginPath();
+    ctx.roundRect(boardX + boardW - 160, boardY + 28, 128, 30, 15);
+    ctx.fill();
+    ctx.fillStyle = '#10b981';
+    ctx.font = 'bold 13px ' + FONT_DISPLAY;
+    ctx.fillText('● SYSTEM ACTIVE', boardX + boardW - 146, boardY + 48);
+
+    // 3 Structured Concept Pillars
+    const pillarData = [
+      { num: '01', title: 'FOUNDATION', desc: 'Core axioms & structure', icon: 'diamond', spr: p1Spring },
+      { num: '02', title: 'DYNAMICS', desc: 'Kinetic transformation', icon: 'gear', spr: p2Spring },
+      { num: '03', title: 'IMPACT', desc: 'Synthesized outcome', icon: 'star', spr: p3Spring },
+    ];
+
+    const pillarW = (boardW - 128) / 3;
+    const pillarH = boardH - 140;
+    const pillarY = boardY + 95;
+
+    for (let p = 0; p < 3; p++) {
+      const pd = pillarData[p];
+      const pilX = boardX + 32 + p * (pillarW + 32);
+      const pAlpha = Math.min(1, Math.max(0, pd.spr));
+
+      ctx.save();
+      ctx.globalAlpha = pAlpha;
+      ctx.translate(pilX, pillarY + (1 - pd.spr) * 40);
+
+      // Pillar Card
+      ctx.fillStyle = IS_LIGHT ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.04)';
+      ctx.strokeStyle = p === 1 ? ACCENT : 'rgba(255,255,255,0.1)';
+      ctx.lineWidth = p === 1 ? 2.5 : 1.5;
+      ctx.beginPath();
+      ctx.roundRect(0, 0, pillarW, pillarH, 16);
+      ctx.fill();
+      ctx.stroke();
+
+      // Number Tag
+      ctx.font = '900 48px ' + FONT_DISPLAY;
+      ctx.fillStyle = p === 1 ? ACCENT : (IS_LIGHT ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.12)');
+      ctx.fillText(pd.num, 24, 60);
+
+      // Pillar Title
+      ctx.font = '700 20px ' + FONT_DISPLAY;
+      ctx.fillStyle = TEXT_MAIN;
+      ctx.fillText(pd.title, 24, 110);
+
+      // Pillar Description
+      ctx.font = '500 15px ' + FONT_BODY;
+      ctx.fillStyle = TEXT_MUTED;
+      ctx.fillText(pd.desc, 24, 138);
+
+      // Dynamic Animated Diagram Graphic inside Pillar
+      const gfxY = pillarH * 0.65;
+      const gfxX = pillarW / 2;
+
+      if (pd.icon === 'diamond') {
+        ctx.save();
+        ctx.translate(gfxX, gfxY);
+        ctx.rotate(t * 1.2);
+        ctx.strokeStyle = ACCENT;
+        ctx.lineWidth = 3;
+        ctx.strokeRect(-28, -28, 56, 56);
+        sCircle(0, 0, 10, 800, '#ffffff', 2, ACCENT);
+        ctx.restore();
+      } else if (pd.icon === 'gear') {
+        sCircle(gfxX, gfxY, 36, 810, ACCENT, 3);
+        const pulseR = 20 + Math.sin(t * 5) * 8;
+        sCircle(gfxX, gfxY, pulseR, 811, '#ffffff', 2, '#38bdf8');
+      } else {
+        for (let st = 0; st < 4; st++) {
+          const ang = (st * Math.PI) / 2 + t * 0.8;
+          sLine(gfxX, gfxY, gfxX + Math.cos(ang) * 36, gfxY + Math.sin(ang) * 36, 820 + st, '#f59e0b', 3);
+        }
+        sCircle(gfxX, gfxY, 8, 825, '#ffffff', 2, '#f59e0b');
+      }
+
+      // Feature Check items
+      for (let ch = 0; ch < 3; ch++) {
+        const itemY = pillarH - 85 + ch * 24;
+        sCircle(28, itemY, 4, 830 + ch, ACCENT, 2, ACCENT);
+        ctx.fillStyle = TEXT_MAIN;
+        ctx.font = '500 13px ' + FONT_BODY;
+        ctx.fillText('Verification Key 0' + (ch + 1), 42, itemY + 4);
+      }
+
+      ctx.restore();
+    }
+
+    // Inter-Pillar Energy Connectors
+    ctx.strokeStyle = ACCENT;
+    ctx.lineWidth = 2.5;
+    for (let c = 0; c < 2; c++) {
+      const connX1 = boardX + 32 + (c + 1) * pillarW + c * 32 - 16;
+      const connX2 = connX1 + 32;
+      const connY = pillarY + 80;
+      sLine(connX1, connY, connX2, connY, 850 + c, ACCENT, 3);
+      ctx.fillStyle = ACCENT;
+      ctx.beginPath();
+      ctx.moveTo(connX2 + 4, connY);
+      ctx.lineTo(connX2 - 4, connY - 5);
+      ctx.lineTo(connX2 - 4, connY + 5);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    ctx.restore();
   }
 
   ctx.restore();

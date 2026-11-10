@@ -20,12 +20,14 @@ check('batch handling',              code.includes('Array.isArray(body)'));
 check('ping handler',                code.includes("method === 'ping'"));
 check('notifications/init',          code.includes("notifications/initialized"));
 check('body size limit',             code.includes('MAX_BODY_BYTES'));
-check('SERVER_INFO version 2.4.8',   code.includes("version: '2.4.8'"));
+check('SERVER_INFO version 2.4.9',   code.includes("version: '2.4.9'"));
 check('18 tools defined (incl get_job_status)', code.includes('get_job_status'));
 check('export_to_editor tool defined', code.includes('export_to_editor'));
 check('edit_video tool defined', code.includes('edit_video'));
 check('generate_scene_code tool defined', code.includes('generate_scene_code'));
 check('preview_scene tool defined', code.includes('preview_scene'));
+check('verify_scene_quality tool defined', code.includes('verify_scene_quality'));
+check('plan_video_edit tool defined', code.includes('plan_video_edit'));
 check('video-editor exists', fs.existsSync('./src/video-editor/editor.js'));
 check('voxforge TTS provider', code.includes('voxforge'));
 const pkg = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
@@ -287,10 +289,12 @@ check('harness/lib/capture.mjs exists',       fs.existsSync('./src/harness/lib/c
 check('harness/lib/jobs.mjs exists',          fs.existsSync('./src/harness/lib/jobs.mjs'));
 check('harness/lib/sheets.mjs exists',        fs.existsSync('./src/harness/lib/sheets.mjs'));
 check('harness/lib/verify-purity.mjs exists', fs.existsSync('./src/harness/lib/verify-purity.mjs'));
+check('harness/lib/verify-quality.mjs exists', fs.existsSync('./src/harness/lib/verify-quality.mjs'));
 check('harness/lib/pixels.mjs exists',        fs.existsSync('./src/harness/lib/pixels.mjs'));
 check('harness/lib/encode.mjs exists',        fs.existsSync('./src/harness/lib/encode.mjs'));
 check('asset harness.mjs exists',             fs.existsSync(`${engineAssetBase}/scripts/harness.mjs`));
 check('asset verify-purity.mjs exists',       fs.existsSync(`${engineAssetBase}/scripts/verify-purity.mjs`));
+check('asset verify-quality.mjs exists',      fs.existsSync(`${engineAssetBase}/scripts/verify-quality.mjs`));
 
 // ── Cloudflare Worker rate limiting ───────────────────────────────────────
 console.log('\n=== Cloudflare Worker rate limiting ===');
@@ -299,13 +303,15 @@ check('cf-worker has checkRateLimit',   cfWorker.includes('checkRateLimit'));
 check('cf-worker hashes token (SHA-256)', cfWorker.includes('SHA-256'));
 check('cf-worker uses RATE_LIMITS KV',  cfWorker.includes('env.RATE_LIMITS'));
 check('cf-worker returns 429 on limit', cfWorker.includes('429'));
-check('cf-worker version 2.4.8',        cfWorker.includes("'2.4.8'"));
+check('cf-worker version 2.4.9',        cfWorker.includes("'2.4.9'"));
 check('wrangler.toml has kv_namespaces',fs.readFileSync('./cloudflare-mcp/wrangler.toml','utf8').includes('kv_namespaces'));
 
 // ── plugins/skills present ────────────────────────────────────────────────
 console.log('\n=== Plugin skills ===');
 check('video-pipeline SKILL.md exists', fs.existsSync('./plugins/video-pipeline/skills/video-pipeline/SKILL.md'));
 check('html-renderer SKILL.md exists',  fs.existsSync('./plugins/video-pipeline/skills/html-renderer/SKILL.md'));
+check('motion-craft reference exists', fs.existsSync('./plugins/video-pipeline/skills/html-renderer/references/motion-craft.md'));
+check('render-contract reference exists', fs.existsSync('./plugins/video-pipeline/skills/html-renderer/references/render-contract.md'));
 
 // ── Security: no .kiro references in committed source ────────────────────
 console.log('\n=== No stale .kiro references in source ===');
