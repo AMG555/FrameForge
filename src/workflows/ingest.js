@@ -131,6 +131,72 @@ function discoverScenesFromDir(mediaDir) {
   }));
 }
 
+/**
+ * Parse a markdown-formatted video script (e.g. from Claude/LLM output)
+ * into a structured scenes array with timestamps, visual prompts, and narration.
+ */
+function parseMarkdownScript(content) {
+  if (!content || typeof content !== 'string') return { title: '', scenes: [] };
+
+  function parseTime(str) {
+    const parts = str.split(':').map(Number);
+    if (parts.length === 2) return parts[0] * 60 + parts[1];
+    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    return parseFloat(str) || 0;
+  }
+
+  let title = '';
+  const titleMatch = content.match(/^#\s+([^\n]+)/m) || content.match(/\*\*([^*]+)\*\*\s*\n\s*\*\*\d+-Minute/i);
+  if (titleMatch) title = titleMatch[1].replace(/^[#\s]+/, '').trim();
+
+  // Split into scene blocks by ## SCENE XX or ### SCENE XX
+  const sceneBlocks = content.split(/(?=^#{2,3}\s+SCENE\s+\d+)/mi);
+  const scenes = [];
+
+  for (const block of sceneBlocks) {
+    const matchHeader = block.match(/^#{2,3}\s+SCENE\s+(\d+)(?:\s*[-—–:]\s*([^\n]+))?/i);
+    if (!matchHeader) continue;
+    const sceneId = parseInt(matchHeader[1], 10);
+    const sceneTitle = (matchHeader[2] || '').trim();
+
+    // Time: mm:ss–mm:ss or mm:ss-mm:ss
+    const timeMatch = block.match(/\*\*Time:\s*(\d+:\d+(?:\.\d+)?)\s*[–—\-]\s*(\d+:\d+(?:\.\d+)?)\*\*/i);
+    let duration = null;
+    let startTime = null;
+    let endTime = null;
+    if (timeMatch) {
+      startTime = parseTime(timeMatch[1]);
+      endTime = parseTime(timeMatch[2]);
+      duration = Math.max(1, endTime - startTime);
+    }
+
+    // Animation prompt / Visual description
+    const promptMatch = block.match(/\*\*(?:ANIMATION PROMPT(?:\s*\([^)]*\))?|VISUAL DESCRIPTION|PROMPT):\*\*\s*([\s\S]*?)(?=\n\s*\*\*[A-Z]|\n\s*#{2,3}|$)/i);
+    const visualDescription = promptMatch ? promptMatch[1].trim() : '';
+
+    // Voice over / Narration
+    const voMatch = block.match(/\*\*(?:[A-Za-z\s]+)?(?:VOICE\s*OVER|VOICEOVER|NARRATION|SPEECH):\*\*\s*([\s\S]*?)(?=\n\s*#{2,3}|\n\s*\*\*SCENE|$)/i);
+    let narration = voMatch ? voMatch[1].replace(/---[\s\S]*$/, '').trim() : '';
+    narration = narration.replace(/\\!/g, '!').trim();
+
+    scenes.push({
+      scene_id: sceneId,
+      title: sceneTitle,
+      duration,
+      start_time: startTime,
+      end_time: endTime,
+      visual_description: visualDescription,
+      prompt: visualDescription,
+      narration,
+      caption: sceneTitle ? sceneTitle.toUpperCase().slice(0, 40) : '',
+      camera_hint: 'auto',
+      music_mood: 'neutral',
+    });
+  }
+
+  return { title, scenes };
+}
+
 // ── Manifest normalizer ───────────────────────────────────────────────────────
 
 /**
@@ -184,7 +250,9 @@ function normaliseIngestScene(raw, index, baseDir = process.cwd()) {
     sound_effects: Array.isArray(raw.sound_effects) ? raw.sound_effects : [],
     metadata:     raw.metadata     || { importance: 'medium', hook_potential: 0.5, standalone: false },
     // Duration hint — used by renderer if provided (otherwise audio-driven)
-    duration:     typeof raw.duration === 'number' ? raw.duration : null,
+    duration:   typeof raw.duration === 'number' ? raw.duration : (raw.duration ? Number(raw.duration) : null),
+    start_time: typeof raw.start_time === 'number' ? raw.start_time : (raw.startTime != null ? Number(raw.startTime) : null),
+    end_time:   typeof raw.end_time === 'number' ? raw.end_time : (raw.endTime != null ? Number(raw.endTime) : null),
   };
 }
 
@@ -217,10 +285,17 @@ async function runIngest({ productionId, scenesFile, mediaDir, rawScenes, outDir
     const absPath = path.resolve(process.cwd(), scenesFile);
     if (!fs.existsSync(absPath)) throw new Error(`Scenes file not found: ${absPath}`);
     const content = fs.readFileSync(absPath, 'utf8');
-    const parsed  = JSON.parse(content);
-    rawList = Array.isArray(parsed) ? parsed : (parsed.scenes || parsed.data || []);
-    baseDir = path.dirname(absPath);
-    console.log(`[Ingest] Loaded ${rawList.length} scene(s) from: ${absPath}`);
+    if (/\.(md|markdown)$/i.test(absPath) || (!content.trim().startsWith('{') && !content.trim().startsWith('['))) {
+      const parsedMd = parseMarkdownScript(content);
+      rawList = parsedMd.scenes;
+      baseDir = path.dirname(absPath);
+      console.log(`[Ingest] Parsed ${rawList.length} scene(s) from Markdown script: ${absPath}`);
+    } else {
+      const parsed  = JSON.parse(content);
+      rawList = Array.isArray(parsed) ? parsed : (parsed.scenes || parsed.data || []);
+      baseDir = path.dirname(absPath);
+      console.log(`[Ingest] Loaded ${rawList.length} scene(s) from: ${absPath}`);
+    }
   } else if (mediaDir) {
     rawList = discoverScenesFromDir(mediaDir);
     baseDir = path.resolve(mediaDir);
@@ -299,4 +374,4 @@ async function runIngest({ productionId, scenesFile, mediaDir, rawScenes, outDir
   };
 }
 
-module.exports = { runIngest, normaliseIngestScene, discoverScenesFromDir };
+module.exports = { runIngest, normaliseIngestScene, discoverScenesFromDir, parseMarkdownScript };

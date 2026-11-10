@@ -385,9 +385,9 @@ function detectComponentTheme({ visualDescription = '', visual_description = '',
     return 'metric';
   }
 
-  // Timeline / Milestones / Chronology
-  if (/(?:^|[^\w])(timeline|milestone|chronology|history|evolution|roadmap|phase|journey|centuries|years|era|ancient|century|dynasty|temple|monument)(?:[^\w]|$)/.test(text)
-      || /ചരിത്ര|പുരാതന|സാമ്രാജ്യ|രാജവംശ|പാരമ്പര്യ|ഇതിഹാസ|इतिहास|प्राचीन|धरोहर/.test(text)) {
+  // Timeline / Milestones / Chronology - strictly explicit roadmap/milestone chart requests only
+  if (/(?:^|[^\w])(timeline|roadmap|milestone chart|milestone roadmap)(?:[^\w]|$)/i.test(text)
+      || /ടൈംലൈൻ|റോഡ്മാപ്പ്/.test(text)) {
     return 'timeline';
   }
 
@@ -417,7 +417,7 @@ function detectComponentTheme({ visualDescription = '', visual_description = '',
 
   // Fallbacks matched to aesthetic
   if (aesthetic === 'cosmic_space') return 'celestial_orbit';
-  if (aesthetic === 'cinematic_documentary') return 'timeline';
+  if (aesthetic === 'cinematic_documentary') return 'doodle_general_human';
   if (aesthetic === 'finance_executive') return 'chart';
   if (aesthetic === 'nature_organic') return 'dna_helix';
   if (aesthetic === 'breaking_news') return 'radar_globe';
@@ -537,6 +537,7 @@ function detectCaptionsRequested(text = '') {
  * Paints full-canvas cinematic procedural animations — zero PPT card slideshow patterns.
  */
 function generateSceneHtml({
+  prompt = '',
   caption = '',
   narration = '',
   visualDescription = '',
@@ -557,7 +558,7 @@ function generateSceneHtml({
 } = {}) {
   const captionsWanted = Boolean(
     showCaptions ||
-    detectCaptionsRequested(`${caption} ${narration} ${topic} ${visualDescription} ${style} ${title}`) ||
+    detectCaptionsRequested(prompt || topic) ||
     process.env.FRAMEFORGE_SHOW_CAPTIONS === '1'
   );
   const aestheticKey = detectAesthetic({
@@ -933,7 +934,7 @@ function drawMainScene(t) {
     torsoHeight = 90,
     legLength = 95,
     hairStyle = 'wild',
-    expression = 'talking',
+    expression = 'natural',
     clothing = 'none',
     armPose = 'natural',
     showShadow = false,
@@ -1771,7 +1772,7 @@ function drawMainScene(t) {
       y: cy + 140,
       scale: 1.35,
       hairStyle: 'modern',
-      expression: beat3 > 0.5 ? 'smiling' : 'talking',
+      expression: beat3 > 0.5 ? 'smiling' : 'natural',
       clothing: 'shirt',
       armPose: beat2 > 0.5 ? 'dress_shirt' : 'natural',
       showShadow: true,
@@ -2089,7 +2090,7 @@ function drawMainScene(t) {
       y: cy + 140,
       scale: 1.35,
       hairStyle: 'wild',
-      expression: swatting ? 'shivering' : 'talking',
+      expression: swatting ? 'shivering' : 'focused',
       clothing: 'none',
       armPose: 'hold_spear',
       showShadow: true,
@@ -2135,7 +2136,7 @@ function drawMainScene(t) {
       y: cy + 140,
       scale: 1.35,
       hairStyle: 'wild',
-      expression: 'talking',
+      expression: 'focused',
       clothing: 'pelt',
       armPose: 'sewing',
       showShadow: true,
@@ -2299,7 +2300,7 @@ function drawMainScene(t) {
       y: cy + 140,
       scale: 1.3,
       hairStyle: 'wild',
-      expression: 'talking',
+      expression: 'focused',
       clothing: 'pelt',
       armPose: greet > 0.5 ? 'peace_gesture' : 'natural',
       showShadow: true,
@@ -2360,7 +2361,7 @@ function drawMainScene(t) {
       y: cy + 130,
       scale: 1.35,
       hairStyle: 'wild',
-      expression: 'talking',
+      expression: 'focused',
       clothing: 'pelt',
       armPose: 'thinker',
       seed: 108,
@@ -2465,14 +2466,45 @@ function drawMainScene(t) {
     }
 
   } else if (COMP_THEME === 'doodle_general_human') {
-    // General Expressive Illustrated Human Narrator
-    sLine(0, cy + 140, W, cy + 140, 10, AMBIENT_LINE, 2);
+    // Dynamic Prehistoric / Ancient Landscape with Travelling Human Explorer (Walking across screen)
+    const walkP = Math.min(1, Math.max(0, t / window.DURATION));
+    const charX = cx - 240 + walkP * 380;
+
+    // Atmospheric warm background with rolling terrain
+    const skyG = ctx.createLinearGradient(0, 0, 0, cy + 140);
+    skyG.addColorStop(0, '#fef3c7');
+    skyG.addColorStop(0.6, '#fde68a');
+    skyG.addColorStop(1, '#fef9c3');
+    ctx.fillStyle = skyG;
+    ctx.fillRect(0, 0, W, cy + 140);
+
+    // Distant ancient hills
+    ctx.fillStyle = 'rgba(217, 119, 6, 0.25)';
+    ctx.beginPath();
+    ctx.moveTo(0, cy + 140);
+    ctx.quadraticCurveTo(W * 0.25, cy + 20, W * 0.5, cy + 80);
+    ctx.quadraticCurveTo(W * 0.75, cy + 30, W, cy + 140);
+    ctx.closePath();
+    ctx.fill();
+
+    // Foreground terrain
+    ctx.fillStyle = '#451a03';
+    ctx.fillRect(0, cy + 140, W, H - (cy + 140));
+    sLine(0, cy + 140, W, cy + 140, 10, '#d97706', 3);
+
+    // Natural grass foliage
+    for (let g = 0; g < 32; g++) {
+      const gx = g * 60;
+      const sway = Math.sin(t * 3.0 + g * 0.5) * 12;
+      sLine(gx, cy + 140, gx + sway, cy + 85, 400 + g, '#b45309', 2);
+    }
+
     drawDoodleCharacter({
-      x: cx,
+      x: charX,
       y: cy + 140,
-      scale: 1.4,
+      scale: 1.35,
       hairStyle: 'wild',
-      expression: 'talking',
+      expression: 'natural',
       clothing: 'pelt',
       armPose: 'natural',
       showShadow: true,
@@ -3018,16 +3050,7 @@ function drawCinematicOverlay(t) {
 
   ctx.restore();
 
-  // Bottom Progress Indicator (minimal line)
-  ctx.save();
-  const progress = Math.min(1, Math.max(0, t / window.DURATION));
-  ctx.globalAlpha = 0.85;
-  const progGrad = ctx.createLinearGradient(0, 0, W, 0);
-  progGrad.addColorStop(0, ACCENT);
-  progGrad.addColorStop(1, ACCENT2);
-  ctx.fillStyle = progGrad;
-  ctx.fillRect(0, H - 4, W * progress, 4);
-  ctx.restore();
+
 }
 
 // ── Master Seek Hook ───────────────────────────────────────────────────────────

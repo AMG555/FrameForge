@@ -355,9 +355,10 @@ const TOOLS = {
         theme:        { type: 'string',  description: 'Theme preset alias' },
         title:        { type: 'string',  description: 'Video title' },
         language:     { type: 'string',  description: 'BCP-47 language hint (e.g. ml, hi, en, ta)' },
+        showCaptions: { type: 'boolean', default: false, description: 'Display on-screen synchronized subtitles/captions. Default false.' },
       },
     },
-    handler: async ({ productionId, scenes, orientation = 'landscape', skipImages = false, skipTts = false, withMusic = true, musicVolume = 0.07, topic = '', style = '', theme = '', title = '', language = '' }) => {
+    handler: async ({ productionId, scenes, orientation = 'landscape', skipImages = false, skipTts = false, withMusic = true, musicVolume = 0.07, topic = '', style = '', theme = '', title = '', language = '', showCaptions = false }) => {
       const syncFs = require('fs');
       const { runAssets }   = require('../workflows/assets');
       const { runRender }   = require('../workflows/render');
@@ -641,6 +642,9 @@ Example scene:
         style:              s.style              || style || '',
         theme:              s.theme              || theme || '',
         language:           s.language           || language || '',
+        duration:           s.duration != null ? Number(s.duration) : null,
+        start_time:         s.start_time != null ? Number(s.start_time) : (s.startTime != null ? Number(s.startTime) : null),
+        end_time:           s.end_time != null ? Number(s.end_time) : (s.endTime != null ? Number(s.endTime) : null),
         character:          s.character          || { character_id: 'none', pose: 'none', emotion: 'neutral', position: { x: 0.5, y: 0.8, scale: 1.0 } },
         focal_point:        s.focal_point        || { x: 0.5, y: 0.35, weight: 0.8 },
         overlay:            s.overlay            || { type: 'none' },
@@ -1637,7 +1641,7 @@ Allows the agent in Claude Code, Cursor, or any IDE to inspect the visual output
 
 const SERVER_INFO = {
   name:    'video-pipeline',
-  version: '2.4.6',
+  version: '2.4.7',
 };
 
 const CAPABILITIES = {

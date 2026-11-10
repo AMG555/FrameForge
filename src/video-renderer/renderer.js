@@ -167,16 +167,15 @@ class VideoRenderer {
     startTime = 0,
     trimStart,
     endTime,
+    duration = null,
     trimEnd,
     speed = 1.0,
     clipVolume = 0,
     colorGrade = null,
     showCaptions = false,
   } = {}) {
-    const { detectCaptionsRequested } = require('./scene-animator');
     const effectiveShowCaptions = Boolean(
       showCaptions ||
-      detectCaptionsRequested(`${caption} ${narration} ${topic} ${style} ${visualDescription}`) ||
       process.env.FRAMEFORGE_SHOW_CAPTIONS === '1'
     );
     const outputPath = path.join(this.vdir, `scene_${sceneIndex}_out.mp4`);
@@ -189,12 +188,13 @@ class VideoRenderer {
 
     fs.mkdirSync(this.vdir, { recursive: true });
 
-    // Duration from voice file.
+    // Duration from voice file or explicit scene duration.
     if (!voicePath || !fs.existsSync(voicePath)) {
       throw new Error(`Scene ${sceneIndex} render failed: voicePath is missing or does not exist (${voicePath})`);
     }
-    const dur        = this._getAudioDuration(voicePath);
-    const clampedDur = Math.max(2, Number.isFinite(dur) ? dur + 0.15 : 3.15);
+    const voiceDur   = this._getAudioDuration(voicePath);
+    const dur        = (typeof duration === 'number' && duration > 0) ? Math.max(duration, voiceDur) : voiceDur;
+    const clampedDur = Math.max(1, Number.isFinite(dur) ? dur + 0.15 : 3.15);
 
     const isVideoInput = Boolean(videoPath) || (videoPath && /\.(mp4|mov|webm|mkv|m4v)$/i.test(videoPath));
 

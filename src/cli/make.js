@@ -354,21 +354,36 @@ async function runSingleVideo(args, topic, outDir, workflows) {
     }
   }
 
-  // ── Script file bypass (--script-file): skip research, load approved JSON ──
+  // ── Script file bypass (--script-file): skip research, load approved JSON or Markdown ──
   if (args.scriptFile && !scenes) {
     logSection('Loading Approved Script');
     const absScript = path.resolve(process.cwd(), args.scriptFile);
     if (!fs.existsSync(absScript)) throw new Error(`Script file not found: ${absScript}`);
-    const raw = JSON.parse(fs.readFileSync(absScript, 'utf8'));
-    const scriptData = raw.script || raw;
-    scenes      = scriptData.scenes;
-    productionId = scriptData.productionId || raw.productionId || `script_${Date.now()}`;
-    title       = scriptData.title || topic || 'Video';
-    description = scriptData.description || '';
-    tags        = scriptData.tags || [];
-    thumbnailPrompt = scriptData.thumbnailPrompt || null;
-    totalWords  = scriptData.totalWords || scenes?.reduce((n, s) => n + (s.narration || '').split(/\s+/).filter(Boolean).length, 0) || 0;
-    log('Script', `✅  Loaded ${scenes?.length} scenes from: ${absScript}`);
+    const content = fs.readFileSync(absScript, 'utf8');
+
+    if (/\.(md|markdown)$/i.test(absScript) || (!content.trim().startsWith('{') && !content.trim().startsWith('['))) {
+      const { parseMarkdownScript } = require('../workflows/ingest');
+      const parsedMd = parseMarkdownScript(content);
+      scenes = parsedMd.scenes;
+      productionId = `script_${Date.now()}`;
+      title = parsedMd.title || topic || 'Video';
+      description = '';
+      tags = [];
+      thumbnailPrompt = null;
+      totalWords = scenes?.reduce((n, s) => n + (s.narration || '').split(/\s+/).filter(Boolean).length, 0) || 0;
+      log('Script', `✅  Parsed ${scenes?.length} scenes from Markdown: ${absScript}`);
+    } else {
+      const raw = JSON.parse(content);
+      const scriptData = raw.script || raw;
+      scenes      = scriptData.scenes;
+      productionId = scriptData.productionId || raw.productionId || `script_${Date.now()}`;
+      title       = scriptData.title || topic || 'Video';
+      description = scriptData.description || '';
+      tags        = scriptData.tags || [];
+      thumbnailPrompt = scriptData.thumbnailPrompt || null;
+      totalWords  = scriptData.totalWords || scenes?.reduce((n, s) => n + (s.narration || '').split(/\s+/).filter(Boolean).length, 0) || 0;
+      log('Script', `✅  Loaded ${scenes?.length} scenes from: ${absScript}`);
+    }
 
     if (args.dryRun) {
       logSection('Dry Run Complete');
