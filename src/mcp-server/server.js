@@ -1641,7 +1641,7 @@ Allows the agent in Claude Code, Cursor, or any IDE to inspect the visual output
 
 const SERVER_INFO = {
   name:    'video-pipeline',
-  version: '2.4.7',
+  version: '2.4.8',
 };
 
 const CAPABILITIES = {

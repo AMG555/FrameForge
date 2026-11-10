@@ -126,6 +126,9 @@ describe('scene-animator detectComponentTheme', () => {
     assert.equal(detectComponentTheme({ narration: 'അപരിചിതരായ ആളുകൾ തമ്മിൽ കാണാൻ തുടങ്ങി രണ്ടു ഗോത്രങ്ങൾ' }), 'doodle_tribe_meeting');
     assert.equal(detectComponentTheme({ caption: 'Planning for tomorrow thinking by campfire' }), 'doodle_thinking_future');
     assert.equal(detectComponentTheme({ caption: 'Lice evolution microscope 170,000 years ago' }), 'doodle_microscope_lice');
+    assert.equal(detectComponentTheme({ visualDescription: 'Draw an animated world map with Africa highlighted and migration arrows' }), 'doodle_map_migration');
+    assert.equal(detectComponentTheme({ visualDescription: 'Royal robes crown and ornaments status and power' }), 'doodle_royal_status');
+    assert.equal(detectComponentTheme({ prompt: 'Animated Subscribe button and notification bell outro' }), 'doodle_outro_subscribe');
   });
 
   it('prioritizes image when imagePath is given', () => {

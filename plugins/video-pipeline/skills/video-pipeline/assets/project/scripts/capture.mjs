@@ -23,6 +23,20 @@ export const VIRTUAL_CLOCK_INJECTION = `
 
   // 1. Deterministic clocks
   performance.now = () => _now;
+  const OriginalDate = window.Date;
+  class VirtualDate extends OriginalDate {
+    constructor(...args) {
+      if (args.length === 0) {
+        super(_startDate + _now);
+      } else {
+        super(...args);
+      }
+    }
+    static now() {
+      return Math.floor(_startDate + _now);
+    }
+  }
+  window.Date = VirtualDate;
   Date.now = () => _startDate + _now;
 
   // 2. Deterministic requestAnimationFrame
@@ -60,6 +74,9 @@ export const VIRTUAL_CLOCK_INJECTION = `
 
   // 4. Deterministic Seeded PRNG fallback for unseeded Math.random()
   let _seed = 0x2F6E2B1;
+  const resetSeed = (tSec) => {
+    _seed = (0x2F6E2B1 ^ Math.imul(Math.floor(tSec * 1000), 0x9E3779B9)) | 0;
+  };
   window.Math.random = () => {
     _seed = (_seed + 0x6D2B79F5) | 0;
     let t = Math.imul(_seed ^ (_seed >>> 15), 1 | _seed);
@@ -84,16 +101,30 @@ export const VIRTUAL_CLOCK_INJECTION = `
     currentRafs.forEach(cb => { try { cb(_now); } catch (_) {} });
 
     try {
-      document.getAnimations().forEach(a => {
-        if (a.playState !== 'paused') a.pause();
-        a.currentTime = _now;
-      });
+      if (document.getAnimations) {
+        document.getAnimations().forEach(a => {
+          if (a.playState !== 'paused') a.pause();
+          a.currentTime = _now;
+        });
+      }
     } catch (_) {}
   };
 
   // 6. Absolute virtual seek
   window.__seek = async (t) => {
     _now = t * 1000;
+    resetSeed(t);
+
+    // Pause & seek CSS animations
+    try {
+      if (document.getAnimations) {
+        document.getAnimations().forEach(a => {
+          if (a.playState !== 'paused') a.pause();
+          a.currentTime = _now;
+        });
+      }
+    } catch (_) {}
+
     if (window.renderAt) {
       await window.renderAt(t);
     } else if (window.seek) {

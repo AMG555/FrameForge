@@ -343,7 +343,25 @@ function detectComponentTheme({ visualDescription = '', visual_description = '',
     return 'doodle_dressing';
   }
 
-  // 10. General Human Character
+  // 10. Map / Migration / Ancient World / Out of Africa (Scene 10)
+  if (/(?:^|[^\w])(migration|migrating|migrate|map with africa|africa highlighted|colder regions|climate illustrations|out of africa|geographic migration|migration arrows|continent map|world map)(?:[^\w]|$)/i.test(text)
+      || /കുടിയേറുന്നതിന്|കുടിയേറ്റം|ആഫ്രിക്ക|ഭൂപടത്തിൽ ആഫ്രിക്ക|മൈഗ്രേഷൻ|തണുപ്പുള്ള പ്രദേശങ്ങളിലേക്ക് കുടിയേറാൻ|ഭൂപടം|ഭൂഖണ്ഡം/.test(text)) {
+    return 'doodle_map_migration';
+  }
+
+  // 11. Royal Robes / Social Status / Ornaments / Crown / Wealth & Authority (Scene 16)
+  if (/(?:^|[^\w])(royal robe|royal robes|crown|sceptre|ornaments|status and power|hierarchy|wealth authority|noble clothing|decorated garments)(?:[^\w]|$)/i.test(text)
+      || /സമ്പത്തിന്റെയും അധികാരത്തിന്റെയും|രാജകീയ|കിരീടം|സാമൂഹിക സ്ഥാനം|അധികാരത്തിന്റെ അടയാളം/.test(text)) {
+    return 'doodle_royal_status';
+  }
+
+  // 12. Outro / Subscribe / Notification Bell / Channel Engagement (Scene 25)
+  if (/(?:^|[^\w])(subscribe|notification bell|youtube outro|channel subscribe|outro|subscribe button|like and subscribe)(?:[^\w]|$)/i.test(text)
+      || /സബ്സ്ക്രൈബ്|ചാനൽ സബ്സ്ക്രൈബ്|സബ്സ്ക്രൈബ് ചെയ്യൂ|ബെൽ ഐക്കൺ|നന്ദി/.test(text)) {
+    return 'doodle_outro_subscribe';
+  }
+
+  // 13. General Human Character
   if (/(?:^|[^\w])(human|person|man|woman|people|child|guy|doodle|character|actor)(?:[^\w]|$)/i.test(text)
       || /മനുഷ്യൻ|ആളുകൾ|വ്യക്തി/.test(text)) {
     return 'doodle_general_human';
@@ -575,6 +593,7 @@ function generateSceneHtml({
   const aesthetic = AESTHETICS[aestheticKey] || AESTHETICS.cyber_tech;
   const compTheme = detectComponentTheme({
     visualDescription,
+    prompt,
     caption,
     narration,
     topic,
@@ -2510,6 +2529,338 @@ function drawMainScene(t) {
       showShadow: true,
       seed: 110,
     });
+  } else if (COMP_THEME === 'doodle_map_migration') {
+    // Scene 10: Hand-Drawn Migration Map / Out of Africa / Ancient World Routes
+    const mapSpring = spring(t, 0.05, 170, 14);
+    const arrowSpring = spring(t, window.DURATION * 0.35, 180, 15);
+    const walkProg = Math.min(1, Math.max(0, (t - window.DURATION * 0.2) / (window.DURATION * 0.75)));
+
+    // Antique parchment background wash
+    ctx.save();
+    ctx.fillStyle = IS_LIGHT ? '#faf5ec' : '#1c1917';
+    ctx.fillRect(0, 0, W, H);
+
+    // Decorative map grid lines (latitude/longitude in subtle ink)
+    ctx.strokeStyle = IS_LIGHT ? 'rgba(180, 83, 9, 0.12)' : 'rgba(255, 255, 255, 0.1)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([6, 6]);
+    for (let gx = 100; gx < W; gx += 200) {
+      ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, H); ctx.stroke();
+    }
+    for (let gy = 80; gy < H; gy += 160) {
+      ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(W, gy); ctx.stroke();
+    }
+    ctx.setLineDash([]);
+
+    // Hand-drawn stylized continent outlines (Africa, Europe, Asia)
+    const mapCenter = cx - 40;
+    const mapY = cy - 20;
+
+    // 1. Africa Outline (Highlighted in warm terracotta wash)
+    ctx.save();
+    ctx.fillStyle = 'rgba(217, 119, 6, 0.20)';
+    ctx.beginPath();
+    ctx.moveTo(mapCenter - 140, mapY - 60); // West bulge
+    ctx.bezierCurveTo(mapCenter - 160, mapY + 20, mapCenter - 80, mapY + 140, mapCenter - 40, mapY + 220); // South tip (Good Hope)
+    ctx.bezierCurveTo(mapCenter + 10, mapY + 160, mapCenter + 40, mapY + 60, mapCenter + 60, mapY - 20); // Horn of Africa
+    ctx.bezierCurveTo(mapCenter + 30, mapY - 60, mapCenter - 20, mapY - 80, mapCenter - 140, mapY - 60); // North Coast
+    ctx.closePath();
+    ctx.fill();
+
+    // Outline stroke with ink wobble
+    sLine(mapCenter - 140, mapY - 60, mapCenter - 160, mapY + 20, 710, '#c2410c', 3);
+    sLine(mapCenter - 160, mapY + 20, mapCenter - 40, mapY + 220, 711, '#c2410c', 3);
+    sLine(mapCenter - 40, mapY + 220, mapCenter + 60, mapY - 20, 712, '#c2410c', 3);
+    sLine(mapCenter + 60, mapY - 20, mapCenter - 140, mapY - 60, 713, '#c2410c', 3);
+
+    // Africa label badge
+    ctx.fillStyle = '#b45309';
+    ctx.font = '700 22px ' + FONT_DISPLAY;
+    ctx.textAlign = 'center';
+    ctx.fillText('AFRICA', mapCenter - 40, mapY + 60);
+
+    // Sun icon over Africa
+    sCircle(mapCenter - 90, mapY + 40, 18, 714, '#d97706', 2.5, '#fef08a');
+    for (let r = 0; r < 6; r++) {
+      const ra = (r / 6) * Math.PI * 2 + t * 0.5;
+      const rx1 = mapCenter - 90 + Math.cos(ra) * 22;
+      const ry1 = mapY + 40 + Math.sin(ra) * 22;
+      const rx2 = mapCenter - 90 + Math.cos(ra) * 32;
+      const ry2 = mapY + 40 + Math.sin(ra) * 32;
+      sLine(rx1, ry1, rx2, ry2, 715 + r, '#d97706', 2);
+    }
+
+    // 2. Eurasia / Northern Territory Outline (Colder destination)
+    ctx.fillStyle = 'rgba(56, 189, 248, 0.12)';
+    ctx.beginPath();
+    ctx.moveTo(mapCenter - 130, mapY - 90);
+    ctx.bezierCurveTo(mapCenter - 120, mapY - 200, mapCenter + 60, mapY - 220, mapCenter + 220, mapY - 170); // Northern Eurasia
+    ctx.bezierCurveTo(mapCenter + 320, mapY - 130, mapCenter + 360, mapY - 40, mapCenter + 260, mapY + 10); // East Asia
+    ctx.bezierCurveTo(mapCenter + 140, mapY - 30, mapCenter + 40, mapY - 70, mapCenter - 130, mapY - 90);
+    ctx.closePath();
+    ctx.fill();
+
+    sLine(mapCenter - 130, mapY - 90, mapCenter + 60, mapY - 210, 725, '#0284c7', 3);
+    sLine(mapCenter + 60, mapY - 210, mapCenter + 280, mapY - 160, 726, '#0284c7', 3);
+    sLine(mapCenter + 280, mapY - 160, mapCenter + 240, mapY + 10, 727, '#0284c7', 3);
+
+    // Snowflake climate icons over Eurasia
+    for (let sf = 0; sf < 3; sf++) {
+      const sfx = mapCenter + 60 + sf * 110;
+      const sfy = mapY - 160 + (sf % 2) * 35;
+      sLine(sfx - 14, sfy, sfx + 14, sfy, 730 + sf, '#0284c7', 2);
+      sLine(sfx, sfy - 14, sfx, sfy + 14, 733 + sf, '#0284c7', 2);
+      sLine(sfx - 10, sfy - 10, sfx + 10, sfy + 10, 736 + sf, '#0284c7', 2);
+      sLine(sfx - 10, sfy + 10, sfx + 10, sfy - 10, 739 + sf, '#0284c7', 2);
+    }
+    ctx.restore();
+
+    // 3. Dynamic Migration Route Curves with Pulsing Arrowheads
+    if (arrowSpring > 0.05) {
+      ctx.save();
+      ctx.strokeStyle = '#c2410c';
+      ctx.lineWidth = 4;
+      ctx.setLineDash([10, 8]);
+
+      // Route 1: Out of Africa -> Europe
+      ctx.beginPath();
+      ctx.moveTo(mapCenter + 20, mapY - 40);
+      ctx.quadraticCurveTo(mapCenter - 20, mapY - 120, mapCenter - 60, mapY - 160);
+      ctx.stroke();
+
+      // Route 2: Out of Africa -> Asia
+      ctx.beginPath();
+      ctx.moveTo(mapCenter + 40, mapY - 35);
+      ctx.quadraticCurveTo(mapCenter + 120, mapY - 80, mapCenter + 220, mapY - 120);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Pulsing migration markers
+      const pulseR = 6 + Math.sin(t * 6) * 3;
+      sCircle(mapCenter + 30, mapY - 40, pulseR, 750, '#ea580c', 2, '#fbbf24');
+      sCircle(mapCenter - 60, mapY - 160, pulseR, 751, '#0284c7', 2, '#38bdf8');
+      sCircle(mapCenter + 220, mapY - 120, pulseR, 752, '#0284c7', 2, '#38bdf8');
+      ctx.restore();
+    }
+
+    // 4. Walking Doodle Explorer on the Migration Trail
+    const trailStartX = mapCenter + 10;
+    const trailStartY = mapY + 20;
+    const trailEndX = mapCenter + 190;
+    const trailEndY = mapY - 100;
+    const curNomadX = trailStartX + (trailEndX - trailStartX) * walkProg;
+    const curNomadY = trailStartY + (trailEndY - trailStartY) * walkProg;
+
+    drawDoodleCharacter({
+      x: curNomadX,
+      y: curNomadY + 120,
+      scale: 1.15,
+      hairStyle: 'wild',
+      expression: 'focused',
+      clothing: walkProg > 0.5 ? 'pelt' : 'none',
+      armPose: 'hold_spear',
+      showShadow: true,
+      seed: 760,
+    });
+
+  } else if (COMP_THEME === 'doodle_royal_status') {
+    // Scene 16: Evolution of Clothing into Royal Mantles, Crowns & Social Status
+    const crownSpring = spring(t, window.DURATION * 0.32, 190, 15);
+    const arrowRise = spring(t, window.DURATION * 0.55, 170, 14);
+
+    // Warm dais platform
+    ctx.fillStyle = IS_LIGHT ? '#faf7f2' : '#1c1917';
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.fillStyle = '#451a03';
+    ctx.fillRect(0, cy + 140, W, H - (cy + 140));
+    sLine(0, cy + 140, W, cy + 140, 770, '#d97706', 3.5);
+
+    // Prehistoric Human on Left (Simple pelt, admiring transformation)
+    drawDoodleCharacter({
+      x: cx - 260,
+      y: cy + 140,
+      scale: 1.3,
+      hairStyle: 'wild',
+      expression: 'curious',
+      clothing: 'pelt',
+      armPose: 'thinker',
+      showShadow: true,
+      seed: 771,
+    });
+
+    // Royal Monarch on Right (Majestic regal cape / robe)
+    const kingX = cx + 220;
+    drawDoodleCharacter({
+      x: kingX,
+      y: cy + 140,
+      scale: 1.35,
+      hairStyle: 'modern',
+      expression: 'smiling',
+      clothing: 'cloak',
+      armPose: 'peace_gesture',
+      showShadow: true,
+      seed: 772,
+    });
+
+    // Ornate Golden Crown with Ruby jewels appearing above Monarch
+    if (crownSpring > 0.05) {
+      ctx.save();
+      ctx.translate(kingX, cy - 20);
+      ctx.scale(crownSpring, crownSpring);
+
+      // Golden crown base & peaks
+      ctx.fillStyle = '#f59e0b';
+      ctx.beginPath();
+      ctx.moveTo(-36, 0);
+      ctx.lineTo(-40, -32);
+      ctx.lineTo(-20, -18);
+      ctx.lineTo(0, -42);
+      ctx.lineTo(20, -18);
+      ctx.lineTo(40, -32);
+      ctx.lineTo(36, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = '#b45309';
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+
+      // Jewels on crown peaks
+      sCircle(-40, -32, 4, 780, '#b91c1c', 1.5, '#ef4444');
+      sCircle(0, -42, 5, 781, '#b91c1c', 1.5, '#ef4444');
+      sCircle(40, -32, 4, 782, '#b91c1c', 1.5, '#ef4444');
+
+      // Golden Sceptre in hand
+      sLine(42, 20, 52, 130, 785, '#d97706', 4.5);
+      sCircle(42, 16, 10, 786, '#d97706', 2, '#fbbf24');
+      ctx.restore();
+    }
+
+    // Status & Power indicator arrows rising centrally
+    if (arrowRise > 0.05) {
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, arrowRise);
+      for (let arr = 0; arr < 3; arr++) {
+        const arrX = cx - 30 + arr * 40;
+        const arrY = cy + 40 - arr * 35 - Math.sin(t * 4 + arr) * 10;
+        sLine(arrX, arrY + 40, arrX, arrY, 790 + arr, '#d97706', 3.5);
+        sLine(arrX - 12, arrY + 14, arrX, arrY, 793 + arr, '#d97706', 3.5);
+        sLine(arrX + 12, arrY + 14, arrX, arrY, 796 + arr, '#d97706', 3.5);
+      }
+
+      ctx.fillStyle = '#b45309';
+      ctx.font = '700 20px ' + FONT_DISPLAY;
+      ctx.textAlign = 'center';
+      ctx.fillText('STATUS & POWER', cx + 10, cy - 90);
+      ctx.restore();
+    }
+
+  } else if (COMP_THEME === 'doodle_outro_subscribe') {
+    // Scene 25: YouTube Outro / Animated Question Mark / Subscribe & Bell Card
+    const qSpring = spring(t, 0.05, 180, 14);
+    const subSpring = spring(t, window.DURATION * 0.28, 200, 14);
+    const bellSpring = spring(t, window.DURATION * 0.50, 190, 12);
+
+    ctx.fillStyle = IS_LIGHT ? '#faf7f2' : '#1c1917';
+    ctx.fillRect(0, 0, W, H);
+
+    // Warm terrain ground
+    ctx.fillStyle = '#451a03';
+    ctx.fillRect(0, cy + 140, W, H - (cy + 140));
+    sLine(0, cy + 140, W, cy + 140, 810, '#d97706', 3.5);
+
+    // Prehistoric character on left drawing with a reed/quill
+    drawDoodleCharacter({
+      x: cx - 280,
+      y: cy + 140,
+      scale: 1.35,
+      hairStyle: 'wild',
+      expression: 'smiling',
+      clothing: 'pelt',
+      armPose: 'peace_gesture',
+      showShadow: true,
+      seed: 811,
+    });
+
+    // Big bold animated question mark drawn in ink
+    if (qSpring > 0.05) {
+      ctx.save();
+      const qX = cx - 80;
+      const qY = cy - 20;
+      ctx.translate(qX, qY);
+      ctx.scale(qSpring, qSpring);
+
+      ctx.strokeStyle = '#c2410c';
+      ctx.lineWidth = 9;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.arc(0, -60, 44, Math.PI, 0, false);
+      ctx.bezierCurveTo(44, -15, 0, 5, 0, 35);
+      ctx.stroke();
+
+      sCircle(0, 72, 8, 815, '#c2410c', 3, '#c2410c');
+      ctx.restore();
+    }
+
+    // Interactive YouTube Subscribe Pill Button & Swinging Notification Bell
+    if (subSpring > 0.05) {
+      ctx.save();
+      const btnX = cx + 220;
+      const btnY = cy - 20;
+      ctx.translate(btnX, btnY);
+      ctx.scale(subSpring, subSpring);
+
+      // Red Subscribe Pill
+      ctx.fillStyle = '#dc2626';
+      ctx.beginPath();
+      ctx.roundRect(-140, -32, 280, 64, 32);
+      ctx.fill();
+      ctx.strokeStyle = '#991b1b';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      // White Subscribe text
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '700 24px ' + FONT_DISPLAY;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('SUBSCRIBE', -15, 0);
+
+      // Play icon triangle
+      ctx.beginPath();
+      ctx.moveTo(-90, -12);
+      ctx.lineTo(-72, 0);
+      ctx.lineTo(-90, 12);
+      ctx.closePath();
+      ctx.fill();
+
+      // Notification Bell swinging on spring
+      if (bellSpring > 0.05) {
+        ctx.save();
+        const bellSwing = Math.sin(t * 9) * 0.25 * Math.exp(-(t % 2.5));
+        ctx.translate(180, 0);
+        ctx.rotate(bellSwing);
+
+        // Golden bell body
+        ctx.fillStyle = '#f59e0b';
+        ctx.beginPath();
+        ctx.arc(0, -12, 14, Math.PI, 0);
+        ctx.quadraticCurveTo(18, 12, 22, 16);
+        ctx.lineTo(-22, 16);
+        ctx.quadraticCurveTo(-18, 12, 0, -12);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = '#b45309';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+
+        // Bell clapper
+        sCircle(0, 20, 5, 820, '#b45309', 2, '#d97706');
+        ctx.restore();
+      }
+      ctx.restore();
+    }
+
   } else if (COMP_THEME === 'celestial_orbit') {
     // 3D Celestial Body (Earth) with orbiting satellites & signal pulses
     const earthR = Math.min(W, H) * 0.22;
@@ -2530,7 +2881,7 @@ function drawMainScene(t) {
     ctx.beginPath(); ctx.arc(cx, cy, earthR, 0, Math.PI * 2); ctx.fill();
 
     // Rotating longitude meridians
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
+    ctx.strokeStyle = IS_LIGHT ? 'rgba(28, 25, 23, 0.35)' : 'rgba(255, 255, 255, 0.22)';
     ctx.lineWidth = 1.5;
     for (let m = 0; m < 4; m++) {
       const mAngle = t * 0.5 + (m * Math.PI) / 4;
@@ -2561,7 +2912,7 @@ function drawMainScene(t) {
       ctx.save();
       ctx.translate(cx, cy);
       ctx.rotate(tilt);
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.14)';
+      ctx.strokeStyle = IS_LIGHT ? 'rgba(28, 25, 23, 0.25)' : 'rgba(255, 255, 255, 0.14)';
       ctx.lineWidth = 1.5;
       ctx.beginPath(); ctx.ellipse(0, 0, a, b, 0, 0, Math.PI * 2); ctx.stroke();
 
@@ -2790,7 +3141,7 @@ function drawMainScene(t) {
   } else if (COMP_THEME === 'radar_globe') {
     // 3D Tactical Wireframe Rotating Radar Globe
     const globeR = 150;
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+    ctx.strokeStyle = IS_LIGHT ? 'rgba(28, 25, 23, 0.35)' : 'rgba(255, 255, 255, 0.15)';
     ctx.lineWidth = 1.5;
 
     // Outer degree ring

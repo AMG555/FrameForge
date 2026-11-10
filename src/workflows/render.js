@@ -61,6 +61,7 @@ async function runRender({
         voicePath:         asset.voicePath,
         caption:           asset.caption || '',
         narration:         asset.narration || '',
+        prompt:            asset.prompt || '',
         visualDescription: asset.visualDescription || '',
         visualType:        asset.visualType || 'code_animation',
         topic:             asset.topic || topic || '',

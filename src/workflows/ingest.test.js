@@ -79,3 +79,4 @@ describe('normaliseIngestScene duration and camera', () => {
     assert.equal(norm.camera_hint, 'auto');
   });
 });
+

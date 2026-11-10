@@ -148,6 +148,7 @@ class VideoRenderer {
     voicePath,
     caption = '',
     narration = '',
+    prompt = '',
     visualDescription = '',
     visualType = 'code_animation',
     topic = '',
@@ -277,6 +278,7 @@ class VideoRenderer {
           voicePath,
           caption,
           narration,
+          prompt,
           visualDescription,
           visualType,
           topic,
@@ -362,6 +364,7 @@ class VideoRenderer {
     voicePath,
     caption,
     narration,
+    prompt = '',
     visualDescription,
     visualType = 'code_animation',
     topic = '',
@@ -403,6 +406,7 @@ class VideoRenderer {
       htmlContent = generateSceneHtml({
         caption,
         narration,
+        prompt,
         visualDescription,
         imagePath,
         topic,
@@ -444,6 +448,19 @@ class VideoRenderer {
     if (res.status !== 0) {
       throw new Error(`Harness frame rendering failed: ${(res.stderr || res.stdout || '').slice(-400)}`);
     }
+
+    // Closed-loop visual frame inspection (catches blank/blown frames before encoding)
+    try {
+      const { analyzeImageFile } = require('../harness/lib/pixels.mjs');
+      const midFrameIdx = Math.floor(lastFrame / 2);
+      const midFrameFile = path.join(framesDir, `f${String(midFrameIdx).padStart(6, '0')}.jpg`);
+      if (fs.existsSync(midFrameFile)) {
+        const analysis = analyzeImageFile(midFrameFile, renderWidth, renderHeight);
+        if (analysis.isBlank) {
+          console.warn(`[Renderer] ⚠️ Scene ${sceneIndex} visual warning: blank frame at t=${(midFrameIdx / fps).toFixed(2)}s`);
+        }
+      }
+    } catch (_) {}
 
     const framesPattern = path.join(framesDir, 'f%06d.jpg');
     const encResult = spawnSync('ffmpeg', [
