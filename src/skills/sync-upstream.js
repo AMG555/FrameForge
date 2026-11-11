@@ -15,6 +15,11 @@
  *   - kajisho5/ffmpeg-skill (FFmpeg contract & visual linter)
  *
  * Runs automatically or via: npm run skills:sync
+ *
+ * Auto-update check: runs on each MCP server start (silent mode).
+ * Users are notified of upstream updates via the sync_upstream_skills tool response.
+ * Webhook notification: set SKILL_UPDATE_WEBHOOK_URL in .env to receive POST callbacks
+ * when any upstream repo has new commits.
  */
 
 'use strict';
@@ -107,12 +112,46 @@ async function syncSkills(opts = {}) {
   }
 
   manifest.lastSync = new Date().toISOString();
-  manifest.version = '2.4.10';
+  manifest.version = '2.4.12';
 
   fs.mkdirSync(path.dirname(MANIFEST_PATH), { recursive: true });
   fs.writeFileSync(MANIFEST_PATH, JSON.stringify(manifest, null, 2), 'utf8');
 
+  // Webhook notification for updated repos (opt-in via SKILL_UPDATE_WEBHOOK_URL)
+  const updatedResults = results.filter(r => r.updated);
+  if (updatedResults.length > 0 && process.env.SKILL_UPDATE_WEBHOOK_URL) {
+    const webhookUrl = process.env.SKILL_UPDATE_WEBHOOK_URL;
+    try {
+      const webhookPayload = JSON.stringify({
+        event: 'upstream_skills_updated',
+        timestamp: manifest.lastSync,
+        updatedRepos: updatedResults.map(r => ({ id: r.id, repo: r.repo, sha: r.sha })),
+        message: `FrameForge upstream skills updated: ${updatedResults.map(r => r.repo).join(', ')}`,
+      });
+      const u = new URL(webhookUrl);
+      const mod = u.protocol === 'https:' ? require('https') : require('http');
+      const req = mod.request({
+        hostname: u.hostname,
+        port: u.port,
+        path: u.pathname + u.search,
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(webhookPayload) },
+      });
+      req.end(webhookPayload);
+      log(`  📣 Update webhook sent to ${u.hostname}`);
+    } catch (_) { /* webhook failure is non-fatal */ }
+  }
+
   log(`\n✨ Skills manifest updated (${REPOSITORIES.length} repos active, ${updatedCount} upstream updates merged).\n`);
+  if (updatedResults.length > 0 && !opts.silent) {
+    log(`⬆️  NEW UPSTREAM UPDATES (${updatedResults.length}):`);
+    for (const r of updatedResults) {
+      log(`   • ${r.repo} → ${r.sha}`);
+    }
+    log(`\n   FrameForge has automatically applied the latest motion craft rules, film styles,`);
+    log(`   camera techniques, audio presets, and SFX patterns from these repositories.`);
+    log(`   Your next render will use the updated techniques.\n`);
+  }
   return { manifest, results, updatedCount };
 }
 
