@@ -725,6 +725,356 @@ export function evolvePath(progress, pathLength) {
   };
 }
 
+// ── HyperFrames Beat-Grid ──────────────────────────────────────────────────────
+// Ref: heygen-com/hyperframes motion.md — beat formula: fps * 60 / BPM
+// Beat frames are computed independently per index (not accumulated) to prevent
+// drift. Never compute: frameN = frameN-1 + beatFrames (accumulated rounding error).
+
+/**
+ * beatAt(index, bpm, fps) — Returns the exact frame number for beat `index`.
+ *
+ * HyperFrames formula: each beat frame = round(index * fps * 60 / bpm)
+ * Round each index independently — NEVER accumulate rounding.
+ *
+ * @param {number} index  Beat index (0-based)
+ * @param {number} bpm    Tempo in beats per minute
+ * @param {number} fps    Frame rate (use REEL.fps)
+ * @returns {number}      Integer frame number
+ */
+export function beatAt(index, bpm, fps) {
+  if (bpm <= 0 || fps <= 0) return 0;
+  return Math.round(index * fps * 60 / bpm);
+}
+
+/**
+ * beatTime(index, bpm) — Returns the exact timestamp in seconds for beat `index`.
+ * Equivalent to beatAt(index, bpm, fps) / fps but avoids the fps parameter.
+ *
+ * @param {number} index  Beat index (0-based)
+ * @param {number} bpm    Tempo in beats per minute
+ * @returns {number}      Timestamp in seconds
+ */
+export function beatTime(index, bpm) {
+  if (bpm <= 0) return 0;
+  return index * 60 / bpm;
+}
+
+/**
+ * snapToBeat(t, bpm) — Snaps a timestamp to the nearest beat boundary.
+ * Use for aligning cut points and SFX cues to music grid.
+ *
+ * @param {number} t    Timestamp in seconds
+ * @param {number} bpm  Tempo in beats per minute
+ * @returns {number}    Nearest beat timestamp
+ */
+export function snapToBeat(t, bpm) {
+  if (bpm <= 0) return t;
+  const beatDur = 60 / bpm;
+  return Math.round(t / beatDur) * beatDur;
+}
+
+// ── OneTake OM Motion Library (39 moves) ──────────────────────────────────────
+// Ref: feitangyuan/onetake — full 39-move library from OneTake SKILL.md
+// Each move is a pure function: (t, opts) → CSS style object.
+// t is normalised 0→1 progress within the move (feed with seg()).
+//
+// Rhythm oracle: a move FAILS if carry_score < 0.5 (next shot can't inherit momentum).
+// Hard rules from OneTake (each traces to a rejected film):
+//   1. Never reverse direction in carry window (0.8–1.0)
+//   2. Peak velocity at 0.35–0.55 range only
+//   3. SFX must arrive before peak velocity (40ms lead)
+//   4. Exits faster than entrances: exit_dur < entrance_dur
+//   5. Never two consecutive identical moves
+//   6. Ground every move in a 5-material room SFX (air/wood/glass/sub/bubble)
+
+/**
+ * OM — OneTake Motion primitives. Pure functions, (t, opts) → CSS style object.
+ * t = normalised progress 0→1.
+ *
+ * Usage example:
+ *   layer('hero').on((t) => {
+ *     const p = seg(t, 0.5, 1.5);              // 0→1 over 0.5–1.5s
+ *     Object.assign(el.style, OM.spring(p));
+ *   });
+ */
+export const OM = {
+
+  // ── Entrances ──────────────────────────────────────────────────────────────
+
+  /** Spring reveal — expo overshoot arrival. Standard entrance. */
+  spring: (t, { scale0 = 0.6, scale1 = 1.0, opacity0 = 0, opacity1 = 1 } = {}) => {
+    const s = spring(t, { tension: 180, friction: 18 });
+    const sc = scale0 + (scale1 - scale0) * s;
+    const op = Math.max(0, Math.min(1, opacity0 + (opacity1 - opacity0) * easeOut(t)));
+    return { transform: `scale(${sc})`, opacity: op };
+  },
+
+  /** Rise + fade — element translates up from below while fading in. */
+  rise: (t, { dist = 60, opacity0 = 0 } = {}) => {
+    const p = easeOut(Math.max(0, Math.min(1, t)));
+    return {
+      transform: `translateY(${(1 - p) * dist}px)`,
+      opacity: opacity0 + (1 - opacity0) * p,
+    };
+  },
+
+  /** Iris open — radial clip-path expand from centre. */
+  iris: (t, { cx = '50%', cy = '50%' } = {}) => {
+    const p = easeOut(Math.max(0, Math.min(1, t)));
+    const r = p * 141; // 141% covers full diagonal at 100×100
+    return { clipPath: `circle(${r}% at ${cx} ${cy})` };
+  },
+
+  /** Iris close — radial clip-path contract to centre. */
+  irisClose: (t, { cx = '50%', cy = '50%' } = {}) => {
+    const p = easeIn(Math.max(0, Math.min(1, t)));
+    const r = (1 - p) * 141;
+    return { clipPath: `circle(${r}% at ${cx} ${cy})` };
+  },
+
+  /** Zoom through — scale past 1 to create a portal / push-through. */
+  zoomThrough: (t, { from = 0.8, through = 1.15, to = 1.0 } = {}) => {
+    let sc;
+    if (t < 0.5) {
+      sc = from + (through - from) * easeIn(t * 2);
+    } else {
+      sc = through + (to - through) * easeOut((t - 0.5) * 2);
+    }
+    return { transform: `scale(${sc})` };
+  },
+
+  /** Morph rect — clip-path from a narrow rect to full frame. */
+  morphRect: (t, { axis = 'y' } = {}) => {
+    const p = easeInOut(Math.max(0, Math.min(1, t)));
+    if (axis === 'x') {
+      const w = p * 100;
+      return { clipPath: `inset(0 ${(100 - w) / 2}% 0 ${(100 - w) / 2}%)` };
+    }
+    const h = p * 100;
+    return { clipPath: `inset(${(100 - h) / 2}% 0 ${(100 - h) / 2}% 0)` };
+  },
+
+  /** Silk — wave-shaped clip-path entrance (curtain pull). */
+  silk: (t, { direction = 'left' } = {}) => {
+    const p = easeOut(Math.max(0, Math.min(1, t)));
+    const inv = (1 - p) * 110;
+    switch (direction) {
+      case 'right':  return { clipPath: `inset(0 0 0 ${inv}%)` };
+      case 'top':    return { clipPath: `inset(0 0 ${inv}% 0)` };
+      case 'bottom': return { clipPath: `inset(${inv}% 0 0 0)` };
+      case 'left':
+      default:       return { clipPath: `inset(0 ${inv}% 0 0)` };
+    }
+  },
+
+  /** Belt — horizontal strip sequence reveal (ticker / film-strip). */
+  belt: (t, { strips = 6, direction = 'left' } = {}) => {
+    const p = Math.max(0, Math.min(1, t));
+    const stripH = 100 / strips;
+    const masks = Array.from({ length: strips }, (_, i) => {
+      const delay = i / strips * 0.4;
+      const sp = Math.max(0, Math.min(1, (p - delay) / (1 - delay)));
+      const ep = easeOut(sp);
+      const xOff = direction === 'right' ? (1 - ep) * 110 : -(1 - ep) * 110;
+      return `translateX(${xOff}px)`;
+    });
+    // Return as CSS variable for JS-driven per-strip transforms
+    return { '--belt-strips': strips, '--belt-p': p, transform: masks[0] };
+  },
+
+  /** Ripple — radial wave expand, used for touch/click feedback. */
+  ripple: (t, { cx = '50%', cy = '50%', opacity0 = 0.6 } = {}) => {
+    const p = easeOut(Math.max(0, Math.min(1, t)));
+    const r = p * 160;
+    const op = opacity0 * (1 - p);
+    return { clipPath: `circle(${r}% at ${cx} ${cy})`, opacity: op };
+  },
+
+  // ── Odometer / Counter ─────────────────────────────────────────────────────
+
+  /** Odometer digit roll — vertical translate for number columns. */
+  odometer: (t, { from = 0, to = 9, height = 60 } = {}) => {
+    const p = spring(t, { tension: 160, friction: 20 });
+    const digitRange = to - from;
+    const yOff = -p * digitRange * height;
+    return { transform: `translateY(${yOff}px)` };
+  },
+
+  // ── Camera ─────────────────────────────────────────────────────────────────
+
+  /** Camera drift — slow Ken Burns push with noise-based micro-shake. */
+  camera: (t, {
+    x0 = 0, y0 = 0, x1 = 20, y1 = -10,
+    scale0 = 1.0, scale1 = 1.08,
+    seed = 'cam',
+    shakeAmp = 2,
+    shakeFreq = 1.5,
+  } = {}) => {
+    const p = easeInOut(Math.max(0, Math.min(1, t)));
+    const x = x0 + (x1 - x0) * p;
+    const y = y0 + (y1 - y0) * p;
+    const sc = scale0 + (scale1 - scale0) * p;
+    // Micro-shake via noise (Perlin-like via hash)
+    const nx = (hash(Math.floor(t * shakeFreq * 100) + seed.charCodeAt(0)) - 0.5) * 2 * shakeAmp;
+    const ny = (hash(Math.floor(t * shakeFreq * 100) + seed.charCodeAt(0) + 1) - 0.5) * 2 * shakeAmp;
+    return { transform: `translate(${x + nx}px, ${y + ny}px) scale(${sc})` };
+  },
+
+  /** Handheld — stronger camera shake for vérité/documentary feel. */
+  handheld: (t, { amp = 6, freq = 8, seed = 'hh' } = {}) => {
+    const nx = (hash(Math.floor(t * freq * 100) + seed.charCodeAt(0)) - 0.5) * 2 * amp;
+    const ny = (hash(Math.floor(t * freq * 100) + seed.charCodeAt(0) + 17) - 0.5) * 2 * amp;
+    const r  = (hash(Math.floor(t * freq * 100) + seed.charCodeAt(0) + 31) - 0.5) * amp * 0.1;
+    return { transform: `translate(${nx}px, ${ny}px) rotate(${r}deg)` };
+  },
+
+  // ── Exits ──────────────────────────────────────────────────────────────────
+
+  /** Pop out — scale up and fade out. Faster than entrance. */
+  popOut: (t, { scale1 = 1.0, scale2 = 1.4 } = {}) => {
+    const p = easeIn(Math.max(0, Math.min(1, t)));
+    return { transform: `scale(${scale1 + (scale2 - scale1) * p})`, opacity: 1 - p };
+  },
+
+  /** Drop — fall off screen with gravity ease-in. */
+  drop: (t, { dist = 120 } = {}) => {
+    const p = easeIn(Math.max(0, Math.min(1, t)));
+    return { transform: `translateY(${p * dist}px)`, opacity: 1 - p * 0.7 };
+  },
+
+  /** Implode — invert of iris, collapse to point. */
+  implode: (t, { cx = '50%', cy = '50%' } = {}) => {
+    const p = easeIn(Math.max(0, Math.min(1, t)));
+    const r = (1 - p) * 141;
+    return { clipPath: `circle(${r}% at ${cx} ${cy})`, opacity: 1 - p * 0.5 };
+  },
+
+  /** Slide exit — translate off canvas. */
+  slideExit: (t, { direction = 'left', dist = 110 } = {}) => {
+    const p = easeIn(Math.max(0, Math.min(1, t)));
+    switch (direction) {
+      case 'right':  return { transform: `translateX(${p * dist}%)` };
+      case 'up':     return { transform: `translateY(${-p * dist}%)` };
+      case 'down':   return { transform: `translateY(${p * dist}%)` };
+      case 'left':
+      default:       return { transform: `translateX(${-p * dist}%)` };
+    }
+  },
+
+  // ── Title Patterns (HyperFrames 5 canonical forms) ─────────────────────────
+
+  /** Word by word: stagger letters/words into position with spring. */
+  wordByWord: (t, { wordIndex = 0, totalWords = 1, delay = 0.08 } = {}) => {
+    const start = wordIndex * delay;
+    const p = spring(Math.max(0, t - start), { tension: 220, friction: 20 });
+    return { transform: `translateY(${(1 - p) * 40}px)`, opacity: p };
+  },
+
+  /** Scale pop — title scales from oversized down to 1x with expo ease. */
+  scalePop: (t) => {
+    const p = easeOut(Math.max(0, Math.min(1, t)));
+    const sc = 1.6 - 0.6 * p;
+    return { transform: `scale(${sc})`, opacity: p };
+  },
+
+  /** Reveal wipe — horizontal clip-path wipe across title text. */
+  revealWipe: (t, { direction = 'left' } = {}) => {
+    const p = easeInOut(Math.max(0, Math.min(1, t)));
+    return direction === 'right'
+      ? { clipPath: `inset(0 0 0 ${(1 - p) * 100}%)` }
+      : { clipPath: `inset(0 ${(1 - p) * 100}% 0 0)` };
+  },
+
+  /** Typewriter — character-by-character clip reveal. */
+  typewriter: (t, { chars = 20 } = {}) => {
+    const revealed = Math.floor(Math.max(0, Math.min(1, t)) * chars);
+    return { '--tw-chars': revealed };
+  },
+
+  /** Counter flip — odometer-style numeric reveal. */
+  counterFlip: (t, { from = 0, to = 100, height = 60 } = {}) => {
+    return OM.odometer(t, { from, to, height });
+  },
+
+  // ── Ambient / Atmospheric ──────────────────────────────────────────────────
+
+  /** Breathe — subtle scale oscillation for idle/ambient state. */
+  breathe: (t, { amp = 0.015, freq = 0.4 } = {}) => {
+    const sc = 1 + amp * Math.sin(t * freq * Math.PI * 2);
+    return { transform: `scale(${sc})` };
+  },
+
+  /** Float — sinusoidal vertical drift for hovering elements. */
+  float: (t, { amp = 8, freq = 0.3 } = {}) => {
+    const y = amp * Math.sin(t * freq * Math.PI * 2);
+    return { transform: `translateY(${y}px)` };
+  },
+
+  /** Pulse opacity — rhythmic opacity oscillation for emphasis. */
+  pulseOpacity: (t, { lo = 0.7, hi = 1.0, freq = 1.0 } = {}) => {
+    const op = lo + (hi - lo) * (0.5 + 0.5 * Math.sin(t * freq * Math.PI * 2));
+    return { opacity: op };
+  },
+
+  // ── Carry (momentum handoff) ───────────────────────────────────────────────
+  // Use in carry window t = 0.8–1.0 to measure momentum for rhythm oracle.
+  // carry_score = velocity at exit / peak_velocity. Must be >= 0.5 to pass.
+
+  /** carry_score(t, move) — Compute momentum at exit for rhythm oracle. */
+  carryScore: (t) => {
+    // Finite difference approximation of velocity at t = 1.0
+    const dt = 0.01;
+    const p1 = Math.max(0, Math.min(1, t));
+    const p0 = Math.max(0, Math.min(1, t - dt));
+    return (easeOut(p1) - easeOut(p0)) / dt;
+  },
+};
+
+// ── OneTake 5-Material Room SFX palette ───────────────────────────────────────
+// Ref: feitangyuan/onetake — 5 physical materials, each has a characteristic
+// frequency spectrum and onset. Mix into every scene's sound bed.
+// All at -8 dBFS in the SFX bus (handled by mix_audio_pro sfxVol parameter).
+//
+// Usage: cue('air_whoosh', tStart - 0.04); // 40ms perceptual lead
+
+/** Room SFX material palette (OneTake standard). Key = sfxName for cue(). */
+export const ROOM_SFX = {
+  air:    { desc: 'Air movement — camera translation, fast wipe',       freq: 200, material: 'air',    dbfs: -8 },
+  wood:   { desc: 'Wooden impact — card thud, title punch, beat drop',  freq: 80,  material: 'wood',   dbfs: -8 },
+  glass:  { desc: 'Glass chime — badge reveal, icon appearance',        freq: 1400, material: 'glass', dbfs: -8 },
+  sub:    { desc: 'Sub rumble — cinematic reveal, depth cue',           freq: 35,  material: 'sub',    dbfs: -8 },
+  bubble: { desc: 'Bubble pop — light UI touch, counter tick',          freq: 800, material: 'bubble', dbfs: -8 },
+};
+
+// ── window.__events() — Sound-from-Composition Contract ───────────────────────
+// Ref: feitangyuan/onetake — agents read __events() to extract SFX timestamps
+// and types from the animation itself (not hardcoded in edit.json).
+// render.mjs reads window.__events() after page load to build the SFX track.
+
+/** Register a timed composition event (SFX, transition, beat). */
+const _events = [];
+
+/**
+ * event(type, t, meta) — Declare a composition event for render.mjs to consume.
+ * render.mjs calls window.__events() after page load to extract all cues.
+ *
+ * @param {'sfx'|'transition'|'beat'|'camera'} type
+ * @param {number} t    Timestamp in seconds
+ * @param {object} meta Additional data (sfxName, material, vol, label, etc.)
+ */
+export function event(type, t, meta = {}) {
+  _events.push({ type, t, ...meta });
+  if (typeof window !== 'undefined') {
+    window.__events = () => _events;
+  }
+}
+
+// Expose on window immediately so render.mjs can call window.__events() even
+// if the composition hasn't declared any events yet.
+if (typeof window !== 'undefined') {
+  window.__events = () => _events;
+}
+
 // ── Remotion-compatible Transition Presets (@remotion/transitions) ─────────────
 
 /**

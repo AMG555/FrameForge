@@ -508,11 +508,29 @@ async function modeFull() {
     log('[full] ⚠️  --skip-verify set — purity gate bypassed.');
   }
 
-  // Probe config with a single throwaway page
+  // Probe config and extract composition events (SFX cues, beat markers, transitions)
   const probeBrowser = await chromium.launch({ args: getChromiumLaunchArgs() });
   const probePage    = await probeBrowser.newPage();
   await injectVirtualClock(probePage);
+  await probePage.goto('file://' + INDEX, { waitUntil: 'networkidle' });
+  await probePage.evaluate(() => document.fonts.ready);
   const cfg = await getReelConfig(probePage);
+
+  // Extract __events() from composition (OneTake sound-from-composition contract)
+  let compositionEvents = [];
+  try {
+    compositionEvents = await probePage.evaluate(() => {
+      if (typeof window.__events === 'function') return window.__events();
+      if (Array.isArray(window.__cues)) return window.__cues.map(c => ({ type: 'sfx', ...c }));
+      return [];
+    });
+    if (compositionEvents.length > 0) {
+      const eventsPath = path.join(OUT_DIR, 'sfx-events.json');
+      fs.writeFileSync(eventsPath, JSON.stringify(compositionEvents, null, 2), 'utf8');
+      log(`[full] composition events: ${compositionEvents.length} cues → sfx-events.json`);
+    }
+  } catch (_) {}
+
   await probeBrowser.close();
 
   const fps      = FPS_OPT || cfg.fps;
