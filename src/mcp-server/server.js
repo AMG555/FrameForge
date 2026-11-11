@@ -2820,7 +2820,7 @@ Outputs broadcast-ready 48kHz/192k AAC stereo.`,
 
 const SERVER_INFO = {
   name:    'video-pipeline',
-  version: '2.7.0',
+  version: '2.7.1',
 };
 
 const CAPABILITIES = {

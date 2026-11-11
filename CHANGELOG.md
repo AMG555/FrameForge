@@ -4,6 +4,13 @@ All notable changes to FrameForge are documented here.
 
 ---
 
+## [2.7.1] — 2026-11-11
+
+### Fixed
+- **npm package size**: excluded `out/`, `output/`, `.bob/`, `src/harness/test/` from tarball — 7.8 MB → 430 KB (18× smaller).
+
+---
+
 ## [2.7.0] — 2026-11-11
 
 ### Added
