@@ -4,6 +4,36 @@ All notable changes to FrameForge are documented here.
 
 ---
 
+## [2.6.0] — 2026-11-12
+
+### Added
+
+- **Unified Standalone CLI Commands** (`src/cli/make.js`):
+  - `frameforge download <url>` — yt-dlp media ingestion with optional subtitles (`--subtitles`), audio extraction (`--audio`), output directory (`--out-dir`), and custom naming (`--filename`).
+  - `frameforge transcribe <file>` — Whisper speech transcription exporting SRT, NDJSON, and JSON formats with model selection (`--model`) and language hints (`--language`).
+  - `frameforge sync` / `frameforge update` — Upstream skills synchronizer checking all 9 frontier repos.
+  - `frameforge doctor` and `frameforge setup` — First-class subcommand routing.
+- **15+ Year Sound Engineer Signal Chain & Procedural Audio Engine** (`src/audio-mixer/mixer.js`):
+  - Multi-element procedural SFX synthesis (shaped pink/white noise, sub-bass pitch drop, dual-sine chime harmonics, acoustic chord triads) replacing plain sine beeps across all 13 SFX types (`whoosh`, `swish`, `impact`, `deep_boom`, `punch`, `pop`, `click`, `tick`, `riser`, `chime`, `sparkle`, `buzz`, `transition`).
+  - Enhanced voice mastering chain: 80Hz rumble cut, 300Hz boxy mud notch (-1.5dB), 5kHz presence boost (+2dB), 12kHz air shelf (+1.5dB), 3:1 broadcast compressor, 6.5kHz de-esser, and -60dBFS noise gate.
+  - Acoustic pocket carving: 2.5kHz notch (-3.5dB) on music layer prevents vocal masking and guarantees intelligibility on mobile phone speakers.
+  - Dynamic sidechain ducking (-18dB attenuation) with 40ms perceptual lead and musical release.
+  - Video SFX mixing: `mixVideo` supports direct timeline SFX cue placement and two-pass EBU R128 loudness normalization.
+- **`check_upstream_updates` MCP Tool (Tool #28)** (`src/mcp-server/server.js`):
+  - Fast offline check of the last sync state across all 9 upstream reference repositories.
+  - Automatic notification caching: users and agents are visibly notified on CLI doctor runs, make runs, and tool responses whenever upstream commits are updated.
+- **Camera Motion & Punch-Ins in Video Editor** (`src/video-editor/editor.js`):
+  - `editClip` and `editAndAssemble` support dynamic camera moves (`punch_in`, `zoom_in`, `ken_burns`, `slow_zoom_out`, `pan_left`, `pan_right`) using broadcast-grade zoompan filter expressions.
+- **Frontier Craft Documentation References**:
+  - `character-animation.md`: Complete ClaudeAnimationBase guide (31 emotions, timing principles, 12fps line boil).
+  - `directing.md`: Professional directing method from lemo-opuscar (sound, rhythm, camera, staging).
+  - `earshot-audio.md`: Professional 5-loop audio quality workflow and LUFS tables.
+  - `hyperframes-motion.md`: Measured motion craft from HyperFrames launch films.
+- **Tests & Quality**:
+  - 100% test pass rate across 636 tests in 136 suites.
+
+---
+
 ## [2.4.13] — 2026-11-12
 
 ### Added

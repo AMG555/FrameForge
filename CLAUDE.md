@@ -20,7 +20,7 @@ You are a **video producer** working inside FrameForge. Your job is to design sc
 
 ## WHAT YOU MAY DO
 
-- Call any of the 27 FrameForge MCP tools (listed below)
+- Call any of the 28 FrameForge MCP tools (listed below)
 - Write scene arrays, narration text, captions, and visual descriptions **in your context**
 - Write animation code in `edit.js` inside a **scaffolded project directory** (e.g. `.frameforge-files/my-animation/edit.js`)
 - Read files inside `.frameforge-files/` to inspect rendered output
@@ -335,7 +335,8 @@ get_job_status({ jobId })   // poll every 30s until status = "SUCCEEDED"
 
 | Tool | What it does |
 |------|-------------|
-| `sync_upstream_skills` | Check & merge updates from 9 reference repos (HyperFrames, Earshot, Remotion, OneTake, lemo-opuscar, gbro-collage-broll, ClaudeAnimationBase, ffmpeg-skill). Returns `{ updatedRepos, perCategoryUpdates }` with `userImpact` and `capabilities[]` per changed repo. Notifies on new motion craft rules, film styles, audio presets, camera patterns, and more. |
+| `sync_upstream_skills` | Check & merge updates from 9 reference repos (HyperFrames, Earshot, Remotion, OneTake, lemo-opuscar, gbro-collage-broll, ClaudeAnimationBase, ffmpeg-skill). Makes GitHub API requests to fetch new commits. Returns `{ updatedRepos, perCategoryUpdates }` with `userImpact` and `capabilities[]` per changed repo. |
+| `check_upstream_updates` | Fast offline check — reads the local manifest without any network requests. Shows last sync timestamp, per-repo SHA, and which repos have been synced. Use this for a quick status check; use `sync_upstream_skills` to actually fetch new commits. |
 
 ---
 

@@ -522,3 +522,40 @@ describe('verify_scene_quality and plan_video_edit tools', () => {
     }
   });
 });
+
+describe('Upstream sync and media tools (check_upstream_updates, transcribe_media, ingest_url, mix_audio_pro)', () => {
+  const { TOOLS } = require('./server');
+
+  it('check_upstream_updates tool returns status with 9 repos', async () => {
+    assert.ok(TOOLS.check_upstream_updates, 'check_upstream_updates missing from TOOLS');
+    const res = await TOOLS.check_upstream_updates.handler();
+    assert.equal(res.success, true);
+    assert.equal(res.totalRepos, 9);
+    assert.ok(Array.isArray(res.repos));
+    assert.equal(res.repos.length, 9);
+  });
+
+  it('transcribe_media tool is registered with correct schema', () => {
+    assert.ok(TOOLS.transcribe_media, 'transcribe_media missing from TOOLS');
+    assert.deepEqual(TOOLS.transcribe_media.inputSchema.required, ['mediaPath']);
+    assert.ok(TOOLS.transcribe_media.inputSchema.properties.model);
+    assert.ok(TOOLS.transcribe_media.inputSchema.properties.format);
+  });
+
+  it('ingest_url tool is registered with subtitles support', () => {
+    assert.ok(TOOLS.ingest_url, 'ingest_url missing from TOOLS');
+    assert.deepEqual(TOOLS.ingest_url.inputSchema.required, ['url']);
+    assert.ok(TOOLS.ingest_url.inputSchema.properties.subtitles);
+    assert.ok(TOOLS.ingest_url.inputSchema.properties.subLang);
+  });
+
+  it('mix_audio_pro tool is registered with 15+ year engineer parameters', () => {
+    assert.ok(TOOLS.mix_audio_pro, 'mix_audio_pro missing from TOOLS');
+    assert.deepEqual(TOOLS.mix_audio_pro.inputSchema.required, ['voicePath', 'outputPath']);
+    assert.ok(TOOLS.mix_audio_pro.inputSchema.properties.roomProfile);
+    assert.ok(TOOLS.mix_audio_pro.inputSchema.properties.noiseGate);
+    assert.ok(TOOLS.mix_audio_pro.inputSchema.properties.platform);
+    assert.ok(TOOLS.mix_audio_pro.inputSchema.properties.targetLufs);
+    assert.ok(TOOLS.mix_audio_pro.inputSchema.properties.duckLevel);
+  });
+});

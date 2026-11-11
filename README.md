@@ -9,9 +9,9 @@
 [![npm](https://img.shields.io/npm/v/@amg555/frameforge-mcp.svg?label=npm)](https://www.npmjs.com/package/@amg555/frameforge-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
-[![Version](https://img.shields.io/badge/version-2.4.13-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.6.0-blue.svg)](CHANGELOG.md)
 [![MCP Spec](https://img.shields.io/badge/MCP-2024--11--05-blue.svg)](https://modelcontextprotocol.io/)
-[![Tests](https://img.shields.io/badge/tests-629%20passing-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/tests-636%20passing-brightgreen.svg)](#testing)
 
 </div>
 
@@ -19,7 +19,7 @@
 
 FrameForge is an MCP server your IDE agent calls to make videos. You (or your agent) write the scenes — FrameForge handles voice, images, FFmpeg compositing, and quality checking. Works in Bob, Cursor, Windsurf, Codex, opencode, Claude Code, and any MCP-capable IDE.
 
-**27 MCP tools.** Includes Whisper transcription, yt-dlp media ingestion, broadcast-grade audio post-production (EQ + de-esser + SFX synthesis), and auto-updating motion craft from 9 frontier video repositories.
+**28 MCP tools.** Includes Whisper transcription, yt-dlp media ingestion, broadcast-grade audio post-production (EQ + de-esser + SFX synthesis + room acoustics), and auto-updating motion craft from 9 frontier video repositories.
 
 ---
 
@@ -54,7 +54,23 @@ Add to your IDE's MCP config (works in Bob, Cursor, Windsurf, Codex, Claude Code
 }
 ```
 
-That's it. Your agent now has 19 video production & autonomous editing tools. FFmpeg and TTS run on your machine — no cloud render costs.
+That's it. Your agent now has 28 video production & autonomous editing tools. FFmpeg and TTS run on your machine — no cloud render costs.
+
+### Standalone CLI Commands (no IDE required)
+
+```bash
+# Ingest any web clip or audio via yt-dlp
+npx --package=@amg555/frameforge-mcp frameforge download "https://youtube.com/watch?v=..." --subtitles
+
+# Transcribe speech with word-level timestamps & SRT via Whisper
+npx --package=@amg555/frameforge-mcp frameforge transcribe ./narration.mp3 --format all
+
+# Sync upstream techniques from 9 frontier video repositories
+npx --package=@amg555/frameforge-mcp frameforge sync
+
+# Diagnostics and system check
+npx --package=@amg555/frameforge-mcp frameforge doctor
+```
 
 ---
 

@@ -957,8 +957,12 @@ After scaffolding, the agent edits edit.js in outDir to animate each scene, then
       const skillsDir = pathMod.resolve(__dirname, '../../plugins/video-pipeline/skills/html-renderer/references');
       const referenceFiles = [
         'animation-patterns.md',
+        'character-animation.md',
         'collage-broll.md',
+        'directing.md',
+        'earshot-audio.md',
         'film-styles.md',
+        'hyperframes-motion.md',
         'motion-craft.md',
         'onetake-camera.md',
         'procedural-sfx.md',
@@ -1158,9 +1162,13 @@ After scaffolding, the agent edits edit.js in outDir to animate each scene, then
         editJs: pathMod.join(outDir, 'edit.js'),
         nextSteps: [
           `1. Read ANIMATION_GUIDE.md — six determinism rules and four storyboard gates (run from ${outDir})`,
-          `   Also read references/animation-patterns.md for ClaudeAnimationBase 12fps boil, onetake camera, collage patterns`,
+          `   Also read references/animation-patterns.md — ClaudeAnimationBase 12fps boil, onetake 39-move library, collage B-roll 3-gate, Remotion springs`,
+          `   Read references/character-animation.md — full ClaudeAnimationBase guide: 31 emotions, timing principles, pure-fn constraint`,
+          `   Read references/hyperframes-motion.md — HyperFrames GSAP motion craft measured from official launch films`,
+          `   Read references/directing.md — lemo-opuscar directing method: story, sound layers, rhythm, camera, performance, delivery checklist`,
+          `   Read references/earshot-audio.md — earshot 5-loop professional audio workflow: forge DSP, kit sound bank, LUFS tables`,
           `   Read references/motion-craft.md for 10 hard motion craft rules`,
-          `   Read references/film-styles.md for 12 cinematic film style references`,
+          `   Read references/film-styles.md for 24 cinematic film style references`,
           `2. Edit STORYBOARD.md — every shot needs an event, non-overlapping reads, named transitions, no text`,
           `3. Validate: node scripts/storyboard-validator.mjs STORYBOARD.md (run from ${outDir})`,
           `4. Edit edit.js — replace starter layers with real animation (pure functions of t)`,
@@ -2047,7 +2055,7 @@ Analyzes input clips, segments narrative beats, calculates cut in/out timestamps
   // ── Tool 24: Sync Upstream Skills ─────────────────────────────────────────
   // Transparently checks & merges updates from upstream video skills repositories
   sync_upstream_skills: {
-    description: `Check and synchronize latest upstream skills, motion craft rules, film styles, and audio presets from 9 reference repositories (HyperFrames, OneTake, LemoOpuscar, CollageBroll, Remotion, Earshot, ClaudeAnimationBase, ClaudeRemotionSkill, FFmpegSkill). Runs silently or returns update summary. Reports any repos that have new commits since last sync so users are notified of available updates.`,
+    description: `Check and synchronize latest upstream skills, motion craft rules, film styles, and audio presets from 9 reference repositories (HyperFrames, OneTake, LemoOpuscar, CollageBroll, Remotion, Earshot, ClaudeAnimationBase, ClaudeRemotionSkill, FFmpegSkill). Makes network requests to GitHub API to check for new commits. Returns detailed per-category update summary. Use check_upstream_updates for a fast offline check of the last sync state.`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -2083,6 +2091,57 @@ Analyzes input clips, segments narrative beats, calculates cut in/out timestamps
         perCategoryUpdates,
         lastSync: res.manifest.lastSync,
         message: `Synced ${res.results.length} upstream skill repositories (${res.updatedCount} updates merged).${updateNotice}`,
+      };
+    },
+  },
+
+  // ── Tool 28: Check Upstream Updates (fast, offline) ───────────────────────
+  // Reads last sync manifest without network requests — returns update status instantly
+  check_upstream_updates: {
+    description: `Check the last sync state of all upstream reference repositories (HyperFrames, OneTake, LemoOpuscar, CollageBroll, Remotion, Earshot, ClaudeAnimationBase, ClaudeRemotionSkill, FFmpegSkill). Fast, offline — reads the local manifest only (no network requests). Shows what was last synced, when, and which repos had updates. To actually fetch new commits and update the manifest, use sync_upstream_skills. Agents and users can call this anytime to see if upstream skills have been updated since the last sync.`,
+    inputSchema: { type: 'object', properties: {} },
+    handler: async () => {
+      const syncFs = require('fs');
+      const { MANIFEST_PATH, REPOSITORIES } = require('../skills/sync-upstream');
+      let manifest = { lastSync: null, repos: {}, version: '2.5.0' };
+      if (syncFs.existsSync(MANIFEST_PATH)) {
+        try { manifest = JSON.parse(syncFs.readFileSync(MANIFEST_PATH, 'utf8')); } catch (_) {}
+      }
+
+      const repos = REPOSITORIES.map(r => {
+        const m = manifest.repos[r.id] || {};
+        return {
+          id: r.id,
+          repo: r.repo,
+          category: r.category,
+          desc: r.desc,
+          capabilities: r.capabilities || [],
+          sha: m.sha || 'not-synced',
+          lastChecked: m.lastChecked || null,
+          status: m.status || 'unknown',
+          userImpact: r.userImpact,
+        };
+      });
+
+      const syncedCount = repos.filter(r => r.sha !== 'not-synced').length;
+      const neverSynced = repos.filter(r => r.sha === 'not-synced').map(r => r.repo);
+
+      let statusMsg = `Last sync: ${manifest.lastSync || 'never'}. ${syncedCount}/${repos.length} repos have been synced.`;
+      if (neverSynced.length > 0) {
+        statusMsg += ` Not yet synced: ${neverSynced.join(', ')}. Run sync_upstream_skills to fetch latest.`;
+      } else {
+        statusMsg += ` All repos are tracked. Run sync_upstream_skills to check for new commits from upstream.`;
+      }
+
+      return {
+        success: true,
+        lastSync: manifest.lastSync,
+        manifestVersion: manifest.version || '2.5.0',
+        totalRepos: repos.length,
+        syncedCount,
+        repos,
+        message: statusMsg,
+        hint: 'Run sync_upstream_skills to fetch latest commits from GitHub and update the manifest.',
       };
     },
   },
@@ -2206,9 +2265,11 @@ Requires yt-dlp: pip install yt-dlp   (or: winget install yt-dlp)`,
         outputDir:  { type: 'string', description: 'Directory to save downloaded file. Defaults to .frameforge-files/downloads/' },
         filename:   { type: 'string', description: 'Output filename without extension. Auto-generated from URL hash if omitted.' },
         maxDuration:{ type: 'number', default: 600, description: 'Maximum allowed duration in seconds (safety clamp, default 10 min)' },
+        subtitles:  { type: 'boolean', default: false, description: 'Also download subtitles / closed captions as SRT file' },
+        subLang:    { type: 'string', default: 'en', description: 'Subtitle language code (default: "en")' },
       },
     },
-    handler: async ({ url, format = 'video', outputDir, filename, maxDuration = 600 }) => {
+    handler: async ({ url, format = 'video', outputDir, filename, maxDuration = 600, subtitles = false, subLang = 'en' }) => {
       const { downloadMediaWithYtDlp, detectYtDlp, isWebUrl } = require('../utils/media-downloader');
 
       if (!isWebUrl(url)) {
@@ -2224,11 +2285,12 @@ Requires yt-dlp: pip install yt-dlp   (or: winget install yt-dlp)`,
         );
       }
 
-      const result = downloadMediaWithYtDlp(url, { format, outputDir, filename, maxDuration });
+      const result = downloadMediaWithYtDlp(url, { format, outputDir, filename, maxDuration, subtitles, subLang });
 
       return {
         success: true,
         localPath: result.localPath,
+        subtitlePath: result.subtitlePath || null,
         format: result.format,
         duration: result.duration,
         width: result.width,
@@ -2600,7 +2662,7 @@ Outputs broadcast-ready 48kHz/192k AAC stereo.`,
 
 const SERVER_INFO = {
   name:    'video-pipeline',
-  version: '2.5.0',
+  version: '2.6.0',
 };
 
 const CAPABILITIES = {
