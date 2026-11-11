@@ -274,7 +274,7 @@ get_job_status({ jobId })   // poll every 30s until status = "SUCCEEDED"
 
 ---
 
-## ALL 27 MCP TOOLS
+## ALL 28 MCP TOOLS
 
 **Primary — code-driven animation (no LLM key, no image gen API):**
 

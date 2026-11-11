@@ -47,12 +47,35 @@ queue_full_pipeline({ topic: "...", style: "educational" })  → { jobId }
 get_job_status({ jobId })  // poll every 30s
 ```
 
-## ALL 17 TOOLS
+## DOWNLOAD & TRANSCRIBE (Path 4 — yt-dlp + Whisper)
 
-create_video_from_script, render_from_scenes, ingest_media, edit_scenes, assemble_video,
-render_tts, multi_voice_tts, generate_scene_image, publish_video, external_platform_call,
-scaffold_animation_project, validate_storyboard, render_animation,
-research_topic, write_script, queue_full_pipeline, get_job_status
+```
+ingest_url({ url: "https://youtube.com/watch?v=..." })  // downloads via yt-dlp
+transcribe_media({ mediaPath: ".frameforge-files/video.mp4", format: "all" })  // word timestamps + SRT
+```
+
+## ALL 28 TOOLS
+
+**Code-driven animation (no LLM key, no image gen API):**
+`scaffold_animation_project` · `validate_storyboard` · `render_animation` · `multi_voice_tts` · `export_to_editor` · `external_platform_call`
+
+**FFmpeg + AI images (fast draft):**
+`create_video_from_script` · `render_from_scenes` · `ingest_media` · `edit_scenes` · `assemble_video` · `render_tts` · `generate_scene_image` · `publish_video`
+
+**Media ingestion (yt-dlp & Whisper):**
+`ingest_url` · `transcribe_media`
+
+**Professional audio post-production:**
+`mix_audio_pro`
+
+**Editing & planning:**
+`edit_video` · `plan_video_edit` · `preview_scene` · `verify_scene_quality`
+
+**Auto-research (needs a free LLM key):**
+`research_topic` · `write_script` · `queue_full_pipeline` · `get_job_status`
+
+**Upstream skills maintenance:**
+`sync_upstream_skills` · `check_upstream_updates`
 
 ## SCENE FIELDS
 
@@ -66,3 +89,31 @@ research_topic, write_script, queue_full_pipeline, get_job_status
 | image_path | no | your own image — skips AI generation |
 | video_path | no | your own clip |
 | audio_path | no | your own voice — skips TTS |
+
+## PROFESSIONAL AUDIO
+
+```
+mix_audio_pro({
+  inputPath: ".frameforge-files/voice_0.m4a",
+  outputPath: ".frameforge-files/voice_0_mixed.m4a",
+  platform: "youtube",          // youtube | podcast | broadcast | netflix | instagram
+  room: "broadcast",            // studio_dry | broadcast | cinematic | concert_hall | intimate
+  sfxType: "whoosh",            // whoosh | impact | chime | riser | click | sparkle | ...
+  voiceStyle: "narrator"        // narrator | presenter | character | documentary
+})
+```
+
+Signal chain: noise gate → 80Hz HPF → mud notch → presence boost → air shelf →
+3:1 compressor → de-esser → room acoustics → sidechain duck → stereo widen →
+13-type SFX synthesis → two-pass EBU R128 loudnorm.
+
+## CHECK FOR UPSTREAM UPDATES
+
+```
+check_upstream_updates()   // fast offline — shows last sync timestamp, per-repo SHA
+sync_upstream_skills()     // fetches new commits from all 9 reference repos
+```
+
+## VERSION
+
+FrameForge v2.6.0 — 28 MCP tools

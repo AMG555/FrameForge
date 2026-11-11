@@ -26,14 +26,14 @@ IDE Agent (IBM Bob / Codex / opencode / Cursor / Windsurf / Claude Code)
     │
     ▼  Cloudflare Remote MCP (recommended) ─────────────────────────────
     │  https://video-mcp.YOUR_SUBDOMAIN.workers.dev/mcp
-    │  27 tools: create_video_from_script · edit_video · render_from_scenes
+    │  28 tools: create_video_from_script · edit_video · render_from_scenes
     │            generate_scene_code · preview_scene · verify_scene_quality
     │            ingest_media · edit_scenes · render_tts · multi_voice_tts
     │            generate_scene_image · assemble_video · publish_video
     │            research_topic · write_script · external_platform_call
     │            queue_full_pipeline · get_job_status · export_to_editor
     │            scaffold_animation_project · validate_storyboard · render_animation
-    │            plan_video_edit · sync_upstream_skills
+    │            plan_video_edit · sync_upstream_skills · check_upstream_updates
     │            transcribe_media · ingest_url · mix_audio_pro
     │
     ▼  OR — Local stdio / HTTP MCP ────────────────────────────────────
