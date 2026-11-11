@@ -4,12 +4,12 @@
 
 ### AI Video Production Engine for Any Agentic IDE
 
-**Any IDE. Any topic. Any style. 1080p videos from a single prompt.**
+**Any IDE. Any topic. Any style. Broadcast-quality videos from a single prompt.**
 
 [![npm](https://img.shields.io/npm/v/@amg555/frameforge-mcp.svg?label=npm)](https://www.npmjs.com/package/@amg555/frameforge-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
-[![Version](https://img.shields.io/badge/version-2.3.8-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.4.12-blue.svg)](CHANGELOG.md)
 [![MCP Spec](https://img.shields.io/badge/MCP-2024--11--05-blue.svg)](https://modelcontextprotocol.io/)
 [![Tests](https://img.shields.io/badge/tests-539%20passing-brightgreen.svg)](#testing)
 
@@ -18,6 +18,8 @@
 ---
 
 FrameForge is an MCP server your IDE agent calls to make videos. You (or your agent) write the scenes — FrameForge handles voice, images, FFmpeg compositing, and quality checking. Works in Bob, Cursor, Windsurf, Codex, opencode, Claude Code, and any MCP-capable IDE.
+
+**27 MCP tools.** Includes Whisper transcription, yt-dlp media ingestion, broadcast-grade audio post-production (EQ + de-esser + SFX synthesis), and auto-updating motion craft from 9 frontier video repositories.
 
 ---
 
@@ -174,7 +176,7 @@ Any combination of `image_path`, `video_path`, `audio_path` works — FrameForge
 
 ## Tools
 
-19 tools, grouped by what you're doing:
+27 tools, grouped by what you're doing:
 
 **Make a video from your own script (no LLM key)**
 
@@ -192,6 +194,20 @@ Any combination of `image_path`, `video_path`, `audio_path` works — FrameForge
 | `publish_video` | Deliver the finished video via file copy or HTTP webhook |
 | `external_platform_call` | Bridge to ElevenLabs, Runway, VoxForge, or local FFmpeg editor fallback |
 | `export_to_editor` | Bridge/import into DaVinci Resolve, Premiere Pro, After Effects, Remotion, or CapCut |
+| `plan_video_edit` | Plan/Approve/Render: analyze footage, generate `edit-plan.md` + `edit.json` with rationale per cut |
+
+**Media ingestion (yt-dlp & Whisper)**
+
+| Tool | What it does |
+|------|-------------|
+| `ingest_url` | Download video/audio from YouTube, Vimeo, Twitter/X, TikTok, and 1000+ sites via yt-dlp |
+| `transcribe_media` | Whisper transcription with word-level timestamps → NDJSON (for `cuePhrase()`), SRT, JSON |
+
+**Professional audio post-production**
+
+| Tool | What it does |
+|------|-------------|
+| `mix_audio_pro` | Broadcast-grade chain: HPF → EQ → de-esser → compressor → reverb → duck → stereo widen → SFX synthesis → two-pass EBU R128 |
 
 **Auto-research pipeline (needs a free LLM key)**
 
@@ -208,7 +224,15 @@ Any combination of `image_path`, `video_path`, `audio_path` works — FrameForge
 |------|-------------|
 | `scaffold_animation_project` | Create a project where every frame is a pure function of time `t` |
 | `validate_storyboard` | Check `STORYBOARD.md` against the 4-gate beat-sheet contract |
-| `render_animation` | Run the Playwright renderer: sheet / strip / storyboard / crop / full |
+| `render_animation` | Run the Playwright renderer: sheet / strip / storyboard / crop / full / quality / golden |
+| `preview_scene` | Render still frames of a scene HTML/code for visual inspection before full render |
+| `verify_scene_quality` | Closed-loop visual QA gate: 1–10 score on content, exposure, layout, and motion delta |
+
+**Upstream skills**
+
+| Tool | What it does |
+|------|-------------|
+| `sync_upstream_skills` | Check & merge latest motion craft, film styles, audio presets from 9 reference repos. Notifies when updates are available. |
 
 ---
 
