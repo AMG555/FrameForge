@@ -111,37 +111,97 @@ class AudioMixer {
 
   /**
    * Mix voice track with background music using sidechain ducking.
-   * @param {{ voicePath: string, musicPath: string|null, outputPath: string, addReverb?: boolean, stereoWiden?: boolean, sfxCues?: Array }} opts
+   * @param {{
+   *   voicePath: string,
+   *   musicPath: string|null,
+   *   outputPath: string,
+   *   musicVolume?: number,
+   *   duckLevel?: number,
+   *   addReverb?: boolean,
+   *   roomProfile?: string,
+   *   noiseGate?: boolean,
+   *   stereoWiden?: boolean,
+   *   sfxCues?: Array,
+   *   platform?: string,
+   *   targetLufs?: number
+   * }} opts
    * @returns {string} outputPath
    */
-  mixWithDucking({ voicePath, musicPath = null, outputPath, addReverb = false, stereoWiden = true, sfxCues = [] }) {
+  mixWithDucking({
+    voicePath,
+    musicPath = null,
+    outputPath,
+    musicVolume = 0.12,
+    duckLevel = -18,
+    addReverb = false,
+    roomProfile = null,
+    noiseGate = false,
+    stereoWiden = true,
+    sfxCues = [],
+    platform = null,
+    targetLufs = -14,
+  }) {
     if (!musicPath || !fs.existsSync(musicPath) || fs.statSync(musicPath).size < 5000) {
-      return this._normaliseVoiceWithChain(voicePath, outputPath, { addReverb });
+      return this._normaliseVoiceWithChain(voicePath, outputPath, {
+        addReverb, roomProfile, noiseGate, platform, targetLufs,
+      });
     }
-    return this._sidechainMixPro({ voicePath, musicPath, outputPath, addReverb, stereoWiden, sfxCues });
+    return this._sidechainMixPro({
+      voicePath, musicPath, outputPath, musicVolume, duckLevel,
+      addReverb, roomProfile, noiseGate, stereoWiden, sfxCues, platform, targetLufs,
+    });
   }
 
   /**
    * Apply professional ducking + normalization to an assembled video.
    * Replaces the audio track in-place (creates new file).
-   * @param {{ videoPath: string, musicPath?: string, outputPath: string, addReverb?: boolean, stereoWiden?: boolean, sfxCues?: Array }} opts
+   * @param {{
+   *   videoPath: string,
+   *   musicPath?: string,
+   *   outputPath: string,
+   *   musicVolume?: number,
+   *   duckLevel?: number,
+   *   addReverb?: boolean,
+   *   roomProfile?: string,
+   *   noiseGate?: boolean,
+   *   stereoWiden?: boolean,
+   *   sfxCues?: Array,
+   *   platform?: string,
+   *   targetLufs?: number
+   * }} opts
    */
-  mixVideo({ videoPath, musicPath = null, outputPath, addReverb = false, stereoWiden = true, sfxCues = [] }) {
+  mixVideo({
+    videoPath,
+    musicPath = null,
+    outputPath,
+    musicVolume = 0.12,
+    duckLevel = -18,
+    addReverb = false,
+    roomProfile = null,
+    noiseGate = false,
+    stereoWiden = true,
+    sfxCues = [],
+    platform = null,
+    targetLufs = -14,
+  }) {
     if (!musicPath || !fs.existsSync(musicPath)) {
-      return this._normaliseVideo(videoPath, outputPath);
+      return this._normaliseVideo(videoPath, outputPath, { platform, targetLufs });
     }
-    return this._videoWithDuckingPro({ videoPath, musicPath, outputPath, addReverb, stereoWiden, sfxCues });
+    return this._videoWithDuckingPro({
+      videoPath, musicPath, outputPath, musicVolume, duckLevel,
+      addReverb, roomProfile, noiseGate, stereoWiden, sfxCues, platform, targetLufs,
+    });
   }
 
   // ── Private ───────────────────────────────────────────────────────────────
 
   /**
    * Build the professional voice signal chain filter string.
-   * Supports room profiles, noise gate, multiband EQ, and de-esser.
+   * Supports room profiles, noise gate, multiband EQ, mud removal, and de-esser.
    *
    * Full chain:
-   *   Noise gate → 80Hz HPF → presence +2dB@5kHz → air shelf +1.5dB@12kHz
-   *   → 3:1 compressor → de-esser → [optional room acoustics]
+   *   Noise gate → 80Hz HPF → mud notch (-1.5dB@300Hz) → presence +2dB@5kHz → air shelf +1.5dB@12kHz
+   *   → 3:1 broadcast compressor → de-esser → [optional room acoustics]
    *
    * @param {boolean} addReverb - legacy boolean (maps to 'cinematic' room profile)
    * @param {string}  roomProfile - one of studio_dry|broadcast|cinematic|concert_hall|intimate|none
@@ -155,8 +215,9 @@ class AudioMixer {
     }
     chain.push(
       'highpass=f=80',
-      'equalizer=f=5000:width_type=o:width=2:g=2.0',   // presence boost
-      'equalizer=f=12000:width_type=s:width=1:g=1.5',  // air shelf
+      'equalizer=f=300:width_type=o:width=1.2:g=-1.5',   // mud / boxiness cut
+      'equalizer=f=5000:width_type=o:width=2:g=2.0',     // presence boost
+      'equalizer=f=12000:width_type=s:width=1:g=1.5',    // air shelf
       'acompressor=ratio=3:threshold=-20dB:attack=5:release=50:makeup=2',
       'equalizer=f=6500:width_type=h:width=1500:g=-3.0', // de-esser
     );
@@ -213,7 +274,7 @@ class AudioMixer {
   /**
    * Synthesize a single SFX tone and place it at adjustedTime on a silence-padded track.
    * Returns local file path to the generated SFX track.
-   * Based on earshot millisecond-accurate placement contract.
+   * 10+ year sound designer procedural synthesis + earshot 40ms perceptual lead contract.
    */
   _synthesizeSfxCue({ sfxName, cueTime, cueVol = 1.0, totalDuration, tmpDir }) {
     const sfx = SFX_FREQ_MAP[sfxName] || SFX_FREQ_MAP.pop;
@@ -223,12 +284,75 @@ class AudioMixer {
     const sfxPath = path.join(tmpDir, `sfx_${sfxName}_${adelayMs}.m4a`);
     const padDuration = Math.max(sfx.dur + adjustedTime + 0.5, 1, totalDuration || 1);
 
+    // Check if local recorded sample exists
+    const localSample = path.resolve(__dirname, `../../assets/sfx/${sfxName}.wav`);
+    let ffmpegInputs = [];
+    let filterExpr = '';
+
+    if (fs.existsSync(localSample)) {
+      ffmpegInputs = [
+        '-f', 'lavfi', '-i', `anullsrc=channel_layout=stereo:sample_rate=48000:duration=${padDuration}`,
+        '-i', localSample,
+      ];
+      filterExpr = `[1:a]volume=${volume},adelay=${adelayMs}|${adelayMs}[sfx];[0:a][sfx]amix=inputs=2:duration=first[out]`;
+    } else {
+      // Professional Procedural Synthesis (harmonic oscillators + shaped noise bursts)
+      let lavfiSource = '';
+      switch (sfxName) {
+        case 'whoosh':
+          lavfiSource = 'anoisesrc=d=0.4:c=pink:r=48000,bandpass=f=400:w=250,afade=t=in:ss=0:d=0.18,afade=t=out:st=0.20:d=0.20';
+          break;
+        case 'swish':
+          lavfiSource = 'anoisesrc=d=0.25:c=pink:r=48000,bandpass=f=600:w=300,afade=t=in:ss=0:d=0.10,afade=t=out:st=0.12:d=0.13';
+          break;
+        case 'impact':
+          lavfiSource = "aevalsrc='(0.65*sin(2*PI*(120-150*t)*t) + 0.3*sin(2*PI*55*t))*exp(-8*t)':d=0.5:s=48000";
+          break;
+        case 'deep_boom':
+          lavfiSource = "aevalsrc='sin(2*PI*38*t)*exp(-2.2*t)':d=1.2:s=48000";
+          break;
+        case 'punch':
+          lavfiSource = "aevalsrc='(0.7*sin(2*PI*55*t) + 0.35*sin(2*PI*140*t))*exp(-12*t)':d=0.25:s=48000";
+          break;
+        case 'pop':
+          lavfiSource = "aevalsrc='sin(2*PI*(900-5000*t)*t)*exp(-25*t)':d=0.10:s=48000";
+          break;
+        case 'click':
+          lavfiSource = 'anoisesrc=d=0.03:c=white:r=48000,highpass=f=2500,afade=t=out:st=0.005:d=0.025';
+          break;
+        case 'tick':
+          lavfiSource = 'anoisesrc=d=0.025:c=white:r=48000,bandpass=f=3200:w=600,afade=t=out:st=0.005:d=0.020';
+          break;
+        case 'riser':
+          lavfiSource = "aevalsrc='sin(2*PI*(80+140*t*t)*t)*pow(t/2.0,1.5)':d=2.0:s=48000";
+          break;
+        case 'chime':
+          lavfiSource = "aevalsrc='(0.6*sin(2*PI*1200*t)*exp(-6*t) + 0.4*sin(2*PI*2400*t)*exp(-9*t))':d=0.4:s=48000";
+          break;
+        case 'sparkle':
+          lavfiSource = "aevalsrc='(0.4*sin(2*PI*3200*t)*exp(-9*t) + 0.35*sin(2*PI*4800*t)*exp(-12*t) + 0.25*sin(2*PI*6400*t)*exp(-16*t))':d=0.3:s=48000";
+          break;
+        case 'buzz':
+          lavfiSource = "aevalsrc='(0.5*sin(2*PI*85*t) + 0.3*sin(2*PI*170*t) + 0.2*sin(2*PI*255*t))*exp(-7*t)':d=0.25:s=48000";
+          break;
+        case 'transition':
+          lavfiSource = "aevalsrc='(0.35*sin(2*PI*261.63*t) + 0.35*sin(2*PI*329.63*t) + 0.3*sin(2*PI*392*t))*sin(PI*t/0.6)':d=0.6:s=48000";
+          break;
+        default:
+          lavfiSource = `sine=f=${sfx.freq}:d=${sfx.dur}`;
+      }
+
+      ffmpegInputs = [
+        '-f', 'lavfi', '-i', `anullsrc=channel_layout=stereo:sample_rate=48000:duration=${padDuration}`,
+        '-f', 'lavfi', '-i', lavfiSource,
+      ];
+      filterExpr = `[1:a]volume=${volume},adelay=${adelayMs}|${adelayMs}[sfx];[0:a][sfx]amix=inputs=2:duration=first[out]`;
+    }
+
     const r = spawnSync('ffmpeg', [
       '-nostdin', '-y',
-      '-f', 'lavfi', '-i', `anullsrc=channel_layout=stereo:sample_rate=48000:duration=${padDuration}`,
-      '-f', 'lavfi', '-i', `sine=f=${sfx.freq}:d=${sfx.dur}`,
-      '-filter_complex',
-      `[1:a]volume=${volume},adelay=${adelayMs}|${adelayMs}[sfx];[0:a][sfx]amix=inputs=2:duration=first[out]`,
+      ...ffmpegInputs,
+      '-filter_complex', filterExpr,
       '-map', '[out]',
       '-c:a', 'aac', '-b:a', '128k', '-ar', '48000', '-ac', '2',
       '-t', String(padDuration),
@@ -241,14 +365,27 @@ class AudioMixer {
     return sfxPath;
   }
 
-  _sidechainMixPro({ voicePath, musicPath, outputPath, addReverb = false, stereoWiden = true, sfxCues = [] }) {
+  _sidechainMixPro({
+    voicePath,
+    musicPath,
+    outputPath,
+    musicVolume = 0.12,
+    duckLevel = -18,
+    addReverb = false,
+    roomProfile = null,
+    noiseGate = false,
+    stereoWiden = true,
+    sfxCues = [],
+    platform = null,
+    targetLufs = -14,
+  }) {
     const tmpDir = path.join(os.tmpdir(), `ff_mix_${Date.now()}`);
     fs.mkdirSync(tmpDir, { recursive: true });
 
     try {
-      // Step 1: Apply voice chain
+      // Step 1: Apply voice chain (noise gate + EQ + mud cut + compressor + de-esser + room)
       const voiceChainPath = path.join(tmpDir, 'voice_chain.m4a');
-      const voiceFilter = this._buildVoiceChainFilter(addReverb);
+      const voiceFilter = this._buildVoiceChainFilter(addReverb, roomProfile, noiseGate);
       const vc = spawnSync('ffmpeg', [
         '-nostdin', '-y', '-i', voicePath,
         '-af', voiceFilter,
@@ -292,26 +429,28 @@ class AudioMixer {
         }
       }
 
-      // Step 3: Music processing + sidechain ducking (with optional SFX)
-      const musicFilter = stereoWiden
-        ? `aformat=sample_rates=48000:channel_layouts=stereo,highpass=f=80,lowpass=f=16000,volume=0.15,extrastereo=m=1.4`
-        : `aformat=sample_rates=48000:channel_layouts=stereo,highpass=f=80,lowpass=f=16000,volume=0.15`;
+      // Step 3: Music processing + sidechain ducking (with acoustic pocket carving & stereo widening)
+      const musicVol = Number.isFinite(musicVolume) ? musicVolume : 0.12;
+      const pocketFilter = 'equalizer=f=2500:width_type=o:width=1.5:g=-3.5'; // carve acoustic pocket for vocal
+      const widenFilter = stereoWiden ? ',extrastereo=m=1.35' : '';
+      const musicFilter = `aformat=sample_rates=48000:channel_layouts=stereo,highpass=f=80,lowpass=f=16000,${pocketFilter},volume=${musicVol}${widenFilter}`;
 
       const preDuckPath = path.join(tmpDir, 'pre_norm.m4a');
       const extraInputs = sfxMixPath ? ['-i', sfxMixPath] : [];
       let filterComplex, mapExpr;
 
+      // Sidechain compress: threshold=0.003 (~-50dBFS), ratio=20, attack=0.15s, release=0.8s, makeup=1.5
       if (sfxMixPath) {
         filterComplex = [
           `[1:a]${musicFilter}[music_proc]`,
-          `[0:a][music_proc]sidechaincompress=threshold=0.003:ratio=20:attack=0.2:release=1:makeup=2[ducked]`,
+          `[0:a][music_proc]sidechaincompress=threshold=0.003:ratio=20:attack=0.15:release=0.8:makeup=1.5[ducked]`,
           `[ducked][2:a]amix=inputs=2:duration=first:normalize=0[out]`,
         ].join(';');
         mapExpr = '[out]';
       } else {
         filterComplex = [
           `[1:a]${musicFilter}[music_proc]`,
-          `[0:a][music_proc]sidechaincompress=threshold=0.003:ratio=20:attack=0.2:release=1:makeup=2[out]`,
+          `[0:a][music_proc]sidechaincompress=threshold=0.003:ratio=20:attack=0.15:release=0.8:makeup=1.5[out]`,
         ].join(';');
         mapExpr = '[out]';
       }
@@ -329,8 +468,12 @@ class AudioMixer {
       ], { timeout: 300000, encoding: 'utf8' });
       if (mixResult.status !== 0) throw new Error(`Sidechain mix failed: ${(mixResult.stderr || '').slice(-300)}`);
 
-      // Step 4: Two-pass loudnorm master bus
-      this._twoPassNorm(preDuckPath, outputPath);
+      // Step 4: Two-pass loudnorm master bus at resolved target
+      const platformTarget = platform ? (PLATFORM_LUFS[platform] || null) : null;
+      const resolvedLufs = platformTarget ? platformTarget.lufs : (targetLufs || -14);
+      const resolvedTp   = platformTarget ? platformTarget.tp   : -1.0;
+
+      this._twoPassNorm(preDuckPath, outputPath, resolvedLufs, resolvedTp);
       return outputPath;
 
     } finally {
@@ -338,18 +481,36 @@ class AudioMixer {
     }
   }
 
-  _videoWithDuckingPro({ videoPath, musicPath, outputPath, addReverb = false, stereoWiden = true, sfxCues = [] }) {
+  _videoWithDuckingPro({
+    videoPath,
+    musicPath,
+    outputPath,
+    musicVolume = 0.12,
+    duckLevel = -18,
+    addReverb = false,
+    roomProfile = null,
+    noiseGate = false,
+    stereoWiden = true,
+    sfxCues = [],
+    platform = null,
+    targetLufs = -14,
+  }) {
     const videoDur = this._getVideoDuration(videoPath);
-    const musicFilter = stereoWiden
-      ? `aformat=sample_rates=48000:channel_layouts=stereo,highpass=f=80,lowpass=f=16000,volume=0.15,extrastereo=m=1.4`
-      : `aformat=sample_rates=48000:channel_layouts=stereo,highpass=f=80,lowpass=f=16000,volume=0.15`;
+    const musicVol = Number.isFinite(musicVolume) ? musicVolume : 0.12;
+    const pocketFilter = 'equalizer=f=2500:width_type=o:width=1.5:g=-3.5';
+    const widenFilter = stereoWiden ? ',extrastereo=m=1.35' : '';
+    const musicFilter = `aformat=sample_rates=48000:channel_layouts=stereo,highpass=f=80,lowpass=f=16000,${pocketFilter},volume=${musicVol}${widenFilter}`;
 
-    const voiceChainFilter = this._buildVoiceChainFilter(addReverb);
+    const voiceChainFilter = this._buildVoiceChainFilter(addReverb, roomProfile, noiseGate);
+    const platformTarget = platform ? (PLATFORM_LUFS[platform] || null) : null;
+    const resolvedLufs = platformTarget ? platformTarget.lufs : (targetLufs || -14);
+    const resolvedTp   = platformTarget ? platformTarget.tp   : -1.0;
+
     const filterComplex = [
       `[0:a]${voiceChainFilter}[voice_proc]`,
       `[1:a]${musicFilter}[music_proc]`,
-      `[voice_proc][music_proc]sidechaincompress=threshold=0.003:ratio=20:attack=0.2:release=1:makeup=2[mixed]`,
-      `[mixed]loudnorm=I=-14:TP=-1:LRA=11[audio_out]`,
+      `[voice_proc][music_proc]sidechaincompress=threshold=0.003:ratio=20:attack=0.15:release=0.8:makeup=1.5[mixed]`,
+      `[mixed]loudnorm=I=${resolvedLufs}:TP=${resolvedTp}:LRA=11[audio_out]`,
     ].join(';');
 
     const result = spawnSync('ffmpeg', [
@@ -389,8 +550,11 @@ class AudioMixer {
   /**
    * Normalize voice only (no music), applying full voice chain.
    */
-  _normaliseVoiceWithChain(voicePath, outputPath, { addReverb = false } = {}) {
-    const voiceFilter = this._buildVoiceChainFilter(addReverb) + `,loudnorm=I=-14:TP=-1:LRA=11`;
+  _normaliseVoiceWithChain(voicePath, outputPath, { addReverb = false, roomProfile = null, noiseGate = false, platform = null, targetLufs = -14 } = {}) {
+    const platformTarget = platform ? (PLATFORM_LUFS[platform] || null) : null;
+    const resolvedLufs = platformTarget ? platformTarget.lufs : (targetLufs || -14);
+    const resolvedTp   = platformTarget ? platformTarget.tp   : -1.0;
+    const voiceFilter = this._buildVoiceChainFilter(addReverb, roomProfile, noiseGate) + `,loudnorm=I=${resolvedLufs}:TP=${resolvedTp}:LRA=11`;
     const result = spawnSync('ffmpeg', [
       '-nostdin', '-y',
       '-i', voicePath,
@@ -402,12 +566,15 @@ class AudioMixer {
     return outputPath;
   }
 
-  _normaliseVideo(videoPath, outputPath) {
+  _normaliseVideo(videoPath, outputPath, { platform = null, targetLufs = -14 } = {}) {
+    const platformTarget = platform ? (PLATFORM_LUFS[platform] || null) : null;
+    const resolvedLufs = platformTarget ? platformTarget.lufs : (targetLufs || -14);
+    const resolvedTp   = platformTarget ? platformTarget.tp   : -1.0;
     const result = spawnSync('ffmpeg', [
       '-nostdin', '-y',
       '-i', videoPath,
       '-map', '0:v', '-map', '0:a',
-      '-af', 'loudnorm=I=-14:TP=-1:LRA=11',
+      '-af', `loudnorm=I=${resolvedLufs}:TP=${resolvedTp}:LRA=11`,
       '-c:v', 'copy',
       '-c:a', 'aac', '-b:a', '192k',
       '-movflags', '+faststart',

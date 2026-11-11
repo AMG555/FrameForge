@@ -24,6 +24,7 @@ const crypto        = require('crypto');
 
 const { AudioMixer }  = require('../audio-mixer/mixer');
 const { resolveFont } = require('../video-renderer/renderer');
+const { buildCameraFilter } = require('../animation/animation-system');
 
 const DEFAULT_FILES_DIR = process.env.N8N_FILES_DIR || path.join(os.homedir(), '.frameforge-files');
 
@@ -291,6 +292,9 @@ class VideoEditor {
     voicePath = null,
     colorGrade = null,
     caption = '',
+    motion = null,
+    cameraHint = null,
+    punchIn = false,
     orientation = 'landscape',
     width,
     height,
@@ -350,6 +354,15 @@ class VideoEditor {
 
     if (spFilters.speed !== 1.0) {
       vfParts.push(spFilters.videoFilter);
+    }
+
+    // Dynamic camera motion & punch-ins (zoompan push, drift, or pan)
+    const motionHint = (motion || cameraHint || (punchIn ? 'zoom_in' : null));
+    if (motionHint && motionHint !== 'static' && motionHint !== 'none') {
+      try {
+        const camFilter = buildCameraFilter(motionHint, { duration: finalDur, w: targetW, h: targetH });
+        if (camFilter) vfParts.push(camFilter);
+      } catch (_) {}
     }
 
     const colorFilter = buildColorFilter(colorGrade);
@@ -628,7 +641,14 @@ class VideoEditor {
     clips = [],
     audioPath = null,
     musicPath = null,
-    musicVolume = 0.08,
+    musicVolume = 0.12,
+    duckLevel = -18,
+    sfxCues = [],
+    roomProfile = null,
+    noiseGate = false,
+    stereoWiden = true,
+    platform = null,
+    targetLufs = -14,
     orientation = 'landscape',
     width,
     height,
@@ -688,6 +708,8 @@ class VideoEditor {
       const cVoice = c.audio_path || c.audioPath || null;
       const cStart = c.start_time != null ? c.start_time : (c.startTime != null ? c.startTime : (c.trim_start != null ? c.trim_start : 0));
       const cEnd = c.end_time != null ? c.end_time : (c.endTime != null ? c.endTime : (c.trim_end != null ? c.trim_end : null));
+      const cMotion = c.motion || c.camera_hint || c.cameraHint || null;
+      const cPunchIn = Boolean(c.punch_in || c.punchIn);
 
       const edited = this.editClip({
         videoPath: videoP,
@@ -699,6 +721,8 @@ class VideoEditor {
         voicePath: cVoice,
         colorGrade: cGrade,
         caption: cCaption,
+        motion: cMotion,
+        punchIn: cPunchIn,
         orientation,
         width: targetW,
         height: targetH,
@@ -746,17 +770,25 @@ class VideoEditor {
       }
     }
 
-    // Step 4: Mix background music with ducking if provided
+    // Step 4: Mix background music and professional SFX with ducking if provided
     const outFinal = outputPath || path.join(
       this.filesDir,
       `video_edit_${crypto.randomBytes(4).toString('hex')}_${Date.now()}.mp4`
     );
 
-    if (musicPath && fs.existsSync(musicPath)) {
+    if ((musicPath && fs.existsSync(musicPath)) || (Array.isArray(sfxCues) && sfxCues.length > 0)) {
       this.mixer.mixVideo({
         videoPath: currentVideoPath,
         musicPath,
         outputPath: outFinal,
+        musicVolume,
+        duckLevel,
+        sfxCues,
+        roomProfile,
+        noiseGate,
+        stereoWiden,
+        platform,
+        targetLufs,
       });
     } else {
       fs.copyFileSync(currentVideoPath, outFinal);
