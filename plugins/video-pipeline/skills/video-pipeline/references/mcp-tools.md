@@ -1,6 +1,6 @@
 # MCP Tool Reference
 
-FrameForge exposes **27 tools** on the HTTP MCP server (`http://localhost:3210`)
+FrameForge exposes **28 tools** on the HTTP MCP server (`http://localhost:3210`)
 and via the Cloudflare Remote MCP proxy. Any MCP-compatible client works:
 IBM Bob, Claude Code, Codex, opencode, Cursor, Windsurf, Kiro, Copilot.
 
@@ -231,14 +231,46 @@ Style options include all lemo-opuscar film styles:
 
 Returns: `{ planPath, editJsonPath, planMarkdown, editConfig }`.
 
-### sync_upstream_skills — Auto-update from 9 reference repos
+### sync_upstream_skills — Fetch new commits from 9 reference repos
 
 ```json
 { "silent": false }
 ```
 
-Returns `{ updatedRepos, perCategoryUpdates, lastSync }`.
+Makes GitHub API requests. Returns `{ updatedRepos, perCategoryUpdates, lastSync }`.
 Each category update includes: `repo`, `sha`, `desc`, `userImpact`, `capabilities[]`.
+
+Tracked repos: HyperFrames, lemo-opuscar, OneTake, gbro-collage-broll, remotion-dev/skills,
+earshot, ClaudeAnimationBase, claude-remotion-skill, ffmpeg-skill.
+
+### check_upstream_updates — Fast offline manifest read
+
+```json
+{}
+```
+
+No network requests — reads the local manifest only. Returns:
+```json
+{
+  "lastSync": "2026-11-11T20:00:00Z",
+  "manifestVersion": "2.6.0",
+  "totalRepos": 9,
+  "syncedCount": 9,
+  "repos": [
+    {
+      "id": "hyperframes",
+      "repo": "heygen-com/hyperframes",
+      "category": "compositor",
+      "sha": "a1b2c3d",
+      "lastChecked": "...",
+      "userImpact": "New compositor patterns or GSAP animation primitives available"
+    }
+  ],
+  "hint": "Run sync_upstream_skills to fetch latest commits from GitHub."
+}
+```
+
+Call this to show users their current sync status without making any API calls.
 
 ---
 

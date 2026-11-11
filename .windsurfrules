@@ -47,12 +47,20 @@ queue_full_pipeline({ topic: "...", style: "educational" })  → { jobId }
 get_job_status({ jobId })  // poll every 30s
 ```
 
-## ALL 17 TOOLS
+## ALL 28 TOOLS
 
-create_video_from_script, render_from_scenes, ingest_media, edit_scenes, assemble_video,
-render_tts, multi_voice_tts, generate_scene_image, publish_video, external_platform_call,
-scaffold_animation_project, validate_storyboard, render_animation,
-research_topic, write_script, queue_full_pipeline, get_job_status
+**Script & render:** create_video_from_script, render_from_scenes, ingest_media, edit_scenes,
+assemble_video, render_tts, multi_voice_tts, generate_scene_image, publish_video,
+external_platform_call, export_to_editor, plan_video_edit, edit_video
+
+**Code animation (Playwright):** scaffold_animation_project, validate_storyboard,
+render_animation, preview_scene, verify_scene_quality, generate_scene_code
+
+**Media ingestion & audio:** ingest_url, transcribe_media, mix_audio_pro
+
+**Research pipeline:** research_topic, write_script, queue_full_pipeline, get_job_status
+
+**Upstream skills:** sync_upstream_skills, check_upstream_updates
 
 ## SCENE FIELDS
 

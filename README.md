@@ -192,7 +192,7 @@ Any combination of `image_path`, `video_path`, `audio_path` works — FrameForge
 
 ## Tools
 
-27 tools, grouped by what you're doing:
+28 tools, grouped by what you're doing:
 
 **Make a video from your own script (no LLM key)**
 
@@ -248,7 +248,8 @@ Any combination of `image_path`, `video_path`, `audio_path` works — FrameForge
 
 | Tool | What it does |
 |------|-------------|
-| `sync_upstream_skills` | Check & merge latest motion craft, film styles, audio presets from 9 reference repos. Notifies when updates are available. |
+| `sync_upstream_skills` | Fetch latest commits from 9 reference repos and update local manifest. Returns per-category update summary with `userImpact` and affected tools. |
+| `check_upstream_updates` | Fast offline read of local manifest — shows last sync time, per-repo SHA, and sync status without any network requests. |
 
 ---
 

@@ -13,8 +13,8 @@
 ## Project Identity
 
 **Name:** FrameForge  
-**Version:** 2.3.8  
-**Repo:** https://github.com/AMG555/FrameForge  
+**Version:** 2.6.0
+**Repo:** https://github.com/AMG555/FrameForge
 **Tagline:** AI video production engine for any agentic IDE — via Cloudflare Remote MCP.
 
 FrameForge is a rendering execution engine. The IDE is the intelligence. The IDE agent writes the video script. FrameForge handles TTS synthesis, AI image generation, FFmpeg compositing, audio mastering, quality gating, and delivery.
@@ -31,7 +31,7 @@ FrameForge is a rendering execution engine. The IDE is the intelligence. The IDE
 6. **No Kiro references** — the `.kiro/` folder is purged from history. Never recreate it or reference it.
 7. **Plain commit messages** — imperative sentences, no `feat:`/`fix:`/`docs:` prefixes.
 8. **Security invariants** — all HTTP servers must use `timingSafeEqual`, reject bodies > 4 MB, validate `productionId` against `/[/\\]/`, and validate `outputPath` inside `FILES_DIR`.
-9. **Test before commit** — `npm test` (512 pass), `npm run validate` (113 pass).
+9. **Test before commit** — `npm test` (636 pass), `npm run validate` (113 pass).
 
 ---
 
@@ -104,7 +104,7 @@ File output / Webhook receiver
 | `src/cli/doctor.js` | Pre-flight checks |
 | `src/cli/make.js` | Standalone CLI |
 | `src/cli/setup-keys.js` | Interactive .env wizard |
-| `src/mcp-server/server.js` | HTTP MCP (port 3210) — 19 tools |
+| `src/mcp-server/server.js` | HTTP MCP (port 3210) — 28 tools |
 | `src/mcp-server/stdio.js` | Stdio MCP |
 | `src/worker/server.js` | Worker HTTP API (port 3211) |
 | `src/worker/server-render-free.js` | Render.com free tier worker |
@@ -137,7 +137,7 @@ File output / Webhook receiver
 
 ---
 
-## MCP Tools (all 17)
+## MCP Tools (all 28)
 
 | # | Tool | Key behaviour |
 |---|------|---------------|
@@ -155,9 +155,20 @@ File output / Webhook receiver
 | 12 | `multi_voice_tts` | Per-call TTS override; `outputPath` must be inside `FILES_DIR` |
 | 13 | `queue_full_pipeline` | POST to `WORKER_API_URL/jobs`; returns `{jobId}` immediately |
 | 14 | `get_job_status` | Poll queued jobs via worker API |
-| 15 | `scaffold_animation_project` | Copy engine template + generate starter edit.js |
+| 15 | `scaffold_animation_project` | Copy engine template + generate starter edit.js; copies 11 reference files into references/ |
 | 16 | `validate_storyboard` | 4-gate STORYBOARD.md validator |
 | 17 | `render_animation` | Playwright renderer: sheet/strip/storyboard/crop/full/mux/look |
+| 18 | `preview_scene` | Render still frames for visual inspection |
+| 19 | `verify_scene_quality` | Closed-loop QA: 1–10 score on content, exposure, layout, motion delta |
+| 20 | `edit_video` | Autonomous local editor: cut/trim/speed/grade/reframe/captions/xfade/mix |
+| 21 | `plan_video_edit` | Analyze footage → `edit-plan.md` + `edit.json` with reason per cut |
+| 22 | `export_to_editor` | Bridge to Resolve, Premiere, After Effects, Remotion, CapCut |
+| 23 | `generate_scene_code` | Generate HTML compositor code for a scene from visual description |
+| 24 | `sync_upstream_skills` | Fetch new commits from 9 reference repos, update manifest, return per-category summary |
+| 25 | `transcribe_media` | Whisper word-level timestamps → NDJSON, SRT, JSON |
+| 26 | `ingest_url` | yt-dlp download from YouTube, Vimeo, TikTok, Twitter/X, 1000+ sites |
+| 27 | `mix_audio_pro` | Broadcast signal chain: HPF → EQ → mud notch → de-esser → compressor → reverb → duck → stereo widen → SFX synthesis → EBU R128 |
+| 28 | `check_upstream_updates` | Fast offline manifest read — no network; shows last sync status per repo |
 
 ---
 
