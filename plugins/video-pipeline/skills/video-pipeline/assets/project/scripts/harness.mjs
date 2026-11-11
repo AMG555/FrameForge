@@ -317,11 +317,14 @@ async function cmdPixels() {
 async function cmdQuality() {
   console.log(`🎯 Running Closed-Loop Visual QA Gate (1–10 Scoring) on: ${HTML_FILE}`);
   const { browser } = await launchHarnessBrowser();
-  const sheetTarget = path.join(CHECK_DIR, 'sheet.jpg');
+  const sheetTarget = path.join(CHECK_DIR, 'quality_sheet.jpg');
+  // --sample-rate=N overrides samples-per-second (default 2)
+  const sampleRate = flags['sample-rate'] ? parseFloat(flags['sample-rate']) : 2;
   const res = await verifySceneQuality({
     browser,
     htmlPath: HTML_FILE,
     sheetPath: sheetTarget,
+    sampleRate,
   });
   await browser.close();
 

@@ -198,12 +198,16 @@ for (let i = 1; i < argv.length; i++) {
   }
 }
 
-const WORKERS  = parseInt(flags.workers  || '4',  10);
-const CRF      = parseInt(flags.crf      || '18', 10);
-const FPS_OPT  = flags.fps  ? parseInt(flags.fps, 10) : null;
-const AUDIO    = flags.audio ? path.resolve(ROOT, flags.audio) : null;
-const RESUME   = Boolean(flags.resume);
-const CHUNK_S  = parseInt(flags.chunk || '60', 10);
+const WORKERS    = parseInt(flags.workers    || '4',  10);
+const CRF        = parseInt(flags.crf        || '18', 10);
+const FPS_OPT    = flags.fps  ? parseInt(flags.fps, 10) : null;
+const AUDIO      = flags.audio ? path.resolve(ROOT, flags.audio) : null;
+const RESUME     = Boolean(flags.resume);
+const CHUNK_S    = parseInt(flags.chunk || '60', 10);
+// Motion-blur subframes (1 = no blur; 6 = 180° shutter, ~6× render time)
+const SUBFRAMES  = Math.max(1, parseInt(flags.subframes || '1', 10));
+// Skip purity verification before full render (default: run it)
+const SKIP_VERIFY = Boolean(flags['skip-verify']);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -478,6 +482,32 @@ async function modeFull() {
   ensureDir(OUT_DIR);
   ensureDir(FRAME_DIR);
 
+  // ── Purity gate: auto-run verify before full render (skip with --skip-verify) ──
+  if (!SKIP_VERIFY) {
+    const purityLog = path.join(OUT_DIR, 'check', 'purity_report.json');
+    let purityPassed = false;
+    if (fs.existsSync(purityLog)) {
+      try {
+        const rep = JSON.parse(fs.readFileSync(purityLog, 'utf8'));
+        purityPassed = rep.passed === true;
+      } catch (_) {}
+    }
+    if (!purityPassed) {
+      log('[full] ⚙️  No passing purity report found — running verify gate first...');
+      // Delegate to harness verify via a sub-process so we reuse all its logic
+      const harnessPath = path.join(__dirname, 'harness.mjs');
+      if (fs.existsSync(harnessPath)) {
+        const { spawnSync: ss } = _require('child_process');
+        const r = ss(process.execPath, [harnessPath, 'verify'], { stdio: 'inherit', cwd: ROOT });
+        if (r.status !== 0) die('Purity gate failed — fix non-determinism in edit.js before full render.');
+      }
+    } else {
+      log('[full] ✅  Purity gate: cached report OK — skipping re-verify.');
+    }
+  } else {
+    log('[full] ⚠️  --skip-verify set — purity gate bypassed.');
+  }
+
   // Probe config with a single throwaway page
   const probeBrowser = await chromium.launch({ args: getChromiumLaunchArgs() });
   const probePage    = await probeBrowser.newPage();
@@ -492,7 +522,7 @@ async function modeFull() {
   const outPath  = flags.out ? path.resolve(ROOT, flags.out) : path.join(OUT_DIR, `${title}.mp4`);
 
   log(`[full] ${cfg.title} — ${duration}s @ ${fps}fps — ${totalF} frames`);
-  log(`[full] workers=${WORKERS}  crf=${CRF}  out=${outPath}`);
+  log(`[full] workers=${WORKERS}  crf=${CRF}  subframes=${SUBFRAMES}  out=${outPath}`);
 
   // Determine which frames need rendering
   const pending = [];
@@ -503,7 +533,8 @@ async function modeFull() {
   }
   log(`[full] frames to render: ${pending.length} / ${totalF}`);
 
-  // Spawn worker pool
+  // Spawn worker pool — when SUBFRAMES > 1, each logical frame renders SUBFRAMES
+  // sub-frames and blends them into a single output frame for motion blur.
   const browser = await chromium.launch({ args: getChromiumLaunchArgs() });
   const pages   = await Promise.all(
     Array.from({ length: Math.min(WORKERS, pending.length || 1) }, async () => {
@@ -519,13 +550,47 @@ async function modeFull() {
   let done = 0;
   const queue = [...pending];
 
+  /**
+   * Capture a single output frame, optionally averaging SUBFRAMES sub-frames
+   * for motion blur (180° shutter simulation).
+   */
+  async function captureOutputFrame(page, f) {
+    const t = f / fps;
+    if (SUBFRAMES <= 1) {
+      return captureFrame(page, t);
+    }
+    // Accumulate SUBFRAMES sub-frames evenly distributed within the frame interval
+    const dt = 1 / fps;
+    const bufs = await Promise.all(
+      Array.from({ length: SUBFRAMES }, (_, si) => {
+        // Sub-frames evenly from t to t + dt*(SUBFRAMES-1)/SUBFRAMES
+        const st = t + dt * si / SUBFRAMES;
+        return captureFrame(page, st);
+      })
+    );
+    // Average pixel values across all sub-frames (simple accumulation blend)
+    const { createCanvas, loadImage } = await import('canvas').catch(() => null) || {};
+    if (!createCanvas) {
+      // canvas module not available — fall back to single frame
+      return bufs[0];
+    }
+    const canvas = createCanvas(cfg.width, cfg.height);
+    const ctx    = canvas.getContext('2d');
+    const alpha  = 1 / SUBFRAMES;
+    for (const buf of bufs) {
+      const img = await loadImage(buf);
+      ctx.globalAlpha = alpha;
+      ctx.drawImage(img, 0, 0);
+    }
+    return canvas.toBuffer('image/png');
+  }
+
   await Promise.all(pages.map(async (page) => {
     while (queue.length > 0) {
       const f = queue.shift();
       if (f === undefined) break;
-      const t         = f / fps;
       const framePath = path.join(FRAME_DIR, `frame_${pad6(f)}.png`);
-      const buf       = await captureFrame(page, t);
+      const buf       = await captureOutputFrame(page, f);
       fs.writeFileSync(framePath, buf);
       done++;
       if (done % 30 === 0 || done === pending.length) {

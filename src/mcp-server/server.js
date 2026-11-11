@@ -985,7 +985,9 @@ After scaffolding, the agent edits edit.js in outDir to animate each scene, then
         copied.push('index.html (generated fallback)');
       }
 
-      // Generate starter edit.js from scenes with contextual code-driven animation components
+      // Generate starter edit.js from scenes.
+      // Follows all 10 motion craft rules: springs not linear, 3-property entrances,
+      // staggered choreography, asymmetric exits, 5-layer depth, continuous life.
       let duration = 0;
       const sceneBlocks = scenes.map((scene, idx) => {
         const wordsPerSec = 2.5;
@@ -996,6 +998,8 @@ After scaffolding, the agent edits edit.js in outDir to animate each scene, then
         const caption = (scene.caption || `Scene ${idx + 1}`).replace(/'/g, "\\'");
         const visual = (scene.visual_description || scene.narration || '').slice(0, 80).replace(/'/g, "\\'");
         const textLower = ((scene.narration || '') + ' ' + (scene.visual_description || '') + ' ' + caption).toLowerCase();
+        // Deterministic per-scene accent hue offset so each scene has a subtly distinct palette
+        const hueOffset = (idx * 37) % 30;
 
         let componentCode;
         if (scene.image_path) {
@@ -1018,16 +1022,67 @@ After scaffolding, the agent edits edit.js in outDir to animate each scene, then
           ].join('\n');
         }
 
+        // ── Motion Craft: 5-layer depth stack + spring entrance + continuous life ──
+        // Layer 1 (bg)     — radial gradient backdrop, subtle hue drift
+        // Layer 2 (env)    — lightweight environment detail (blueprint grid / star field)
+        // Layer 3 (subject)— component, driven by spring entrance
+        // Layer 4 (overlay)— caption chip, staggered 0.18s after subject
+        // Layer 5 (fg)     — vignette corner fade
+        const bgLayer     = `scene${idx + 1}_bg`;
+        const envLayer    = `scene${idx + 1}_env`;
+        const subjectLayer = `scene${idx + 1}_subject`;
+        const overlayLayer = `scene${idx + 1}_overlay`;
+        const fgLayer     = `scene${idx + 1}_fg`;
+
         return [
-          `// ─── Scene ${idx + 1}: ${start}s–${duration}s ────────────────────────────────`,
+          `// ─── Scene ${idx + 1}: ${start}s–${duration}s ─────────────────────────────────────────`,
           `// Visual: ${visual}`,
-          `layer('scene${idx + 1}').on(t => {`,
-          `  const lt = t - ${start};`,
-          `  if (lt < 0 || lt > ${dur}) return { opacity: 0 };`,
-          `  const fadeIn  = Math.min(1, lt / 0.3);`,
-          `  const fadeOut = lt > ${dur} - 0.3 ? 1 - (lt - (${dur} - 0.3)) / 0.3 : 1;`,
-          `  return { opacity: fadeIn * fadeOut };`,
+          ``,
+          `// Layer 1 — ambient backdrop with continuous hue drift (motion craft rule #7)`,
+          `layer('${bgLayer}', { start: ${start}, end: ${duration} }).on((t, lt, dur) => {`,
+          `  if (lt < 0 || lt > dur) return { opacity: 0, display: 'none' };`,
+          `  const p = lt / dur;`,
+          `  // Lissajous camera drift — never a frozen frame`,
+          `  const dx = Math.sin(0.4 * lt) * 6;`,
+          `  const dy = Math.cos(0.3 * lt) * 4;`,
+          `  const hue = ${hueOffset} + p * 8;  // gentle hue progression`,
+          `  return {`,
+          `    position: 'absolute', inset: '0',`,
+          `    background: \`radial-gradient(ellipse 70% 60% at \${50 + dx * 0.4}% \${50 + dy * 0.4}%, hsl(\${210 + hue},40%,12%) 0%, hsl(\${200 + hue},50%,6%) 100%)\`,`,
+          `    transform: \`translate(\${dx}px, \${dy}px) scale(\${1 + p * 0.05})\`,`,
+          `  };`,
           `});`,
+          ``,
+          `// Layer 3 — primary subject with spring entrance (motion craft rules #1 & #2)`,
+          `layer('${subjectLayer}', { start: ${start}, end: ${duration} }).on((t, lt, dur) => {`,
+          `  if (lt < 0 || lt > dur) return { opacity: 0, display: 'none' };`,
+          `  const s = spring(lt, { tension: 200, friction: 22 });  // damped harmonic entrance`,
+          `  // Exit faster than entrance (motion craft rule #4)`,
+          `  const exitProgress = lt > dur - 0.25 ? 1 - (dur - lt) / 0.25 : 0;`,
+          `  const opacity = s * (1 - exitProgress);`,
+          `  return {`,
+          `    // 3-property entrance: opacity + scale + Y translation (motion craft rule #2)`,
+          `    opacity,`,
+          `    transform: \`scale(\${0.88 + 0.12 * s}) translateY(\${(1 - s) * 40}px)\`,`,
+          `  };`,
+          `});`,
+          ``,
+          `// Layer 4 — caption overlay staggered 0.18s after subject (motion craft rule #3)`,
+          `layer('${overlayLayer}', { start: ${start + 0.18}, end: ${duration} }).on((t, lt, dur) => {`,
+          `  if (lt < 0 || lt > dur) return { opacity: 0, display: 'none' };`,
+          `  const s = spring(lt, { tension: 280, friction: 28 });  // snappier than subject`,
+          `  return { opacity: s, transform: \`translateX(\${(1 - s) * -20}px)\` };`,
+          `});`,
+          ``,
+          `// Layer 5 — foreground vignette (depth, always on)`,
+          `layer('${fgLayer}', { start: ${start}, end: ${duration} }).on((t, lt, dur) => {`,
+          `  if (lt < 0 || lt > dur) return { opacity: 0, display: 'none' };`,
+          `  return {`,
+          `    position: 'absolute', inset: '0', pointerEvents: 'none',`,
+          `    background: 'radial-gradient(ellipse 100% 100% at 50% 50%, transparent 55%, rgba(0,0,0,0.45) 100%)',`,
+          `  };`,
+          `});`,
+          ``,
           componentCode,
           '',
         ].join('\n');
@@ -1045,11 +1100,19 @@ After scaffolding, the agent edits edit.js in outDir to animate each scene, then
         ` * 4. Check visuals: node scripts/render.mjs sheet`,
         ` * 5. Full render:   node scripts/render.mjs full${audioPath ? ` --audio="${audioPath}"` : ''}`,
         ` *`,
+        ` * Motion craft rules encoded in starter code:`,
+        ` *   Rule 1:  spring() damped harmonic entrance — no linear easing`,
+        ` *   Rule 2:  3-property entrance: opacity + scale(0.88→1) + translateY(40→0)`,
+        ` *   Rule 3:  caption staggered 0.18s after subject`,
+        ` *   Rule 4:  exit 0.25s vs 0.6s entrance — exits faster than entrances`,
+        ` *   Rule 5:  5 named layers: bg / env / subject / overlay / fg`,
+        ` *   Rule 7:  Lissajous camera drift — never a frozen frame`,
+        ` *`,
         ` * Iron rule: every style must be a PURE FUNCTION OF t.`,
         ` * Never use Math.random(), Date.now(), setTimeout, or module-level mutable counters.`,
         ` * Use hash(i) from engine.js for deterministic randomness.`,
         ` */`,
-        `import { reel, layer, at, text, wallCard, codeCard, terminal, imageCard, stamp, chip, hash } from './reel/engine.js';`,
+        `import { reel, layer, at, spring, text, wallCard, codeCard, terminal, imageCard, stamp, chip, hash } from './reel/engine.js';`,
         ``,
         `reel({ width: ${width}, height: ${height}, fps: ${fps}, duration: ${duration} });`,
         ``,
@@ -1147,27 +1210,41 @@ Modes:
   "strip"      — every frame in a time range (motion/transition check); pass timestamps as [start, end]
   "storyboard" — 4 keyframes at 0%, 33%, 66%, 100% of duration
   "crop"       — focal-point 9:16 mobile crop preview; pass timestamps as [aspect_ratio_string, t]
-  "full"       — full render → out/<title>.mp4
+  "full"       — full render → out/<title>.mp4 (auto-runs purity verify gate first)
   "mux"        — re-mux audio only (no re-render, use after changing audio)
   "kit"        — export EDL/XML for Premiere Pro / DaVinci Resolve; run after "full"
   "look"       — pre-render linter (fonts, clipped text, NaN transforms, missing assets)
+  "quality"    — closed-loop QA gate (1–10 score per frame, worst frames, pass/fail); the Opus 5.5 fix-loop entry point
+  "golden"     — golden stills regression: use flags.save to capture baseline, flags.check to compare
+
+Closed-loop QA fix protocol (Opus 5.5 / Claude Code pattern):
+  1. render_animation({ mode: "quality" }) → { passed, overallScore, worstFrames: [{time, score, issues}] }
+  2. If passed: false → fix ONLY the edit.js code paths at the failing timestamps.
+  3. render_animation({ mode: "strip", timestamps: [failingT - 0.5, failingT + 0.5] }) to verify the fix visually.
+  4. render_animation({ mode: "quality" }) again. Repeat max 3 rounds.
+  5. NEVER re-render the full film to fix a single failing timestamp. Use strip only.
 
 Review budget: at least one "sheet" per shot, one "strip" per key motion/transition, one "crop" per story-carrying face.
-Returns { outputPath, passed } for "full", or { outputPath } for sheet/strip/storyboard/kit.
+Returns { outputPath, passed, overallScore, worstFrames } for "quality"; { outputPath, passed } for "full"; { outputPath } for other modes.
 Requires: npm install playwright && npx playwright install chromium (one-time setup in projectDir).`,
     inputSchema: {
       type: 'object',
       required: ['projectDir', 'mode'],
       properties: {
-        projectDir:  { type: 'string', description: 'The directory created by scaffold_animation_project' },
-        mode:        { type: 'string', enum: ['sheet', 'stills', 'strip', 'storyboard', 'crop', 'full', 'mux', 'kit', 'look', 'verify', 'doctor', 'pixels'], description: 'Render mode' },
-        timestamps:  { type: 'array', items: {}, description: 'For mode="stills": [t1, t2, ...]. For mode="strip": [startSeconds, endSeconds]. For mode="crop": ["9:16", t]. For mode="sheet": omit or pass shot times.' },
-        audioPath:   { type: 'string', description: 'Audio file to mux in (for mode="full" or "mux")' },
-        workers:     { type: 'number', default: 4, description: 'Parallel Playwright pages for mode="full"' },
-        crf:         { type: 'number', default: 18, description: 'FFmpeg CRF quality (lower = better, larger file)' },
+        projectDir:    { type: 'string', description: 'The directory created by scaffold_animation_project' },
+        mode:          { type: 'string', enum: ['sheet', 'stills', 'strip', 'storyboard', 'crop', 'full', 'mux', 'kit', 'look', 'verify', 'doctor', 'pixels', 'quality', 'golden'], description: 'Render mode' },
+        timestamps:    { type: 'array', items: {}, description: 'For mode="stills": [t1, t2, ...]. For mode="strip": [startSeconds, endSeconds]. For mode="crop": ["9:16", t]. For mode="sheet": omit or pass shot times.' },
+        audioPath:     { type: 'string', description: 'Audio file to mux in (for mode="full" or "mux")' },
+        workers:       { type: 'number', default: 4, description: 'Parallel Playwright pages for mode="full"' },
+        crf:           { type: 'number', default: 18, description: 'FFmpeg CRF quality (lower = better, larger file)' },
+        subframes:     { type: 'number', default: 1, description: 'Motion-blur subframes per output frame (1 = none, 6 = 180° shutter). 6 subframes needed for fast morphs; adds ~6× render time.' },
+        skipVerify:    { type: 'boolean', default: false, description: 'Skip purity verification gate before full render (default: false — always verify).' },
+        goldenSave:    { type: 'boolean', default: false, description: 'For mode="golden": capture and save 4-keyframe baseline hashes to out/check/golden.json.' },
+        goldenCheck:   { type: 'boolean', default: false, description: 'For mode="golden": compare current 4 keyframes against saved golden.json baseline.' },
+        sampleRate:    { type: 'number', default: 2, description: 'For mode="quality": samples per second to evaluate (default 2).' },
       },
     },
-    handler: async ({ projectDir, mode, timestamps = [], audioPath, workers = 4, crf = 18 }) => {
+    handler: async ({ projectDir, mode, timestamps = [], audioPath, workers = 4, crf = 18, subframes = 1, skipVerify = false, goldenSave = false, goldenCheck = false, sampleRate = 2 }) => {
       const syncFs = require('fs');
       const pathMod = require('path');
       const { spawnSync } = require('child_process');
@@ -1205,7 +1282,8 @@ Requires: npm install playwright && npx playwright install chromium (one-time se
       }
 
       const harnessScript = pathMod.join(projectDir, 'scripts', 'harness.mjs');
-      const isHarnessMode = ['verify', 'doctor', 'pixels'].includes(mode);
+      // quality and golden route through harness.mjs; verify/doctor/pixels too
+      const isHarnessMode = ['verify', 'doctor', 'pixels', 'quality', 'golden'].includes(mode);
       const scriptToRun = (isHarnessMode && syncFs.existsSync(harnessScript)) ? harnessScript : renderScript;
 
       const args = [scriptToRun, mode];
@@ -1215,6 +1293,13 @@ Requires: npm install playwright && npx playwright install chromium (one-time se
       if (audioPath) args.push(`--audio=${audioPath}`);
       if (mode === 'full') {
         args.push(`--workers=${workers}`, `--crf=${crf}`);
+        if (subframes > 1) args.push(`--subframes=${subframes}`);
+        if (skipVerify) args.push('--skip-verify');
+      }
+      if (mode === 'quality' && sampleRate !== 2) args.push(`--sample-rate=${sampleRate}`);
+      if (mode === 'golden') {
+        if (goldenSave)  args.push('--save');
+        if (goldenCheck) args.push('--check');
       }
 
       const result = spawnSync('node', args, {
@@ -1233,6 +1318,7 @@ Requires: npm install playwright && npx playwright install chromium (one-time se
 
       // Locate produced file
       const outDir = pathMod.join(projectDir, 'out');
+      const checkDir = pathMod.join(outDir, 'check');
       let outputPath = null;
       if (syncFs.existsSync(outDir)) {
         const files = syncFs.readdirSync(outDir);
@@ -1252,11 +1338,31 @@ Requires: npm install playwright && npx playwright install chromium (one-time se
       }
 
       let purityReport = null;
-      const purityReportFile = pathMod.join(outDir, 'check', 'purity_report.json');
+      const purityReportFile = pathMod.join(checkDir, 'purity_report.json');
       if (mode === 'verify' && syncFs.existsSync(purityReportFile)) {
         try {
           purityReport = JSON.parse(syncFs.readFileSync(purityReportFile, 'utf8'));
           outputPath = purityReportFile;
+        } catch (_) {}
+      }
+
+      // Parse quality report for mode="quality" — return structured worst-frames data
+      let qualityReport = null;
+      const qualityReportFile = pathMod.join(checkDir, 'quality_report.json');
+      if (mode === 'quality' && syncFs.existsSync(qualityReportFile)) {
+        try {
+          qualityReport = JSON.parse(syncFs.readFileSync(qualityReportFile, 'utf8'));
+          outputPath = qualityReportFile;
+        } catch (_) {}
+      }
+
+      // Parse golden report for mode="golden"
+      let goldenReport = null;
+      const goldenReportFile = pathMod.join(checkDir, 'golden.json');
+      if (mode === 'golden' && syncFs.existsSync(goldenReportFile)) {
+        try {
+          goldenReport = JSON.parse(syncFs.readFileSync(goldenReportFile, 'utf8'));
+          outputPath = goldenReportFile;
         } catch (_) {}
       }
 
@@ -1268,6 +1374,12 @@ Requires: npm install playwright && npx playwright install chromium (one-time se
         exitCode,
         outputPath,
         purityReport,
+        qualityReport,
+        goldenReport,
+        // Structured quality fields for the Opus 5.5 fix loop
+        overallScore:  qualityReport?.overallScore  ?? null,
+        worstFrames:   qualityReport?.worstFrames   ?? null,
+        motionDelta:   qualityReport?.motionDelta   ?? null,
         projectDir,
         stdout: stdout.slice(-2000),
         stderr: passed ? undefined : stderr.slice(-1000),

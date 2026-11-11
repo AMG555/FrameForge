@@ -4,6 +4,35 @@ All notable changes to FrameForge are documented here.
 
 ---
 
+## [2.4.7] — 2026-11-11
+
+### Added
+- **`quality` mode in `render_animation` MCP tool** — Closed-loop visual QA gate (1–10 per-frame score, worst frames, motion delta) is now a first-class MCP mode. Returns `{ passed, overallScore, worstFrames, motionDelta }` structured directly on the tool response — the Opus 5.5 fix-loop entry point.
+- **`golden` mode in `render_animation` MCP tool** — Golden stills regression baseline. `goldenSave: true` captures 4-keyframe SHA-256 hashes; `goldenCheck: true` compares against baseline and fails on any hash drift (refactor broke determinism).
+- **`subframes` parameter in `render_animation` full mode** — Motion-blur 180° shutter simulation. `subframes: 6` renders 6 sub-frames per output frame and blends them; eliminates ghosting on fast morphs. Default 1 (no blur). Documented in CLAUDE.md.
+- **`skipVerify` parameter in `render_animation` full mode** — Skip the automatic purity gate before full render. Default `false` (gate always runs).
+- **`sampleRate` parameter in `render_animation` quality mode** — Override samples-per-second for quality gate (default 2). Higher values = more samples = more precise worst-frame detection.
+- **Automatic purity gate before `render full`** — `render.mjs` now auto-invokes `harness verify` before starting frame rendering unless `--skip-verify` is passed or a passing `purity_report.json` is already cached.
+
+### Improved
+- **`scaffold_animation_project` edit.js generation** — Starter code now implements all 10 Motion Craft rules:
+  - Rule 1: `spring()` damped harmonic entrance instead of linear `Math.min(1, lt / 0.3)` fade.
+  - Rule 2: 3-property entrance — `opacity` + `scale(0.88→1.0)` + `translateY(40→0)` for every subject layer.
+  - Rule 3: Caption overlay staggered 0.18s after primary subject.
+  - Rule 4: Exits 0.25s, entrances 0.6s (asymmetric timing).
+  - Rule 5: 5 named layers per scene (`bg`, `env`, `subject`, `overlay`, `fg`) with correct z-ordering.
+  - Rule 7: Lissajous camera drift (`sin(0.4t)`, `cos(0.3t)`) on the `bg` layer — no scene ever freezes.
+  - Import line now includes `spring` from `reel/engine.js`.
+- **`verify_scene_quality` dynamic sample density** — Previously hardcoded to 5 samples at fixed percentiles. Now derives sample count from `sampleRate * duration`, minimum 5, evenly distributed. Enables richer QA on long-form videos at `sampleRate: 4+`.
+- **CLAUDE.md closed-loop QA protocol** — Expanded Step 5b with actionable fix guidance per issue type (blank frame, stuck motion, corner-confined, blown, low-contrast). Added Step 5c for motion-blur pass. Added Step 6 effort table (xhigh/medium per stage). Upgraded Step 9 golden regression to use the new `golden` MCP mode.
+
+### Technical
+- `render_animation` handler now returns `overallScore`, `worstFrames`, `motionDelta`, `qualityReport`, and `goldenReport` fields from the tool response — agents no longer need to read report files manually.
+- `harness.mjs quality` command now uses a separate `quality_sheet.jpg` output (not `sheet.jpg`) to avoid overwriting the visual review contact sheet.
+- `render_animation` quality/golden modes route through `harness.mjs` (not `render.mjs`) since that's where the implementations live.
+
+---
+
 ## [2.4.6] — 2026-11-10
 
 ### Enhanced

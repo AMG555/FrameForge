@@ -75,17 +75,23 @@ export async function verifySceneQuality({
   width = 1280,
   height = 720,
   sheetPath = null,
+  sampleRate = 2,   // samples per second; overrides times[] when times is null
 }) {
   const page = await openPageWithVirtualClock(browser, htmlPath, { width, height });
   const resolvedDuration = duration || (await page.evaluate(() => window.DURATION || 3));
 
-  const sampleTimes = times || [
-    parseFloat((resolvedDuration * 0.10).toFixed(2)),
-    parseFloat((resolvedDuration * 0.30).toFixed(2)),
-    parseFloat((resolvedDuration * 0.50).toFixed(2)),
-    parseFloat((resolvedDuration * 0.70).toFixed(2)),
-    parseFloat((resolvedDuration * 0.90).toFixed(2)),
-  ];
+  // Derive sample timestamps: spread evenly at `sampleRate` per second, always
+  // including the 10% and 90% keyframes. Minimum 5 samples regardless of rate.
+  let sampleTimes;
+  if (times) {
+    sampleTimes = times;
+  } else {
+    const totalSamples = Math.max(5, Math.round(resolvedDuration * sampleRate));
+    sampleTimes = Array.from({ length: totalSamples }, (_, i) => {
+      const frac = (i + 0.5) / totalSamples;
+      return parseFloat((resolvedDuration * frac).toFixed(2));
+    });
+  }
 
   const sampledFrames = [];
   const rawBuffers = [];

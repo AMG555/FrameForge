@@ -173,7 +173,7 @@ After `full` render, run the quality gate:
 ```
 render_animation({ projectDir: ".frameforge-files/my-animation/", mode: "quality" })
 ```
-Returns `{ passed, overallScore, worstFrames: [{time, score, issues}] }`.
+Returns `{ passed, overallScore, worstFrames: [{time, score, issues}], motionDelta }`.
 
 - **`passed: true`** → continue to Step 6.
 - **`passed: false`** → enter the fix loop (max 3 rounds):
@@ -182,6 +182,12 @@ Returns `{ passed, overallScore, worstFrames: [{time, score, issues}] }`.
 Round N (repeat until passed or 3 rounds exhausted):
   1. Read worstFrames[] — note timestamps and issue descriptions.
   2. Open edit.js. Fix ONLY the code paths that affect those timestamps.
+     Common issues and fixes:
+       - "Blank frame"           → layer is returning opacity: 0 when it shouldn't; check lt bounds
+       - "Stuck motion"          → two frames have identical hashes; motion formula may be constant
+       - "Corner-confined"       → element x/y is outside safe zone; move to centre stage
+       - "Blown frame"           → background colour too bright; switch to #0c1116–#111827 range
+       - "Low contrast"          → scene is too dark; raise ambient layer brightness
   3. Run: render_animation({ mode: "strip", timestamps: [t-0.5, t+0.5] })
      for each failing timestamp to verify the fix visually.
   4. Run: render_animation({ mode: "quality" }) again.
@@ -194,14 +200,35 @@ After 3 rounds without passing: stop, report worstFrames to user, do not re-rend
 failing time range only. This is the Claude Code + Opus 5.5 closed-loop correction pattern:
 render → score worst 3 frames → patch edit.js → re-strip → re-score → ship.
 
-**Step 6 — Optional: hook variants**
+**Step 5c — Motion-blur pass (optional, high-quality reels)**
+
+For fast morphs or kinetic reveals that show ghost copies at standard render:
+```
+render_animation({ projectDir: "...", mode: "full", subframes: 6, audioPath: "..." })
+```
+`subframes: 6` = 180° shutter — renders 6 frames per output frame, blends them. Adds ~6× render
+time. Only needed when fast-moving elements look strobed. Standard renders use `subframes: 1`.
+
+**Step 6 — Model effort guide (Opus 5.5 / Claude Code)**
+
+| Stage | `effort` | Why |
+|-------|----------|-----|
+| Beat sheet + storyboard authorship | `xhigh` | New creative work — max reasoning |
+| First-time scene code authorship | `xhigh` | New composition, determinism critical |
+| Storyboard gate review / patch | `medium` | Analytical, not creative |
+| Strip-range patch (fix failing frames) | `medium` | Targeted surgical fix |
+| Encode-only / mux-only runs | `medium` | No creative decisions |
+
+`tool_choice` must always be `auto` — Opus 5.5 does not support forced tool use.
+
+**Step 7 — Optional: hook variants**
 
 For reels and Shorts, make 2–3 versions with different opening hooks:
 - Change only the first shot (0s–3s) in `edit.js`
 - `render_animation({ mode: "stills", timestamps: [0.0, 1.5, 3.0] })` to compare openings
 - Full render each variant, deliver as `hook_a.mp4`, `hook_b.mp4`, etc.
 
-**Step 7 — Optional: unattended / spend-capped batch**
+**Step 8 — Optional: unattended / spend-capped batch**
 ```
 // run from projectDir
 python scripts/video_job.py submit --spec spec.json --max-usd 2.00
@@ -211,14 +238,18 @@ python scripts/video_job.py result --id <jobId>
 ```
 Each step only starts if the running cost won't exceed `--max-usd`. Receipts go to `jobs/receipts.jsonl`.
 
-**Step 8 — Golden stills regression test (before any refactor)**
+**Step 9 — Golden stills regression test (before any refactor)**
 
-After the video passes QC, save the test stills:
+After the video passes QC, save the 4-keyframe golden baseline:
 ```
-render_animation({ projectDir, mode: "storyboard" })  // 4 keyframes, file to out/storyboard.jpg
-// → copy out/storyboard.jpg to test/golden/storyboard.jpg
+render_animation({ projectDir, mode: "golden", goldenSave: true })
+// → writes out/check/golden.json with SHA-256 hashes for 4 keyframes
 ```
-Before future refactors, re-run and compare. If pixels shift, the refactor broke determinism.
+Before future refactors, run the check:
+```
+render_animation({ projectDir, mode: "golden", goldenCheck: true })
+// → fails if any keyframe hash has drifted (refactor broke determinism)
+```
 
 > Requires one-time setup in the project directory: `npm install playwright && npx playwright install chromium`
 
