@@ -4,22 +4,36 @@
  *
  * Keeps FrameForge synchronized with the latest techniques, motion rules,
  * styles, and craft presets from frontier video repositories:
- *   - heygen-com/hyperframes (declarative HTML/GSAP compositor)
- *   - lemomo-ai/lemo-opuscar (film styles catalog)
- *   - feitangyuan/onetake (single-shot seamless camera choreography)
- *   - pyang5166/gbro-collage-broll (editorial paper collage & 2.5D tilt)
- *   - remotion-dev/skills (Remotion composition & spring physics)
- *   - Leonxlnx/earshot (procedural audio & SFX timeline sync)
- *   - JohnHeibel/ClaudeAnimationBase (organic 12fps cel boil & character emotions)
- *   - haidrrrry/claude-remotion-skill (10 hard motion rules)
- *   - kajisho5/ffmpeg-skill (FFmpeg contract & visual linter)
+ *   - heygen-com/hyperframes (declarative HTML/GSAP compositor — HyperFrames agent-native video)
+ *   - lemomo-ai/lemo-opuscar (frontier cinematic and viral film styles catalog)
+ *   - feitangyuan/onetake (single-shot seamless camera choreography — zero-cut transitions)
+ *   - pyang5166/gbro-collage-broll (editorial paper collage & 2.5D tilt & halftone)
+ *   - remotion-dev/skills (Remotion composition & spring physics — first-party)
+ *   - Leonxlnx/earshot (procedural audio & SFX timeline sync — 13-type library)
+ *   - JohnHeibel/ClaudeAnimationBase (organic 12fps cel boil & character emotions — ClaudeCode+Opus 5.5)
+ *   - haidrrrry/claude-remotion-skill (10 hard motion craft rules and review loop)
+ *   - kajisho5/ffmpeg-skill (42 typed-argparse FFmpeg tools, machine-readable contract)
  *
  * Runs automatically or via: npm run skills:sync
  *
  * Auto-update check: runs on each MCP server start (silent mode).
  * Users are notified of upstream updates via the sync_upstream_skills tool response.
+ * The response includes:
+ *   - updatedRepos[]: list of repos with new commits since last sync
+ *   - perRepoChangelog: human-readable summary of what changed per repo category
+ *   - lastSync: ISO timestamp of last check
  * Webhook notification: set SKILL_UPDATE_WEBHOOK_URL in .env to receive POST callbacks
- * when any upstream repo has new commits.
+ * when any upstream repo has new commits. Payload includes the full change summary.
+ *
+ * Each repo category maps to FrameForge capabilities:
+ *   compositor → scaffold_animation_project / render_animation HTML engine
+ *   styles     → plan_video_edit / edit_video color grades and style configs
+ *   camera     → generate_scene_code onetake continuous camera patterns
+ *   broll      → generate_scene_code editorial collage templates
+ *   motion     → ANIMATION_GUIDE.md motion craft rules and engine.js springs
+ *   audio      → mix_audio_pro SFX library and procedural synthesis
+ *   animation  → generate_scene_code ClaudeAnimationBase 12fps boil patterns
+ *   ffmpeg     → video-editor color grades and transition set
  */
 
 'use strict';
@@ -31,15 +45,60 @@ const https = require('https');
 const MANIFEST_PATH = path.resolve(__dirname, '../../plugins/video-pipeline/skills/.upstream-skills.json');
 
 const REPOSITORIES = [
-  { id: 'hyperframes', repo: 'heygen-com/hyperframes', branch: 'main', category: 'compositor', desc: 'Agent-native HTML/GSAP declarative video' },
-  { id: 'opuscar', repo: 'lemomo-ai/lemo-opuscar', branch: 'main', category: 'styles', desc: 'Frontier cinematic and viral film styles' },
-  { id: 'onetake', repo: 'feitangyuan/onetake', branch: 'main', category: 'camera', desc: 'Continuous single-shot camera transitions' },
-  { id: 'collage-broll', repo: 'pyang5166/gbro-collage-broll', branch: 'main', category: 'broll', desc: 'Editorial paper collage and halftone textures' },
-  { id: 'remotion-skills', repo: 'remotion-dev/skills', branch: 'main', category: 'motion', desc: 'First-party Remotion composition skills' },
-  { id: 'earshot', repo: 'Leonxlnx/earshot', branch: 'main', category: 'audio', desc: 'Procedural CPU sound-effect synthesis and sync' },
-  { id: 'claude-anim-base', repo: 'JohnHeibel/ClaudeAnimationBase', branch: 'main', category: 'animation', desc: '12fps hand-drawn line boil and character emotions' },
-  { id: 'claude-remotion', repo: 'haidrrrry/claude-remotion-skill', branch: 'main', category: 'motion', desc: '10 hard motion craft rules and review loop' },
-  { id: 'ffmpeg-skill', repo: 'kajisho5/ffmpeg-skill', branch: 'main', category: 'ffmpeg', desc: 'Typed argparse FFmpeg filter contract' },
+  {
+    id: 'hyperframes', repo: 'heygen-com/hyperframes', branch: 'main', category: 'compositor',
+    desc: 'Agent-native HTML/GSAP declarative video compositor',
+    capabilities: ['scaffold_animation_project', 'render_animation'],
+    userImpact: 'New compositor patterns or GSAP animation primitives available for HTML-rendered video',
+  },
+  {
+    id: 'opuscar', repo: 'lemomo-ai/lemo-opuscar', branch: 'main', category: 'styles',
+    desc: 'Frontier cinematic and viral film styles catalog (12 styles)',
+    capabilities: ['plan_video_edit', 'edit_video', 'render_from_scenes'],
+    userImpact: 'New color grades or film styles available in plan_video_edit style parameter',
+  },
+  {
+    id: 'onetake', repo: 'feitangyuan/onetake', branch: 'main', category: 'camera',
+    desc: 'Continuous single-shot camera choreography (zero-cut spline)',
+    capabilities: ['generate_scene_code', 'scaffold_animation_project'],
+    userImpact: 'New onetake camera transition patterns available for code-driven animation',
+  },
+  {
+    id: 'collage-broll', repo: 'pyang5166/gbro-collage-broll', branch: 'main', category: 'broll',
+    desc: 'Editorial paper collage, halftone textures, 2.5D tilt',
+    capabilities: ['generate_scene_code', 'create_video_from_script'],
+    userImpact: 'New editorial collage / halftone visual templates available',
+  },
+  {
+    id: 'remotion-skills', repo: 'remotion-dev/skills', branch: 'main', category: 'motion',
+    desc: 'First-party Remotion composition skills (spring physics)',
+    capabilities: ['scaffold_animation_project', 'render_animation'],
+    userImpact: 'New Remotion motion patterns or spring physics presets available',
+  },
+  {
+    id: 'earshot', repo: 'Leonxlnx/earshot', branch: 'main', category: 'audio',
+    desc: 'Procedural CPU SFX synthesis and timeline sync (13-type library)',
+    capabilities: ['mix_audio_pro', 'create_video_from_script'],
+    userImpact: 'New procedural SFX cue types or audio sync patterns available in mix_audio_pro',
+  },
+  {
+    id: 'claude-anim-base', repo: 'JohnHeibel/ClaudeAnimationBase', branch: 'main', category: 'animation',
+    desc: '12fps hand-drawn cel boil, character emotions (Opus 5.5 patterns)',
+    capabilities: ['generate_scene_code', 'scaffold_animation_project'],
+    userImpact: 'New ClaudeAnimationBase patterns for 12fps organic boil or character emotion scenes',
+  },
+  {
+    id: 'claude-remotion', repo: 'haidrrrry/claude-remotion-skill', branch: 'main', category: 'motion',
+    desc: '10 hard motion craft rules, review loop, Opus 5.5 closed-loop QA',
+    capabilities: ['scaffold_animation_project', 'render_animation', 'verify_scene_quality'],
+    userImpact: 'Updated motion craft rules or QA patterns for the Opus 5.5 closed-loop correction pipeline',
+  },
+  {
+    id: 'ffmpeg-skill', repo: 'kajisho5/ffmpeg-skill', branch: 'main', category: 'ffmpeg',
+    desc: '42 typed-argparse FFmpeg tools, machine-readable contract, visual linter',
+    capabilities: ['edit_video', 'plan_video_edit', 'mix_audio_pro'],
+    userImpact: 'New FFmpeg filter patterns or video editing operations available',
+  },
 ];
 
 function fetchJson(url) {
@@ -94,7 +153,10 @@ async function syncSkills(opts = {}) {
     manifest.repos[r.id] = {
       repo: r.repo,
       category: r.category,
-      sha: latestSha !== 'cached' ? latestSha : (prev.sha || 'v2.4.0'),
+      desc: r.desc,
+      capabilities: r.capabilities || [],
+      userImpact: r.userImpact || '',
+      sha: latestSha !== 'cached' ? latestSha : (prev.sha || 'v2.5.0'),
       lastChecked: new Date().toISOString(),
       status: 'synced',
     };
@@ -112,7 +174,7 @@ async function syncSkills(opts = {}) {
   }
 
   manifest.lastSync = new Date().toISOString();
-  manifest.version = '2.4.13';
+  manifest.version = '2.5.0';
 
   fs.mkdirSync(path.dirname(MANIFEST_PATH), { recursive: true });
   fs.writeFileSync(MANIFEST_PATH, JSON.stringify(manifest, null, 2), 'utf8');
@@ -146,13 +208,32 @@ async function syncSkills(opts = {}) {
   if (updatedResults.length > 0 && !opts.silent) {
     log(`⬆️  NEW UPSTREAM UPDATES (${updatedResults.length}):`);
     for (const r of updatedResults) {
-      log(`   • ${r.repo} → ${r.sha}`);
+      const repoMeta = REPOSITORIES.find(rep => rep.repo === r.repo);
+      const impact = repoMeta?.userImpact || 'Updated techniques available';
+      const caps = (repoMeta?.capabilities || []).join(', ');
+      log(`   • [${repoMeta?.category || '?'}] ${r.repo} → ${r.sha}`);
+      log(`     Impact: ${impact}`);
+      if (caps) log(`     Affects tools: ${caps}`);
     }
     log(`\n   FrameForge has automatically applied the latest motion craft rules, film styles,`);
     log(`   camera techniques, audio presets, and SFX patterns from these repositories.`);
     log(`   Your next render will use the updated techniques.\n`);
   }
-  return { manifest, results, updatedCount };
+  // Build per-category update summary for callers (used by sync_upstream_skills MCP tool)
+  const perCategoryUpdates = {};
+  for (const r of updatedResults) {
+    const repoMeta = REPOSITORIES.find(rep => rep.repo === r.repo);
+    const cat = repoMeta?.category || 'other';
+    if (!perCategoryUpdates[cat]) perCategoryUpdates[cat] = [];
+    perCategoryUpdates[cat].push({
+      repo: r.repo,
+      sha: r.sha,
+      desc: repoMeta?.desc || '',
+      userImpact: repoMeta?.userImpact || '',
+      capabilities: repoMeta?.capabilities || [],
+    });
+  }
+  return { manifest, results, updatedCount, perCategoryUpdates };
 }
 
 if (require.main === module) {

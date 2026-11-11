@@ -27,9 +27,12 @@ const { resolveFont } = require('../video-renderer/renderer');
 
 const DEFAULT_FILES_DIR = process.env.N8N_FILES_DIR || path.join(os.homedir(), '.frameforge-files');
 
-// Supported color grading presets (all curves coordinates must be in [0, 1] range)
+// Supported color grading presets — derived from lemo-opuscar film styles catalog
+// All curves coordinates are in [0, 1] range. FFmpeg curves filter format:
+//   curves=r='in/out ...' where in/out are normalized [0,1] brightness values.
 const COLOR_GRADES = {
   none: null,
+  // ── Core presets ─────────────────────────────────────────────────────────
   cinematic: "curves=m='0/0 0.25/0.2 0.75/0.8 1/1':r='0/0 0.5/0.53 1/1':b='0/0.03 0.5/0.48 1/0.97',eq=saturation=1.12:contrast=1.05",
   warm: "curves=r='0/0 0.5/0.55 1/1':b='0/0 0.5/0.45 1/0.92',eq=saturation=1.08",
   cool: "curves=b='0/0 0.5/0.56 1/1':r='0/0 0.5/0.46 1/0.94',eq=saturation=0.98",
@@ -45,16 +48,43 @@ const COLOR_GRADES = {
   anime: "curves=m='0/0 0.4/0.45 1/1',eq=saturation=1.4:contrast=1.12",
   scifi: "curves=r='0/0 0.5/0.46 1/1':b='0/0 0.5/0.56 1/1',eq=contrast=1.15:saturation=1.1",
   lofi: "curves=m='0/0.05 0.5/0.5 1/0.95',eq=saturation=0.9:contrast=0.95",
+  // ── lemo-opuscar extended film styles ────────────────────────────────────
+  // Cinematic 2.39:1 (Anamorphic) — deep teal shadows, copper highlights
+  cinematic_anamorphic: "curves=m='0/0 0.22/0.18 0.78/0.82 1/1':r='0/0 0.5/0.53 1/1':g='0/0 0.5/0.51 1/0.99':b='0/0.04 0.5/0.50 1/0.97',eq=saturation=1.18:contrast=1.07",
+  // Minimal Swiss Monochrome — stark contrast, no colour
+  swiss_mono: "hue=s=0,curves=m='0/0 0.15/0.05 0.5/0.5 0.85/0.95 1/1',eq=contrast=1.3",
+  // Anime Action — vivid, punchy, high saturation
+  anime_action: "curves=m='0/0 0.38/0.44 0.8/0.88 1/1',eq=saturation=1.45:contrast=1.15",
+  // Retro VHS 1980s — phosphor green tint, lifted blacks, slight cyan cast
+  retro_vhs_80s: "curves=r='0/0.02 0.5/0.46 1/0.94':g='0/0.03 0.5/0.52 1/1.0':b='0/0.05 0.5/0.54 1/0.98',eq=saturation=0.88:contrast=0.98",
+  // Lo-Fi Chill — pastel, soft, desaturated with warm cast
+  lofi_chill: "curves=r='0/0.04 0.5/0.52 1/0.96':b='0/0.02 0.5/0.50 1/0.94',eq=saturation=0.82:contrast=0.92",
+  // Broadcast News Financial — clinical blue, minimal warmth
+  broadcast_news: "curves=r='0/0 0.5/0.47 1/0.97':b='0/0 0.5/0.54 1/1.02',eq=saturation=1.05:contrast=1.08",
+  // 3D Isometric Blueprint — technical cobalt, washed midtones
+  blueprint: "curves=r='0/0 0.5/0.44 1/0.95':g='0/0 0.5/0.50 1/0.98':b='0/0.06 0.5/0.58 1/1.02'],eq=saturation=1.12:contrast=1.0",
+  // Vintage 16mm film — sepia warm grain simulation
+  film16mm: "curves=vintage,curves=r='0/0.02 0.5/0.53 1/0.97':b='0/0 0.5/0.44 1/0.90',eq=saturation=0.80:contrast=0.92",
+  // Product Launch — clean obsidian black, titanium silver, subtle blue accent
+  product_obsidian: "curves=m='0/0 0.3/0.22 0.7/0.78 1/1':b='0/0 0.5/0.52 1/1',eq=saturation=1.02:contrast=1.1",
 };
 
-// Supported transition types in FFmpeg xfade
+// Supported transition types in FFmpeg xfade — including all known xfade variants
 const VALID_TRANSITIONS = new Set([
   'fade', 'wipeleft', 'wiperight', 'wipeup', 'wipedown',
   'slideleft', 'slideright', 'slideup', 'slidedown',
   'circlecrop', 'rectcrop', 'distance', 'fadeblack', 'fadewhite',
   'radial', 'smoothleft', 'smoothright', 'smoothup', 'smoothdown',
   'circleopen', 'circleclose', 'dissolve', 'pixelize', 'diagtl',
-  'diagtr', 'diagbl', 'diagbr', 'hlslice', 'hrslice', 'vuslice', 'vdslice'
+  'diagtr', 'diagbl', 'diagbr', 'hlslice', 'hrslice', 'vuslice', 'vdslice',
+  // Additional xfade variants (FFmpeg 5.0+)
+  'horzopen', 'horzclose', 'vertopen', 'vertclose',
+  'coverleft', 'coverright', 'coverup', 'coverdown',
+  'revealleft', 'revealright', 'revealup', 'revealdown',
+  'zoomin', 'fadegrays', 'squeezeh', 'squeezev',
+  'hblur', 'hlwind', 'hrwind', 'vuwind', 'vdwind',
+  // Aliases recognized by plan_video_edit style configs
+  'cut', 'none',
 ]);
 
 /**

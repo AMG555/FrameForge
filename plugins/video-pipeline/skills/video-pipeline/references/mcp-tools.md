@@ -1,8 +1,8 @@
 # MCP Tool Reference
 
-FrameForge exposes 13 tools on the HTTP MCP server (`http://localhost:3210`)
+FrameForge exposes **27 tools** on the HTTP MCP server (`http://localhost:3210`)
 and via the Cloudflare Remote MCP proxy. Any MCP-compatible client works:
-IBM Bob, Claude Code, Codex, opencode, Cursor, Windsurf.
+IBM Bob, Claude Code, Codex, opencode, Cursor, Windsurf, Kiro, Copilot.
 
 ---
 
@@ -147,6 +147,98 @@ Returns `{ status: "RUNNING"|"SUCCEEDED"|"FAILED", result, error }`
 
 Actions: `ingest` | `render` | `status` | `download`.
 Configure with `EXTERNAL_PLATFORM_URL` + `EXTERNAL_PLATFORM_KEY` in `.env`.
+
+---
+
+## Media ingestion (yt-dlp & Whisper)
+
+### ingest_url — Download from any web URL
+
+```json
+{
+  "url": "https://youtube.com/watch?v=...",
+  "format": "video",
+  "outputDir": ".frameforge-files/downloads/"
+}
+```
+
+Requires `yt-dlp` in PATH. Supports 1000+ sites. Returns `{ localPath, duration, width, height }`.
+
+### transcribe_media — Whisper word-level timestamps
+
+```json
+{
+  "mediaPath": ".frameforge-files/voice_0.m4a",
+  "model": "base",
+  "format": "all",
+  "language": "en"
+}
+```
+
+Returns `{ outputs: { ndjson, srt, json }, pauses, wordCount }`. NDJSON feeds `captions()` in engine.js.
+
+---
+
+## Professional audio post-production
+
+### mix_audio_pro — 15+ year sound engineer chain
+
+```json
+{
+  "voicePath": ".frameforge-files/voice_0.m4a",
+  "outputPath": ".frameforge-files/audio_pro.m4a",
+  "musicPath": "/path/to/bg-music.mp3",
+  "platform": "youtube",
+  "roomProfile": "cinematic",
+  "noiseGate": true,
+  "stereoWiden": true,
+  "sfxCues": [
+    { "name": "whoosh",   "time": 2.5,  "volume": 0.8 },
+    { "name": "impact",   "time": 8.0,  "volume": 1.0 },
+    { "name": "riser",    "time": 18.0, "volume": 0.7 },
+    { "name": "deep_boom","time": 30.0, "volume": 0.9 },
+    { "name": "sparkle",  "time": 35.2, "volume": 0.4 }
+  ]
+}
+```
+
+Chain: noise gate → 80Hz HPF → presence EQ → de-esser → compressor → room acoustics → sidechain duck → stereo widen → SFX → EBU R128 loudnorm.
+SFX types: whoosh | impact | pop | click | riser | chime | buzz | tick | swish | punch | sparkle | deep_boom | transition
+Room profiles: studio_dry | broadcast | cinematic | concert_hall | intimate
+Platform presets: youtube (-14 LUFS) | podcast (-16) | broadcast (-23) | netflix (-27) | instagram (-14)
+
+---
+
+## Video editing & planning
+
+### plan_video_edit — Plan/Approve/Render
+
+```json
+{
+  "footage": ["/path/clip1.mp4", "/path/clip2.mp4"],
+  "goal": "Create a cinematic product showcase",
+  "style": "cinematic_anamorphic",
+  "target_duration": 60,
+  "audio_path": ".frameforge-files/voice_0.m4a",
+  "music_path": "/path/to/bg.mp3"
+}
+```
+
+Style options include all lemo-opuscar film styles:
+`cinematic` | `fast_paced` | `documentary` | `vintage` | `cyberpunk` | `vibrant`
+`editorial_collage` | `retro_vhs` | `anime_action` | `sci_fi_hud` | `lofi_chill` | `minimal_monochrome`
+`cinematic_anamorphic` | `broadcast_news` | `blueprint_3d` | `film_16mm` | `product_obsidian` | `retro_vhs_80s`
+
+Returns: `{ planPath, editJsonPath, planMarkdown, editConfig }`.
+
+### sync_upstream_skills — Auto-update from 9 reference repos
+
+```json
+{ "silent": false }
+```
+
+Returns `{ updatedRepos, perCategoryUpdates, lastSync }`.
+Each category update includes: `repo`, `sha`, `desc`, `userImpact`, `capabilities[]`.
 
 ---
 

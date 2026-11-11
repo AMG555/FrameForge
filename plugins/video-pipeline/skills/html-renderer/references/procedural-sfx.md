@@ -6,17 +6,25 @@ for coding agents producing professional video.
 
 ---
 
-## 1. Core Procedural SFX Primitives
+## 1. Core Procedural SFX Primitives — 13-Type Library
 
 Agents synthesize or cue sound effects by semantic cue type:
 
 | Cue Type | Physical Character | Best Narrative Trigger | Duration | FFmpeg Freq |
 |---|---|---|---|---|
-| **Whoosh / Swish** | Filtered white noise pitch sweep down | Camera translation, card wipe, split transition | 400ms | 200Hz |
-| **Impact / Hit** | Damped 60Hz sine wave + transient punch | Title punch-in, major claim reveal, beat drop | 500ms | 60Hz |
-| **Pop / Blip** | Short sinusoidal chirp (400Hz → 800Hz) | Badge reveal, icon appearance, bullet item | 120ms | 600Hz |
-| **Tactile Click** | High-frequency impulse click (2.5kHz) | Kinetic letter reveal, counter tick increment | 50ms | 2500Hz |
-| **Riser** | Exponential pitch sweep upward (100Hz → 1200Hz) | Build-up to scene climax or problem resolution | 2.0s | 100Hz |
+| **whoosh** | Filtered pitch sweep down | Camera translation, card wipe, split transition | 400ms | 200Hz |
+| **impact** | Damped 60Hz sine + transient punch | Title punch-in, major claim reveal, beat drop | 500ms | 60Hz |
+| **pop** | Short sinusoidal chirp (600Hz) | Badge reveal, icon appearance, bullet item | 120ms | 600Hz |
+| **click** | High-frequency impulse (2.5kHz) | Kinetic letter reveal, counter tick increment | 50ms | 2500Hz |
+| **riser** | Exponential pitch sweep upward (100Hz) | Build-up to scene climax or problem resolution | 2.0s | 100Hz |
+| **chime** | UI notification bell (1200Hz) | Completion state, success, milestone reached | 350ms | 1200Hz |
+| **buzz** | Error buzzer (80Hz damped) | Rejection state, failure feedback, wrong answer | 180ms | 80Hz |
+| **tick** | Clock tick (3200Hz impulse) | Timer countdown, per-frame counter, typing | 40ms | 3200Hz |
+| **swish** | Soft page turn (350Hz sweep) | Slide reveal, soft transition, card flip | 300ms | 350Hz |
+| **punch** | Heavy sub-bass punch (45Hz) | Major beat emphasis, heroic reveal | 250ms | 45Hz |
+| **sparkle** | High sparkle (4000Hz burst) | Magic moment, aha reveal, idea appears | 200ms | 4000Hz |
+| **deep_boom** | Sub-bass cinematic boom (30Hz) | Epic reveal, cinematic opening, climax moment | 1.2s | 30Hz |
+| **transition** | Musical bridge tone (440Hz) | Scene seam smoother, narrative pivot | 600ms | 440Hz |
 
 Use via `mix_audio_pro` tool:
 ```
@@ -24,18 +32,29 @@ mix_audio_pro({
   voicePath: ".frameforge-files/voice_0.m4a",
   outputPath: ".frameforge-files/audio_pro.m4a",
   sfxCues: [
-    { name: "whoosh", time: 2.5, volume: 0.8 },   // camera translation at t=2.5s
-    { name: "impact", time: 8.0, volume: 1.0 },   // title punch at t=8.0s
-    { name: "pop",    time: 12.3, volume: 0.6 },  // badge reveal at t=12.3s
-  ]
+    { name: "whoosh",    time: 2.5,  volume: 0.8 },  // camera translation at t=2.5s
+    { name: "impact",   time: 8.0,  volume: 1.0 },  // title punch at t=8.0s
+    { name: "pop",      time: 12.3, volume: 0.6 },  // badge reveal at t=12.3s
+    { name: "riser",    time: 18.0, volume: 0.7 },  // build-up before climax
+    { name: "chime",    time: 25.5, volume: 0.5 },  // success state
+    { name: "deep_boom",time: 30.0, volume: 0.9 },  // epic reveal
+    { name: "sparkle",  time: 35.2, volume: 0.4 },  // aha moment
+    { name: "transition",time: 40.0, volume: 0.3 }, // scene seam
+  ],
+  // New parameters:
+  roomProfile: "cinematic",          // studio_dry | broadcast | cinematic | concert_hall | intimate
+  noiseGate: true,                   // remove breath noise between words
+  platform: "youtube",               // sets -14 LUFS automatically
 })
 ```
 
 Or in `edit.js` for render-time visual sync (engine.js `cue()` function):
 ```javascript
 import { cue } from './reel/engine.js';
-cue('whoosh', 2.5, 0.8);  // registered in window.__cues for render.mjs
-cue('impact', 8.0, 1.0);
+cue('whoosh',    2.5, 0.8);   // registered in window.__cues for render.mjs
+cue('impact',   8.0, 1.0);
+cue('riser',   18.0, 0.7);
+cue('deep_boom',30.0, 0.9);
 ```
 
 ---

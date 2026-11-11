@@ -948,6 +948,21 @@ After scaffolding, the agent edits edit.js in outDir to animate each scene, then
         ['pipeline/briefings/orchestrator.md', 'pipeline/briefings/orchestrator.md'],
         ['pipeline/briefings/scene-author.md', 'pipeline/briefings/scene-author.md'],
         ['pipeline/briefings/diagram-author.md', 'pipeline/briefings/diagram-author.md'],
+        // Professional audio mix script (full 15+ year sound engineer chain)
+        ['scripts/mix_audio_pro.py', 'scripts/mix_audio_pro.py'],
+      ];
+
+      // Copy upstream reference files into project references/ directory
+      // These are sourced from the FrameForge skills directory, not the project template
+      const skillsDir = pathMod.resolve(__dirname, '../../plugins/video-pipeline/skills/html-renderer/references');
+      const referenceFiles = [
+        'animation-patterns.md',
+        'collage-broll.md',
+        'film-styles.md',
+        'motion-craft.md',
+        'onetake-camera.md',
+        'procedural-sfx.md',
+        'render-contract.md',
       ];
 
       const copied = [];
@@ -958,6 +973,19 @@ After scaffolding, the agent edits edit.js in outDir to animate each scene, then
           syncFs.mkdirSync(pathMod.dirname(destPath), { recursive: true });
           syncFs.copyFileSync(srcPath, destPath);
           copied.push(dest);
+        }
+      }
+
+      // Copy upstream reference files into references/ subfolder of project
+      if (syncFs.existsSync(skillsDir)) {
+        const refsOutDir = pathMod.join(outDir, 'references');
+        syncFs.mkdirSync(refsOutDir, { recursive: true });
+        for (const refFile of referenceFiles) {
+          const srcRef = pathMod.join(skillsDir, refFile);
+          if (syncFs.existsSync(srcRef)) {
+            syncFs.copyFileSync(srcRef, pathMod.join(refsOutDir, refFile));
+            copied.push(`references/${refFile}`);
+          }
         }
       }
 
@@ -1130,18 +1158,26 @@ After scaffolding, the agent edits edit.js in outDir to animate each scene, then
         editJs: pathMod.join(outDir, 'edit.js'),
         nextSteps: [
           `1. Read ANIMATION_GUIDE.md — six determinism rules and four storyboard gates (run from ${outDir})`,
+          `   Also read references/animation-patterns.md for ClaudeAnimationBase 12fps boil, onetake camera, collage patterns`,
+          `   Read references/motion-craft.md for 10 hard motion craft rules`,
+          `   Read references/film-styles.md for 12 cinematic film style references`,
           `2. Edit STORYBOARD.md — every shot needs an event, non-overlapping reads, named transitions, no text`,
           `3. Validate: node scripts/storyboard-validator.mjs STORYBOARD.md (run from ${outDir})`,
           `4. Edit edit.js — replace starter layers with real animation (pure functions of t)`,
+          `   Motion craft: spring() not linear, 3-property entrances, stagger 0.15–0.28s, exits faster than entrances`,
+          `   12fps organic boil: const step = Math.floor(lt * 12) then seeded Math.sin(seed * 19.37 + step * 2.41)`,
+          `   SFX cues: cue('whoosh', t, 0.8) in edit.js — registered in window.__cues for render.mjs`,
           `5. Pre-flight: node scripts/look.mjs (fonts, clipped text, NaN transforms)`,
           `6. Check sheet: node scripts/render.mjs sheet  (one sheet per shot)`,
           `   Check motion: node scripts/render.mjs strip <start> <end>  (every frame of a key motion)`,
           `   Check mobile: node scripts/render.mjs crop 9:16 <t>`,
           `7. Full render: node scripts/render.mjs full${audioPath ? ` --audio="${audioPath}"` : ''} (run from ${outDir})`,
           `   Requires: npm install playwright && npx playwright install chromium`,
-          `8. Unattended/batch: python scripts/video_job.py submit --spec spec.json --max-usd 2.00`,
+          `8. QA gate: node scripts/harness.mjs quality (Opus 5.5 closed-loop fix protocol)`,
+          `   → returns { passed, overallScore, worstFrames } — fix ONLY failing timestamps, re-strip, re-score`,
+          `9. Unattended/batch: python scripts/video_job.py submit --spec spec.json --max-usd 2.00`,
         ],
-        message: `Animation project scaffolded at ${outDir}. Read ANIMATION_GUIDE.md, validate STORYBOARD.md, edit edit.js, then render.`,
+        message: `Animation project scaffolded at ${outDir}. Read ANIMATION_GUIDE.md + references/, validate STORYBOARD.md, edit edit.js, then render.`,
       };
     },
   },
@@ -1895,19 +1931,26 @@ Analyzes input clips, segments narrative beats, calculates cut in/out timestamps
 
       // 4. Style configuration mapping
       const styleConfig = {
-        cinematic:          { avgDuration: 5.0, speed: 1.0,  transition: 'dissolve',   grade: 'cinematic' },
-        fast_paced:         { avgDuration: 2.2, speed: 1.25, transition: 'wipeleft',   grade: 'vibrant' },
-        documentary:        { avgDuration: 4.5, speed: 1.0,  transition: 'fade',       grade: 'warm' },
-        vintage:            { avgDuration: 3.5, speed: 0.95, transition: 'fade',       grade: 'vintage' },
-        cyberpunk:          { avgDuration: 2.5, speed: 1.2,  transition: 'circleopen', grade: 'cyberpunk' },
-        vibrant:            { avgDuration: 3.0, speed: 1.1,  transition: 'slideup',    grade: 'vibrant' },
-        product_launch:     { avgDuration: 4.0, speed: 1.0,  transition: 'dissolve',   grade: 'product_launch' },
-        editorial_collage:  { avgDuration: 2.8, speed: 1.15, transition: 'slideleft',  grade: 'editorial' },
-        retro_vhs:          { avgDuration: 3.2, speed: 0.95, transition: 'pixelize',   grade: 'retrovhs' },
-        anime_action:       { avgDuration: 1.8, speed: 1.3,  transition: 'wipeleft',   grade: 'anime' },
-        sci_fi_hud:         { avgDuration: 3.0, speed: 1.1,  transition: 'circlecrop', grade: 'scifi' },
-        lofi_chill:         { avgDuration: 5.5, speed: 0.9,  transition: 'dissolve',   grade: 'lofi' },
-        minimal_monochrome: { avgDuration: 3.5, speed: 1.0,  transition: 'fade',       grade: 'monochrome' },
+        cinematic:            { avgDuration: 5.0, speed: 1.0,  transition: 'dissolve',   grade: 'cinematic' },
+        fast_paced:           { avgDuration: 2.2, speed: 1.25, transition: 'wipeleft',   grade: 'vibrant' },
+        documentary:          { avgDuration: 4.5, speed: 1.0,  transition: 'fade',       grade: 'warm' },
+        vintage:              { avgDuration: 3.5, speed: 0.95, transition: 'fade',       grade: 'vintage' },
+        cyberpunk:            { avgDuration: 2.5, speed: 1.2,  transition: 'circleopen', grade: 'cyberpunk' },
+        vibrant:              { avgDuration: 3.0, speed: 1.1,  transition: 'slideup',    grade: 'vibrant' },
+        product_launch:       { avgDuration: 4.0, speed: 1.0,  transition: 'dissolve',   grade: 'product_launch' },
+        editorial_collage:    { avgDuration: 2.8, speed: 1.15, transition: 'slideleft',  grade: 'editorial_collage' },
+        retro_vhs:            { avgDuration: 3.2, speed: 0.95, transition: 'pixelize',   grade: 'retrovhs' },
+        anime_action:         { avgDuration: 1.8, speed: 1.3,  transition: 'wipeleft',   grade: 'anime_action' },
+        sci_fi_hud:           { avgDuration: 3.0, speed: 1.1,  transition: 'circlecrop', grade: 'scifi' },
+        lofi_chill:           { avgDuration: 5.5, speed: 0.9,  transition: 'dissolve',   grade: 'lofi_chill' },
+        minimal_monochrome:   { avgDuration: 3.5, speed: 1.0,  transition: 'fade',       grade: 'swiss_mono' },
+        // lemo-opuscar extended styles
+        cinematic_anamorphic: { avgDuration: 6.0, speed: 0.95, transition: 'dissolve',   grade: 'cinematic_anamorphic' },
+        broadcast_news:       { avgDuration: 3.0, speed: 1.0,  transition: 'wipeleft',   grade: 'broadcast_news' },
+        blueprint_3d:         { avgDuration: 4.0, speed: 1.0,  transition: 'distance',   grade: 'blueprint' },
+        film_16mm:            { avgDuration: 4.5, speed: 0.9,  transition: 'fade',       grade: 'film16mm' },
+        product_obsidian:     { avgDuration: 4.5, speed: 1.0,  transition: 'fadeblack',  grade: 'product_obsidian' },
+        retro_vhs_80s:        { avgDuration: 3.0, speed: 0.95, transition: 'pixelize',   grade: 'retro_vhs_80s' },
       }[style] || { avgDuration: 4.0, speed: 1.0, transition: 'fade', grade: 'cinematic' };
 
       // 5. Build Cut Decision List (with pause snapping)
@@ -2015,14 +2058,29 @@ Analyzes input clips, segments narrative beats, calculates cut in/out timestamps
       const { syncSkills } = require('../skills/sync-upstream');
       const res = await syncSkills({ silent });
       const updatedRepos = res.results.filter(r => r.updated).map(r => r.repo);
-      const updateNotice = updatedRepos.length > 0
-        ? `\n\n⬆️  UPSTREAM UPDATES AVAILABLE: ${updatedRepos.join(', ')}\nNew motion craft rules, film styles, audio presets, or camera techniques were merged from upstream. Your next render will automatically use the latest techniques. No action required — FrameForge has already applied the updates.`
-        : '';
+      const perCategoryUpdates = res.perCategoryUpdates || {};
+
+      // Build a rich user-facing update notice per category
+      let updateNotice = '';
+      if (updatedRepos.length > 0) {
+        updateNotice = '\n\n⬆️  UPSTREAM UPDATES AVAILABLE:\n';
+        for (const [cat, catUpdates] of Object.entries(perCategoryUpdates)) {
+          for (const u of catUpdates) {
+            updateNotice += `  [${cat}] ${u.repo} → ${u.sha}\n`;
+            updateNotice += `    ${u.userImpact}\n`;
+            if (u.capabilities.length > 0) {
+              updateNotice += `    Tools affected: ${u.capabilities.join(', ')}\n`;
+            }
+          }
+        }
+        updateNotice += '\nNo action required — FrameForge automatically applied the updates. Your next render uses the latest techniques.';
+      }
       return {
         success: true,
         updatedCount: res.updatedCount,
         repos: res.results,
         updatedRepos,
+        perCategoryUpdates,
         lastSync: res.manifest.lastSync,
         message: `Synced ${res.results.length} upstream skill repositories (${res.updatedCount} updates merged).${updateNotice}`,
       };
@@ -2184,16 +2242,23 @@ Requires yt-dlp: pip install yt-dlp   (or: winget install yt-dlp)`,
   // ── Tool 27: Mix Audio Pro ─────────────────────────────────────────────────
   // Professional audio post-production: EQ, de-esser, reverb, stereo imaging, SFX
   mix_audio_pro: {
-    description: `Professional audio post-production mixing for video narration tracks. Applies a broadcast-quality signal chain:
-1. Pre-EQ: 80Hz high-pass (remove rumble/proximity), 5kHz presence boost (+2dB), 12kHz air shelf (+1.5dB)
-2. De-esser: 6–8kHz dynamic suppression (removes harshness from sibilants — "s", "sh", "ch")
-3. Voice compressor: 3:1 ratio, -20dBFS threshold, 5ms attack, 50ms release (broadcast standard)
-4. Room acoustics: optional subtle reverb tail (0.3s RT60) for warmth — disabled for VO-only tracks
-5. Sidechain ducking: background music ducks -18dB when voice is detected (perceptual lead 40ms)
-6. Stereo widener: expands mid-side on music layer for spatial openness (voice stays mono-center)
-7. SFX timeline mixer: merges procedural sound effect cues with millisecond accuracy
-8. Master bus: two-pass EBU R128 loudnorm at -14 LUFS ±0.5 LU, true peak ≤-1 dBTP
-Outputs broadcast-ready mixed audio at 48kHz/192k AAC stereo.`,
+    description: `Professional audio post-production mixing — 15+ year sound engineer signal chain.
+
+FULL CHAIN (in order):
+ 1. Noise gate: agate -60dBFS threshold — removes breath/room tone between words (enable with noiseGate: true)
+ 2. Pre-EQ: 80Hz HPF (remove proximity/rumble), 5kHz presence boost (+2dB), 12kHz air shelf (+1.5dB)
+ 3. De-esser: 6.5kHz dynamic suppression (-3dB) — removes harshness from "s", "sh", "ch"
+ 4. Voice compressor: 3:1 ratio, -20dBFS threshold, 5ms attack, 50ms release (broadcast standard)
+ 5. Room acoustics: 5 profiles — studio_dry | broadcast | cinematic | concert_hall | intimate
+    (addReverb: true = cinematic profile; roomProfile: "broadcast" overrides)
+ 6. Sidechain ducking: music ducks -18dB when voice active (40ms perceptual lead)
+ 7. Stereo widener: M/S extrastereo 1.4x on music layer only (voice stays mono-center)
+ 8. SFX timeline mixer: 13 synthesis types with millisecond accuracy
+    Types: whoosh | impact | pop | click | riser | chime | buzz | tick | swish | punch | sparkle | deep_boom | transition
+ 9. Master bus: two-pass EBU R128 loudnorm at target LUFS, true peak ≤-1 dBTP
+    Platform presets: youtube (-14) | podcast (-16) | broadcast (-23) | netflix (-27) | instagram (-14)
+
+Outputs broadcast-ready 48kHz/192k AAC stereo.`,
     inputSchema: {
       type: 'object',
       required: ['voicePath', 'outputPath'],
@@ -2203,14 +2268,17 @@ Outputs broadcast-ready mixed audio at 48kHz/192k AAC stereo.`,
         musicPath:    { type: 'string', description: 'Optional background music track. Will be looped, high-passed, and sidechain ducked.' },
         musicVolume:  { type: 'number', default: 0.12, description: 'Music volume multiplier before ducking (0.0–1.0, default 0.12)' },
         duckLevel:    { type: 'number', default: -18, description: 'Music attenuation in dB when voice is active (default -18dB)' },
-        sfxCues:      { type: 'array',  description: 'Sound effect cues: [{ name, time, volume }]. Names: whoosh|impact|pop|click|riser', items: { type: 'object' } },
-        addReverb:    { type: 'boolean', default: false, description: 'Add subtle room acoustics (0.3s RT60). Enable for cinematic narration. Disable for VO-only.' },
+        sfxCues:      { type: 'array',  description: 'Sound effect cues: [{ name, time, volume }]. Names: whoosh|impact|pop|click|riser|chime|buzz|tick|swish|punch|sparkle|deep_boom|transition', items: { type: 'object' } },
+        addReverb:    { type: 'boolean', default: false, description: 'Legacy: Add cinematic room acoustics. Prefer roomProfile for precise control.' },
+        roomProfile:  { type: 'string', enum: ['studio_dry', 'broadcast', 'cinematic', 'concert_hall', 'intimate'], description: 'Room acoustics profile. studio_dry=clean/intimate; broadcast=slight air; cinematic=warm/spacious; concert_hall=grand; intimate=podcast bedroom. Overrides addReverb.' },
+        noiseGate:    { type: 'boolean', default: false, description: 'Apply noise gate (-60dBFS threshold) to remove breath noise and room tone between words. Enable for field recordings or noisy VO.' },
         stereoWiden:  { type: 'boolean', default: true,  description: 'Apply mid-side stereo widening to music layer (voice stays mono-center).' },
-        targetLufs:   { type: 'number', default: -14, description: 'Target integrated loudness (default -14 LUFS, broadcast standard)' },
+        targetLufs:   { type: 'number', default: -14, description: 'Target integrated loudness. Platform presets: -14 YouTube/Instagram, -16 Podcast, -23 Broadcast EBU R128, -27 Netflix.' },
+        platform:     { type: 'string', enum: ['youtube', 'podcast', 'broadcast', 'netflix', 'instagram'], description: 'Platform preset for LUFS target. Overrides targetLufs when provided.' },
         videoPath:    { type: 'string', description: 'If provided, muxes the mixed audio into this video file and writes to outputPath.' },
       },
     },
-    handler: async ({ voicePath, outputPath, musicPath, musicVolume = 0.12, duckLevel = -18, sfxCues = [], addReverb = false, stereoWiden = true, targetLufs = -14, videoPath }) => {
+    handler: async ({ voicePath, outputPath, musicPath, musicVolume = 0.12, duckLevel = -18, sfxCues = [], addReverb = false, roomProfile, noiseGate = false, stereoWiden = true, targetLufs = -14, platform, videoPath }) => {
       const { spawnSync } = require('child_process');
       const syncFs = require('fs');
       const pathMod = require('path');
@@ -2259,33 +2327,58 @@ Outputs broadcast-ready mixed audio at 48kHz/192k AAC stereo.`,
         ], `Two-pass loudnorm ${pathMod.basename(inPath)}`);
       }
 
+      // ── Resolve platform LUFS target ───────────────────────────────────────
+      const PLATFORM_LUFS_LOCAL = {
+        youtube: { lufs: -14, tp: -1.0 }, podcast: { lufs: -16, tp: -1.0 },
+        broadcast: { lufs: -23, tp: -1.0 }, netflix: { lufs: -27, tp: -3.0 },
+        instagram: { lufs: -14, tp: -1.0 },
+      };
+      const platformTarget = platform ? (PLATFORM_LUFS_LOCAL[platform] || null) : null;
+      const resolvedLufs = platformTarget ? platformTarget.lufs : targetLufs;
+      const resolvedTp   = platformTarget ? platformTarget.tp   : -1.0;
+
+      // ── Room acoustics profile resolution ─────────────────────────────────
+      const ROOM_PROFILES_LOCAL = {
+        studio_dry:   { inGain: 0.8, outGain: 0.6,  delays: '10', decays: '0.1' },
+        broadcast:    { inGain: 0.8, outGain: 0.75, delays: '20', decays: '0.2' },
+        cinematic:    { inGain: 0.8, outGain: 0.85, delays: '30', decays: '0.3' },
+        concert_hall: { inGain: 0.8, outGain: 0.90, delays: '45', decays: '0.55' },
+        intimate:     { inGain: 0.85, outGain: 0.70, delays: '15', decays: '0.18' },
+      };
+      const resolvedRoom = roomProfile ? (ROOM_PROFILES_LOCAL[roomProfile] || null) : (addReverb ? ROOM_PROFILES_LOCAL.cinematic : null);
+
       // ── Step 1: Professional voice chain ──────────────────────────────────
-      // 80Hz HPF + de-esser (6kHz dynamic) + presence (+2dB @ 5kHz) + air shelf (+1.5dB @ 12kHz) + 3:1 compressor
+      // [noise gate] → 80Hz HPF → presence +2dB@5kHz → air shelf +1.5dB@12kHz
+      // → 3:1 compressor → de-esser 6.5kHz → [room acoustics]
       const voiceChainPath = pathMod.join(tmpDir, 'voice_chain.m4a');
       const deEsserFreq = 6500;  // Hz — sibilant center
       const deEsserBW   = 1500;  // Hz — bandwidth
 
-      // De-esser approximation: dynamic equalizer via sidechained bandpass compressor
-      // HPF removes proximity/rumble, presence shelf adds intelligibility, air shelf adds breathiness
-      const voiceFilter = [
-        `highpass=f=80`,
-        `equalizer=f=5000:width_type=o:width=2:g=2.0`,   // presence boost
-        `equalizer=f=12000:width_type=s:width=1:g=1.5`,   // air shelf
-        `acompressor=ratio=3:threshold=-20dB:attack=5:release=50:makeup=2`,
-        // De-essing: suppress sibilance band when it exceeds threshold
-        `equalizer=f=${deEsserFreq}:width_type=h:width=${deEsserBW}:g=-3.0`,
-      ].join(',');
-
-      const voiceFilterWithReverb = addReverb
-        ? voiceFilter + `,aecho=in_gain=0.8:out_gain=0.85:delays=30:decays=0.3`
-        : voiceFilter;
+      const voiceFilterParts = [];
+      // Noise gate: removes breath noise and room tone between words
+      if (noiseGate) {
+        voiceFilterParts.push('agate=threshold=0.0003:range=0.15:attack=5:release=200');
+      }
+      voiceFilterParts.push(
+        'highpass=f=80',
+        'equalizer=f=5000:width_type=o:width=2:g=2.0',   // presence boost
+        'equalizer=f=12000:width_type=s:width=1:g=1.5',  // air shelf
+        'acompressor=ratio=3:threshold=-20dB:attack=5:release=50:makeup=2',
+        `equalizer=f=${deEsserFreq}:width_type=h:width=${deEsserBW}:g=-3.0`, // de-esser
+      );
+      if (resolvedRoom) {
+        voiceFilterParts.push(
+          `aecho=in_gain=${resolvedRoom.inGain}:out_gain=${resolvedRoom.outGain}:delays=${resolvedRoom.delays}:decays=${resolvedRoom.decays}`
+        );
+      }
+      const voiceFilterWithReverb = voiceFilterParts.join(',');
 
       runFfmpeg([
         '-i', voicePath,
         '-af', voiceFilterWithReverb,
         '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-ac', '2',
         voiceChainPath,
-      ], 'Voice chain (EQ + de-esser + compress)');
+      ], 'Voice chain (noise gate + EQ + de-esser + compress + room)');
 
       // ── Step 2: SFX synthesis and timeline cue mixing ─────────────────────
       let sfxMixPath = null;
@@ -2297,32 +2390,39 @@ Outputs broadcast-ready mixed audio at 48kHz/192k AAC stereo.`,
         ], { encoding: 'utf8', timeout: 10000 });
         const voiceDur = parseFloat((durProbe.stdout || '0').trim()) || 30;
 
-        // Generate SFX via tone synthesis (procedural, no sample files needed)
-        const SFX_GENERATORS = {
-          whoosh: (t, vol) => `sine=frequency=200:duration=0.4,volume=${vol},asetpts=PTS+${t}/TB,aphasemeter`,
-          impact: (t, vol) => `sine=frequency=60:duration=0.5,volume=${vol * 1.2},asetpts=PTS+${t}/TB`,
-          pop:    (t, vol) => `sine=frequency=600:duration=0.12,volume=${vol * 0.8},asetpts=PTS+${t}/TB`,
-          click:  (t, vol) => `sine=frequency=2500:duration=0.05,volume=${vol * 0.6},asetpts=PTS+${t}/TB`,
-          riser:  (t, vol) => `sine=frequency=100:duration=2.0,volume=${vol},asetpts=PTS+${t}/TB`,
-        };
-
+        // Generate SFX via tone synthesis — full 13-type earshot library
         // Build per-SFX wav files, then mix them with the voice chain
         const sfxPaths = [];
+        // Extended earshot SFX map (matches SFX_FREQ_MAP in mixer.js)
+        const SFX_FULL_MAP = {
+          whoosh:     { freq: 200,  dur: 0.4,  vol: 0.35 },
+          impact:     { freq: 60,   dur: 0.5,  vol: 0.42 },
+          pop:        { freq: 600,  dur: 0.12, vol: 0.28 },
+          click:      { freq: 2500, dur: 0.05, vol: 0.22 },
+          riser:      { freq: 100,  dur: 2.0,  vol: 0.30 },
+          chime:      { freq: 1200, dur: 0.35, vol: 0.25 },
+          buzz:       { freq: 80,   dur: 0.18, vol: 0.38 },
+          tick:       { freq: 3200, dur: 0.04, vol: 0.18 },
+          swish:      { freq: 350,  dur: 0.3,  vol: 0.30 },
+          punch:      { freq: 45,   dur: 0.25, vol: 0.50 },
+          sparkle:    { freq: 4000, dur: 0.2,  vol: 0.15 },
+          deep_boom:  { freq: 30,   dur: 1.2,  vol: 0.55 },
+          transition: { freq: 440,  dur: 0.6,  vol: 0.20 },
+        };
+
         for (let i = 0; i < sfxCues.length; i++) {
           const cue = sfxCues[i];
-          const sfxName = (cue.name || cue.sfxName || 'pop').toLowerCase();
+          const sfxName = (cue.name || cue.sfxName || 'pop').toLowerCase().replace(/-/g, '_');
           const cueTime = Number(cue.time || cue.t || 0);
           const cueVol = Number(cue.volume || cue.vol || 1.0);
-          const durMap = { whoosh: 0.4, impact: 0.5, pop: 0.12, click: 0.05, riser: 2.0 };
-          const sfxDur = durMap[sfxName] || 0.3;
+          const sfxDef = SFX_FULL_MAP[sfxName] || SFX_FULL_MAP.pop;
+          const sfxDur = sfxDef.dur;
 
           // Perceptual lead: place audio 40ms before the visual cue
           const adjustedTime = Math.max(0, cueTime - 0.04);
 
           const sfxPath = pathMod.join(tmpDir, `sfx_${i}_${sfxName}.m4a`);
-          // Generate synthetic tone at the correct duration
-          const freqMap = { whoosh: 200, impact: 60, pop: 600, click: 2500, riser: 100 };
-          const freq = freqMap[sfxName] || 400;
+          const freq = sfxDef.freq;
 
           // Create silence-padded SFX at correct offset in timeline
           const silenceFilter = `anullsrc=channel_layout=stereo:sample_rate=48000[silence];sine=f=${freq}:d=${sfxDur}[sfxtone];[sfxtone]volume=${cueVol * 0.35}[sfxv];[silence][sfxv]amix=inputs=2:duration=longest[sfxout]`;
@@ -2416,9 +2516,9 @@ Outputs broadcast-ready mixed audio at 48kHz/192k AAC stereo.`,
         finalMixPath = voiceChainPath;
       }
 
-      // ── Step 4: Two-pass EBU R128 loudnorm master ─────────────────────────
+      // ── Step 4: Two-pass EBU R128 loudnorm master (platform-aware) ────────
       const normPath = pathMod.join(tmpDir, 'master_norm.m4a');
-      twoPassNorm(finalMixPath, normPath, targetLufs);
+      twoPassNorm(finalMixPath, normPath, resolvedLufs, resolvedTp);
 
       // ── Step 5: Mux into video or copy to outputPath ──────────────────────
       if (videoPath && syncFs.existsSync(videoPath)) {
@@ -2454,7 +2554,7 @@ Outputs broadcast-ready mixed audio at 48kHz/192k AAC stereo.`,
       try {
         const m = spawnSync('ffmpeg', [
           '-nostdin', '-i', outputPath,
-          '-af', `loudnorm=I=${targetLufs}:TP=-1:print_format=json`,
+          '-af', `loudnorm=I=${resolvedLufs}:TP=${resolvedTp}:print_format=json`,
           '-f', 'null', '-',
         ], { encoding: 'utf8', timeout: 60000 });
         const combined = (m.stderr || '') + (m.stdout || '');
@@ -2473,21 +2573,23 @@ Outputs broadcast-ready mixed audio at 48kHz/192k AAC stereo.`,
         sizeBytes,
         measuredLufs,
         measuredTp,
-        targetLufs,
-        passed: measuredLufs != null ? Math.abs(measuredLufs - targetLufs) <= 1.5 && measuredTp <= -0.5 : null,
+        targetLufs: resolvedLufs,
+        platform: platform || null,
+        passed: measuredLufs != null ? Math.abs(measuredLufs - resolvedLufs) <= 1.5 && measuredTp <= -0.5 : null,
         chain: {
+          noiseGate: noiseGate ? 'agate -60dBFS' : 'off',
           hpf: '80Hz',
           presenceBoost: '+2dB @ 5kHz',
           airShelf: '+1.5dB @ 12kHz',
           deEsser: `${deEsserFreq}Hz dynamic`,
           compressor: '3:1 @ -20dBFS',
-          reverb: addReverb ? '0.3s RT60' : 'off',
+          roomAcoustics: resolvedRoom ? (roomProfile || 'cinematic') : 'off',
           sidechainDuck: musicPath ? `${duckLevel}dB` : 'no music',
           stereoWiden: stereoWiden && musicPath ? 'MS extrastereo 1.4x' : 'off',
           sfxCues: sfxCues.length,
-          masterBus: `EBU R128 ${targetLufs} LUFS`,
+          masterBus: `EBU R128 ${resolvedLufs} LUFS${platform ? ` (${platform})` : ''}`,
         },
-        message: `Professional audio mix complete → ${outputPath} (${(sizeBytes / 1024).toFixed(0)}KB${measuredLufs != null ? `, ${measuredLufs.toFixed(1)} LUFS` : ''})`,
+        message: `Professional audio mix complete → ${outputPath} (${(sizeBytes / 1024).toFixed(0)}KB${measuredLufs != null ? `, ${measuredLufs.toFixed(1)} LUFS` : ''}${platform ? `, ${platform} target` : ''})`,
       };
     },
   },
@@ -2498,7 +2600,7 @@ Outputs broadcast-ready mixed audio at 48kHz/192k AAC stereo.`,
 
 const SERVER_INFO = {
   name:    'video-pipeline',
-  version: '2.4.10',
+  version: '2.5.0',
 };
 
 const CAPABILITIES = {

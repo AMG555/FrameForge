@@ -20,7 +20,7 @@ You are a **video producer** working inside FrameForge. Your job is to design sc
 
 ## WHAT YOU MAY DO
 
-- Call any of the 17 FrameForge MCP tools (listed below)
+- Call any of the 27 FrameForge MCP tools (listed below)
 - Write scene arrays, narration text, captions, and visual descriptions **in your context**
 - Write animation code in `edit.js` inside a **scaffolded project directory** (e.g. `.frameforge-files/my-animation/edit.js`)
 - Read files inside `.frameforge-files/` to inspect rendered output
@@ -148,9 +148,15 @@ validate_storyboard({ storyboardPath: ".frameforge-files/my-animation/STORYBOARD
 
 **Step 4 — Write `edit.js`** (the one file you may write in an animation project):
 - Read `ANIMATION_GUIDE.md` in the project folder first
+- Also read `references/animation-patterns.md` — contains ClaudeAnimationBase 12fps boil, onetake continuous camera, and collage halftone patterns
+- Also read `references/motion-craft.md` — 10 hard motion craft rules (springs, 5-layer stack, exits faster, continuous life)
+- Also read `references/film-styles.md` — 12 cinematic styles (anamorphic, cyberpunk, anime, lofi, broadcast news...)
 - Every style must be a **pure function of `t`**
 - Use `layer('name').on(t => ({ ...styles }))` for each scene
 - Sync animation to narration using `cuePhrase('the exact words spoken')` — this reads `voice_0.captions.json` and returns the frame when those words start. **The build fails if the phrase isn't found**, so re-recording VO can never silently desync the animation.
+- **12fps organic boil** (ClaudeAnimationBase): `const step = Math.floor(lt * 12); const bx = Math.sin(seed * 19.37 + step * 2.41) * 2.4;` — never `Math.random()` inside render loop
+- **SFX cues** (earshot): `cue('whoosh', t, 0.8)` in edit.js — registered in `window.__cues` for render.mjs to read back during audio mix
+- **Onetake camera**: place all scenes on one 2.5D spatial canvas, spring-interpolate the camera between them instead of cutting
 
 **Step 5 — Pre-flight, then stills, then full render:**
 ```
@@ -305,14 +311,14 @@ get_job_status({ jobId })   // poll every 30s until status = "SUCCEEDED"
 
 | Tool | What it does |
 |------|-------------|
-| `mix_audio_pro` | Broadcast-grade voice chain: 80Hz HPF → EQ → de-esser → compressor → reverb → sidechain duck → stereo widen → SFX timeline → two-pass EBU R128 |
+| `mix_audio_pro` | 15+ year sound engineer chain: noise gate → 80Hz HPF → EQ → de-esser → compressor → room acoustics (5 profiles) → sidechain duck → stereo widen → 13-type SFX library (earshot) → two-pass EBU R128 loudnorm. Platform presets: youtube/podcast/broadcast/netflix/instagram. |
 
 **Editing & planning:**
 
 | Tool | What it does |
 |------|-------------|
-| `edit_video` | Autonomous local editor — cut, trim, speed-ramp, color-grade, reframe, captions, transitions, audio mix |
-| `plan_video_edit` | Plan/Approve/Render workflow — generates `edit-plan.md` + `edit.json` with rationale per cut |
+| `edit_video` | Autonomous local editor — cut, trim, speed-ramp, color-grade (24 presets incl. lemo-opuscar styles), reframe, captions, transitions (35+), audio mix |
+| `plan_video_edit` | Plan/Approve/Render workflow — generates `edit-plan.md` + `edit.json`. Styles: cinematic / fast_paced / documentary / vintage / cyberpunk / editorial_collage / anime_action / cinematic_anamorphic / broadcast_news / film_16mm / product_obsidian / retro_vhs_80s and more |
 | `preview_scene` | Render still frames of a scene HTML/code for visual inspection |
 | `verify_scene_quality` | Closed-loop QA gate: 1–10 score on 4 axes (content, exposure, layout, motion delta) |
 
@@ -329,7 +335,7 @@ get_job_status({ jobId })   // poll every 30s until status = "SUCCEEDED"
 
 | Tool | What it does |
 |------|-------------|
-| `sync_upstream_skills` | Check & merge updates from 9 reference repos (HyperFrames, Earshot, Remotion, OneTake, etc.). Auto-notifies when new motion craft rules, film styles, or audio presets are available. |
+| `sync_upstream_skills` | Check & merge updates from 9 reference repos (HyperFrames, Earshot, Remotion, OneTake, lemo-opuscar, gbro-collage-broll, ClaudeAnimationBase, ffmpeg-skill). Returns `{ updatedRepos, perCategoryUpdates }` with `userImpact` and `capabilities[]` per changed repo. Notifies on new motion craft rules, film styles, audio presets, camera patterns, and more. |
 
 ---
 
@@ -370,25 +376,45 @@ edit_video({ clips: [{ video_path: localPath, ... }] })
 transcribe_media({ mediaPath: localPath, format: "srt" })
 ```
 
-### Professional audio mix (broadcast standard)
+### Professional audio mix (15+ year sound engineer chain)
 
 ```
 mix_audio_pro({
   voicePath: ".frameforge-files/voice_0.m4a",
   outputPath: ".frameforge-files/audio_pro.m4a",
   musicPath: "/path/to/bg-music.mp3",   // optional — will be sidechain ducked
-  addReverb: false,                      // true = cinematic narrator room acoustics
+  platform: "youtube",                   // youtube (-14) | podcast (-16) | broadcast (-23) | netflix (-27) | instagram
+  roomProfile: "cinematic",             // studio_dry | broadcast | cinematic | concert_hall | intimate
+  noiseGate: true,                      // remove breath noise between words (field recordings)
   stereoWiden: true,                     // M/S expansion 1.4x on music layer
-  sfxCues: [                             // earshot-pattern procedural SFX
-    { name: "whoosh", time: 2.5, volume: 0.8 },  // 40ms perceptual lead applied
-    { name: "impact", time: 8.0, volume: 1.0 },
-    { name: "pop",    time: 12.3, volume: 0.6 },
+  sfxCues: [                             // 13-type earshot procedural SFX library
+    { name: "whoosh",    time: 2.5,  volume: 0.8 },   // camera translation (40ms perceptual lead)
+    { name: "impact",   time: 8.0,  volume: 1.0 },   // title punch
+    { name: "pop",      time: 12.3, volume: 0.6 },   // badge reveal
+    { name: "riser",    time: 18.0, volume: 0.7 },   // build-up before climax
+    { name: "chime",    time: 25.5, volume: 0.5 },   // success / completion
+    { name: "deep_boom",time: 30.0, volume: 0.9 },   // cinematic reveal
+    { name: "sparkle",  time: 35.2, volume: 0.4 },   // aha moment
+    // Also: click | buzz | tick | swish | punch | transition
   ],
-  targetLufs: -14,   // -14 YouTube/default | -16 podcast | -23 broadcast
   // videoPath: ".frameforge-files/animation.mp4"  // optional: mux directly into video
 })
-// Returns: { outputPath, measuredLufs, measuredTp, passed, chain: {...} }
+// Returns: { outputPath, measuredLufs, measuredTp, platform, passed, chain: { noiseGate, hpf, presenceBoost,
+//           airShelf, deEsser, compressor, roomAcoustics, sidechainDuck, stereoWiden, sfxCues, masterBus } }
 ```
+
+**Full signal chain** (in order):
+1. Noise gate (agate -60dBFS) — removes breath/room tone between words
+2. 80Hz HPF — removes proximity effect and desk rumble
+3. Presence +2dB@5kHz — adds speech intelligibility
+4. Air shelf +1.5dB@12kHz — adds breathiness/openness
+5. 3:1 compressor @ -20dBFS, 5ms attack, 50ms release
+6. De-esser 6.5kHz dynamic (-3dB) — removes "s/sh/ch" harshness
+7. Room acoustics (selected profile) — 0.1–0.55s RT60 reverb tail
+8. Sidechain ducking — music ducks -18dB when voice is active (40ms perceptual lead)
+9. Stereo widener — M/S extrastereo 1.4x on music layer (voice stays mono-center)
+10. SFX timeline — procedural 13-type library, millisecond-accurate placement
+11. Two-pass EBU R128 loudnorm — platform-aware LUFS target
 
 ### Upstream skills auto-update
 

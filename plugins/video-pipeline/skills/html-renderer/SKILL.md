@@ -13,6 +13,15 @@ description: |
   agentic IDE connected via MCP. Activate when the user asks for richer
   animation, Remotion-style rendering, HTML-based video, or "make it look
   like the reference repo".
+
+  Advanced animation patterns (read references/ after scaffold):
+    references/animation-patterns.md — ClaudeAnimationBase 12fps boil, onetake camera, collage halftone
+    references/motion-craft.md       — 10 hard motion craft rules (springs, 5-layer stack, exits faster)
+    references/film-styles.md        — 12 cinematic film styles (anamorphic, cyberpunk, anime, lofi...)
+    references/onetake-camera.md     — zero-cut continuous camera choreography
+    references/collage-broll.md      — editorial paper collage + halftone 2.5D
+    references/procedural-sfx.md     — 13-type earshot SFX library with platform LUFS targets
+    references/render-contract.md    — determinism contract (bans Date.now, Math.random, CSS transitions)
 ---
 
 # HTML Renderer — FrameForge Extension
@@ -277,16 +286,27 @@ the animation/render stage.
 
 ```
 plugins/video-pipeline/skills/html-renderer/
-  SKILL.md                    ← this file
-  references/engine-api.md    ← full engine function reference
-  references/design.md        ← layouts, safe zones, type scale, pacing
-  assets/project/             ← template copied into each render project
-    index.html                ← compositor page (loads engine.js)
-    edit.js                   ← starter edit (one layer per FrameForge scene)
-    reel/engine.js            ← springs, layouts, components, captions, seek API
-    reel/engine.css           ← default fonts + base reset
-    scripts/                  ← render.mjs, mix_audio.py, verify.py, stock.py,
-                                 capture.mjs, transcribe.py, new-project.mjs
+  SKILL.md                          ← this file
+  references/engine-api.md          ← full engine function reference
+  references/design.md              ← layouts, safe zones, type scale, pacing
+  references/animation-patterns.md  ← ClaudeAnimationBase boil + onetake + collage (NEW)
+  references/motion-craft.md        ← 10 hard motion craft rules (NEW)
+  references/film-styles.md         ← 12 cinematic film styles from lemo-opuscar (NEW)
+  references/onetake-camera.md      ← zero-cut continuous camera patterns (NEW)
+  references/collage-broll.md       ← editorial paper collage + halftone 2.5D (NEW)
+  references/procedural-sfx.md      ← 13-type earshot SFX + room profiles + platform LUFS (NEW)
+  references/render-contract.md     ← determinism contract (bans Math.random etc.)
+  assets/project/                   ← template copied into each render project
+    index.html                      ← compositor page (loads engine.js)
+    edit.js                         ← starter edit (one layer per FrameForge scene)
+    reel/engine.js                  ← springs, layouts, components, captions, seek API
+    reel/engine.css                 ← default fonts + base reset
+    scripts/                        ← render.mjs, mix_audio.py, mix_audio_pro.py,
+                                       verify.py, stock.py, capture.mjs,
+                                       transcribe.py, new-project.mjs
 scripts/html-renderer/
-  new-project.mjs             ← scaffolds a render project from script JSON
+  new-project.mjs                   ← scaffolds a render project from script JSON
 ```
+
+References are automatically copied into each project's `references/` directory
+by `scaffold_animation_project` — agents should read them for advanced patterns.
