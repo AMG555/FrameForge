@@ -126,7 +126,27 @@ if (hasPlaywright && hasChromium) {
     '    (Path 1 via create_video_from_script does not need Playwright)');
 }
 
-// 6. System Font (for video subtitles/captions)
+// 6. Media Downloader (yt-dlp)
+const { detectYtDlp } = require('../utils/media-downloader');
+if (detectYtDlp()) {
+  const ytdlpVer = spawnSync('yt-dlp', ['--version'], { encoding: 'utf8', timeout: 3000, shell: process.platform === 'win32' });
+  pass('Media Downloader (yt-dlp)', `available (${(ytdlpVer.stdout || '').trim()})`);
+} else {
+  warn('Media Downloader (yt-dlp)', 'yt-dlp not found in PATH (optional for downloading web clips/audio)',
+    'Run "pip install yt-dlp" or download binary from https://github.com/yt-dlp/yt-dlp');
+}
+
+// 7. Speech Transcription (Whisper)
+const { detectWhisper } = require('../utils/transcribe');
+const whisperStatus = detectWhisper();
+if (whisperStatus.available) {
+  pass('Speech Transcription (Whisper)', `engine: ${whisperStatus.engine} (word-level timestamps & pause detection ready)`);
+} else {
+  warn('Speech Transcription (Whisper)', 'Local whisper engine not detected (FFmpeg pause detection fallback active)',
+    'Run "pip install openai-whisper" for local word-level transcription or set OPENAI_API_KEY in .env');
+}
+
+// 8. System Font (for video subtitles/captions)
 const FONT_CANDIDATES = [
   'C:\\Windows\\Fonts\\arialbd.ttf',
   'C:\\Windows\\Fonts\\calibrib.ttf',

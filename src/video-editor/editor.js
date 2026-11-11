@@ -38,6 +38,13 @@ const COLOR_GRADES = {
   monochrome: "hue=s=0,eq=contrast=1.15",
   vibrant: "eq=saturation=1.35:contrast=1.05",
   cyberpunk: "curves=r='0/0 0.5/0.45 1/1':b='0/0.08 0.5/0.58 1/1',eq=saturation=1.3:contrast=1.1",
+  editorial_collage: "curves=vintage,eq=contrast=1.1:saturation=0.9",
+  editorial: "curves=vintage,eq=contrast=1.1:saturation=0.9",
+  product_launch: "curves=m='0/0 0.5/0.52 1/1':b='0/0 0.5/0.53 1/0.98',eq=contrast=1.08:saturation=1.05",
+  retrovhs: "curves=vintage,hue=s=0.9,eq=contrast=1.1",
+  anime: "curves=m='0/0 0.4/0.45 1/1',eq=saturation=1.4:contrast=1.12",
+  scifi: "curves=r='0/0 0.5/0.46 1/1':b='0/0 0.5/0.56 1/1',eq=contrast=1.15:saturation=1.1",
+  lofi: "curves=m='0/0.05 0.5/0.5 1/0.95',eq=saturation=0.9:contrast=0.95",
 };
 
 // Supported transition types in FFmpeg xfade

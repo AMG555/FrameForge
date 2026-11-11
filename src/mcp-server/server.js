@@ -1834,12 +1834,17 @@ Analyzes input clips, segments narrative beats, calculates cut in/out timestamps
       const syncFs = require('fs');
       const pathMod = require('path');
       const { VideoEditor } = require('../video-editor/editor');
+      const { isWebUrl, downloadMediaWithYtDlp } = require('../utils/media-downloader');
+      const { detectPausesWithFFmpeg, snapCutToPause } = require('../utils/transcribe');
       const editor = new VideoEditor();
 
-      // 1. Resolve clip paths
+      // 1. Resolve clip paths (local files, directory, or URLs via yt-dlp)
       let clipPaths = [];
       if (typeof footage === 'string') {
-        if (syncFs.existsSync(footage) && syncFs.statSync(footage).isDirectory()) {
+        if (isWebUrl(footage)) {
+          const dl = downloadMediaWithYtDlp(footage);
+          clipPaths = [dl.localPath];
+        } else if (syncFs.existsSync(footage) && syncFs.statSync(footage).isDirectory()) {
           const validExts = ['.mp4', '.mov', '.mkv', '.webm', '.avi'];
           clipPaths = syncFs.readdirSync(footage)
             .filter(f => validExts.includes(pathMod.extname(f).toLowerCase()))
@@ -1848,7 +1853,14 @@ Analyzes input clips, segments narrative beats, calculates cut in/out timestamps
           clipPaths = [footage];
         }
       } else if (Array.isArray(footage)) {
-        clipPaths = footage;
+        for (const item of footage) {
+          if (isWebUrl(item)) {
+            const dl = downloadMediaWithYtDlp(item);
+            clipPaths.push(dl.localPath);
+          } else {
+            clipPaths.push(item);
+          }
+        }
       }
 
       if (clipPaths.length === 0) {
@@ -1867,12 +1879,14 @@ Analyzes input clips, segments narrative beats, calculates cut in/out timestamps
         probedClips.push({ path: cp, ...meta });
       }
 
-      // 3. Audio & Duration planning
+      // 3. Audio & Duration planning (with speech pause detection)
       let totalTarget = target_duration;
-      if (!totalTarget && audio_path && syncFs.existsSync(audio_path)) {
+      let speechPauses = [];
+      if (audio_path && syncFs.existsSync(audio_path)) {
         try {
           const aMeta = editor.probeMedia(audio_path);
-          totalTarget = aMeta.duration;
+          if (!totalTarget) totalTarget = aMeta.duration;
+          speechPauses = detectPausesWithFFmpeg(audio_path);
         } catch (_) {}
       }
       if (!totalTarget) {
@@ -1881,34 +1895,51 @@ Analyzes input clips, segments narrative beats, calculates cut in/out timestamps
 
       // 4. Style configuration mapping
       const styleConfig = {
-        cinematic:   { avgDuration: 5.0, speed: 1.0,  transition: 'dissolve', grade: 'cinematic' },
-        fast_paced:  { avgDuration: 2.2, speed: 1.25, transition: 'wipeleft', grade: 'vibrant' },
-        documentary: { avgDuration: 4.5, speed: 1.0,  transition: 'fade',     grade: 'warm' },
-        vintage:     { avgDuration: 3.5, speed: 0.95, transition: 'fade',     grade: 'vintage' },
-        cyberpunk:   { avgDuration: 2.5, speed: 1.2,  transition: 'circleopen', grade: 'cyberpunk' },
-        vibrant:     { avgDuration: 3.0, speed: 1.1,  transition: 'slideup',  grade: 'vibrant' },
+        cinematic:          { avgDuration: 5.0, speed: 1.0,  transition: 'dissolve',   grade: 'cinematic' },
+        fast_paced:         { avgDuration: 2.2, speed: 1.25, transition: 'wipeleft',   grade: 'vibrant' },
+        documentary:        { avgDuration: 4.5, speed: 1.0,  transition: 'fade',       grade: 'warm' },
+        vintage:            { avgDuration: 3.5, speed: 0.95, transition: 'fade',       grade: 'vintage' },
+        cyberpunk:          { avgDuration: 2.5, speed: 1.2,  transition: 'circleopen', grade: 'cyberpunk' },
+        vibrant:            { avgDuration: 3.0, speed: 1.1,  transition: 'slideup',    grade: 'vibrant' },
+        product_launch:     { avgDuration: 4.0, speed: 1.0,  transition: 'dissolve',   grade: 'product_launch' },
+        editorial_collage:  { avgDuration: 2.8, speed: 1.15, transition: 'slideleft',  grade: 'editorial' },
+        retro_vhs:          { avgDuration: 3.2, speed: 0.95, transition: 'pixelize',   grade: 'retrovhs' },
+        anime_action:       { avgDuration: 1.8, speed: 1.3,  transition: 'wipeleft',   grade: 'anime' },
+        sci_fi_hud:         { avgDuration: 3.0, speed: 1.1,  transition: 'circlecrop', grade: 'scifi' },
+        lofi_chill:         { avgDuration: 5.5, speed: 0.9,  transition: 'dissolve',   grade: 'lofi' },
+        minimal_monochrome: { avgDuration: 3.5, speed: 1.0,  transition: 'fade',       grade: 'monochrome' },
       }[style] || { avgDuration: 4.0, speed: 1.0, transition: 'fade', grade: 'cinematic' };
 
-      // 5. Build Cut Decision List
+      // 5. Build Cut Decision List (with pause snapping)
       const clipCount = Math.max(1, Math.min(probedClips.length, Math.ceil(totalTarget / styleConfig.avgDuration)));
       const segDur = totalTarget / clipCount;
       const plannedClips = [];
 
       const beatNames = ['Opening Hook', 'Context & Build-up', 'Core Revelation / Climax', 'Resolution & Outro'];
 
+      let cumulativeTime = 0;
       for (let i = 0; i < clipCount; i++) {
         const src = probedClips[i % probedClips.length];
         const clipDur = Number(segDur.toFixed(2));
         const maxStart = Math.max(0, (src.duration || 10) - clipDur);
-        const startTime = Number((maxStart * 0.25 * (i % 3)).toFixed(2));
-        const endTime = Number((startTime + clipDur).toFixed(2));
+        let startTime = Number((maxStart * 0.25 * (i % 3)).toFixed(2));
+        let rawEndTime = Number((startTime + clipDur).toFixed(2));
+        cumulativeTime += clipDur;
+
+        // Snap cut to audio pause if speech pauses available
+        if (speechPauses.length > 0) {
+          const snappedTime = snapCutToPause(cumulativeTime, speechPauses, 0.75);
+          const shift = snappedTime - cumulativeTime;
+          rawEndTime = Math.max(startTime + 0.5, Number((rawEndTime + shift).toFixed(2)));
+        }
+
         const beatIndex = Math.min(beatNames.length - 1, Math.floor((i / clipCount) * beatNames.length));
 
         plannedClips.push({
           video_path: src.path,
           start_time: startTime,
-          end_time: endTime,
-          duration: clipDur,
+          end_time: rawEndTime,
+          duration: Number((rawEndTime - startTime).toFixed(2)),
           speed: styleConfig.speed,
           color_grade: styleConfig.grade,
           transition: i === clipCount - 1 ? 'none' : styleConfig.transition,
@@ -1966,6 +1997,29 @@ Analyzes input clips, segments narrative beats, calculates cut in/out timestamps
         clipCount: plannedClips.length,
         totalDuration: totalTarget,
         message: 'Edit plan and configuration generated. Review edit-plan.md, then pass edit.json to edit_video.',
+      };
+    },
+  },
+
+  // ── Tool 24: Sync Upstream Skills ─────────────────────────────────────────
+  // Transparently checks & merges updates from upstream video skills repositories
+  sync_upstream_skills: {
+    description: `Check and synchronize latest upstream skills, motion craft rules, film styles, and audio presets from 9 reference repositories (HyperFrames, OneTake, LemoOpuscar, CollageBroll, Remotion, Earshot, ClaudeAnimationBase, ClaudeRemotionSkill, FFmpegSkill). Runs silently or returns update summary.`,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        silent: { type: 'boolean', default: false, description: 'Suppress verbose console logging' },
+      },
+    },
+    handler: async ({ silent = false }) => {
+      const { syncSkills } = require('../skills/sync-upstream');
+      const res = await syncSkills({ silent });
+      return {
+        success: true,
+        updatedCount: res.updatedCount,
+        repos: res.results,
+        lastSync: res.manifest.lastSync,
+        message: `Synced ${res.results.length} upstream skill repositories (${res.updatedCount} updates merged).`,
       };
     },
   },

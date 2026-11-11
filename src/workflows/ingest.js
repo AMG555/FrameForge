@@ -49,6 +49,7 @@ const fs      = require('fs');
 const fsp     = require('fs').promises;
 const path    = require('path');
 const crypto  = require('crypto');
+const { isWebUrl, downloadMediaWithYtDlp } = require('../utils/media-downloader');
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const VIDEO_EXTS = new Set(['.mp4','.mov','.avi','.mkv','.webm','.m4v','.flv','.ts']);
@@ -213,6 +214,15 @@ function normaliseIngestScene(raw, index, baseDir = process.cwd()) {
 
   function resolveMedia(p) {
     if (!p) return null;
+    if (isWebUrl(p)) {
+      try {
+        const dl = downloadMediaWithYtDlp(p);
+        return dl.localPath;
+      } catch (err) {
+        console.warn(`  ⚠️  Scene ${sceneId}: failed to download media URL ${p}: ${err.message}`);
+        return null;
+      }
+    }
     const resolved = path.isAbsolute(p) ? p : path.resolve(baseDir, p);
     if (!fs.existsSync(resolved)) {
       console.warn(`  ⚠️  Scene ${sceneId}: media file not found: ${resolved}`);
