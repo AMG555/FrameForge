@@ -37,6 +37,7 @@ async function runRender({
   title = '',
   language = '',
   showCaptions = false,
+  showAnchor = false,
 }) {
   const sm        = new StateMachine({ mode: 'file', stateDir: STATE_DIR });
   const retryPol  = new RetryPolicy({ maxAttempts: 2, baseDelayMs: 15000 });
@@ -81,6 +82,7 @@ async function runRender({
         clipVolume:        asset.clipVolume,
         colorGrade:        asset.colorGrade,
         showCaptions:      asset.showCaptions !== undefined ? asset.showCaptions : showCaptions,
+        showAnchor:        asset.showAnchor !== undefined ? asset.showAnchor : showAnchor,
         renderWidth,
         renderHeight,
       });

@@ -8,6 +8,7 @@ const {
   detectAesthetic,
   detectComponentTheme,
   detectCaptionsRequested,
+  detectAnchorRequested,
   getScriptFontStack,
   AESTHETICS,
   REGIONAL_FONTS,
@@ -214,6 +215,64 @@ describe('scene-animator detectCaptionsRequested', () => {
     assert.equal(detectCaptionsRequested('Ancient Human Clothing Evolution'), false);
     assert.equal(detectCaptionsRequested(''), false);
     assert.equal(detectCaptionsRequested(null), false);
+  });
+});
+
+describe('scene-animator detectAnchorRequested', () => {
+  it('returns true when prompt asks for anchor, presenter, or host', () => {
+    assert.equal(detectAnchorRequested('video with an anchor presenting'), true);
+    assert.equal(detectAnchorRequested('show host explaining topic'), true);
+    assert.equal(detectAnchorRequested('include presenter on screen'), true);
+    assert.equal(detectAnchorRequested('add avatar character'), true);
+    assert.equal(detectAnchorRequested('anchor: true'), true);
+  });
+
+  it('returns false when no anchor requested', () => {
+    assert.equal(detectAnchorRequested('Why humans started wearing clothes'), false);
+    assert.equal(detectAnchorRequested('Ground contact drop shadows anchor doodle characters'), false);
+    assert.equal(detectAnchorRequested('Quantum computing tutorial'), false);
+    assert.equal(detectAnchorRequested(''), false);
+    assert.equal(detectAnchorRequested(null), false);
+  });
+});
+
+describe('scene-animator detectComponentTheme without anchor', () => {
+  it('suppresses doodle character themes and returns procedural archetypes when anchorWanted is false', () => {
+    assert.equal(detectComponentTheme({ visualDescription: 'Person choosing shirt from wardrobe rack', anchorWanted: false }), 'explainer_presentation');
+    assert.equal(detectComponentTheme({ caption: 'Freezing cold wind shivering naked early human', anchorWanted: false }), 'mechanism_physics');
+    assert.equal(detectComponentTheme({ narration: 'സൂചിയും മൃഗങ്ങളുടെ തോൽ തുന്നാനുള്ള ഉപകരണങ്ങളും', anchorWanted: false }), 'mechanism_physics');
+    assert.equal(detectComponentTheme({ caption: 'African savannah hunter walking with spear', anchorWanted: false }), 'speed_action');
+    assert.equal(detectComponentTheme({ caption: 'Looking in water reflection blush theory of mind', anchorWanted: false }), 'cognitive_insight');
+    assert.equal(detectComponentTheme({ caption: 'Planning for tomorrow thinking by campfire', anchorWanted: false }), 'cognitive_insight');
+    assert.equal(detectComponentTheme({ caption: 'Lice evolution microscope 170,000 years ago', anchorWanted: false }), 'magnification_focus');
+    assert.equal(detectComponentTheme({ visualDescription: 'Split screen modern vs prehistoric human comparison', anchorWanted: false }), 'versus_comparison');
+  });
+
+  it('does not fall back to doodle_general_human for cinematic_documentary when anchorWanted is false', () => {
+    assert.equal(detectComponentTheme({ aesthetic: 'cinematic_documentary', anchorWanted: false }), 'explainer_presentation');
+  });
+});
+
+describe('scene-animator generateSceneHtml anchor gating', () => {
+  it('disables anchor by default unless requested in prompt or options', () => {
+    const htmlNoAnchor = generateSceneHtml({
+      topic: 'Why humans wear clothes',
+      narration: 'Early humans adapted to changing environments.',
+    });
+    assert.ok(htmlNoAnchor.includes('SHOW_ANCHOR = false'));
+
+    const htmlWithAnchor = generateSceneHtml({
+      topic: 'History documentary with an anchor presenting',
+      narration: 'Welcome to our exploration of human history.',
+    });
+    assert.ok(htmlWithAnchor.includes('SHOW_ANCHOR = true'));
+
+    const htmlExplicit = generateSceneHtml({
+      topic: 'History documentary',
+      narration: 'Early humans adapted.',
+      showAnchor: true,
+    });
+    assert.ok(htmlExplicit.includes('SHOW_ANCHOR = true'));
   });
 });
 

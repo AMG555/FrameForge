@@ -35,6 +35,8 @@ async function runAssets({
   theme = '',
   title = '',
   language = '',
+  showCaptions = false,
+  showAnchor = false,
 }) {
   const ttsGen    = new TTSProvider();
   const sm        = new StateMachine({ mode: 'file', stateDir: STATE_DIR });
@@ -132,6 +134,8 @@ async function runAssets({
         speed:     scene.speed != null ? scene.speed : 1.0,
         clipVolume: scene.clip_volume != null ? scene.clip_volume : (scene.clipVolume != null ? scene.clipVolume : 0),
         colorGrade: scene.color_grade || scene.colorGrade || null,
+        showCaptions: scene.show_captions !== undefined ? scene.show_captions : (scene.showCaptions !== undefined ? scene.showCaptions : showCaptions),
+        showAnchor:   scene.show_anchor !== undefined ? scene.show_anchor : (scene.showAnchor !== undefined ? scene.showAnchor : showAnchor),
       };
     }));
     results.push(...batchResults);

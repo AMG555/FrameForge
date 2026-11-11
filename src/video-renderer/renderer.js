@@ -174,10 +174,15 @@ class VideoRenderer {
     clipVolume = 0,
     colorGrade = null,
     showCaptions = false,
+    showAnchor = false,
   } = {}) {
     const effectiveShowCaptions = Boolean(
       showCaptions ||
       process.env.FRAMEFORGE_SHOW_CAPTIONS === '1'
+    );
+    const effectiveShowAnchor = Boolean(
+      showAnchor ||
+      process.env.FRAMEFORGE_SHOW_ANCHOR === '1'
     );
     const outputPath = path.join(this.vdir, `scene_${sceneIndex}_out.mp4`);
 
@@ -419,7 +424,8 @@ class VideoRenderer {
         height: renderHeight,
         sceneIndex,
         musicMood,
-        showCaptions,
+        showCaptions: effectiveShowCaptions,
+        showAnchor: effectiveShowAnchor,
         camera: effectiveCam,
         cameraHint: effectiveCam,
       });

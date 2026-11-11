@@ -89,3 +89,4 @@ Never deliver rendered video blind. The production harness must execute automate
 2. **Luminance / Exposure**: Non-blown ($< 96\%$ overexposure).
 3. **Compositional Distribution**: Not corner-confined ($> 12\%$ bbox coverage).
 4. **Motion Delta Verification**: Test frame delta between $t = 30\%$ and $t = 70\%$ to guarantee continuous animation.
+

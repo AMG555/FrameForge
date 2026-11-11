@@ -96,7 +96,7 @@ const TOOLS = {
         claims:          { type: 'array' },
         topic:           { type: 'string' },
         style:           { type: 'string', default: 'informative', description: 'e.g. "educational", "comedic", "documentary", "tutorial", "vlog"' },
-        persona:         { type: 'string', default: 'video host', description: 'Who the narrator is, e.g. "travel blogger", "tech reviewer"' },
+        persona:         { type: 'string', default: 'narrator', description: 'Who the narrator is, e.g. "narrator", "travel blogger", "tech reviewer"' },
         format:          { type: 'string', default: 'YouTube video', description: 'e.g. "YouTube short", "Instagram reel", "long-form tutorial"' },
         language:        { type: 'string', default: 'en', description: 'BCP-47 language code for the script' },
         sceneCount:      { type: 'number', default: 55, description: 'Target number of scenes' },
@@ -587,10 +587,11 @@ Example scene:
         style:          { type: 'string',  description: 'Visual style/theme override (e.g. cinematic_documentary, finance_executive, cyber_tech, retro_synthwave, nature_organic, hype_sports, minimal_luxury, breaking_news, cosmic_space)' },
         theme:          { type: 'string',  description: 'Theme preset alias' },
         showCaptions:   { type: 'boolean', default: false, description: 'Display on-screen synchronized subtitles/captions. Default false (clean canvas without text unless explicitly requested in prompt).' },
+        showAnchor:     { type: 'boolean', default: false, description: 'Display on-screen anchor/presenter character. Default false (no anchor unless explicitly requested in prompt).' },
         productionId:   { type: 'string',  description: 'Optional — reuse an existing productionId' },
       },
     },
-    handler: async ({ scenes, title = 'FrameForge Video', orientation = 'landscape', voice, language, skipTts = false, parallelism = 1, withMusic = true, musicVolume = 0.07, topic = '', style = '', theme = '', showCaptions = false, productionId }) => {
+    handler: async ({ scenes, title = 'FrameForge Video', orientation = 'landscape', voice, language, skipTts = false, parallelism = 1, withMusic = true, musicVolume = 0.07, topic = '', style = '', theme = '', showCaptions = false, showAnchor = false, productionId }) => {
       const { runAssets } = require('../workflows/assets');
       const { runRender } = require('../workflows/render');
 
@@ -670,6 +671,7 @@ Example scene:
         title,
         language,
         showCaptions,
+        showAnchor,
       });
       const renderResult = await runRender({
         productionId: pid,
@@ -684,6 +686,7 @@ Example scene:
         title,
         language,
         showCaptions,
+        showAnchor,
       });
 
       if (!renderResult.passed) {
@@ -1861,7 +1864,7 @@ Analyzes input clips, segments narrative beats, calculates cut in/out timestamps
 
 const SERVER_INFO = {
   name:    'video-pipeline',
-  version: '2.4.9',
+  version: '2.4.10',
 };
 
 const CAPABILITIES = {

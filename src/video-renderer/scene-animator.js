@@ -279,14 +279,146 @@ function detectAesthetic({
   return 'cyber_tech';
 }
 
+// ── Anchor Requested Detector ───────────────────────────────────────────────
+/** Returns true ONLY if caller explicitly asks for an on-screen anchor, presenter, host, avatar, or talking head in prompt. */
+function detectAnchorRequested(text = '') {
+  if (!text || typeof text !== 'string') return false;
+  return /(?:with|show|display|include|enable|add)\s+(?:an?\s+)?(?:anchor|presenter|host|avatar|spokesperson|talking\s+head|narrator\s+character)|(?:anchor|presenter|host)\s*[:=]\s*(?:true|yes|1|on|always)/i.test(text);
+}
+
 // ── Component Theme Detection ──────────────────────────────────────────────────
 /**
  * Detect the graphic entity to render on the full canvas for a given scene.
  */
-function detectComponentTheme({ visualDescription = '', visual_description = '', prompt = '', caption = '', narration = '', topic = '', imagePath = null, aesthetic = 'cyber_tech' } = {}) {
+function detectComponentTheme({
+  visualDescription = '',
+  visual_description = '',
+  prompt = '',
+  caption = '',
+  narration = '',
+  topic = '',
+  imagePath = null,
+  aesthetic = 'cyber_tech',
+  anchorWanted = true,
+} = {}) {
   if (imagePath) return 'image';
   const visDesc = visualDescription || visual_description || prompt || '';
   const text = `${visDesc} ${caption} ${narration} ${topic}`.toLowerCase();
+
+  // If anchor is NOT requested, suppress all humanoid doodle anchor characters
+  // and route to non-anchor procedural visual archetypes
+  if (!anchorWanted) {
+    // 1. Versus / Comparison / Split Screen
+    if (/(?:^|[^\w])(versus|vs|comparison|compare|pros and cons|pros vs cons|difference between|dichotomy|contrast|side-by-side|before and after|before vs after|split-screen|split screen|modern vs ancient|modern vs prehistoric|then and now|evolution of human)(?:[^\w]|$)/i.test(text)
+        || /വ്യത്യാസം|താരതമ്യം|എതിര്|പോരാട്ടം|തമ്മിൽ|തുലനം|താരതമ്യപ്പെടുത്തൽ/.test(text)) {
+      return 'versus_comparison';
+    }
+
+    // 2. Magnification / Microscope / Fiber / Macro Inspection / Lice
+    if (/(?:^|[^\w])(magnify|magnification|zoom|microscopic|microscope|macro|close up|closeup|inspection|loupe|examine|scrutiny|detail|focal point|focus in|specimen|fiber|weave|parasite|lice|louse)(?:[^\w]|$)/i.test(text)
+        || /സൂക്ഷ്മ|പരിശോധന|വലുതാക്കി കാണുക|സൂക്ഷ്മമായി|നിരീക്ഷണം|മൈക്രോസ്കോപ്പ്|പേൻ/.test(text)) {
+      return 'magnification_focus';
+    }
+
+    // 3. Cognitive Insight / Psychology / Brain / Eureka / Thought / Future Planning / Shame Reflection
+    if (/(?:^|[^\w])(mind|psychology|cognitive|brain|insight|revelation|eureka|intuition|subconscious|thinking|thought|contemplation|intelligence|mental|awareness|neuroscience|concept|idea|epiphany|planning for tomorrow|future planning|foresight|shame|blush|embarrass|mirror|reflection|theory of mind|self-aware|identity)(?:[^\w]|$)/i.test(text)
+        || /മനസ്സ്|ബുദ്ധി|ചിന്ത|മനഃശാസ്ത്രം|ജ്ഞാനം|മസ്തിഷ്കം|ബോധം|കണ്ണാടി|പ്രതിഫലനം|നാണം/.test(text)) {
+      return 'cognitive_insight';
+    }
+
+    // 4. Mechanism / Physics / Machinery / Engine / Needle / Stitching / Cold
+    if (/(?:^|[^\w])(engine|gear|gears|motor|physics|aerodynamics|thrust|turbine|propulsion|piston|hydraulic|kinetic|machine|machinery|circuit|mechanics|thermodynamics|levers|pulley|needle|bone needle|sew|sewing|stitch|stitching|shiver|shivering|cold|freeze|freezing|ice|winter|protection flaw)(?:[^\w]|$)/i.test(text)
+        || /യന്ത്രം|എഞ്ചിൻ|ഭൗതികശാസ്ത്രം|പ്രവർത്തനം|ചലനം|മെക്കാനിസം|ഭൗതികം|സൂചി|തുന്ന|വിറയ്ക്കുക|തണുപ്പ്/.test(text)) {
+      return 'mechanism_physics';
+    }
+
+    // 5. Process / Pipeline / Stages / Assembly / Tribe / Community / Hierarchy / Royal Status
+    if (/(?:^|[^\w])(pipeline|workflow|step by step|steps|stages|phase|phases|production line|assembly|manufacturing|lifecycle|funnel|conveyor|sequence|how it works|how it is made|procedure|tribe|tribal|clan|stranger|meeting strangers|social language|status in society|hierarchy|royal robe|royal robes|crown|sceptre|ornaments|status and power|wealth authority)(?:[^\w]|$)/i.test(text)
+        || /ഘട്ടങ്ങൾ|പ്രക്രിയ|ഘട്ടം|ഉൽപ്പാദനം|വഴികൾ|പ്രവർത്തനരീതി|കൂട്ടമായി|സമൂഹം|ഗോത്രം|സാമൂഹിക സ്ഥാനം/.test(text)) {
+      return 'process_pipeline';
+    }
+
+    // 6. Radar Globe / World Map / Migration
+    if (/(?:^|[^\w])(globe|map|world|geography|radar|international|continent|territory|country|border|location|migration|migrating|migrate|africa highlighted|colder regions|out of africa)(?:[^\w]|$)/i.test(text)
+        || /ഭൂപടം|ലോകം|ഭൂഖണ്ഡം|ഭൂപട|നക്ശാ|ക്ലോബ്|കുടിയേറ്റം|മൈഗ്രേഷൻ/.test(text)) {
+      return 'radar_globe';
+    }
+
+    // 7. Celestial / Orbit
+    if (/(?:^|[^\w])(orbit|satellite|satellites|gps|planet|earth|mars|moon|galaxy|universe|solar|astronomy|gravity|space|telescope|interstellar)(?:[^\w]|$)/i.test(text)
+        || /ബഹിരാകാശ|ഗ്രഹം|ഉപഗ്രഹ|ഭൂമി|നക്ഷത്ര|പ്രപഞ്ച|अंतरिक्ष|ग्रह|तारा|വിൺവെളി/.test(text)) {
+      return 'celestial_orbit';
+    }
+
+    // 8. DNA / Biology
+    if (/(?:^|[^\w])(dna|helix|gene|cell|molecule|biology|organism|protein|virus|bacteria|medical|genetic|chromosome)(?:[^\w]|$)/i.test(text)
+        || /ഡിഎൻഎ|കോശം|തന്മാത്ര|ജീവശാസ്ത്ര|डीएनए|कोशिका/.test(text)) {
+      return 'dna_helix';
+    }
+
+    // 9. Code / Programming
+    if (/(?:^|[^\w])(code|function|syntax|api|javascript|python|typescript|json|sql|query|endpoint|algorithm|struct|cli|terminal|bash|shell|npm|git|compiler|linux|rust)(?:[^\w]|$)/.test(text)
+        || /കോഡിംഗ്|സോഫ്റ്റ്‌വെയർ|പ്രോഗ്രാമിംഗ്|कोड|सॉफ्टवेयर/.test(text)) {
+      return 'code';
+    }
+
+    // 10. Chart / Finance
+    if (/(?:^|[^\w])(chart|data|analytics|growth|graph|statistic|bars|volume|distribution|stock|crypto|bitcoin|market|invest|trading|inflation|economy|gdp|finance|gain|loss|bull|bear|candlestick|price)(?:[^\w]|$)/.test(text)
+        || /നിക്ഷേപ|ഓഹരി|വിപണി|പണം|ചാർട്ട്|शेयर|बाज़ार/.test(text)) {
+      return 'chart';
+    }
+
+    // 11. Nodes / Neural Net
+    if (/(?:^|[^\w])(network|nodes|neural network|neural net|distributed system|server mesh|deep learning)(?:[^\w]|$)/.test(text)
+        || /നെറ്റ്‌വർക്ക്|ശൃംഖല|नेटवर्क/.test(text)) {
+      return 'nodes';
+    }
+
+    // 12. 3D Isometric Geometry
+    if (/(?:^|[^\w])(cube|geometry|3d|wireframe|isometric|matrix|crystal|structure|polyhedron|dimension|architect|blueprint|math)(?:[^\w]|$)/.test(text)
+        || /ജ്യാമിതി|രൂപം|ത്രിമാന|संरचना/.test(text)) {
+      return 'isometric_geometry';
+    }
+
+    // 13. Speed Action / Hunter
+    if (/(?:^|[^\w])(speed|sprint|velocity|fast|run|race|motion|hunter|hunting|spear|savannah|blazing sun|mosquito)(?:[^\w]|$)/.test(text)
+        || /വേഗത|ഓട്ടം|കുന്തം|വേഗം/.test(text)) {
+      return 'speed_action';
+    }
+
+    // 14. Quote / Metric
+    if (/(?:^|[^\w])(quote|saying|proverb|statement|speech|wisdom)(?:[^\w]|$)/.test(text)) return 'quote';
+    if (/(?:^|[^\w])(metric|kpi|target|counter|percentage|ratio|score)(?:[^\w]|$)/.test(text)) return 'metric';
+
+    // 15. Timeline (strictly explicit roadmap/milestone chart requests only)
+    if (/(?:^|[^\w])(timeline|roadmap|milestone chart|milestone roadmap)(?:[^\w]|$)/i.test(text)
+        || /ടൈംലൈൻ|റോഡ്മാപ്പ്/.test(text)) {
+      return 'timeline';
+    }
+
+    // 16. Explainer Presentation (General visual lecture, whiteboard, tutorial, clothing topic, subscribe)
+    if (/(?:^|[^\w])(explain|explainer|presentation|lecture|teach|tutorial|whiteboard|blackboard|breakdown|guide|overview|theory|principles|fundamentals|introduction|summary|lesson|masterclass|subscribe|notification bell|outro|dress|dressing|wearing clothes|shirt|wardrobe|closet|hanger|outfit|wedding dress)(?:[^\w]|$)/i.test(text)
+        || /വിവരണം|പഠിപ്പിക്കുക|ക്ലാസ്|പാഠം|തത്വം|വിവരിക്കുക|സബ്സ്ക്രൈബ്|വസ്ത്രധാരണം/.test(text)) {
+      return 'explainer_presentation';
+    }
+
+    // 17. Waveform
+    if (/(?:^|[^\w])(waveform|audio|sound|equalizer|frequency|acoustics|hz|decibel|music spectrum|voice waveform)(?:[^\w]|$)/i.test(text)
+        || /ശബ്ദതരംഗം|തരംഗം|സംഗീതം|ധ്വനി/.test(text)) {
+      return 'waveform';
+    }
+
+    // Clean aesthetic fallbacks — strictly non-anchor
+    if (aesthetic === 'cosmic_space') return 'celestial_orbit';
+    if (aesthetic === 'cinematic_documentary') return 'explainer_presentation';
+    if (aesthetic === 'finance_executive') return 'chart';
+    if (aesthetic === 'nature_organic') return 'dna_helix';
+    if (aesthetic === 'breaking_news') return 'radar_globe';
+    if (aesthetic === 'cyber_tech') return 'nodes';
+    if (aesthetic === 'minimal_luxury') return 'explainer_presentation';
+    if (aesthetic === 'hype_sports') return 'speed_action';
+    return 'explainer_presentation';
+  }
 
   // ── Doodled Character Actions (Human Stories, History, Evolution, Daily Life) ──
   // 1. Microscope / Lice Theory / Parasite / Genetics (Scene 7)
@@ -616,11 +748,17 @@ function generateSceneHtml({
   height = 1080,
   sceneIndex = 0,
   showCaptions = false,
+  showAnchor = false,
 } = {}) {
   const captionsWanted = Boolean(
     showCaptions ||
     detectCaptionsRequested(prompt || topic) ||
     process.env.FRAMEFORGE_SHOW_CAPTIONS === '1'
+  );
+  const anchorWanted = Boolean(
+    showAnchor ||
+    detectAnchorRequested(prompt || topic) ||
+    process.env.FRAMEFORGE_SHOW_ANCHOR === '1'
   );
   const aestheticKey = detectAesthetic({
     topic,
@@ -642,6 +780,7 @@ function generateSceneHtml({
     topic,
     imagePath,
     aesthetic: aestheticKey,
+    anchorWanted,
   });
   const clampedDur = Math.max(1, Number(duration) || 3);
 
@@ -734,6 +873,7 @@ function spring(t, delay = 0, tension = ${aesthetic.springTension}, friction = $
 }
 
 const SHOW_CAPTIONS = ${JSON.stringify(captionsWanted)};
+const SHOW_ANCHOR = ${JSON.stringify(anchorWanted)};
 const AESTHETIC = ${JSON.stringify(aestheticKey)};
 const BG_TYPE = ${JSON.stringify(aesthetic.backgroundType)};
 const COMP_THEME = ${JSON.stringify(compTheme)};
@@ -1006,6 +1146,7 @@ function drawMainScene(t) {
     showSpecular = false,
     seed = 100,
   } = {}) {
+    if (!SHOW_ANCHOR) return;
     ctx.save();
     ctx.translate(x, y);
     ctx.scale(scale, scale);
@@ -4345,6 +4486,7 @@ module.exports = {
   detectAesthetic,
   detectComponentTheme,
   detectCaptionsRequested,
+  detectAnchorRequested,
   getScriptFontStack,
   AESTHETICS,
   REGIONAL_FONTS,

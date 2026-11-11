@@ -15,6 +15,7 @@ const { LLMProvider }  = require('../pipeline/providers');
 const { StateMachine } = require('../pipeline/state-machine');
 const { RetryPolicy }  = require('../pipeline/retry-policy');
 const { Telemetry }    = require('../pipeline/telemetry');
+const { detectAnchorRequested } = require('../video-renderer/scene-animator');
 
 const os = require('os');
 const FILES_DIR = process.env.N8N_FILES_DIR || require('path').join(os.homedir(), '.frameforge-files');
@@ -98,7 +99,7 @@ async function runScript({
   claims,
   topic,
   style        = 'informative',
-  persona      = 'video host',
+  persona      = 'narrator',
   format       = 'YouTube video',
   language     = 'en',
   sceneCount   = 55,
@@ -116,13 +117,16 @@ async function runScript({
 
   const facts = claims.slice(0, 8).map(c => c.safe_wording || c.claim).join('; ');
 
-  // If targetDuration is given, adjust scene count guidance (≈ 4.5-5s per scene for high retention).
-  // No ceiling — long-form documentaries, lectures, and podcasts scale dynamically.
-  const targetScenes = targetDuration ? Math.max(8, Math.ceil(targetDuration / 4.5)) : Math.max(sceneCount, 55);
+  // Detect whether caller explicitly requested an on-screen anchor / presenter character
+  const anchorWanted = detectAnchorRequested(topic);
+  const effectivePersona = persona !== 'video host' ? persona : (anchorWanted ? 'video host' : 'narrator');
+
+  // Fast visual pacing: ≈ 2.5-3.2s per scene cut (never monolithic drags)
+  const targetScenes = targetDuration ? Math.max(8, Math.ceil(targetDuration / 2.8)) : Math.max(sceneCount, 55);
 
   const raw = await retryPol.executeStage('Script', async () => {
     const system = [
-      `You are a ${persona} writing a ${format} script.`,
+      `You are a ${effectivePersona} writing a ${format} script.`,
       `Style: ${style}. Language: ${language}.`,
       `Visual aesthetic for image prompts: ${imageStyle}.`,
       'Output ONLY raw JSON. No markdown. Start with { end with }.',
@@ -136,12 +140,16 @@ async function runScript({
       `STYLE: ${style}`,
       `LANGUAGE: ${language}`,
       '',
-      `Write exactly ${targetScenes} scenes (schema_version "2.0.0"). High visual pacing: 4-6 seconds per scene (12-25 spoken words). Never write monolithic 30-50s static scenes. Each scene must have:`,
+      `Write exactly ${targetScenes} scenes (schema_version "2.0.0"). Fast cinematic visual pacing: 2-3.5 seconds per scene (8-16 spoken words). Scene visual cuts must change frequently. Never write long monolithic scenes. Each scene duration matches the spoken voiceover audio.`,
+      anchorWanted
+        ? 'Include an on-screen host/anchor character in the scenes where appropriate.'
+        : 'Do NOT include on-screen host or anchor characters unless asked. Set character to { character_id: "none", pose: "none", emotion: "none" }. Visuals must be dynamic cinematic b-roll, motion graphics, animated diagrams, comparisons, processes, and data visualizations.',
+      'Each scene must have:',
       'scene_id (integer), schema_version "2.0.0",',
-      'narration (15-35 words in the specified language, spoken aloud),',
-      'caption (3-6 words UPPERCASE, text overlay),',
-      'visual_description (vivid description of what the scene looks like — used as image prompt),',
-      'character { character_id (free text or "none"), pose, emotion, position {x,y,scale} },',
+      'narration (8-18 words in the specified language, spoken aloud),',
+      'caption (optional 2-4 uppercase words text overlay only if captions requested, otherwise empty string),',
+      'visual_description (vivid description of the visual motion graphics / b-roll / diagram / scene — used for code-driven animation),',
+      'character { character_id ("none" or identifier), pose, emotion, position {x,y,scale} },',
       'focal_point {x,y,weight},',
       'overlay { type: "prop"|"effect"|"text"|"none" },',
       'sound_effects [ { effect_id, timing: "start"|"middle"|"end", volume } ],',
