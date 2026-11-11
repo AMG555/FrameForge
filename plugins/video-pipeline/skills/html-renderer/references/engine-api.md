@@ -377,6 +377,94 @@ In `VideoEditor.concatClipsWithTransitions`, pass `splitCut: 'j-cut'` (audio of 
 
 ---
 
+## Beat-Grid (HyperFrames)
+
+### `beatAt(index, bpm, fps) → number`
+Returns the exact **frame number** for beat index `index`. Rounds each index independently — never accumulate.
+
+```js
+const fps = REEL.fps; // 30
+const beat0 = beatAt(0, 120, fps); // frame 0
+const beat1 = beatAt(1, 120, fps); // frame 15  (30 * 60 / 120)
+const beat4 = beatAt(4, 120, fps); // frame 60
+```
+
+### `beatTime(index, bpm) → number`
+Returns beat `index` as a timestamp in **seconds**. Equivalent to `beatAt(index, bpm, fps) / fps` but without the fps parameter.
+
+### `snapToBeat(t, bpm) → number`
+Snaps a timestamp to the nearest beat boundary. Use for aligning SFX cues and cut points to the music grid.
+
+```js
+cue('wood', snapToBeat(3.1, 128) - 0.04); // 40ms lead on nearest beat
+```
+
+---
+
+## OM — OneTake Motion Library
+
+All moves: **pure CSS functions `(t, opts) → { transform?, opacity?, clipPath? }`**.
+Feed `t` via `seg(currentTime, start, end)` for normalised 0→1 progress within a time window.
+
+```js
+import { OM, seg, cue, ROOM_SFX } from './reel/engine.js';
+
+// Standard entrance with carry:
+layer('title').on((t) => {
+  const p = seg(t, 1.0, 2.2);
+  cue(ROOM_SFX.wood.desc && 'impact', 1.0 - 0.04); // 40ms lead
+  return OM.spring(p, { scale0: 0.6, scale1: 1.0 });
+});
+```
+
+See `references/animation-patterns.md` section 5 for the full move catalogue with all options.
+
+**Key moves:**
+
+| Move | Category | Returns |
+|------|----------|---------|
+| `OM.spring(t, opts)` | Entrance | `transform: scale(…)` |
+| `OM.rise(t, opts)` | Entrance | `transform: translateY(…)` |
+| `OM.iris(t, opts)` | Entrance/carry | `clipPath: circle(…)` |
+| `OM.morphRect(t, opts)` | Entrance/carry | `clipPath: inset(…)` |
+| `OM.silk(t, opts)` | Entrance | `clipPath: inset(…)` edge-pull |
+| `OM.zoomThrough(t, opts)` | Carry | `transform: scale(…)` portal |
+| `OM.camera(t, opts)` | Camera | `transform: translate+scale` |
+| `OM.handheld(t, opts)` | Camera | `transform: translate+rotate` |
+| `OM.popOut(t, opts)` | Exit | `transform: scale(…)` |
+| `OM.slideExit(t, opts)` | Exit | `transform: translateX/Y` |
+| `OM.breathe(t, opts)` | Ambient | `transform: scale(…)` |
+| `OM.carryScore(t)` | Oracle | number ≥ 0.5 = PASS |
+
+### `ROOM_SFX`
+OneTake 5-material SFX palette. Use keys as `sfxName` in `cue()`.
+
+| Key | Material | Use for |
+|-----|----------|---------|
+| `air` | Air movement | Camera translation, fast wipe |
+| `wood` | Wooden impact | Title punch, beat drop |
+| `glass` | Glass chime | Badge reveal, icon appearance |
+| `sub` | Sub rumble | Cinematic reveal, depth |
+| `bubble` | Bubble pop | Light UI touch, counter tick |
+
+All at −8 dBFS in the SFX bus. Apply 40ms perceptual lead (`cue(name, t - 0.04)`).
+
+---
+
+## `event(type, t, meta)`
+Declares a composition event that `render.mjs` reads via `window.__events()` after page load.
+Render produces `out/sfx-events.json` — consumed by `mix_audio_pro` when building the SFX track.
+
+```js
+event('sfx',        1.0,  { sfxName: 'impact', material: 'wood', vol: 0.8 });
+event('transition', 3.5,  { label: 'iris-open' });
+event('beat',       0.0,  { bpm: 128 });
+```
+
+**Types:** `'sfx'` · `'transition'` · `'beat'` · `'camera'`
+
+---
+
 ## Global Aliases
 
 `engine.js` sets these on `window` for the render harness:
@@ -388,3 +476,5 @@ In `VideoEditor.concatClipsWithTransitions`, pass `splitCut: 'j-cut'` (audio of 
 | `window.renderFrame(t)` | `seek(t)` |
 | `window.DURATION` | `REEL.duration` |
 | `window.FPS` | `REEL.fps` |
+| `window.__events()` | Returns `_events[]` (all `event()` calls) |
+| `window.__cues` | Array of `{ sfxName, t, vol }` from `cue()` |

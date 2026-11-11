@@ -959,13 +959,16 @@ After scaffolding, the agent edits edit.js in outDir to animate each scene, then
         'animation-patterns.md',
         'character-animation.md',
         'collage-broll.md',
+        'design.md',
         'directing.md',
         'earshot-audio.md',
+        'engine-api.md',
         'film-styles.md',
         'hyperframes-motion.md',
         'motion-craft.md',
         'onetake-camera.md',
         'procedural-sfx.md',
+        'remotion-patterns.md',
         'render-contract.md',
       ];
 
@@ -2455,8 +2458,9 @@ FULL CHAIN (in order):
  2. Pre-EQ: 80Hz HPF (remove proximity/rumble), 5kHz presence boost (+2dB), 12kHz air shelf (+1.5dB)
  3. De-esser: 6.5kHz dynamic suppression (-3dB) — removes harshness from "s", "sh", "ch"
  4. Voice compressor: 3:1 ratio, -20dBFS threshold, 5ms attack, 50ms release (broadcast standard)
- 5. Room acoustics: 5 profiles — studio_dry | broadcast | cinematic | concert_hall | intimate
-    (addReverb: true = cinematic profile; roomProfile: "broadcast" overrides)
+ 5. Room acoustics: 5 named profiles — studio_dry | broadcast | cinematic | concert_hall | intimate
+    OR earshot forgeComputedRoom: "computed:sizeM:damp:earlyMs" (e.g. "computed:8:0.5:15" = 8m studio)
+    (addReverb: true = cinematic profile; roomProfile overrides)
  6. Sidechain ducking: music ducks -18dB when voice active (40ms perceptual lead)
  7. Stereo widener: M/S extrastereo 1.4x on music layer only (voice stays mono-center)
  8. SFX timeline mixer: 13 synthesis types with millisecond accuracy
@@ -2476,7 +2480,7 @@ Outputs broadcast-ready 48kHz/192k AAC stereo.`,
         duckLevel:    { type: 'number', default: -18, description: 'Music attenuation in dB when voice is active (default -18dB)' },
         sfxCues:      { type: 'array',  description: 'Sound effect cues: [{ name, time, volume }]. Names: whoosh|impact|pop|click|riser|chime|buzz|tick|swish|punch|sparkle|deep_boom|transition', items: { type: 'object' } },
         addReverb:    { type: 'boolean', default: false, description: 'Legacy: Add cinematic room acoustics. Prefer roomProfile for precise control.' },
-        roomProfile:  { type: 'string', enum: ['studio_dry', 'broadcast', 'cinematic', 'concert_hall', 'intimate'], description: 'Room acoustics profile. studio_dry=clean/intimate; broadcast=slight air; cinematic=warm/spacious; concert_hall=grand; intimate=podcast bedroom. Overrides addReverb.' },
+        roomProfile:  { type: 'string', description: 'Room acoustics profile. Named: studio_dry|broadcast|cinematic|concert_hall|intimate. Or earshot computed room: "computed:sizeM:damp:earlyMs" (e.g. "computed:8:0.5:15" = 8m room, 50% damp, 15ms early). Overrides addReverb.' },
         noiseGate:    { type: 'boolean', default: false, description: 'Apply noise gate (-60dBFS threshold) to remove breath noise and room tone between words. Enable for field recordings or noisy VO.' },
         stereoWiden:  { type: 'boolean', default: true,  description: 'Apply mid-side stereo widening to music layer (voice stays mono-center).' },
         targetLufs:   { type: 'number', default: -14, description: 'Target integrated loudness. Platform presets: -14 YouTube/Instagram, -16 Podcast, -23 Broadcast EBU R128, -27 Netflix.' },

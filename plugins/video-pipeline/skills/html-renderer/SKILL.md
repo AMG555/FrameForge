@@ -213,6 +213,7 @@ publish_video(productionId, masterPath="output/my-topic/html-render/out/video.mp
 | `captions(outlinePath)` | Auto-sync captions from whisper outline |
 | `cuePhrase(phrase, offset)` | Word-level trigger with fail-fast transcript check |
 | `cue(sfxName, t, vol)` | Trigger sound effect at time t |
+| `event(type, t, meta)` | Declare a composition event for render.mjs to consume via `window.__events()` |
 | `faceAt(layout, t)` | Position talking-head face (FULL, SPLIT, PIP) |
 | `hash(i)` | Deterministic PRNG float [0, 1) for index i |
 | `boilSeed(key, t)` | Deterministic stepped float [0, 1) in 1/12s window |
@@ -222,6 +223,16 @@ publish_video(productionId, masterPath="output/my-topic/html-render/out/video.mp
 | `pulse(t, k)` | Exponential impulse peak at t=0, decaying with rate k |
 | `shots(timeline)` | Time-ordered shot registry fn(t, lt, dur) for parallel render |
 | `on(t => ...)` | Raw per-frame compute (for custom animations) |
+| `beatAt(index, bpm, fps)` | Beat frame index (HyperFrames formula — round per-index, never accumulated) |
+| `beatTime(index, bpm)` | Beat timestamp in seconds |
+| `snapToBeat(t, bpm)` | Snap a timestamp to the nearest beat boundary |
+| `OM.spring(t, opts)` | OneTake spring entrance → `{ transform, opacity }` |
+| `OM.iris(t, opts)` | Radial clip expand from centre → `{ clipPath }` |
+| `OM.morphRect(t, opts)` | Clip from narrow rect to full frame → `{ clipPath }` |
+| `OM.zoomThrough(t, opts)` | Portal scale-through → `{ transform }` |
+| `OM.camera(t, opts)` | Ken Burns + seeded micro-shake → `{ transform }` |
+| `OM.carryScore(t)` | Carry momentum at exit (must be ≥ 0.5 to PASS oracle) |
+| `ROOM_SFX` | OneTake 5-material SFX palette (air/wood/glass/sub/bubble) for `cue()` |
 
 ---
 
