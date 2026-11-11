@@ -17,7 +17,23 @@ export const VIRTUAL_CLOCK_INJECTION = `
   let _rafId = 0;
   let _timerQueue = [];
   let _timerId = 0;
-  const _startDate = Date.now();
+  const _realDateNow = Date.now;
+  const _realSetTimeout = window.setTimeout;
+  const _startDate = _realDateNow();
+  const _delayHandles = new Set();
+  let _delayId = 0;
+
+  window.delayRender = (label = 'asset') => {
+    const id = ++_delayId;
+    _delayHandles.add(id);
+    return id;
+  };
+  window.continueRender = (id) => {
+    _delayHandles.delete(id);
+  };
+  window.cancelRender = (err) => {
+    console.error("Render cancelled:", err);
+  };
 
   window.__playwright = true;
 
@@ -136,6 +152,13 @@ export const VIRTUAL_CLOCK_INJECTION = `
     }
     if (document.fonts && document.fonts.ready) {
       await document.fonts.ready;
+    }
+
+    if (_delayHandles.size > 0) {
+      const startW = _realDateNow();
+      while (_delayHandles.size > 0 && _realDateNow() - startW < 10000) {
+        await new Promise(r => _realSetTimeout(r, 10));
+      }
     }
   };
 })();

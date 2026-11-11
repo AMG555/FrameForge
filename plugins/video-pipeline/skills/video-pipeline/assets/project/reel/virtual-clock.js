@@ -16,7 +16,9 @@
   let rafIdCounter = 0;
   const timeoutQueue = [];
   let timeoutIdCounter = 0;
-  const startDate = Date.now();
+  const _realDateNow = Date.now;
+  const _realSetTimeout = window.setTimeout;
+  const startDate = _realDateNow();
 
   window.__playwright = true;
 
@@ -83,6 +85,21 @@
     return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
   };
 
+  // 4b. Remotion-pattern delayRender / continueRender async barrier
+  const delayRenderHandles = new Set();
+  let delayRenderCounter = 0;
+  window.delayRender = (label = 'asset') => {
+    const id = ++delayRenderCounter;
+    delayRenderHandles.add(id);
+    return id;
+  };
+  window.continueRender = (id) => {
+    delayRenderHandles.delete(id);
+  };
+  window.cancelRender = (err) => {
+    console.error("Render cancelled:", err);
+  };
+
   // 5. Global seek contract
   window.seek = async (tSeconds) => {
     virtualTime = tSeconds * 1000;
@@ -132,6 +149,14 @@
     // Await font readiness
     if (document.fonts && document.fonts.ready) {
       await document.fonts.ready;
+    }
+
+    // Await all async delayRender handles before resolving seek
+    if (delayRenderHandles.size > 0) {
+      const startW = _realDateNow();
+      while (delayRenderHandles.size > 0 && _realDateNow() - startW < 10000) {
+        await new Promise(r => _realSetTimeout(r, 10));
+      }
     }
   };
 

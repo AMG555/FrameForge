@@ -342,7 +342,6 @@ class VideoEditor {
       ffmpegArgs.push('-ss', startSec.toFixed(3));
     }
 
-    ffmpegArgs.push('-t', durSec.toFixed(3));
     ffmpegArgs.push('-i', videoPath);
 
     const hasVoice = voicePath && fs.existsSync(voicePath);

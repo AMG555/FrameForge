@@ -284,6 +284,16 @@ check('engine.js exports onTwos()',     engineJs.includes('export function onTwo
 check('engine.js exports seg()',        engineJs.includes('export function seg'));
 check('engine.js exports pulse()',      engineJs.includes('export function pulse'));
 check('engine.js exports shots()',      engineJs.includes('export function shots'));
+check('engine.js exports interpolate()', engineJs.includes('export function interpolate'));
+check('engine.js exports interpolateColors()', engineJs.includes('export function interpolateColors'));
+check('engine.js exports measureSpring()', engineJs.includes('export function measureSpring'));
+check('engine.js exports sequence()',   engineJs.includes('export function sequence'));
+check('engine.js exports noise2D()',    engineJs.includes('export function noise2D'));
+check('engine.js exports noise3D()',    engineJs.includes('export function noise3D'));
+check('engine.js exports evolvePath()', engineJs.includes('export function evolvePath'));
+check('engine.js exports transition',   engineJs.includes('export const transition'));
+check('engine.js exports absoluteFill()', engineJs.includes('export function absoluteFill'));
+check('engine.js exports loopTime()',   engineJs.includes('export function loopTime'));
 
 // ── Code-Driven Video Harness ─────────────────────────────────────────────
 console.log('\n=== Code-Driven Video Harness ===');
@@ -315,6 +325,7 @@ console.log('\n=== Plugin skills ===');
 check('video-pipeline SKILL.md exists', fs.existsSync('./plugins/video-pipeline/skills/video-pipeline/SKILL.md'));
 check('html-renderer SKILL.md exists',  fs.existsSync('./plugins/video-pipeline/skills/html-renderer/SKILL.md'));
 check('motion-craft reference exists', fs.existsSync('./plugins/video-pipeline/skills/html-renderer/references/motion-craft.md'));
+check('remotion-patterns reference exists', fs.existsSync('./plugins/video-pipeline/skills/html-renderer/references/remotion-patterns.md'));
 check('render-contract reference exists', fs.existsSync('./plugins/video-pipeline/skills/html-renderer/references/render-contract.md'));
 
 // ── Security: no .kiro references in committed source ────────────────────

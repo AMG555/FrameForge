@@ -245,6 +245,497 @@ export function spring(t, { tension = 200, friction = 22, delay = 0 } = {}) {
   );
 }
 
+/**
+ * measureSpring() — Calculates analytical settling time for a spring configuration.
+ * Derived from Remotion's measureSpring.
+ *
+ * @param {{ tension?: number, friction?: number, threshold?: number }} [opts]
+ * @returns {number} Settling duration in seconds
+ */
+export function measureSpring({ tension = 200, friction = 22, threshold = 0.001 } = {}) {
+  const omega = Math.sqrt(tension);
+  const zeta  = friction / (2 * omega);
+  if (zeta < 1) {
+    return -Math.log(threshold) / (zeta * omega);
+  } else {
+    const r1 = -omega * (zeta - Math.sqrt(zeta * zeta - 1));
+    return -Math.log(threshold) / Math.abs(r1);
+  }
+}
+
+/**
+ * interpolate() — Multi-range value mapping with clamp and easing options.
+ * Drop-in Remotion-compatible interpolation interface.
+ *
+ * @param {number} val
+ * @param {number[]} inputRange
+ * @param {number[]} outputRange
+ * @param {object} [opts]
+ * @param {'clamp'|'identity'|'extend'} [opts.extrapolateLeft='clamp']
+ * @param {'clamp'|'identity'|'extend'} [opts.extrapolateRight='clamp']
+ * @param {function} [opts.easing]
+ * @returns {number}
+ */
+export function interpolate(val, inputRange, outputRange, opts = {}) {
+  const {
+    extrapolateLeft = 'clamp',
+    extrapolateRight = 'clamp',
+    easing = (x) => x,
+  } = opts;
+
+  if (!inputRange || !outputRange || inputRange.length < 2 || inputRange.length !== outputRange.length) {
+    throw new Error('interpolate: inputRange and outputRange must have the same length >= 2');
+  }
+
+  if (val <= inputRange[0]) {
+    if (extrapolateLeft === 'clamp') return outputRange[0];
+    if (extrapolateLeft === 'identity') return val;
+  }
+
+  if (val >= inputRange[inputRange.length - 1]) {
+    if (extrapolateRight === 'clamp') return outputRange[outputRange.length - 1];
+    if (extrapolateRight === 'identity') return val;
+  }
+
+  for (let i = 1; i < inputRange.length; i++) {
+    if (val <= inputRange[i]) {
+      const t0 = inputRange[i - 1];
+      const t1 = inputRange[i];
+      const v0 = outputRange[i - 1];
+      const v1 = outputRange[i];
+      const p = (val - t0) / (t1 - t0);
+      return v0 + (v1 - v0) * easing(p);
+    }
+  }
+
+  return outputRange[outputRange.length - 1];
+}
+
+/**
+ * sequence() — Temporal windowing wrapper for isolated layer computations.
+ * Maps local relative time `tRel = t - from` to children styles.
+ *
+ * @param {number} from - Start time in seconds
+ * @param {number} duration - Window duration in seconds
+ * @param {function} fn - (relTime, duration, absTime) => styleObject
+ */
+export function sequence(from, duration, fn) {
+  return (t) => {
+    if (t < from || t >= from + duration) return null;
+    return fn(t - from, duration, t);
+  };
+}
+
+/**
+ * Easing dictionary matching standard Remotion & CSS curves.
+ */
+export const Easing = {
+  linear: (t) => t,
+  in: easeIn,
+  out: easeOut,
+  inOut: easeInOut,
+  quad: (t) => t * t,
+  cubic: (t) => t * t * t,
+  bezier: (mX1, mY1, mX2, mY2) => {
+    return (t) => {
+      const u = 1 - t;
+      return 3 * u * u * t * mY1 + 3 * u * t * t * mY2 + t * t * t;
+    };
+  },
+};
+
+// ── Remotion-compatible Color Interpolation ───────────────────────────────────
+
+function _parseColor(str) {
+  if (typeof str !== 'string') return { r: 0, g: 0, b: 0, a: 1 };
+  str = str.trim().toLowerCase();
+  if (str.startsWith('#')) {
+    const hex = str.slice(1);
+    if (hex.length === 3 || hex.length === 4) {
+      const r = parseInt(hex[0] + hex[0], 16);
+      const g = parseInt(hex[1] + hex[1], 16);
+      const b = parseInt(hex[2] + hex[2], 16);
+      const a = hex.length === 4 ? parseInt(hex[3] + hex[3], 16) / 255 : 1;
+      return { r, g, b, a };
+    }
+    if (hex.length === 6 || hex.length === 8) {
+      const r = parseInt(hex.slice(0, 2), 16);
+      const g = parseInt(hex.slice(2, 4), 16);
+      const b = parseInt(hex.slice(4, 6), 16);
+      const a = hex.length === 8 ? parseInt(hex.slice(6, 8), 16) / 255 : 1;
+      return { r, g, b, a };
+    }
+  }
+  const rgbMatch = str.match(/rgba?\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)/);
+  if (rgbMatch) {
+    return {
+      r: parseInt(rgbMatch[1], 10),
+      g: parseInt(rgbMatch[2], 10),
+      b: parseInt(rgbMatch[3], 10),
+      a: rgbMatch[4] !== undefined ? parseFloat(rgbMatch[4]) : 1
+    };
+  }
+  return { r: 0, g: 0, b: 0, a: 1 };
+}
+
+/**
+ * interpolateColors() — Perceptually uniform gamma-corrected color interpolation.
+ * Drop-in Remotion-compatible interpolateColors.
+ *
+ * @param {number} val
+ * @param {number[]} inputRange
+ * @param {string[]} outputColors
+ * @param {object} [opts]
+ * @param {'clamp'|'identity'} [opts.extrapolateLeft='clamp']
+ * @param {'clamp'|'identity'} [opts.extrapolateRight='clamp']
+ * @param {function} [opts.easing]
+ * @param {number} [opts.gamma=2.2]
+ * @returns {string} Hex color (#rrggbb) or rgba(...)
+ */
+export function interpolateColors(val, inputRange, outputColors, opts = {}) {
+  const { extrapolateLeft = 'clamp', extrapolateRight = 'clamp', easing = (x) => x, gamma = 2.2 } = opts;
+  if (!inputRange || !outputColors || inputRange.length < 2 || inputRange.length !== outputColors.length) {
+    throw new Error('interpolateColors: inputRange and outputColors must have same length >= 2');
+  }
+
+  const parsed = outputColors.map(_parseColor);
+
+  let p = 0;
+  let c0 = parsed[0];
+  let c1 = parsed[1];
+
+  if (val <= inputRange[0]) {
+    if (extrapolateLeft === 'clamp') return outputColors[0];
+    p = 0;
+    c0 = parsed[0];
+    c1 = parsed[1];
+  } else if (val >= inputRange[inputRange.length - 1]) {
+    if (extrapolateRight === 'clamp') return outputColors[outputColors.length - 1];
+    p = 1;
+    c0 = parsed[parsed.length - 2];
+    c1 = parsed[parsed.length - 1];
+  } else {
+    for (let i = 1; i < inputRange.length; i++) {
+      if (val <= inputRange[i]) {
+        const t0 = inputRange[i - 1];
+        const t1 = inputRange[i];
+        c0 = parsed[i - 1];
+        c1 = parsed[i];
+        p = (val - t0) / (t1 - t0);
+        break;
+      }
+    }
+  }
+
+  const ep = Math.max(0, Math.min(1, easing(p)));
+  const r0 = Math.pow(c0.r / 255, gamma);
+  const g0 = Math.pow(c0.g / 255, gamma);
+  const b0 = Math.pow(c0.b / 255, gamma);
+  const r1 = Math.pow(c1.r / 255, gamma);
+  const g1 = Math.pow(c1.g / 255, gamma);
+  const b1 = Math.pow(c1.b / 255, gamma);
+
+  const r = Math.round(Math.pow(r0 + (r1 - r0) * ep, 1 / gamma) * 255);
+  const g = Math.round(Math.pow(g0 + (g1 - g0) * ep, 1 / gamma) * 255);
+  const b = Math.round(Math.pow(b0 + (b1 - b0) * ep, 1 / gamma) * 255);
+  const a = Math.round((c0.a + (c1.a - c0.a) * ep) * 1000) / 1000;
+
+  if (a >= 0.999) {
+    const toHex = (n) => n.toString(16).padStart(2, '0');
+    return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+  }
+  return `rgba(${r}, ${g}, ${b}, ${a})`;
+}
+
+// ── Remotion-compatible Deterministic Noise (@remotion/noise) ───────────────────
+
+function _createNoisePrng(seed) {
+  let s = 0;
+  if (typeof seed === 'string') {
+    for (let i = 0; i < seed.length; i++) {
+      s = (s * 31 + seed.charCodeAt(i)) | 0;
+    }
+  } else {
+    s = (seed || 0) | 0;
+  }
+  return () => {
+    s = (s + 0x6D2B79F5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const _noisePermCache = new Map();
+function _getPermutationTable(seed) {
+  const seedKey = String(seed);
+  if (_noisePermCache.has(seedKey)) return _noisePermCache.get(seedKey);
+  const prng = _createNoisePrng(seed);
+  const p = new Uint8Array(256);
+  for (let i = 0; i < 256; i++) p[i] = i;
+  for (let i = 255; i > 0; i--) {
+    const j = Math.floor(prng() * (i + 1));
+    const tmp = p[i];
+    p[i] = p[j];
+    p[j] = tmp;
+  }
+  const perm = new Uint8Array(512);
+  for (let i = 0; i < 512; i++) perm[i] = p[i & 255];
+  _noisePermCache.set(seedKey, perm);
+  return perm;
+}
+
+const _F2 = 0.5 * (Math.sqrt(3.0) - 1.0);
+const _G2 = (3.0 - Math.sqrt(3.0)) / 6.0;
+
+/**
+ * noise2D() — Deterministic 2D Simplex noise in range [-1, 1].
+ * Compatible with @remotion/noise.
+ *
+ * @param {string|number} seed
+ * @param {number} x
+ * @param {number} y
+ * @returns {number} Float in range [-1, 1]
+ */
+export function noise2D(seed, x, y) {
+  const perm = _getPermutationTable(seed);
+  let n0, n1, n2;
+  const s = (x + y) * _F2;
+  const i = Math.floor(x + s);
+  const j = Math.floor(y + s);
+  const t = (i + j) * _G2;
+  const X0 = i - t;
+  const Y0 = j - t;
+  const x0 = x - X0;
+  const y0 = y - Y0;
+
+  let i1, j1;
+  if (x0 > y0) { i1 = 1; j1 = 0; }
+  else { i1 = 0; j1 = 1; }
+
+  const x1 = x0 - i1 + _G2;
+  const y1 = y0 - j1 + _G2;
+  const x2 = x0 - 1.0 + 2.0 * _G2;
+  const y2 = y0 - 1.0 + 2.0 * _G2;
+
+  const ii = i & 255;
+  const jj = j & 255;
+
+  const grad = (hash, gx, gy) => {
+    const h = hash & 7;
+    const u = h < 4 ? gx : gy;
+    const v = h < 4 ? gy : gx;
+    return ((h & 1) ? -u : u) + ((h & 2) ? -2.0 * v : 2.0 * v);
+  };
+
+  let t0 = 0.5 - x0 * x0 - y0 * y0;
+  if (t0 < 0) n0 = 0.0;
+  else {
+    t0 *= t0;
+    n0 = t0 * t0 * grad(perm[ii + perm[jj]], x0, y0);
+  }
+
+  let t1 = 0.5 - x1 * x1 - y1 * y1;
+  if (t1 < 0) n1 = 0.0;
+  else {
+    t1 *= t1;
+    n1 = t1 * t1 * grad(perm[ii + i1 + perm[jj + j1]], x1, y1);
+  }
+
+  let t2 = 0.5 - x2 * x2 - y2 * y2;
+  if (t2 < 0) n2 = 0.0;
+  else {
+    t2 *= t2;
+    n2 = t2 * t2 * grad(perm[ii + 1 + perm[jj + 1]], x2, y2);
+  }
+
+  return 70.0 * (n0 + n1 + n2);
+}
+
+function _fade(t) { return t * t * t * (t * (t * 6 - 15) + 10); }
+function _grad3(hash, x, y, z) {
+  const h = hash & 15;
+  const u = h < 8 ? x : y;
+  const v = h < 4 ? y : (h === 12 || h === 14 ? x : z);
+  return ((h & 1) ? -u : u) + ((h & 2) ? -v : v);
+}
+
+/**
+ * noise3D() — Deterministic 3D Perlin noise in range [-1, 1].
+ * Compatible with @remotion/noise.
+ *
+ * @param {string|number} seed
+ * @param {number} x
+ * @param {number} y
+ * @param {number} z
+ * @returns {number} Float in range [-1, 1]
+ */
+export function noise3D(seed, x, y, z) {
+  const perm = _getPermutationTable(seed);
+  const X = Math.floor(x) & 255;
+  const Y = Math.floor(y) & 255;
+  const Z = Math.floor(z) & 255;
+
+  x -= Math.floor(x);
+  y -= Math.floor(y);
+  z -= Math.floor(z);
+
+  const u = _fade(x);
+  const v = _fade(y);
+  const w = _fade(z);
+
+  const A = perm[X] + Y;
+  const AA = perm[A] + Z;
+  const AB = perm[A + 1] + Z;
+  const B = perm[X + 1] + Y;
+  const BA = perm[B] + Z;
+  const BB = perm[B + 1] + Z;
+
+  const lerp = (t, a, b) => a + t * (b - a);
+
+  return lerp(w,
+    lerp(v,
+      lerp(u, _grad3(perm[AA], x, y, z), _grad3(perm[BA], x - 1, y, z)),
+      lerp(u, _grad3(perm[AB], x, y - 1, z), _grad3(perm[BB], x - 1, y - 1, z))
+    ),
+    lerp(v,
+      lerp(u, _grad3(perm[AA + 1], x, y, z - 1), _grad3(perm[BA + 1], x - 1, y, z - 1)),
+      lerp(u, _grad3(perm[AB + 1], x, y - 1, z - 1), _grad3(perm[BB + 1], x - 1, y - 1, z - 1))
+    )
+  );
+}
+
+// ── Remotion-compatible SVG Path Animation (@remotion/paths) ───────────────────
+
+/**
+ * evolvePath() — Generates SVG stroke-dasharray and stroke-dashoffset for path reveal.
+ * Compatible with @remotion/paths evolvePath.
+ *
+ * @param {number} progress Float 0..1
+ * @param {number} pathLength Total length of SVG path
+ * @returns {{ strokeDasharray: string, strokeDashoffset: string }}
+ */
+export function evolvePath(progress, pathLength) {
+  const p = Math.max(0, Math.min(1, progress));
+  const len = Math.max(0, pathLength);
+  return {
+    strokeDasharray: `${len} ${len}`,
+    strokeDashoffset: `${(1 - p) * len}`,
+  };
+}
+
+// ── Remotion-compatible Transition Presets (@remotion/transitions) ─────────────
+
+/**
+ * transition — Pure functional CSS style generators for scene/shot transitions.
+ * Equivalent to @remotion/transitions presentations.
+ */
+export const transition = {
+  fade: (p) => ({ opacity: Math.max(0, Math.min(1, p)) }),
+  slide: (p, { direction = 'from-left' } = {}) => {
+    const cp = Math.max(0, Math.min(1, p));
+    const inv = (1 - cp) * 100;
+    switch (direction) {
+      case 'from-right':  return { transform: `translateX(${inv}%)` };
+      case 'from-top':    return { transform: `translateY(${-inv}%)` };
+      case 'from-bottom': return { transform: `translateY(${inv}%)` };
+      case 'from-left':
+      default:            return { transform: `translateX(${-inv}%)` };
+    }
+  },
+  wipe: (p, { direction = 'from-left' } = {}) => {
+    const cp = Math.max(0, Math.min(1, p));
+    const inv = (1 - cp) * 100;
+    switch (direction) {
+      case 'from-right':  return { clipPath: `inset(0 0 0 ${inv}%)` };
+      case 'from-top':    return { clipPath: `inset(0 0 ${inv}% 0)` };
+      case 'from-bottom': return { clipPath: `inset(${inv}% 0 0 0)` };
+      case 'from-left':
+      default:            return { clipPath: `inset(0 ${inv}% 0 0)` };
+    }
+  },
+  flip: (p, { axis = 'y' } = {}) => {
+    const cp = Math.max(0, Math.min(1, p));
+    const deg = (1 - cp) * 90;
+    const t = axis === 'x' ? `perspective(1200px) rotateX(${deg}deg)` : `perspective(1200px) rotateY(${deg}deg)`;
+    return { transform: t, opacity: cp > 0.05 ? 1 : 0 };
+  },
+  zoom: (p, { from = 0.8, to = 1.0 } = {}) => {
+    const cp = Math.max(0, Math.min(1, p));
+    const s = from + (to - from) * cp;
+    return { transform: `scale(${s})`, opacity: cp };
+  }
+};
+
+/**
+ * absoluteFill() — Layout helper matching Remotion's <AbsoluteFill>.
+ *
+ * @param {object} [extra] Additional CSS styles
+ * @returns {object} Style object for absolute full-screen canvas positioning
+ */
+export function absoluteFill(extra = {}) {
+  return {
+    position: 'absolute',
+    top: '0px',
+    left: '0px',
+    width: '100%',
+    height: '100%',
+    display: 'flex',
+    flexDirection: 'column',
+    ...extra,
+  };
+}
+
+/**
+ * loopTime() — Loops local time within [0, duration) for repeating motions.
+ * Equivalent to Remotion's <Loop>.
+ *
+ * @param {number} t
+ * @param {number} duration
+ * @returns {number} Local loop time
+ */
+export function loopTime(t, duration) {
+  if (duration <= 0) return 0;
+  return ((t % duration) + duration) % duration;
+}
+
+/**
+ * loadGoogleFont() — Deterministic Google Fonts loader using delayRender barrier.
+ * Equivalent to @remotion/google-fonts.
+ *
+ * @param {string} fontFamily
+ * @param {{ weights?: number[], display?: string }} [opts]
+ * @returns {Promise<void>}
+ */
+export async function loadGoogleFont(fontFamily, { weights = [400, 700], display = 'swap' } = {}) {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return;
+  const id = typeof window.delayRender === 'function' ? window.delayRender(`font-${fontFamily}`) : null;
+  try {
+    const formattedFamily = fontFamily.replace(/\s+/g, '+');
+    const weightsStr = weights.join(';');
+    const href = `https://fonts.googleapis.com/css2?family=${formattedFamily}:wght@${weightsStr}&display=${display}`;
+
+    if (!document.querySelector(`link[href*="${formattedFamily}"]`)) {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = href;
+      document.head.appendChild(link);
+    }
+
+    if (document.fonts && typeof document.fonts.load === 'function') {
+      const promises = weights.map(w => document.fonts.load(`${w} 16px "${fontFamily}"`));
+      await Promise.all(promises);
+      await document.fonts.ready;
+    }
+  } catch (err) {
+    console.warn(`[loadGoogleFont] Failed loading font ${fontFamily}:`, err);
+  } finally {
+    if (id !== null && typeof window.continueRender === 'function') {
+      window.continueRender(id);
+    }
+  }
+}
+
 let _BOILN = 0;
 
 /**

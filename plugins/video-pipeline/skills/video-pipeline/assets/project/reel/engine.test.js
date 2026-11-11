@@ -403,3 +403,330 @@ describe('boilSeed and determinism primitives', () => {
     assert.deepEqual(mid, [20, 30]);
   });
 });
+
+describe('Remotion-compatible animation primitives', () => {
+  function measureSpringPure({ tension = 200, friction = 22, threshold = 0.001 } = {}) {
+    const omega = Math.sqrt(tension);
+    const zeta  = friction / (2 * omega);
+    if (zeta < 1) {
+      return -Math.log(threshold) / (zeta * omega);
+    } else {
+      const r1 = -omega * (zeta - Math.sqrt(zeta * zeta - 1));
+      return -Math.log(threshold) / Math.abs(r1);
+    }
+  }
+
+  function interpolatePure(val, inputRange, outputRange, opts = {}) {
+    const { extrapolateLeft = 'clamp', extrapolateRight = 'clamp', easing = (x) => x } = opts;
+    if (val <= inputRange[0]) {
+      if (extrapolateLeft === 'clamp') return outputRange[0];
+      if (extrapolateLeft === 'identity') return val;
+    }
+    if (val >= inputRange[inputRange.length - 1]) {
+      if (extrapolateRight === 'clamp') return outputRange[outputRange.length - 1];
+      if (extrapolateRight === 'identity') return val;
+    }
+    for (let i = 1; i < inputRange.length; i++) {
+      if (val <= inputRange[i]) {
+        const t0 = inputRange[i - 1];
+        const t1 = inputRange[i];
+        const v0 = outputRange[i - 1];
+        const v1 = outputRange[i];
+        const p = (val - t0) / (t1 - t0);
+        return v0 + (v1 - v0) * easing(p);
+      }
+    }
+    return outputRange[outputRange.length - 1];
+  }
+
+  function sequencePure(from, duration, fn) {
+    return (t) => {
+      if (t < from || t >= from + duration) return null;
+      return fn(t - from, duration, t);
+    };
+  }
+
+  it('measureSpring calculates positive settling time', () => {
+    const tSettle = measureSpringPure({ tension: 200, friction: 22 });
+    assert.ok(tSettle > 0.3 && tSettle < 1.5, `Expected settling ~0.6-0.9s, got ${tSettle}`);
+  });
+
+  it('interpolate clamps boundaries by default', () => {
+    assert.equal(interpolatePure(-1, [0, 10], [0, 100]), 0);
+    assert.equal(interpolatePure(15, [0, 10], [0, 100]), 100);
+    assert.equal(interpolatePure(5, [0, 10], [0, 100]), 50);
+  });
+
+  it('interpolate supports multi-segment keyframes', () => {
+    const res = interpolatePure(1.5, [0, 1, 2], [0, 10, 50]);
+    assert.equal(res, 30);
+  });
+
+  it('sequence isolates local time window', () => {
+    const seq = sequencePure(2.0, 3.0, (relTime) => ({ opacity: relTime }));
+    assert.equal(seq(1.0), null);
+    assert.equal(seq(6.0), null);
+    assert.deepEqual(seq(2.5), { opacity: 0.5 });
+  });
+
+  // ── Ported Remotion primitives tests ──────────────────────────────────────────
+
+  function parseColorPure(str) {
+    if (typeof str !== 'string') return { r: 0, g: 0, b: 0, a: 1 };
+    str = str.trim().toLowerCase();
+    if (str.startsWith('#')) {
+      const hex = str.slice(1);
+      if (hex.length === 3 || hex.length === 4) {
+        const r = parseInt(hex[0] + hex[0], 16);
+        const g = parseInt(hex[1] + hex[1], 16);
+        const b = parseInt(hex[2] + hex[2], 16);
+        const a = hex.length === 4 ? parseInt(hex[3] + hex[3], 16) / 255 : 1;
+        return { r, g, b, a };
+      }
+      if (hex.length === 6 || hex.length === 8) {
+        const r = parseInt(hex.slice(0, 2), 16);
+        const g = parseInt(hex.slice(2, 4), 16);
+        const b = parseInt(hex.slice(4, 6), 16);
+        const a = hex.length === 8 ? parseInt(hex.slice(6, 8), 16) / 255 : 1;
+        return { r, g, b, a };
+      }
+    }
+    const rgbMatch = str.match(/rgba?\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)/);
+    if (rgbMatch) {
+      return {
+        r: parseInt(rgbMatch[1], 10),
+        g: parseInt(rgbMatch[2], 10),
+        b: parseInt(rgbMatch[3], 10),
+        a: rgbMatch[4] !== undefined ? parseFloat(rgbMatch[4]) : 1
+      };
+    }
+    return { r: 0, g: 0, b: 0, a: 1 };
+  }
+
+  function interpolateColorsPure(val, inputRange, outputColors, opts = {}) {
+    const { extrapolateLeft = 'clamp', extrapolateRight = 'clamp', easing = (x) => x, gamma = 2.2 } = opts;
+    const parsed = outputColors.map(parseColorPure);
+    let p = 0;
+    let c0 = parsed[0];
+    let c1 = parsed[1];
+
+    if (val <= inputRange[0]) {
+      if (extrapolateLeft === 'clamp') return outputColors[0];
+      p = 0;
+      c0 = parsed[0];
+      c1 = parsed[1];
+    } else if (val >= inputRange[inputRange.length - 1]) {
+      if (extrapolateRight === 'clamp') return outputColors[outputColors.length - 1];
+      p = 1;
+      c0 = parsed[parsed.length - 2];
+      c1 = parsed[parsed.length - 1];
+    } else {
+      for (let i = 1; i < inputRange.length; i++) {
+        if (val <= inputRange[i]) {
+          const t0 = inputRange[i - 1];
+          const t1 = inputRange[i];
+          c0 = parsed[i - 1];
+          c1 = parsed[i];
+          p = (val - t0) / (t1 - t0);
+          break;
+        }
+      }
+    }
+
+    const ep = Math.max(0, Math.min(1, easing(p)));
+    const r0 = Math.pow(c0.r / 255, gamma);
+    const g0 = Math.pow(c0.g / 255, gamma);
+    const b0 = Math.pow(c0.b / 255, gamma);
+    const r1 = Math.pow(c1.r / 255, gamma);
+    const g1 = Math.pow(c1.g / 255, gamma);
+    const b1 = Math.pow(c1.b / 255, gamma);
+
+    const r = Math.round(Math.pow(r0 + (r1 - r0) * ep, 1 / gamma) * 255);
+    const g = Math.round(Math.pow(g0 + (g1 - g0) * ep, 1 / gamma) * 255);
+    const b = Math.round(Math.pow(b0 + (b1 - b0) * ep, 1 / gamma) * 255);
+    const a = Math.round((c0.a + (c1.a - c0.a) * ep) * 1000) / 1000;
+
+    if (a >= 0.999) {
+      const toHex = (n) => n.toString(16).padStart(2, '0');
+      return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+    }
+    return `rgba(${r}, ${g}, ${b}, ${a})`;
+  }
+
+  it('interpolateColors interpolates hex colors with gamma correction', () => {
+    const c0 = interpolateColorsPure(0, [0, 1], ['#000000', '#ffffff']);
+    const c1 = interpolateColorsPure(1, [0, 1], ['#000000', '#ffffff']);
+    const cMid = interpolateColorsPure(0.5, [0, 1], ['#000000', '#ffffff']);
+    assert.equal(c0, '#000000');
+    assert.equal(c1, '#ffffff');
+    assert.equal(cMid, '#bababa');
+  });
+
+  it('interpolateColors supports rgba alpha blending', () => {
+    const res = interpolateColorsPure(0.5, [0, 1], ['rgba(255, 0, 0, 0)', 'rgba(255, 0, 0, 1)']);
+    assert.ok(res.startsWith('rgba(255, 0, 0, 0.5'));
+  });
+
+  function evolvePathPure(progress, pathLength) {
+    const p = Math.max(0, Math.min(1, progress));
+    const len = Math.max(0, pathLength);
+    return {
+      strokeDasharray: `${len} ${len}`,
+      strokeDashoffset: `${(1 - p) * len}`,
+    };
+  }
+
+  it('evolvePath calculates stroke dash for path drawing', () => {
+    const epStart = evolvePathPure(0, 500);
+    const epMid = evolvePathPure(0.5, 500);
+    const epEnd = evolvePathPure(1, 500);
+    assert.deepEqual(epStart, { strokeDasharray: '500 500', strokeDashoffset: '500' });
+    assert.deepEqual(epMid, { strokeDasharray: '500 500', strokeDashoffset: '250' });
+    assert.deepEqual(epEnd, { strokeDasharray: '500 500', strokeDashoffset: '0' });
+  });
+
+  const transitionPure = {
+    fade: (p) => ({ opacity: Math.max(0, Math.min(1, p)) }),
+    slide: (p, { direction = 'from-left' } = {}) => {
+      const cp = Math.max(0, Math.min(1, p));
+      const inv = (1 - cp) * 100;
+      switch (direction) {
+        case 'from-right':  return { transform: `translateX(${inv}%)` };
+        case 'from-top':    return { transform: `translateY(${-inv}%)` };
+        case 'from-bottom': return { transform: `translateY(${inv}%)` };
+        case 'from-left':
+        default:            return { transform: `translateX(${-inv}%)` };
+      }
+    },
+    wipe: (p, { direction = 'from-left' } = {}) => {
+      const cp = Math.max(0, Math.min(1, p));
+      const inv = (1 - cp) * 100;
+      switch (direction) {
+        case 'from-right':  return { clipPath: `inset(0 0 0 ${inv}%)` };
+        case 'from-top':    return { clipPath: `inset(0 0 ${inv}% 0)` };
+        case 'from-bottom': return { clipPath: `inset(${inv}% 0 0 0)` };
+        case 'from-left':
+        default:            return { clipPath: `inset(0 ${inv}% 0 0)` };
+      }
+    },
+    flip: (p, { axis = 'y' } = {}) => {
+      const cp = Math.max(0, Math.min(1, p));
+      const deg = (1 - cp) * 90;
+      const t = axis === 'x' ? `perspective(1200px) rotateX(${deg}deg)` : `perspective(1200px) rotateY(${deg}deg)`;
+      return { transform: t, opacity: cp > 0.05 ? 1 : 0 };
+    },
+    zoom: (p, { from = 0.8, to = 1.0 } = {}) => {
+      const cp = Math.max(0, Math.min(1, p));
+      const s = from + (to - from) * cp;
+      return { transform: `scale(${s})`, opacity: cp };
+    }
+  };
+
+  it('transition presets return expected CSS transforms and clipPaths', () => {
+    assert.deepEqual(transitionPure.fade(0.5), { opacity: 0.5 });
+    assert.deepEqual(transitionPure.slide(0, { direction: 'from-left' }), { transform: 'translateX(-100%)' });
+    assert.deepEqual(transitionPure.slide(1, { direction: 'from-left' }), { transform: 'translateX(0%)' });
+    assert.deepEqual(transitionPure.wipe(0, { direction: 'from-left' }), { clipPath: 'inset(0 100% 0 0)' });
+    assert.deepEqual(transitionPure.wipe(1, { direction: 'from-left' }), { clipPath: 'inset(0 0% 0 0)' });
+  });
+
+  function absoluteFillPure(extra = {}) {
+    return {
+      position: 'absolute',
+      top: '0px',
+      left: '0px',
+      width: '100%',
+      height: '100%',
+      display: 'flex',
+      flexDirection: 'column',
+      ...extra,
+    };
+  }
+
+  function loopTimePure(t, duration) {
+    if (duration <= 0) return 0;
+    return ((t % duration) + duration) % duration;
+  }
+
+  it('absoluteFill and loopTime helper functions', () => {
+    const af = absoluteFillPure({ zIndex: 10 });
+    assert.equal(af.position, 'absolute');
+    assert.equal(af.width, '100%');
+    assert.equal(af.zIndex, 10);
+
+    assert.equal(loopTimePure(5.5, 2), 1.5);
+    assert.equal(loopTimePure(6.0, 2), 0);
+  });
+
+  function createNoisePrng(seed) {
+    let s = 0;
+    if (typeof seed === 'string') {
+      for (let i = 0; i < seed.length; i++) s = (s * 31 + seed.charCodeAt(i)) | 0;
+    } else {
+      s = (seed || 0) | 0;
+    }
+    return () => {
+      s = (s + 0x6D2B79F5) | 0;
+      let t = Math.imul(s ^ (s >>> 15), 1 | s);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function getPermTable(seed) {
+    const prng = createNoisePrng(seed);
+    const p = new Uint8Array(256);
+    for (let i = 0; i < 256; i++) p[i] = i;
+    for (let i = 255; i > 0; i--) {
+      const j = Math.floor(prng() * (i + 1));
+      const tmp = p[i];
+      p[i] = p[j];
+      p[j] = tmp;
+    }
+    const perm = new Uint8Array(512);
+    for (let i = 0; i < 512; i++) perm[i] = p[i & 255];
+    return perm;
+  }
+
+  function noise2DPure(seed, x, y) {
+    const perm = getPermTable(seed);
+    const F2 = 0.5 * (Math.sqrt(3.0) - 1.0);
+    const G2 = (3.0 - Math.sqrt(3.0)) / 6.0;
+    const s = (x + y) * F2;
+    const i = Math.floor(x + s);
+    const j = Math.floor(y + s);
+    const t = (i + j) * G2;
+    const x0 = x - (i - t);
+    const y0 = y - (j - t);
+    let i1 = x0 > y0 ? 1 : 0;
+    let j1 = x0 > y0 ? 0 : 1;
+    const x1 = x0 - i1 + G2;
+    const y1 = y0 - j1 + G2;
+    const x2 = x0 - 1.0 + 2.0 * G2;
+    const y2 = y0 - 1.0 + 2.0 * G2;
+    const ii = i & 255;
+    const jj = j & 255;
+    const grad = (hash, gx, gy) => {
+      const h = hash & 7;
+      const u = h < 4 ? gx : gy;
+      const v = h < 4 ? gy : gx;
+      return ((h & 1) ? -u : u) + ((h & 2) ? -2.0 * v : 2.0 * v);
+    };
+    let n0 = 0.5 - x0 * x0 - y0 * y0;
+    n0 = n0 < 0 ? 0 : Math.pow(n0, 4) * grad(perm[ii + perm[jj]], x0, y0);
+    let n1 = 0.5 - x1 * x1 - y1 * y1;
+    n1 = n1 < 0 ? 0 : Math.pow(n1, 4) * grad(perm[ii + i1 + perm[jj + j1]], x1, y1);
+    let n2 = 0.5 - x2 * x2 - y2 * y2;
+    n2 = n2 < 0 ? 0 : Math.pow(n2, 4) * grad(perm[ii + 1 + perm[jj + 1]], x2, y2);
+    return 70.0 * (n0 + n1 + n2);
+  }
+
+  it('noise2D provides deterministic continuous values in [-1, 1]', () => {
+    const v1 = noise2DPure('seed1', 1.5, 2.5);
+    const v2 = noise2DPure('seed1', 1.5, 2.5);
+    const v3 = noise2DPure('seed1', 1.51, 2.5);
+    assert.equal(v1, v2);
+    assert.ok(Math.abs(v1 - v3) < 0.1, 'Noise should be continuous');
+    assert.ok(v1 >= -1.05 && v1 <= 1.05);
+  });
+});

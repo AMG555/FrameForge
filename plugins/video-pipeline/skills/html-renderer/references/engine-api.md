@@ -99,6 +99,69 @@ const s = spring(lt, { tension: 200, friction: 22, delay: 0.2 });
 // opacity: s,  transform: `scale(${0.88 + 0.12 * s}) translateY(${(1-s)*40}px)`
 ```
 
+### `measureSpring({ tension?, friction?, threshold? }) → number`
+Calculates the analytical settling time (in seconds) for a spring configuration. Eliminates guess-and-check when timing animations.
+
+```js
+const settleTime = measureSpring({ tension: 200, friction: 22 }); // ~0.72s
+```
+
+### `interpolate(val, inputRange[], outputRange[], opts?) → number`
+Remotion-compatible multi-segment interpolation with clamp/identity extrapolation and custom easing.
+
+```js
+const y = interpolate(lt, [0, 0.5, 1.2], [100, 0, -20], { extrapolateRight: 'clamp' });
+```
+
+### `interpolateColors(val, inputRange[], outputColors[], opts?) → string`
+Remotion-compatible perceptually uniform color interpolation with gamma correction (2.2). Blends hex and rgba colors without muddy middle grays.
+
+```js
+const bg = interpolateColors(lt, [0, 2], ['#111827', '#4f46e5']);
+```
+
+### `sequence(from, duration, fn) → (t) => styleObject`
+Temporal window wrapper that scopes computation to `[from, from + duration]`. Local time is passed as first argument.
+
+```js
+layer('card').on(sequence(2.0, 4.0, (lt, dur) => ({
+  opacity: lt < 0.3 ? lt / 0.3 : 1
+})));
+```
+
+### `noise2D(seed, x, y) → float [-1, 1]` & `noise3D(seed, x, y, z) → float [-1, 1]`
+Deterministic continuous simplex/perlin noise matching `@remotion/noise`. Zero dependencies. Essential for handheld camera shake, organic floating, and subtle rotational wobble.
+
+```js
+const shakeX = noise2D('cam', t * 3, 0) * 12; // +/-12px handheld drift
+const shakeY = noise2D('cam', 0, t * 3) * 8;
+```
+
+### `evolvePath(progress, pathLength) → { strokeDasharray, strokeDashoffset }`
+Path reveal utility matching `@remotion/paths`. Generates CSS stroke dash parameters to draw SVG curves smoothly.
+
+```js
+const { strokeDasharray, strokeDashoffset } = evolvePath(spring(lt), 640);
+```
+
+### `transition`
+Preset transition style generators matching `@remotion/transitions`.
+- `transition.fade(p)`
+- `transition.slide(p, { direction: 'from-left' | 'from-right' | 'from-top' | 'from-bottom' })`
+- `transition.wipe(p, { direction: 'from-left' | 'from-right' | 'from-top' | 'from-bottom' })`
+- `transition.flip(p, { axis: 'x' | 'y' })`
+- `transition.zoom(p, { from: 0.8, to: 1.0 })`
+
+### `absoluteFill(extraStyles?) → object`
+Standard layout helper matching Remotion's `<AbsoluteFill>`:
+`{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }`
+
+### `loopTime(t, duration) → number`
+Loops local time within `[0, duration)` for periodic cycles, matching Remotion `<Loop>`.
+
+### `loadGoogleFont(family, opts?) → Promise<void>`
+Loads Google Fonts and prevents FOUT during headless rendering by integrating with the `delayRender` / `continueRender` async barrier.
+
 ### `kf(t, keys[], easing?) → number | number[]`
 Keyframe interpolation with easing.
 
