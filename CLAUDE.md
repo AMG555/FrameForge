@@ -268,7 +268,7 @@ get_job_status({ jobId })   // poll every 30s until status = "SUCCEEDED"
 
 ---
 
-## ALL 18 MCP TOOLS
+## ALL 27 MCP TOOLS
 
 **Primary — code-driven animation (no LLM key, no image gen API):**
 
@@ -294,6 +294,28 @@ get_job_status({ jobId })   // poll every 30s until status = "SUCCEEDED"
 | `generate_scene_image` | Generate one scene image |
 | `publish_video` | Deliver via file copy or HTTP webhook |
 
+**Media ingestion (yt-dlp & Whisper):**
+
+| Tool | What it does |
+|------|-------------|
+| `ingest_url` | Download video/audio from any web URL (YouTube, Vimeo, Twitter/X, TikTok, 1000+ sites) via yt-dlp |
+| `transcribe_media` | Transcribe speech with Whisper — word-level timestamps (NDJSON for `cuePhrase()`), SRT subtitles, pause detection |
+
+**Professional audio post-production:**
+
+| Tool | What it does |
+|------|-------------|
+| `mix_audio_pro` | Broadcast-grade voice chain: 80Hz HPF → EQ → de-esser → compressor → reverb → sidechain duck → stereo widen → SFX timeline → two-pass EBU R128 |
+
+**Editing & planning:**
+
+| Tool | What it does |
+|------|-------------|
+| `edit_video` | Autonomous local editor — cut, trim, speed-ramp, color-grade, reframe, captions, transitions, audio mix |
+| `plan_video_edit` | Plan/Approve/Render workflow — generates `edit-plan.md` + `edit.json` with rationale per cut |
+| `preview_scene` | Render still frames of a scene HTML/code for visual inspection |
+| `verify_scene_quality` | Closed-loop QA gate: 1–10 score on 4 axes (content, exposure, layout, motion delta) |
+
 **Auto-research (needs a free LLM key):**
 
 | Tool | What it does |
@@ -302,6 +324,82 @@ get_job_status({ jobId })   // poll every 30s until status = "SUCCEEDED"
 | `write_script` | Generate a scene script from research |
 | `queue_full_pipeline` | Queue a full pipeline run; returns `{ jobId }` |
 | `get_job_status` | Poll a queued job for status |
+
+**Upstream skills maintenance:**
+
+| Tool | What it does |
+|------|-------------|
+| `sync_upstream_skills` | Check & merge updates from 9 reference repos (HyperFrames, Earshot, Remotion, OneTake, etc.). Auto-notifies when new motion craft rules, film styles, or audio presets are available. |
+
+---
+
+## PROFESSIONAL AUDIO WORKFLOW
+
+### Whisper transcription → word-level caption sync
+
+```
+// Step 1: Generate TTS
+multi_voice_tts({ text: "Your narration.", outputPath: ".frameforge-files/voice_0.m4a" })
+
+// Step 2: Transcribe for exact word timestamps (requires: pip install openai-whisper)
+transcribe_media({
+  mediaPath: ".frameforge-files/voice_0.m4a",
+  model: "base",         // tiny|base|small|medium|large
+  format: "all",         // writes .ndjson (for captions()) + .srt + .json
+})
+// → returns: { outputs: { ndjson: "...", srt: "...", json: "..." }, pauses: [...] }
+
+// Step 3: Load in edit.js for word-sync captions
+// captions('audio/outline.txt');   ← use the ndjson output path
+// cuePhrase("your words here");    ← returns exact timestamp from transcript
+```
+
+### yt-dlp media ingestion
+
+```
+// Download YouTube video for B-roll
+ingest_url({ url: "https://youtube.com/watch?v=...", format: "video" })
+// → returns: { localPath: "...", duration: 45.2, width: 1920, height: 1080 }
+
+// Download audio-only (podcast, music)
+ingest_url({ url: "https://soundcloud.com/...", format: "audio" })
+// → returns: { localPath: "...", duration: 180.5 }
+
+// Then pass to any other tool
+edit_video({ clips: [{ video_path: localPath, ... }] })
+transcribe_media({ mediaPath: localPath, format: "srt" })
+```
+
+### Professional audio mix (broadcast standard)
+
+```
+mix_audio_pro({
+  voicePath: ".frameforge-files/voice_0.m4a",
+  outputPath: ".frameforge-files/audio_pro.m4a",
+  musicPath: "/path/to/bg-music.mp3",   // optional — will be sidechain ducked
+  addReverb: false,                      // true = cinematic narrator room acoustics
+  stereoWiden: true,                     // M/S expansion 1.4x on music layer
+  sfxCues: [                             // earshot-pattern procedural SFX
+    { name: "whoosh", time: 2.5, volume: 0.8 },  // 40ms perceptual lead applied
+    { name: "impact", time: 8.0, volume: 1.0 },
+    { name: "pop",    time: 12.3, volume: 0.6 },
+  ],
+  targetLufs: -14,   // -14 YouTube/default | -16 podcast | -23 broadcast
+  // videoPath: ".frameforge-files/animation.mp4"  // optional: mux directly into video
+})
+// Returns: { outputPath, measuredLufs, measuredTp, passed, chain: {...} }
+```
+
+### Upstream skills auto-update
+
+Run this at the start of any session to get the latest motion craft rules, film styles,
+camera techniques, and audio presets from all 9 reference repositories:
+
+```
+sync_upstream_skills({})
+// → If repos have new commits: returns updatedRepos[] and a visible update notice
+// → Set SKILL_UPDATE_WEBHOOK_URL in .env for POST callback notifications
+```
 
 ---
 
