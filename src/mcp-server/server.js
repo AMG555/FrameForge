@@ -1415,6 +1415,13 @@ Requires: npm install playwright && npx playwright install chromium (one-time se
 
       const passed = exitCode === 0;
 
+      // Read sfx-events.json if render.mjs extracted composition events
+      let sfxEvents = null;
+      const sfxEventsPath = pathMod.join(outDir, 'sfx-events.json');
+      if (syncFs.existsSync(sfxEventsPath)) {
+        try { sfxEvents = JSON.parse(syncFs.readFileSync(sfxEventsPath, 'utf8')); } catch (_) {}
+      }
+
       return {
         mode,
         passed,
@@ -1427,11 +1434,14 @@ Requires: npm install playwright && npx playwright install chromium (one-time se
         overallScore:  qualityReport?.overallScore  ?? null,
         worstFrames:   qualityReport?.worstFrames   ?? null,
         motionDelta:   qualityReport?.motionDelta   ?? null,
+        // Composition events extracted by render.mjs (window.__events contract)
+        sfxEvents:     sfxEvents,
+        sfxEventsPath: sfxEvents ? sfxEventsPath : null,
         projectDir,
         stdout: stdout.slice(-2000),
         stderr: passed ? undefined : stderr.slice(-1000),
         message: passed
-          ? `${mode} complete. Output: ${Array.isArray(outputPath) ? outputPath.join(', ') : (outputPath || outDir)}`
+          ? `${mode} complete. Output: ${Array.isArray(outputPath) ? outputPath.join(', ') : (outputPath || outDir)}${sfxEvents ? ` | ${sfxEvents.length} composition SFX event(s) in sfx-events.json` : ''}`
           : `${mode} failed (exit ${exitCode}). Check stderr for details.`,
       };
     },
