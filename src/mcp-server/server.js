@@ -1857,9 +1857,20 @@ Evaluates 4 critical visual axes: content presence (non-blank), proper exposure 
   // Plan / Approve / Render video editing workflow: generates edit-plan.md & edit.json
   plan_video_edit: {
     description: `Generate a structured Plan/Approve/Render video editing package for raw video footage.
-Analyzes input clips, segments narrative beats, calculates cut in/out timestamps, assigns transitions, speed ramps, and color grades, and writes:
-1. edit-plan.md — Human & agent readable decision list with rationale per cut and story beat breakdown.
-2. edit.json — Machine-executable configuration directly runnable via edit_video.`,
+Analyzes input clips, segments narrative beats, calculates cut in/out timestamps, assigns transitions, speed ramps, color grades, and audio cuts, and writes:
+1. edit-plan.md — Human & agent readable decision list with rationale per cut, story beat breakdown, J/L-cut annotations, and director notes.
+2. edit.json — Machine-executable configuration directly runnable via edit_video.
+3. TREATMENT.md — Director's treatment document (8 sections: concept, tone, visual language, sound, narrative arc, shot list, delivery, notes).
+
+J/L-cut support (lemo-opuscar DIRECTOR.md):
+  J-cut: audio of the NEXT clip starts before its video cut (audio_offset < 0, e.g. -0.5s = audio precedes by 500ms)
+  L-cut: current clip's audio extends over the next clip's video (audio_offset > 0 on next clip)
+
+Professional audio rules applied:
+  - First and last cuts always fade audio (no hard audio cuts at start/end)
+  - Dialogue scenes: J-cut by 0.25–0.5s to soften edit
+  - Action scenes: hard audio cut or L-cut to preserve momentum
+  - Music-driven edits: snap cut points to speech pauses`,
     inputSchema: {
       type: 'object',
       required: ['footage'],
@@ -1871,10 +1882,12 @@ Analyzes input clips, segments narrative beats, calculates cut in/out timestamps
         style:           { type: 'string', enum: ['cinematic', 'fast_paced', 'documentary', 'vintage', 'cyberpunk', 'vibrant'], default: 'cinematic' },
         audio_path:      { type: 'string', description: 'Optional master voiceover narration audio path' },
         music_path:      { type: 'string', description: 'Optional background music track path' },
-        output_dir:      { type: 'string', description: 'Directory to write edit-plan.md and edit.json' },
+        output_dir:      { type: 'string', description: 'Directory to write edit-plan.md, edit.json and TREATMENT.md' },
+        bpm:             { type: 'number', description: 'Optional music BPM — when set, cut points snap to beat grid (HyperFrames beatAt formula)' },
+        generate_treatment: { type: 'boolean', default: true, description: 'Generate TREATMENT.md director\'s document alongside edit-plan.md' },
       },
     },
-    handler: async ({ footage, goal = 'Create a dynamic polished montage', target_duration, orientation = 'landscape', style = 'cinematic', audio_path, music_path, output_dir }) => {
+    handler: async ({ footage, goal = 'Create a dynamic polished montage', target_duration, orientation = 'landscape', style = 'cinematic', audio_path, music_path, output_dir, bpm, generate_treatment = true }) => {
       const syncFs = require('fs');
       const pathMod = require('path');
       const { VideoEditor } = require('../video-editor/editor');
@@ -1961,12 +1974,34 @@ Analyzes input clips, segments narrative beats, calculates cut in/out timestamps
         retro_vhs_80s:        { avgDuration: 3.0, speed: 0.95, transition: 'pixelize',   grade: 'retro_vhs_80s' },
       }[style] || { avgDuration: 4.0, speed: 1.0, transition: 'fade', grade: 'cinematic' };
 
-      // 5. Build Cut Decision List (with pause snapping)
+      // 5. Build Cut Decision List (pause snapping + beat grid + J/L-cut assignment)
+      // J/L-cut rules (lemo-opuscar DIRECTOR.md):
+      //   J-cut: audio_offset < 0  (next audio starts before video cut)
+      //   L-cut: audio_offset > 0  (current audio extends over next video)
+      //   Hard cut: audio_offset = 0
       const clipCount = Math.max(1, Math.min(probedClips.length, Math.ceil(totalTarget / styleConfig.avgDuration)));
       const segDur = totalTarget / clipCount;
       const plannedClips = [];
 
       const beatNames = ['Opening Hook', 'Context & Build-up', 'Core Revelation / Climax', 'Resolution & Outro'];
+
+      // Beat-grid helper (HyperFrames formula — round each index independently)
+      const beatAt = (idx) => bpm > 0 ? Math.round(idx * 30 * 60 / bpm) / 30 : null;
+
+      // Determine J/L-cut style from overall style
+      const audioEditStyle = {
+        cinematic:            'j_cut',
+        fast_paced:           'hard',
+        documentary:          'j_cut',
+        vintage:              'l_cut',
+        cyberpunk:            'hard',
+        vibrant:              'hard',
+        cinematic_anamorphic: 'j_cut',
+        broadcast_news:       'hard',
+        film_16mm:            'l_cut',
+        lofi_chill:           'l_cut',
+        anime_action:         'hard',
+      }[style] || 'j_cut';
 
       let cumulativeTime = 0;
       for (let i = 0; i < clipCount; i++) {
@@ -1984,7 +2019,33 @@ Analyzes input clips, segments narrative beats, calculates cut in/out timestamps
           rawEndTime = Math.max(startTime + 0.5, Number((rawEndTime + shift).toFixed(2)));
         }
 
+        // Snap cut to beat grid if BPM provided (HyperFrames formula)
+        const beatT = beatAt(i);
+        if (beatT !== null && Math.abs(beatT - cumulativeTime) < segDur * 0.25) {
+          const shift = beatT - cumulativeTime;
+          rawEndTime = Math.max(startTime + 0.5, Number((rawEndTime + shift).toFixed(2)));
+        }
+
         const beatIndex = Math.min(beatNames.length - 1, Math.floor((i / clipCount) * beatNames.length));
+
+        // Assign J/L-cut type and audio_offset
+        let cutType = audioEditStyle;
+        let audioOffset = 0;
+        if (i === 0) {
+          // First cut: always fade in audio — no J/L on first clip
+          cutType = 'hard';
+          audioOffset = 0;
+        } else if (i === clipCount - 1) {
+          // Last cut: always fade out — L-cut slightly to smooth ending
+          cutType = 'l_cut';
+          audioOffset = 0.3;
+        } else if (cutType === 'j_cut') {
+          // J-cut: next audio starts 0.25–0.5s before video cut
+          audioOffset = -(styleConfig.avgDuration > 4.0 ? 0.5 : 0.25);
+        } else if (cutType === 'l_cut') {
+          // L-cut: current audio extends 0.3s over next clip's video
+          audioOffset = 0.3;
+        }
 
         plannedClips.push({
           video_path: src.path,
@@ -1996,7 +2057,9 @@ Analyzes input clips, segments narrative beats, calculates cut in/out timestamps
           transition: i === clipCount - 1 ? 'none' : styleConfig.transition,
           transition_duration: 0.5,
           beat: beatNames[beatIndex],
-          rationale: `Selected for ${beatNames[beatIndex]} (${clipDur}s) with ${styleConfig.grade} color tone and ${styleConfig.speed}x pacing.`,
+          cut_type: cutType,
+          audio_offset: audioOffset,
+          rationale: `${beatNames[beatIndex]} — ${clipDur}s, ${styleConfig.grade} grade, ${styleConfig.speed}x speed. Cut: ${cutType === 'j_cut' ? `J-cut (audio precedes by ${Math.abs(audioOffset)}s)` : cutType === 'l_cut' ? `L-cut (audio extends ${audioOffset}s)` : 'hard cut'}.${beatT !== null ? ` Beat-snapped to ${beatT.toFixed(2)}s.` : ''}`,
         });
       }
 
@@ -2010,44 +2073,107 @@ Analyzes input clips, segments narrative beats, calculates cut in/out timestamps
         color_grade: styleConfig.grade,
         transition: styleConfig.transition,
         target_duration: totalTarget,
+        bpm: bpm || null,
+        audio_edit_style: audioEditStyle,
       };
 
       // 7. Build edit-plan.md
       let planMd = `# 🎬 Video Edit Decision Plan\n\n`;
       planMd += `**Goal**: ${goal}\n`;
-      planMd += `**Style**: ${style.toUpperCase()} | **Orientation**: ${orientation.toUpperCase()} | **Target Duration**: ${totalTarget.toFixed(1)}s | **Clips Count**: ${plannedClips.length}\n\n`;
-      planMd += `## 📋 Narrative Beat Architecture\n\n`;
-      planMd += `| Beat | Clip Index | Source Clip | In - Out | Duration | Speed | Color Grade | Transition | Rationale |\n`;
-      planMd += `| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |\n`;
+      planMd += `**Style**: ${style.toUpperCase()} | **Orientation**: ${orientation.toUpperCase()} | **Target Duration**: ${totalTarget.toFixed(1)}s | **Clips**: ${plannedClips.length} | **Audio Edit**: ${audioEditStyle.toUpperCase().replace('_', '-')}\n`;
+      if (bpm) planMd += `**BPM**: ${bpm} (cut points beat-snapped via HyperFrames formula)\n`;
+      planMd += `\n## 📋 Narrative Beat Architecture\n\n`;
+      planMd += `| Beat | # | Clip | In–Out | Dur | Speed | Grade | Transition | Cut Type | Rationale |\n`;
+      planMd += `| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |\n`;
 
       plannedClips.forEach((c, idx) => {
         const basename = pathMod.basename(c.video_path);
-        planMd += `| **${c.beat}** | #${idx + 1} | \`${basename}\` | ${c.start_time}s - ${c.end_time}s | ${c.duration}s | ${c.speed}x | ${c.color_grade} | ${c.transition} | ${c.rationale} |\n`;
+        const cutLabel = c.cut_type === 'j_cut'
+          ? `🎵 J-cut (${Math.abs(c.audio_offset)}s)`
+          : c.cut_type === 'l_cut'
+          ? `🔊 L-cut (+${c.audio_offset}s)`
+          : '✂️ Hard';
+        planMd += `| **${c.beat}** | ${idx + 1} | \`${basename}\` | ${c.start_time}s–${c.end_time}s | ${c.duration}s | ${c.speed}x | ${c.color_grade} | ${c.transition} | ${cutLabel} | ${c.rationale} |\n`;
       });
 
       planMd += `\n## 🎵 Audio Architecture\n\n`;
       planMd += `- **Master Voiceover**: ${audio_path ? `\`${pathMod.basename(audio_path)}\` (Primary, ducks music by 18dB)` : 'None specified (using clip audio)'}\n`;
-      planMd += `- **Background Music**: ${music_path ? `\`${pathMod.basename(music_path)}\` (Ambient, volume: 0.08)` : 'None specified'}\n\n`;
+      planMd += `- **Background Music**: ${music_path ? `\`${pathMod.basename(music_path)}\` (Ambient, volume: 0.08)` : 'None specified'}\n`;
+      planMd += `- **Audio Edit Style**: ${audioEditStyle === 'j_cut' ? '🎵 J-cut dominant (audio leads video by 0.25–0.5s for softened edits)' : audioEditStyle === 'l_cut' ? '🔊 L-cut dominant (audio trails into next shot by 0.3s)' : '✂️ Hard cuts (audio and video synchronized)'}\n\n`;
+      planMd += `## 🎬 Audio Cut Rules Applied\n\n`;
+      planMd += `- First clip: always hard cut (clean opening)\n`;
+      planMd += `- Last clip: always L-cut (+0.3s) for smooth outro fade\n`;
+      planMd += `- J-cuts: audio of NEXT clip starts ${styleConfig.avgDuration > 4.0 ? '0.5s' : '0.25s'} before video edit point\n`;
+      planMd += `- L-cuts: current audio extends 0.3s into next clip's video\n\n`;
       planMd += `## 🚀 Execution & Approval\n\n`;
-      planMd += `To execute this edit plan autonomously, call the \`edit_video\` tool with the payload in \`edit.json\`.\n`;
+      planMd += `Review this plan, then execute with \`edit_video\` using the payload in \`edit.json\`.\n`;
+      planMd += `\nGenerated by FrameForge v2.7.0 — plan_video_edit with J/L-cut support (lemo-opuscar DIRECTOR.md)\n`;
 
-      // 8. Write outputs
+      // 8. Build TREATMENT.md (lemo-opuscar DIRECTOR.md — 8-section format)
+      let treatmentMd = '';
+      if (generate_treatment) {
+        const clipList = plannedClips.map((c, idx) =>
+          `  ${idx + 1}. \`${pathMod.basename(c.video_path)}\` (${c.beat}, ${c.duration}s, ${c.cut_type.replace('_', '-')})`
+        ).join('\n');
+
+        treatmentMd = `# 🎬 TREATMENT\n\n`;
+        treatmentMd += `> Generated by FrameForge plan_video_edit — edit this document to refine creative direction before rendering.\n\n`;
+        treatmentMd += `---\n\n`;
+        treatmentMd += `## 1. Concept\n\n${goal}\n\n`;
+        treatmentMd += `## 2. Tone\n\n`;
+        treatmentMd += `${style === 'cinematic' || style === 'cinematic_anamorphic' ? 'Cinematic and deliberate. Each frame earns its place.' : style === 'fast_paced' || style === 'anime_action' ? 'High-energy, kinetic. The edit IS the emotion.' : style === 'documentary' ? 'Observational and authentic. Let reality speak.' : style === 'vintage' || style === 'film_16mm' ? 'Warm, nostalgic, imperfect. Texture over polish.' : 'Direct and clean. Clarity over decoration.'}\n\n`;
+        treatmentMd += `## 3. Visual Language\n\n`;
+        treatmentMd += `- **Color**: ${styleConfig.grade} grade\n`;
+        treatmentMd += `- **Orientation**: ${orientation}\n`;
+        treatmentMd += `- **Transitions**: ${styleConfig.transition} (${styleConfig.avgDuration}s avg clip)\n`;
+        treatmentMd += `- **Speed**: ${styleConfig.speed}x base${styleConfig.speed !== 1.0 ? ' (variable)' : ''}\n\n`;
+        treatmentMd += `## 4. Sound\n\n`;
+        treatmentMd += `- **Audio edit style**: ${audioEditStyle === 'j_cut' ? 'J-cut dominant — audio of next scene starts before video cut to soften transitions' : audioEditStyle === 'l_cut' ? 'L-cut dominant — current audio trails into next shot for continuity' : 'Hard cuts — audio and video locked to same edit point'}\n`;
+        treatmentMd += `- **Voiceover**: ${audio_path ? pathMod.basename(audio_path) : 'None'}\n`;
+        treatmentMd += `- **Music**: ${music_path ? pathMod.basename(music_path) : 'None'}${bpm ? ` @ ${bpm} BPM` : ''}\n`;
+        treatmentMd += `- **Priority order** (lemo-opuscar): Sound → Rhythm → Camera → Directing\n\n`;
+        treatmentMd += `## 5. Narrative Arc\n\n`;
+        treatmentMd += `| Act | Beat | Description |\n| :--- | :--- | :--- |\n`;
+        treatmentMd += `| Act 1 | Opening Hook | Establish world, hook the viewer in first 3s |\n`;
+        treatmentMd += `| Act 2a | Context & Build-up | Deepen context, build anticipation |\n`;
+        treatmentMd += `| Act 2b | Core Revelation / Climax | The emotional or informational peak |\n`;
+        treatmentMd += `| Act 3 | Resolution & Outro | Resolve, call to action, or linger |\n\n`;
+        treatmentMd += `## 6. Shot List\n\n${clipList}\n\n`;
+        treatmentMd += `## 7. Delivery\n\n`;
+        treatmentMd += `- **Format**: MP4, H.264 high profile, CRF 18\n`;
+        treatmentMd += `- **Resolution**: ${orientation === 'portrait' ? '1080×1920 (9:16)' : orientation === 'square' ? '1080×1080 (1:1)' : '1920×1080 (16:9)'}\n`;
+        treatmentMd += `- **Duration**: ${totalTarget.toFixed(1)}s\n`;
+        treatmentMd += `- **Audio**: AAC 192kbps, 48kHz, EBU R128 normalized\n`;
+        treatmentMd += `- **Platform target**: YouTube / Instagram (−14 LUFS, −1 dBTP)\n\n`;
+        treatmentMd += `## 8. Director Notes\n\n`;
+        treatmentMd += `_Add creative direction, mood references, or client notes here._\n\n`;
+        treatmentMd += `---\n\n`;
+        treatmentMd += `*Generated by FrameForge v2.7.0 — lemo-opuscar DIRECTOR.md format*\n`;
+      }
+
+      // 9. Write outputs
       const outDir = output_dir || pathMod.join(FILES_DIR, 'edits', `edit_${Date.now()}`);
       syncFs.mkdirSync(outDir, { recursive: true });
-      const planPath = pathMod.join(outDir, 'edit-plan.md');
-      const jsonPath = pathMod.join(outDir, 'edit.json');
+      const planPath      = pathMod.join(outDir, 'edit-plan.md');
+      const jsonPath      = pathMod.join(outDir, 'edit.json');
+      const treatmentPath = pathMod.join(outDir, 'TREATMENT.md');
 
       syncFs.writeFileSync(planPath, planMd, 'utf8');
       syncFs.writeFileSync(jsonPath, JSON.stringify(editJson, null, 2), 'utf8');
+      if (generate_treatment) {
+        syncFs.writeFileSync(treatmentPath, treatmentMd, 'utf8');
+      }
 
       return {
         planPath,
         editJsonPath: jsonPath,
+        treatmentPath: generate_treatment ? treatmentPath : null,
         planMarkdown: planMd,
         editConfig: editJson,
         clipCount: plannedClips.length,
         totalDuration: totalTarget,
-        message: 'Edit plan and configuration generated. Review edit-plan.md, then pass edit.json to edit_video.',
+        audioEditStyle,
+        message: `Edit plan, edit.json${generate_treatment ? ', and TREATMENT.md' : ''} generated. Review edit-plan.md, approve, then call edit_video with edit.json.`,
       };
     },
   },
