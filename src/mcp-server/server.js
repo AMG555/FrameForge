@@ -1,7 +1,7 @@
 /**
  * FrameForge MCP Server — MCP 2024-11-05 spec compliant
  *
- * Exposes 23 video production & autonomous editing tools via MCP.
+ * Exposes 28 video production & autonomous editing tools via MCP.
  * Works with IBM Bob, Cursor, Windsurf, Codex, opencode, Claude Code, or any MCP-capable IDE.
  * Primary connection: Cloudflare Remote MCP (cloudflare-mcp/).
  * Alternative: stdio (src/mcp-server/stdio.js) or HTTP (this file).
@@ -2224,12 +2224,12 @@ Professional audio rules applied:
   // ── Tool 28: Check Upstream Updates (fast, offline) ───────────────────────
   // Reads last sync manifest without network requests — returns update status instantly
   check_upstream_updates: {
-    description: `Check the last sync state of all upstream reference repositories (HyperFrames, OneTake, LemoOpuscar, CollageBroll, Remotion, Earshot, ClaudeAnimationBase, ClaudeRemotionSkill, FFmpegSkill). Fast, offline — reads the local manifest only (no network requests). Shows what was last synced, when, and which repos had updates. To actually fetch new commits and update the manifest, use sync_upstream_skills. Agents and users can call this anytime to see if upstream skills have been updated since the last sync.`,
+    description: `Check the last sync state of all upstream reference repositories (HyperFrames, OneTake, LemoOpuscar, CollageBroll, Remotion, Earshot, ClaudeAnimationBase, ClaudeRemotionSkill, FFmpegSkill). Fast, offline — reads the local manifest only (no network requests). Shows what was last synced, when, which repos had updates, and a human-readable changelog of what improved. To actually fetch new commits and update the manifest, use sync_upstream_skills. Agents and users can call this anytime to see if upstream skills have been updated since the last sync.`,
     inputSchema: { type: 'object', properties: {} },
     handler: async () => {
       const syncFs = require('fs');
       const { MANIFEST_PATH, REPOSITORIES } = require('../skills/sync-upstream');
-      let manifest = { lastSync: null, repos: {}, version: '2.5.0' };
+      let manifest = { lastSync: null, repos: {}, version: '2.7.0', pendingUpdates: [] };
       if (syncFs.existsSync(MANIFEST_PATH)) {
         try { manifest = JSON.parse(syncFs.readFileSync(MANIFEST_PATH, 'utf8')); } catch (_) {}
       }
@@ -2251,23 +2251,41 @@ Professional audio rules applied:
 
       const syncedCount = repos.filter(r => r.sha !== 'not-synced').length;
       const neverSynced = repos.filter(r => r.sha === 'not-synced').map(r => r.repo);
+      const pendingUpdates = manifest.pendingUpdates || [];
 
-      let statusMsg = `Last sync: ${manifest.lastSync || 'never'}. ${syncedCount}/${repos.length} repos have been synced.`;
+      // Build human-readable changelog notice
+      let changelogNotice = '';
+      if (pendingUpdates.length > 0) {
+        changelogNotice = '\n\n📦 UPSTREAM CHANGES SINCE LAST SYNC:\n';
+        for (const u of pendingUpdates) {
+          changelogNotice += `  • [${u.category || '?'}] ${u.repo} → ${u.sha}\n`;
+          changelogNotice += `    ${u.userImpact || 'Updated techniques merged'}\n`;
+        }
+        changelogNotice += '\nRun sync_upstream_skills to pull these updates and apply them to your next render.';
+      }
+
+      let statusMsg = `Last sync: ${manifest.lastSync || 'never'}. ${syncedCount}/${repos.length} repos tracked.`;
       if (neverSynced.length > 0) {
         statusMsg += ` Not yet synced: ${neverSynced.join(', ')}. Run sync_upstream_skills to fetch latest.`;
+      } else if (pendingUpdates.length > 0) {
+        statusMsg += ` ${pendingUpdates.length} upstream repo(s) have new commits. Run sync_upstream_skills to apply them.${changelogNotice}`;
       } else {
-        statusMsg += ` All repos are tracked. Run sync_upstream_skills to check for new commits from upstream.`;
+        statusMsg += ' All repos are current. Run sync_upstream_skills to check for new commits from GitHub.';
       }
 
       return {
         success: true,
         lastSync: manifest.lastSync,
-        manifestVersion: manifest.version || '2.5.0',
+        manifestVersion: manifest.version || '2.7.0',
         totalRepos: repos.length,
         syncedCount,
+        pendingUpdates,
+        hasUpdates: pendingUpdates.length > 0,
         repos,
         message: statusMsg,
-        hint: 'Run sync_upstream_skills to fetch latest commits from GitHub and update the manifest.',
+        hint: pendingUpdates.length > 0
+          ? `⬆️  ${pendingUpdates.length} upstream update(s) available — run sync_upstream_skills to apply`
+          : 'Run sync_upstream_skills to check for new commits from GitHub.',
       };
     },
   },
@@ -2788,7 +2806,7 @@ Outputs broadcast-ready 48kHz/192k AAC stereo.`,
 
 const SERVER_INFO = {
   name:    'video-pipeline',
-  version: '2.6.0',
+  version: '2.7.0',
 };
 
 const CAPABILITIES = {
