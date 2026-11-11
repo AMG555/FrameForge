@@ -27,6 +27,16 @@ cloudflare-mcp/
 # Render config
 render.yaml
 
+# Generated output files (frames, renders, previews) — not needed in the package
+out/
+output/
+
+# Bob artifacts / session files
+.bob/
+
+# harness test fixtures
+src/harness/test/
+
 # Local dev files
 .env
 .env.*
