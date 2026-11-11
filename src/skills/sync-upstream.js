@@ -173,14 +173,28 @@ async function syncSkills(opts = {}) {
     log(`  ✔ [${r.category}] ${r.repo} → ${manifest.repos[r.id].sha}`);
   }
 
+  const updatedResults = results.filter(r => r.updated);
+
   manifest.lastSync = new Date().toISOString();
-  manifest.version = '2.5.0';
+  manifest.version = '2.6.0';
+  manifest.updatedCount = updatedCount;
+  if (updatedResults.length > 0) {
+    manifest.pendingUpdates = updatedResults.map(r => {
+      const meta = REPOSITORIES.find(rep => rep.repo === r.repo);
+      return {
+        id: r.id,
+        repo: r.repo,
+        sha: r.sha,
+        category: meta?.category || 'other',
+        userImpact: meta?.userImpact || 'Updated frontier techniques merged',
+      };
+    });
+  }
 
   fs.mkdirSync(path.dirname(MANIFEST_PATH), { recursive: true });
   fs.writeFileSync(MANIFEST_PATH, JSON.stringify(manifest, null, 2), 'utf8');
 
   // Webhook notification for updated repos (opt-in via SKILL_UPDATE_WEBHOOK_URL)
-  const updatedResults = results.filter(r => r.updated);
   if (updatedResults.length > 0 && process.env.SKILL_UPDATE_WEBHOOK_URL) {
     const webhookUrl = process.env.SKILL_UPDATE_WEBHOOK_URL;
     try {
@@ -236,6 +250,29 @@ async function syncSkills(opts = {}) {
   return { manifest, results, updatedCount, perCategoryUpdates };
 }
 
+/**
+ * Read current upstream status and pending update notices.
+ * Ensures users and agents are visibly informed whenever upstream repos update.
+ */
+function getUpstreamSummary() {
+  let manifest = { lastSync: null, repos: {}, pendingUpdates: [] };
+  if (fs.existsSync(MANIFEST_PATH)) {
+    try {
+      manifest = JSON.parse(fs.readFileSync(MANIFEST_PATH, 'utf8'));
+    } catch (_) {}
+  }
+  const repoCount = Object.keys(manifest.repos || {}).length || REPOSITORIES.length;
+  const pending = manifest.pendingUpdates || [];
+  return {
+    repoCount,
+    lastSync: manifest.lastSync,
+    version: manifest.version || '2.6.0',
+    pendingUpdates: pending,
+    hasUpdates: pending.length > 0,
+    repos: manifest.repos || {},
+  };
+}
+
 if (require.main === module) {
   const isSilent = process.argv.includes('--silent');
   syncSkills({ silent: isSilent }).catch(err => {
@@ -246,6 +283,7 @@ if (require.main === module) {
 
 module.exports = {
   syncSkills,
+  getUpstreamSummary,
   REPOSITORIES,
   MANIFEST_PATH,
 };

@@ -1,9 +1,10 @@
-# Advanced Animation Patterns — ClaudeAnimationBase + OneTake + Collage B-Roll
+# Advanced Animation Patterns — ClaudeAnimationBase + OneTake + Collage B-Roll + Remotion
 
 Derived from:
 - `JohnHeibel/ClaudeAnimationBase` — organic 12fps cel boil and character emotions (Opus 5.5 pattern)
-- `feitangyuan/onetake` — continuous single-shot seamless camera choreography (zero-cut spline)
-- `pyang5166/gbro-collage-broll` — editorial paper collage + halftone 2.5D tilt
+- `feitangyuan/onetake` — continuous single-shot seamless camera choreography with 39-move library
+- `pyang5166/gbro-collage-broll` — editorial paper collage + halftone 2.5D tilt + 3-gate QA
+- `remotion-dev/skills` — React composition, spring physics, GSAP markup patterns
 
 ---
 
@@ -227,4 +228,325 @@ render_animation({ mode: "golden", goldenSave: true })
 // then fix edit.js, then:
 render_animation({ mode: "golden", goldenCheck: true })
 // must return: all hashes match
+```
+
+---
+
+## 5. OneTake — 39-Move Library and Rhythm+Carry Oracle
+
+The OneTake system (from `feitangyuan/onetake`) is built around one constraint: **six rejected films, six acceptance criteria**. Every feature came from a specific rejection.
+
+### Why It Exists (Each Rule Cost a Cut)
+
+| Rule | Origin |
+|------|--------|
+| Vary shot length by ≥4× | Uniform cadence = "PPT 式" (slideshow feel) — failed twice |
+| Something must survive every section boundary | "Beats that replace each other" = Pocket Weather Club v1, v2 both rejected (carry score 0.00, 0.40) |
+| Camera must chase the subject | One Dot film: "就缺灵动的跟踪运镜" — still camera rejected |
+| Every beat is the collision that starts the next | "knockon" — causal carry |
+| Small elements, big ground | "70% white" genre; full-bleed is the exception |
+| The cause must be visible | Hand drawn from recorded path, or concept's own subject |
+
+### The Rhythm + Carry Oracle (verify_promo.py)
+
+Before showing any render, run the oracle:
+
+```bash
+python3 scripts/verify_promo.py draft.mp4 --comp comp.html --ref ref.mp4
+```
+
+**What it checks**:
+
+1. **Rhythm legs**: fail uniform shot lengths, no dead-still stretch, clipped or never-quiet audio
+2. **Continuity** (the critical leg): fail beats that replace each other (carry score < 0.5). This is the ONLY leg that failed both rejected Pocket Weather cuts (v1 0.00, v2 0.40) while accepted films passed (v3 0.75)
+3. **Curves**: fail fast moves (> 80 px/frame) in a film without shutter blur
+4. **Framing**: fail any frame where a declared subject leaves the frame (or is cut off)
+
+**Carry score thresholds**:
+- Score < 0.5 → FAIL (the film is a slideshow)
+- Score 0.5–0.75 → WARNING (acceptable if rhythm is strong)
+- Score > 0.75 → PASS
+
+### The 39-Move Library
+
+Each move returns numbers for a DOM transform or canvas call. Never re-derive a spring or ease with fixed constants.
+
+**Entrances** (element appearing):
+```javascript
+// spring — damped settle from outside frame
+OM.spring(t, { tension: 200, friction: 22 })
+
+// expo — fast snap to position
+OM.expo(t, { t80: 0.23 })  // t80 = time to reach 80% of destination
+
+// drift — slow float in, lands gently
+OM.drift(t, { duration: 0.8 })
+```
+
+**Carries** (element surviving a scene boundary):
+```javascript
+// morphRect — container widens into the next scene
+// Original container becomes the next scene's ground
+OM.morphRect(t, fromBox, toBox, { duration: 0.65 })
+
+// iris — stage opens from the subject
+OM.iris(t, subjectBox, { duration: 0.35 })
+
+// zoomThrough — camera pushes into a card until it is the scene
+OM.zoomThrough(t, cardBox, { duration: 0.6 })
+
+// gather+seal — cast folds into lockup, then lettermark snaps in
+OM.gather(t, elements)
+OM.seal(t, lockupBox, { duration: 0.3 })
+```
+
+**Contact and Live Sims** (physics-adjacent):
+```javascript
+// hand — slow two-sine float, zero in holds
+OM.hand(t, path)          // follows recorded hand path
+
+// shake — additive camera shake on impact
+OM.shake(t, { intensity: 4, decay: 0.2 })
+
+// silk — belt/cloth belt moving at given depth
+OM.silk(t, { depth: 0.3, phase: 1.2 })
+
+// ripple — water surface disturbance
+OM.ripple(t, { origin: [960, 540], radius: 200 })
+```
+
+**Camera** (keyed, operated feel):
+```javascript
+// camera(t, keys) — puts the camera where each beat needs it
+OM.camera(t, [
+  { t: 0,   x: 960,  y: 540,  scale: 1.0, ease: 'sineInOut' },
+  { t: 1.5, x: 1200, y: 300,  scale: 1.4, ease: 'expoInOut' },  // snap to next beat
+  { t: 3.0, x: 960,  y: 540,  scale: 0.9, ease: 'sineInOut' },
+])
+
+// lattice — faint grid farther back (shows camera movement)
+OM.lattice(t, { depth: 1.5, opacity: 0.08 })
+
+// projectBox — world coordinates → screen coordinates through camera
+OM.projectBox(t, worldBox)  // returns screen-space box
+```
+
+**Fluid Set**:
+```javascript
+OM.lightField(t)   // a field of light
+OM.belt(t, { depth, speed, phase })  // silk cards on belts at different depths
+OM.odometer(t, value)  // odometer-style digit counter
+```
+
+### Sound: A Palette in a Room, Never One Beep Per Event
+
+OneTake requires **5 materials in one room** — not a raw sine pop on every event (which was "低劣/cheap" within a minute of review):
+
+```python
+# sfx_palette.py — 5 synthesised materials in one shared reverb
+# Each material is a physical model of the medium
+
+MATERIALS = {
+  'air':    { freq: (800, 4000),  attack: 0.005, decay: 0.08, model: 'filtered_noise' },
+  'wood':   { freq: (200, 800),   attack: 0.002, decay: 0.15, model: 'modal_resonator' },
+  'glass':  { freq: (1000, 6000), attack: 0.001, decay: 0.35, model: 'modal_resonator' },
+  'sub':    { freq: (40, 120),    attack: 0.008, decay: 0.25, model: 'sine_decay' },
+  'bubble': { freq: (400, 1200),  attack: 0.003, decay: 0.12, model: 'rising_sine' },
+}
+
+ROOM = {
+  'ir': 'voxengo_small_room.wav',  # convolution reverb IR
+  'pre_delay': 8,   # ms
+  'wet': 0.18,      # 18% wet
+}
+
+# All peaks at -8 dBFS so music can sit on top
+# Master to -16 LUFS with ceiling -3.5 to -4 dBTP
+```
+
+**Sound events from the composition** — not guessed, read from `window.__events()`:
+```javascript
+// In your composition's f(t) function:
+window.__events = () => [
+  { t: 0.8, material: 'wood', intensity: 0.7, pan: -0.2 },
+  { t: 1.5, material: 'air',  intensity: 0.4, pan:  0.1 },
+  { t: 2.1, material: 'glass', intensity: 0.9, pan:  0.0 },
+];
+```
+
+### Hard Rules (Each One Cost a Cut)
+
+```
+❌ Never default to the template's story
+❌ Never carry the last film's look into the next
+❌ Never cut on a metronome (equal shot lengths = slides)
+❌ Never replace a beat — carry it (something must survive every section boundary)
+❌ Never show a page as a thumbnail expecting its motion to read
+❌ Never let the frame be always in motion (rests make bursts land; reference is still 34% of the time)
+❌ Small elements, big ground (genre frame is 70% white/negative space)
+❌ The cause must be visible (the hand, or the concept's own subject)
+❌ Moves from the library, curves chosen by t80
+❌ Fast moves (> 80 px/frame) need the shutter (real motion blur)
+❌ No particles/confetti/speck bursts (read as a template)
+❌ One material set for sound, one room
+❌ Everything deterministic: __seek(t) twice gives the same frame
+```
+
+---
+
+## 6. Remotion — React Composition Patterns
+
+From `remotion-dev/skills` (first-party skills, v4.0.543+).
+
+### The Golden Rule: `useCurrentFrame()` as Deep as Possible
+
+```tsx
+// ✅ Correct — useCurrentFrame in the smallest component that needs it
+const FadeIn = () => {
+  const frame = useCurrentFrame();
+  const {fps} = useVideoConfig();
+  return (
+    <div style={{
+      opacity: interpolate(frame, [0, 2 * fps], [0, 1], {
+        extrapolateRight: 'clamp',
+        easing: Easing.bezier(0.16, 1, 0.3, 1),
+      }),
+    }}>
+      Content
+    </div>
+  );
+};
+
+// ❌ Wrong — subscribes the whole composition on every frame
+const CompositionWrong = () => {
+  const frame = useCurrentFrame();  // re-renders everything
+  return <div><FadeIn /><OtherStuff /></div>;
+};
+```
+
+### CSS Transform Shorthands (Not `transform`)
+
+```tsx
+// ✅ Use scale, translate, rotate — Studio can edit these
+style={{
+  scale: interpolate(frame, [0, 100], [0, 1], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+    easing: Easing.spring({ damping: 200 }),
+    output: 'perceptual-scale',  // ALWAYS for scale animations
+  }),
+  translate: interpolate(frame, [0, 100], ['0px 0px', '100px 100px']),
+}}
+
+// ❌ Wrong — transform strings break Studio editing
+const scale = interpolate(frame, [0, 100], [0, 1]);
+style={{ transform: `scale(${scale})` }}
+```
+
+### Remotion Spring vs FrameForge Spring
+
+```tsx
+// Remotion (React)
+import { Easing } from 'remotion';
+Easing.spring({ damping: 200 })  // damping: high = less bounce
+
+// FrameForge (HTML compositor)
+spring(lt, { tension: 200, friction: 20 })  // friction: high = less bounce
+
+// Equivalent presets:
+// Remotion damping 200  ≈ FrameForge { tension: 200, friction: 28 }  (premium)
+// Remotion damping 100  ≈ FrameForge { tension: 180, friction: 16 }  (playful)
+// Remotion damping 50   ≈ FrameForge { tension: 200, friction: 10 }  (cartoon)
+```
+
+### Available Built-in Effects (Remotion @remotion/effects)
+
+Color and tone:
+`brightness`, `colorCorrection`, `curves`, `duotone`, `exposure`, `grayscale`, `hue`, `invert`, `levels`, `lut` (3D .cube), `saturation`, `shadowsHighlights`, `tint`, `vibrance`, `whiteBalance`
+
+Blur and trails:
+`blur`, `lightTrail`, `linearProgressiveBlur`, `radialProgressiveBlur`, `regionBlur`, `zoomBlur`
+
+Lighting:
+`dropShadow`, `glow`, `lightLeak`, `longShadows`, `shine`, `starburst`, `vignette`
+
+Distortion:
+`barrelDistortion`, `chromaticAberration`, `cornerPin`, `fisheye`, `noiseDisplacement`, `skew`, `wave`
+
+Textures:
+`burlap`, `checkerboard`, `contourLines`, `dotGrid`, `emboss`, `flannel`, `halftone`, `lines`, `liquidContours`, `noise`, `paper`, `scanlines`, `speckle`, `tvSignalOff`, `waves`, `whiteNoise`, `zigzag`
+
+Edges: `outline`, `roughenEdges`, `shrinkwrap`, `tear`
+
+**Apply to** `<Video>`, `<CanvasImage>`, `<AnimatedImage>`, `<Solid>`, `<HtmlInCanvas>`, `@remotion/shapes`, `@remotion/rive`. For plain HTML elements, wrap in `<HtmlInCanvas>`.
+
+---
+
+## 7. GBro Collage B-Roll — 3-Gate Approval Workflow
+
+The gbro-collage-broll system enforces mandatory human approval at three gates before any video generation.
+
+### Why 3 Gates?
+1. Prevents wrong metaphors from consuming video generation credits
+2. Forces the agent to think visually before coding
+3. Each gate narrows scope so errors are caught cheaply
+
+### Gate 1: Visual Metaphor Only (No Images, No Video)
+```
+Input: ~5-second voiceover script (one sentence / one idea)
+Output:
+  - Core meaning (what the viewer must understand)
+  - Emotion (calm, surprise, urgency, insight, absurd, ironic)
+  - One-sentence visual proposition
+  - 3–6 key objects
+  - Suggested background colour + accent colours
+  - Expected assembly order
+
+STOP — wait for user: "可以" / "通过" / "pass" / corrections
+```
+
+### Gate 2: Static Frame Only (No Video)
+```
+After Gate 1 approval:
+  - Write visual-spec.json (self-contained)
+  - Generate static frame (imagegen)
+  - QA: is metaphor clear? no text/logos/watermarks? 3-6 large groups? enough negative space?
+
+STOP — wait for user confirmation of the still image
+```
+
+### Gate 3: Video Generation (Default: Gemini Omni Flash)
+```
+After Gate 2 approval:
+  - Prepare first frame (solid colour background = same colour as still)
+  - Prepare last frame (confirmed Gate 2 still)
+  - Write Omni prompt: "assemble piece by piece, start-frame-empty → end-frame-complete"
+  - Generate 5s 9:16 720×1280 24fps silent MP4
+
+QA after generation:
+  - First frame: near-empty colour field
+  - Middle: gradual assembly visible, not overall fade-in
+  - No cuts, no zoom, no 3D
+  - No text/logos/watermarks
+  - Last frame matches Gate 2 still
+```
+
+### Visual Standards
+```
+✓ Strong, flat, uniform colour field background
+✓ Main subjects as black-and-white halftone photographic cut-outs
+✓ Key cards/buttons/rules in coloured cardstock (red, yellow, cyan, orange, purple, cream)
+✓ All paper pieces have crisp cut edges, cream keyline, soft drop shadow, paper grain
+✓ Motion is assemble-from-empty (not drift, sway, or slow zoom)
+✗ No subtitles, no full voiceover text, no logos, no watermarks, no UI
+```
+
+### Colour-to-Emotion Mapping
+```
+Burnt orange / red   → time consumption, labour, urgency
+Mustard yellow       → tools, warning, experience loss
+Forest green         → cognition, aesthetics, system reset
+Deep purple          → norms, sedimentation, long-term memory
+Cyan green           → judgment, collaboration, automated execution
+Cobalt blue          → (avoid as default — too overused)
 ```

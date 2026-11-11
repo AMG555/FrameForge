@@ -1,69 +1,143 @@
 {
-  "lastSync": "2026-11-11T17:27:30.806Z",
+  "lastSync": "2026-11-11T19:56:18.351Z",
   "repos": {
     "hyperframes": {
       "repo": "heygen-com/hyperframes",
       "category": "compositor",
-      "sha": "ef5cdeb",
-      "lastChecked": "2026-11-11T17:27:26.538Z",
+      "desc": "Agent-native HTML/GSAP declarative video compositor",
+      "capabilities": [
+        "scaffold_animation_project",
+        "render_animation"
+      ],
+      "userImpact": "New compositor patterns or GSAP animation primitives available for HTML-rendered video",
+      "sha": "a243169",
+      "lastChecked": "2026-11-11T19:56:16.487Z",
       "status": "synced"
     },
     "opuscar": {
       "repo": "lemomo-ai/lemo-opuscar",
       "category": "styles",
+      "desc": "Frontier cinematic and viral film styles catalog (12 styles)",
+      "capabilities": [
+        "plan_video_edit",
+        "edit_video",
+        "render_from_scenes"
+      ],
+      "userImpact": "New color grades or film styles available in plan_video_edit style parameter",
       "sha": "9eb7739",
-      "lastChecked": "2026-11-11T17:27:27.003Z",
+      "lastChecked": "2026-11-11T19:56:16.692Z",
       "status": "synced"
     },
     "onetake": {
       "repo": "feitangyuan/onetake",
       "category": "camera",
+      "desc": "Continuous single-shot camera choreography (zero-cut spline)",
+      "capabilities": [
+        "generate_scene_code",
+        "scaffold_animation_project"
+      ],
+      "userImpact": "New onetake camera transition patterns available for code-driven animation",
       "sha": "abb6d17",
-      "lastChecked": "2026-11-11T17:27:27.417Z",
+      "lastChecked": "2026-11-11T19:56:16.855Z",
       "status": "synced"
     },
     "collage-broll": {
       "repo": "pyang5166/gbro-collage-broll",
       "category": "broll",
+      "desc": "Editorial paper collage, halftone textures, 2.5D tilt",
+      "capabilities": [
+        "generate_scene_code",
+        "create_video_from_script"
+      ],
+      "userImpact": "New editorial collage / halftone visual templates available",
       "sha": "a1a4ee2",
-      "lastChecked": "2026-11-11T17:27:27.846Z",
+      "lastChecked": "2026-11-11T19:56:17.057Z",
       "status": "synced"
     },
     "remotion-skills": {
       "repo": "remotion-dev/skills",
       "category": "motion",
-      "sha": "1fc074b",
-      "lastChecked": "2026-11-11T17:27:28.261Z",
+      "desc": "First-party Remotion composition skills (spring physics)",
+      "capabilities": [
+        "scaffold_animation_project",
+        "render_animation"
+      ],
+      "userImpact": "New Remotion motion patterns or spring physics presets available",
+      "sha": "7e541aa",
+      "lastChecked": "2026-11-11T19:56:17.403Z",
       "status": "synced"
     },
     "earshot": {
       "repo": "Leonxlnx/earshot",
       "category": "audio",
+      "desc": "Procedural CPU SFX synthesis and timeline sync (13-type library)",
+      "capabilities": [
+        "mix_audio_pro",
+        "create_video_from_script"
+      ],
+      "userImpact": "New procedural SFX cue types or audio sync patterns available in mix_audio_pro",
       "sha": "4ac3d2a",
-      "lastChecked": "2026-11-11T17:27:28.989Z",
+      "lastChecked": "2026-11-11T19:56:17.839Z",
       "status": "synced"
     },
     "claude-anim-base": {
       "repo": "JohnHeibel/ClaudeAnimationBase",
       "category": "animation",
+      "desc": "12fps hand-drawn cel boil, character emotions (Opus 5.5 patterns)",
+      "capabilities": [
+        "generate_scene_code",
+        "scaffold_animation_project"
+      ],
+      "userImpact": "New ClaudeAnimationBase patterns for 12fps organic boil or character emotion scenes",
       "sha": "0ac8bf2",
-      "lastChecked": "2026-11-11T17:27:29.556Z",
+      "lastChecked": "2026-11-11T19:56:18.012Z",
       "status": "synced"
     },
     "claude-remotion": {
       "repo": "haidrrrry/claude-remotion-skill",
       "category": "motion",
+      "desc": "10 hard motion craft rules, review loop, Opus 5.5 closed-loop QA",
+      "capabilities": [
+        "scaffold_animation_project",
+        "render_animation",
+        "verify_scene_quality"
+      ],
+      "userImpact": "Updated motion craft rules or QA patterns for the Opus 5.5 closed-loop correction pipeline",
       "sha": "1dcbe5e",
-      "lastChecked": "2026-11-11T17:27:30.173Z",
+      "lastChecked": "2026-11-11T19:56:18.180Z",
       "status": "synced"
     },
     "ffmpeg-skill": {
       "repo": "kajisho5/ffmpeg-skill",
       "category": "ffmpeg",
+      "desc": "42 typed-argparse FFmpeg tools, machine-readable contract, visual linter",
+      "capabilities": [
+        "edit_video",
+        "plan_video_edit",
+        "mix_audio_pro"
+      ],
+      "userImpact": "New FFmpeg filter patterns or video editing operations available",
       "sha": "532cbe3",
-      "lastChecked": "2026-11-11T17:27:30.806Z",
+      "lastChecked": "2026-11-11T19:56:18.351Z",
       "status": "synced"
     }
   },
-  "version": "2.4.13"
+  "version": "2.6.0",
+  "updatedCount": 2,
+  "pendingUpdates": [
+    {
+      "id": "hyperframes",
+      "repo": "heygen-com/hyperframes",
+      "sha": "a243169",
+      "category": "compositor",
+      "userImpact": "New compositor patterns or GSAP animation primitives available for HTML-rendered video"
+    },
+    {
+      "id": "remotion-skills",
+      "repo": "remotion-dev/skills",
+      "sha": "7e541aa",
+      "category": "motion",
+      "userImpact": "New Remotion motion patterns or spring physics presets available"
+    }
+  ]
 }

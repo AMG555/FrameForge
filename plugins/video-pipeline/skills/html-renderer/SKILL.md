@@ -9,19 +9,28 @@ description: |
   morphing layouts, spring-physics, counters, progress rings, captions
   synced to audio, and any CSS/SVG animation. Pairs with the FrameForge
   pipeline: script JSON → HTML compositor → frame PNGs → FFmpeg encode.
-  Compatible with IBM Bob, Kiro, Cursor, Windsurf, Claude Code, and any
-  agentic IDE connected via MCP. Activate when the user asks for richer
-  animation, Remotion-style rendering, HTML-based video, or "make it look
-  like the reference repo".
+  Compatible with IBM Bob, Kiro, Cursor, Windsurf, Claude Code, Codex,
+  opencode, and any agentic IDE connected via MCP. Activate when the user
+  asks for richer animation, Remotion-style rendering, HTML-based video, or
+  "make it look like the reference repo".
 
   Advanced animation patterns (read references/ after scaffold):
-    references/animation-patterns.md — ClaudeAnimationBase 12fps boil, onetake camera, collage halftone
-    references/motion-craft.md       — 10 hard motion craft rules (springs, 5-layer stack, exits faster)
-    references/film-styles.md        — 12 cinematic film styles (anamorphic, cyberpunk, anime, lofi...)
-    references/onetake-camera.md     — zero-cut continuous camera choreography
-    references/collage-broll.md      — editorial paper collage + halftone 2.5D
-    references/procedural-sfx.md     — 13-type earshot SFX library with platform LUFS targets
-    references/render-contract.md    — determinism contract (bans Date.now, Math.random, CSS transitions)
+    references/animation-patterns.md  — ClaudeAnimationBase 12fps boil, onetake 39-move library,
+                                        collage B-roll 3-gate, Remotion spring patterns
+    references/character-animation.md — ClaudeAnimationBase full ANIMATION_GUIDE (31 emotions,
+                                        timing principles, pure-fn constraint, review loop)
+    references/motion-craft.md        — 10 hard motion craft rules (springs, 5-layer stack, exits faster)
+    references/film-styles.md         — 24 cinematic film styles (anamorphic, cyberpunk, anime, lofi...)
+    references/hyperframes-motion.md  — HyperFrames motion craft (GSAP eases, beat grid, transitions,
+                                        measured from official launch films)
+    references/directing.md           — lemo-opuscar directing method (story, sound layers, rhythm,
+                                        camera, performance, review loop, delivery checklist)
+    references/earshot-audio.md       — earshot professional audio (5 loops, forge DSP, sound bank,
+                                        LUFS tables, J/L cuts, AI-verifiable audio metrics)
+    references/onetake-camera.md      — zero-cut continuous camera choreography
+    references/collage-broll.md       — editorial paper collage + halftone 2.5D
+    references/procedural-sfx.md      — 13-type SFX library with room profiles + platform LUFS targets
+    references/render-contract.md     — determinism contract (bans Date.now, Math.random, CSS transitions)
 ---
 
 # HTML Renderer — FrameForge Extension
@@ -286,26 +295,30 @@ the animation/render stage.
 
 ```
 plugins/video-pipeline/skills/html-renderer/
-  SKILL.md                          ← this file
-  references/engine-api.md          ← full engine function reference
-  references/design.md              ← layouts, safe zones, type scale, pacing
-  references/animation-patterns.md  ← ClaudeAnimationBase boil + onetake + collage (NEW)
-  references/motion-craft.md        ← 10 hard motion craft rules (NEW)
-  references/film-styles.md         ← 12 cinematic film styles from lemo-opuscar (NEW)
-  references/onetake-camera.md      ← zero-cut continuous camera patterns (NEW)
-  references/collage-broll.md       ← editorial paper collage + halftone 2.5D (NEW)
-  references/procedural-sfx.md      ← 13-type earshot SFX + room profiles + platform LUFS (NEW)
-  references/render-contract.md     ← determinism contract (bans Math.random etc.)
-  assets/project/                   ← template copied into each render project
-    index.html                      ← compositor page (loads engine.js)
-    edit.js                         ← starter edit (one layer per FrameForge scene)
-    reel/engine.js                  ← springs, layouts, components, captions, seek API
-    reel/engine.css                 ← default fonts + base reset
-    scripts/                        ← render.mjs, mix_audio.py, mix_audio_pro.py,
-                                       verify.py, stock.py, capture.mjs,
-                                       transcribe.py, new-project.mjs
+  SKILL.md                           ← this file
+  references/engine-api.md           ← full engine function reference
+  references/design.md               ← layouts, safe zones, type scale, pacing
+  references/animation-patterns.md   ← ClaudeAnimationBase boil + onetake 39-move + collage + Remotion
+  references/character-animation.md  ← ClaudeAnimationBase full ANIMATION_GUIDE (31 emotions, timing)
+  references/hyperframes-motion.md   ← HyperFrames GSAP motion craft (measured from official films)
+  references/directing.md            ← lemo-opuscar directing method (sound, rhythm, camera, delivery)
+  references/earshot-audio.md        ← earshot 5-loop audio workflow (forge DSP, kit, LUFS tables)
+  references/motion-craft.md         ← 10 hard motion craft rules (springs, 5-layer stack, exits faster)
+  references/film-styles.md          ← 24 cinematic film styles from lemo-opuscar
+  references/onetake-camera.md       ← zero-cut continuous camera patterns
+  references/collage-broll.md        ← editorial paper collage + halftone 2.5D
+  references/procedural-sfx.md       ← 13-type SFX + room profiles + platform LUFS + earshot bank
+  references/render-contract.md      ← determinism contract (bans Math.random etc.)
+  assets/project/                    ← template copied into each render project
+    index.html                       ← compositor page (loads engine.js)
+    edit.js                          ← starter edit (one layer per FrameForge scene)
+    reel/engine.js                   ← springs, layouts, components, captions, seek API
+    reel/engine.css                  ← default fonts + base reset
+    scripts/                         ← render.mjs, mix_audio.py, mix_audio_pro.py,
+                                        verify.py, stock.py, capture.mjs,
+                                        transcribe.py, new-project.mjs
 scripts/html-renderer/
-  new-project.mjs                   ← scaffolds a render project from script JSON
+  new-project.mjs                    ← scaffolds a render project from script JSON
 ```
 
 References are automatically copied into each project's `references/` directory
