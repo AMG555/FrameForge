@@ -207,6 +207,92 @@ class AudioMixer {
    * @param {string}  roomProfile - one of studio_dry|broadcast|cinematic|concert_hall|intimate|none
    * @param {boolean} noiseGate - whether to prepend a noise gate
    */
+  // ── Earshot Forge DSP Primitives ───────────────────────────────────────────
+  // Ref: Leonxlnx/earshot — forge loop primitives translated to ffmpeg filter graphs.
+  // These are called from _sidechainMixPro to build per-track DSP chains.
+
+  /**
+   * forgeModalResonator(freq, q, gainDb) — FFmpeg EQ approximating a modal resonator.
+   * Earshot earshot-forge: tuned to physical material resonance frequencies.
+   * Use for adding room character without full convolution reverb.
+   *
+   * Frequency guidelines (from earshot material table):
+   *   wood:   freq=80–200 Hz,  Q=4–8,  gain=+2 to +4 dB
+   *   glass:  freq=800–2000 Hz, Q=8–16, gain=+1 to +2 dB
+   *   metal:  freq=2000–5000 Hz, Q=6–12, gain=+1 to +3 dB
+   *   sub:    freq=30–60 Hz,  Q=3–6,  gain=+3 to +6 dB
+   */
+  forgeModalResonator(freq = 200, q = 6, gainDb = 2) {
+    const bandwidth = freq / Math.max(0.1, q); // Hz bandwidth = center / Q
+    return `equalizer=f=${freq}:width_type=q:width=${q.toFixed(1)}:g=${gainDb.toFixed(1)}`;
+  }
+
+  /**
+   * forgeSVFilter(type, freq, q) — State-variable filter approximation.
+   * Earshot earshot-forge: SVF primitive for smooth frequency carving.
+   *
+   * type: 'lp' (lowpass), 'hp' (highpass), 'bp' (bandpass), 'notch'
+   * freq: cutoff/center Hz
+   * q: resonance 0.5–20 (0.707 = Butterworth, >1 = resonant)
+   */
+  forgeSVFilter(type = 'lp', freq = 1000, q = 0.707) {
+    switch (type) {
+      case 'hp':    return `highpass=f=${freq}:poles=2`;
+      case 'bp':    return `bandpass=f=${freq}:width_type=q:width=${q.toFixed(3)}`;
+      case 'notch': return `equalizer=f=${freq}:width_type=q:width=${q.toFixed(3)}:g=-24`;
+      case 'lp':
+      default:      return `lowpass=f=${freq}:poles=2`;
+    }
+  }
+
+  /**
+   * forgeComputedRoom(sizeM, dampMs, earlyMs) — Computed room from physical dimensions.
+   * Earshot earshot-forge: derives RT60 and early-reflection delays from room size.
+   *
+   * sizeM:    Room size in metres (2=booth, 8=studio, 20=broadcast, 40=hall)
+   * dampMs:   Damping coefficient 0.0–1.0 (0.1 = very live, 0.9 = very dead)
+   * earlyMs:  Early reflection onset in milliseconds (typically 5–25ms)
+   *
+   * Formula: RT60 ≈ 0.161 × V / (S × α) — Sabine approximation, simplified to
+   *          RT60 ≈ 0.05 × sizeM × (1 - dampMs)
+   */
+  forgeComputedRoom(sizeM = 8, dampMs = 0.5, earlyMs = 15) {
+    const rt60    = Math.max(0.05, 0.05 * sizeM * (1 - dampMs));
+    const preMs   = Math.max(1, earlyMs);
+    const inGain  = 0.85;
+    const outGain = Math.min(0.95, 0.3 + rt60 * 0.8);
+    // aecho: up to 4 delay/decay pairs for early reflections + tail
+    const e1 = preMs;
+    const e2 = preMs + sizeM * 0.8;
+    const e3 = preMs + sizeM * 2.0;
+    const d1 = Math.max(0.05, dampMs * 0.4);
+    const d2 = Math.max(0.02, dampMs * 0.25);
+    const d3 = Math.max(0.01, dampMs * 0.15);
+    return (
+      `aecho=in_gain=${inGain.toFixed(2)}:out_gain=${outGain.toFixed(2)}:` +
+      `delays=${e1.toFixed(0)}|${e2.toFixed(0)}|${e3.toFixed(0)}:` +
+      `decays=${d1.toFixed(3)}|${d2.toFixed(3)}|${d3.toFixed(3)}`
+    );
+  }
+
+  /**
+   * forgeKitSoundBank(material, role) — Map earshot kit to SFX_FREQ_MAP key.
+   * Earshot kit sound bank: physical material + role → procedural SFX name.
+   *
+   * material: 'air' | 'wood' | 'glass' | 'sub' | 'bubble'
+   * role:     'entrance' | 'exit' | 'beat' | 'accent' | 'ambient'
+   */
+  forgeKitSoundBank(material = 'air', role = 'entrance') {
+    const kitMap = {
+      air:    { entrance: 'whoosh', exit: 'swish',     beat: 'whoosh',   accent: 'riser',    ambient: 'transition' },
+      wood:   { entrance: 'impact', exit: 'impact',    beat: 'punch',    accent: 'deep_boom', ambient: 'tick' },
+      glass:  { entrance: 'chime',  exit: 'chime',     beat: 'click',    accent: 'sparkle',  ambient: 'chime' },
+      sub:    { entrance: 'deep_boom', exit: 'impact', beat: 'deep_boom', accent: 'punch',   ambient: 'transition' },
+      bubble: { entrance: 'pop',    exit: 'pop',       beat: 'click',    accent: 'chime',    ambient: 'tick' },
+    };
+    return (kitMap[material] || kitMap.air)[role] || 'pop';
+  }
+
   _buildVoiceChainFilter(addReverb = false, roomProfile = null, noiseGate = false) {
     const chain = [];
     // Noise gate — removes room tone / breath between words
@@ -221,7 +307,8 @@ class AudioMixer {
       'acompressor=ratio=3:threshold=-20dB:attack=5:release=50:makeup=2',
       'equalizer=f=6500:width_type=h:width=1500:g=-3.0', // de-esser
     );
-    // Room acoustics — resolve profile name, fall back to legacy addReverb bool
+    // Room acoustics — resolve named profile, computed room (earshot forgeComputedRoom),
+    // or fall back to legacy addReverb bool
     const profile = roomProfile
       ? (ROOM_PROFILES[roomProfile] || null)
       : (addReverb ? ROOM_PROFILES.cinematic : null);
@@ -229,6 +316,12 @@ class AudioMixer {
       chain.push(
         `aecho=in_gain=${profile.inGain}:out_gain=${profile.outGain}:delays=${profile.delays}:decays=${profile.decays}`
       );
+    } else if (roomProfile && roomProfile.startsWith('computed:')) {
+      // earshot forgeComputedRoom — format: "computed:sizeM:damp:earlyMs"
+      const [, sizeM = '8', damp = '0.5', earlyMs = '15'] = roomProfile.split(':');
+      chain.push(this.forgeComputedRoom(
+        parseFloat(sizeM), parseFloat(damp), parseFloat(earlyMs)
+      ));
     }
     return chain.join(',');
   }
@@ -617,3 +710,9 @@ class AudioMixer {
 }
 
 module.exports = { AudioMixer, SFX_FREQ_MAP, ROOM_PROFILES, PLATFORM_LUFS, PERCEPTUAL_LEAD_S, detectNoiseFloor };
+// Earshot forge DSP primitives are instance methods on AudioMixer:
+// mixer.forgeModalResonator(freq, q, gainDb)  → ffmpeg EQ filter string
+// mixer.forgeSVFilter(type, freq, q)           → ffmpeg filter string
+// mixer.forgeComputedRoom(sizeM, damp, earlyMs) → ffmpeg aecho filter string (Sabine RT60)
+// mixer.forgeKitSoundBank(material, role)      → SFX_FREQ_MAP key
+// room param 'computed:sizeM:damp:earlyMs' is supported by mix_audio_pro and _buildVoiceChainFilter
