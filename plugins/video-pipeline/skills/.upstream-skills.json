@@ -1,69 +1,69 @@
 {
-  "lastSync": "2026-11-11T17:09:54.023Z",
+  "lastSync": "2026-11-11T17:27:30.806Z",
   "repos": {
     "hyperframes": {
       "repo": "heygen-com/hyperframes",
       "category": "compositor",
-      "sha": "7a4dfb7",
-      "lastChecked": "2026-11-11T17:09:49.253Z",
+      "sha": "ef5cdeb",
+      "lastChecked": "2026-11-11T17:27:26.538Z",
       "status": "synced"
     },
     "opuscar": {
       "repo": "lemomo-ai/lemo-opuscar",
       "category": "styles",
       "sha": "9eb7739",
-      "lastChecked": "2026-11-11T17:09:49.889Z",
+      "lastChecked": "2026-11-11T17:27:27.003Z",
       "status": "synced"
     },
     "onetake": {
       "repo": "feitangyuan/onetake",
       "category": "camera",
       "sha": "abb6d17",
-      "lastChecked": "2026-11-11T17:09:50.526Z",
+      "lastChecked": "2026-11-11T17:27:27.417Z",
       "status": "synced"
     },
     "collage-broll": {
       "repo": "pyang5166/gbro-collage-broll",
       "category": "broll",
       "sha": "a1a4ee2",
-      "lastChecked": "2026-11-11T17:09:51.159Z",
+      "lastChecked": "2026-11-11T17:27:27.846Z",
       "status": "synced"
     },
     "remotion-skills": {
       "repo": "remotion-dev/skills",
       "category": "motion",
       "sha": "1fc074b",
-      "lastChecked": "2026-11-11T17:09:51.776Z",
+      "lastChecked": "2026-11-11T17:27:28.261Z",
       "status": "synced"
     },
     "earshot": {
       "repo": "Leonxlnx/earshot",
       "category": "audio",
       "sha": "4ac3d2a",
-      "lastChecked": "2026-11-11T17:09:52.455Z",
+      "lastChecked": "2026-11-11T17:27:28.989Z",
       "status": "synced"
     },
     "claude-anim-base": {
       "repo": "JohnHeibel/ClaudeAnimationBase",
       "category": "animation",
       "sha": "0ac8bf2",
-      "lastChecked": "2026-11-11T17:09:52.949Z",
+      "lastChecked": "2026-11-11T17:27:29.556Z",
       "status": "synced"
     },
     "claude-remotion": {
       "repo": "haidrrrry/claude-remotion-skill",
       "category": "motion",
       "sha": "1dcbe5e",
-      "lastChecked": "2026-11-11T17:09:53.390Z",
+      "lastChecked": "2026-11-11T17:27:30.173Z",
       "status": "synced"
     },
     "ffmpeg-skill": {
       "repo": "kajisho5/ffmpeg-skill",
       "category": "ffmpeg",
       "sha": "532cbe3",
-      "lastChecked": "2026-11-11T17:09:54.023Z",
+      "lastChecked": "2026-11-11T17:27:30.806Z",
       "status": "synced"
     }
   },
-  "version": "2.4.10"
+  "version": "2.4.12"
 }
