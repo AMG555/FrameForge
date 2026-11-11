@@ -105,7 +105,7 @@ function fetchJson(url) {
   return new Promise((resolve, reject) => {
     const opts = {
       headers: {
-        'User-Agent': 'FrameForge-Skill-Sync/2.4.10',
+        'User-Agent': 'FrameForge-Skill-Sync/2.7.0',
         'Accept': 'application/vnd.github.v3+json',
       },
     };

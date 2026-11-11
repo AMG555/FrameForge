@@ -9,7 +9,7 @@
 [![npm](https://img.shields.io/npm/v/@amg555/frameforge-mcp.svg?label=npm)](https://www.npmjs.com/package/@amg555/frameforge-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
-[![Version](https://img.shields.io/badge/version-2.6.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.7.0-blue.svg)](CHANGELOG.md)
 [![MCP Spec](https://img.shields.io/badge/MCP-2024--11--05-blue.svg)](https://modelcontextprotocol.io/)
 [![Tests](https://img.shields.io/badge/tests-636%20passing-brightgreen.svg)](#testing)
 

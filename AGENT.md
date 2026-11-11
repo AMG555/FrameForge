@@ -13,7 +13,7 @@
 ## Project Identity
 
 **Name:** FrameForge  
-**Version:** 2.6.0
+**Version:** 2.7.0
 **Repo:** https://github.com/AMG555/FrameForge
 **Tagline:** AI video production engine for any agentic IDE — via Cloudflare Remote MCP.
 

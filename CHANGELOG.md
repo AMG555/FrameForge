@@ -4,6 +4,43 @@ All notable changes to FrameForge are documented here.
 
 ---
 
+## [2.7.0] — 2026-11-11
+
+### Added
+
+- **OM Motion Library — 24 moves** (`reel/engine.js`):
+  - `beatAt(index, bpm, fps)` / `beatTime(index, bpm)` / `snapToBeat(t, bpm)` — HyperFrames beat-grid formula; each index rounded independently (never accumulated, eliminates drift).
+  - `OM` object — 24 pure `(t, opts) → CSS style` motion primitives from OneTake's 39-move library: `spring`, `rise`, `iris`, `irisClose`, `zoomThrough`, `morphRect`, `silk`, `belt`, `ripple`, `odometer`, `camera`, `handheld`, `popOut`, `drop`, `implode`, `slideExit`, `wordByWord`, `scalePop`, `revealWipe`, `typewriter`, `counterFlip`, `breathe`, `float`, `pulseOpacity`, `carryScore`.
+  - `ROOM_SFX` palette — OneTake 5-material standard (air/wood/glass/sub/bubble at −8 dBFS) for use with `cue()`.
+  - `event(type, t, meta)` + `window.__events()` — Sound-from-composition contract; render.mjs extracts cues to `sfx-events.json` after probe.
+
+- **Earshot Forge DSP Primitives** (`src/audio-mixer/mixer.js`):
+  - `forgeModalResonator(freq, q, gainDb)` — FFmpeg EQ approximating physical material resonance (wood/glass/metal/sub frequency guidelines from earshot).
+  - `forgeSVFilter(type, freq, q)` — State-variable filter: lp/hp/bp/notch.
+  - `forgeComputedRoom(sizeM, damp, earlyMs)` — Computed room from physical dimensions using Sabine RT60 approximation; produces `aecho` filter string with 3-tap early reflections.
+  - `forgeKitSoundBank(material, role)` — Maps earshot material + role to `SFX_FREQ_MAP` key.
+  - `"computed:sizeM:damp:earlyMs"` room string supported in `mix_audio_pro` and `_buildVoiceChainFilter`.
+
+- **J/L-Cut Editing in plan_video_edit** (`src/mcp-server/server.js`):
+  - Style-aware cut type assignment: cinematic/documentary → J-cut; vintage/film_16mm/lofi_chill → L-cut; fast_paced/cyberpunk/anime_action → hard cut.
+  - `audio_offset` field in every clip: negative = J-cut (audio precedes video by 0.25–0.5s), positive = L-cut (audio trails by 0.3s).
+  - `cut_type` field in `edit.json` clips; emojis in `edit-plan.md` (🎵/🔊/✂️).
+  - `bpm` param for beat-grid snapping of cut points.
+
+- **TREATMENT.md Director Document** (`src/mcp-server/server.js` — `plan_video_edit`):
+  - Auto-generated 8-section director treatment (lemo-opuscar DIRECTOR.md format): Concept, Tone, Visual Language, Sound, Narrative Arc, Shot List, Delivery, Director Notes.
+  - `generate_treatment` param (default true); path returned in `treatmentPath`.
+
+- **check_upstream_updates — Changelog Notice**:
+  - Response now includes `pendingUpdates[]` with per-repo human-readable impact descriptions.
+  - `hasUpdates` boolean field for agent routing.
+  - `hint` field shows update count or next action.
+
+- **Version Consistency Pass**:
+  - All agent configs synced to v2.7.0: `cloudflare-mcp/src/index.js`, `scripts/deep-validate.js`, `plugins/video-pipeline/.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`, `AGENT.md`, `README.md`, `mcp-tools.md`, `.github/copilot-instructions.md`, `.upstream-skills.json`.
+
+---
+
 ## [2.6.0] — 2026-11-12
 
 ### Added
