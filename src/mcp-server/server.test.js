@@ -489,6 +489,8 @@ describe('verify_scene_quality and plan_video_edit tools', () => {
     assert.ok(TOOLS.plan_video_edit.inputSchema.properties.goal);
     assert.ok(TOOLS.plan_video_edit.inputSchema.properties.style);
     assert.ok(TOOLS.plan_video_edit.inputSchema.properties.orientation);
+    assert.ok(TOOLS.plan_video_edit.inputSchema.properties.bpm,             'bpm param missing');
+    assert.ok(TOOLS.plan_video_edit.inputSchema.properties.generate_treatment, 'generate_treatment param missing');
   });
 
   it('plan_video_edit generates edit-plan.md and edit.json', async () => {
@@ -521,6 +523,102 @@ describe('verify_scene_quality and plan_video_edit tools', () => {
       try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch (_) {}
     }
   });
+
+  it('plan_video_edit clips carry cut_type and audio_offset fields', async () => {
+    const fs  = require('fs');
+    const os  = require('os');
+    const path = require('path');
+    const tempDir = path.join(os.tmpdir(), `test_jlcut_${Date.now()}`);
+    fs.mkdirSync(tempDir, { recursive: true });
+    try {
+      const res = await TOOLS.plan_video_edit.handler({
+        footage: ['/tmp/a.mp4', '/tmp/b.mp4', '/tmp/c.mp4'],
+        style: 'cinematic',   // J-cut dominant
+        output_dir: tempDir,
+      });
+      const clips = res.editConfig.clips;
+      assert.ok(clips.every(c => 'cut_type'    in c), 'Every clip must have cut_type');
+      assert.ok(clips.every(c => 'audio_offset' in c), 'Every clip must have audio_offset');
+      // cinematic style → J-cut dominant (middle clips)
+      const middleClips = clips.slice(1, -1);
+      if (middleClips.length > 0) {
+        assert.ok(
+          middleClips.some(c => c.cut_type === 'j_cut'),
+          'Cinematic style must produce at least one j_cut in middle clips'
+        );
+      }
+      // First clip always hard
+      assert.equal(clips[0].cut_type, 'hard', 'First clip must always be hard cut');
+    } finally {
+      try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch (_) {}
+    }
+  });
+
+  it('plan_video_edit generates TREATMENT.md by default', async () => {
+    const fs  = require('fs');
+    const os  = require('os');
+    const path = require('path');
+    const tempDir = path.join(os.tmpdir(), `test_treatment_${Date.now()}`);
+    fs.mkdirSync(tempDir, { recursive: true });
+    try {
+      const res = await TOOLS.plan_video_edit.handler({
+        footage: ['/tmp/x.mp4'],
+        goal: 'Showcase the product launch',
+        style: 'cinematic',
+        output_dir: tempDir,
+        generate_treatment: true,
+      });
+      assert.ok(res.treatmentPath,              'treatmentPath must be returned');
+      assert.ok(fs.existsSync(res.treatmentPath), 'TREATMENT.md must exist on disk');
+      const md = fs.readFileSync(res.treatmentPath, 'utf8');
+      assert.ok(md.includes('# 🎬 TREATMENT'),  'Must have TREATMENT header');
+      assert.ok(md.includes('## 1. Concept'),   'Must have Concept section');
+      assert.ok(md.includes('## 4. Sound'),     'Must have Sound section');
+      assert.ok(md.includes('## 6. Shot List'), 'Must have Shot List section');
+      assert.ok(md.includes('## 7. Delivery'),  'Must have Delivery section');
+    } finally {
+      try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch (_) {}
+    }
+  });
+
+  it('plan_video_edit skips TREATMENT.md when generate_treatment is false', async () => {
+    const fs  = require('fs');
+    const os  = require('os');
+    const path = require('path');
+    const tempDir = path.join(os.tmpdir(), `test_notreatment_${Date.now()}`);
+    fs.mkdirSync(tempDir, { recursive: true });
+    try {
+      const res = await TOOLS.plan_video_edit.handler({
+        footage: ['/tmp/x.mp4'],
+        output_dir: tempDir,
+        generate_treatment: false,
+      });
+      assert.equal(res.treatmentPath, null, 'treatmentPath must be null when skipped');
+    } finally {
+      try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch (_) {}
+    }
+  });
+
+  it('plan_video_edit with bpm snaps to beat-grid in rationale', async () => {
+    const fs  = require('fs');
+    const os  = require('os');
+    const path = require('path');
+    const tempDir = path.join(os.tmpdir(), `test_bpm_${Date.now()}`);
+    fs.mkdirSync(tempDir, { recursive: true });
+    try {
+      const res = await TOOLS.plan_video_edit.handler({
+        footage: ['/tmp/a.mp4', '/tmp/b.mp4', '/tmp/c.mp4'],
+        bpm: 120,
+        output_dir: tempDir,
+      });
+      // BPM 120 in planMarkdown header
+      assert.ok(res.planMarkdown.includes('**BPM**: 120'), 'Plan must mention BPM');
+      // edit.json must include bpm field
+      assert.equal(res.editConfig.bpm, 120, 'editConfig must carry bpm');
+    } finally {
+      try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch (_) {}
+    }
+  });
 });
 
 describe('Upstream sync and media tools (check_upstream_updates, transcribe_media, ingest_url, mix_audio_pro)', () => {
@@ -533,6 +631,35 @@ describe('Upstream sync and media tools (check_upstream_updates, transcribe_medi
     assert.equal(res.totalRepos, 9);
     assert.ok(Array.isArray(res.repos));
     assert.equal(res.repos.length, 9);
+  });
+
+  it('check_upstream_updates returns pendingUpdates array, hasUpdates boolean, and hint string', async () => {
+    const res = await TOOLS.check_upstream_updates.handler();
+    assert.ok('pendingUpdates' in res,  'pendingUpdates field missing');
+    assert.ok(Array.isArray(res.pendingUpdates), 'pendingUpdates must be an array');
+    assert.equal(typeof res.hasUpdates, 'boolean', 'hasUpdates must be boolean');
+    assert.equal(typeof res.hint, 'string',         'hint must be a string');
+    assert.ok(res.hint.length > 0,                  'hint must not be empty');
+    // hasUpdates must match pendingUpdates count
+    assert.equal(res.hasUpdates, res.pendingUpdates.length > 0, 'hasUpdates must match pendingUpdates.length > 0');
+  });
+
+  it('check_upstream_updates repos include category, capabilities, and userImpact', async () => {
+    const res = await TOOLS.check_upstream_updates.handler();
+    for (const repo of res.repos) {
+      assert.ok(repo.id,           `repo missing id: ${JSON.stringify(repo)}`);
+      assert.ok(repo.repo,         `repo missing repo: ${repo.id}`);
+      assert.ok(repo.category,     `repo missing category: ${repo.id}`);
+      assert.ok(Array.isArray(repo.capabilities), `repo capabilities must be array: ${repo.id}`);
+      assert.ok(repo.userImpact,   `repo missing userImpact: ${repo.id}`);
+    }
+  });
+
+  it('mix_audio_pro roomProfile accepts computed: format without enum rejection', () => {
+    const schema = TOOLS.mix_audio_pro.inputSchema.properties.roomProfile;
+    // computed: format must be accepted — no enum restriction
+    assert.ok(!schema.enum, 'roomProfile must NOT have an enum restriction (computed: format must be allowed)');
+    assert.equal(schema.type, 'string');
   });
 
   it('transcribe_media tool is registered with correct schema', () => {

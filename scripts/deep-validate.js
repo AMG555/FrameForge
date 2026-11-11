@@ -300,6 +300,35 @@ check('engine.js exports collageCard()', engineJs.includes('export function coll
 check('engine.js exports mascot()',      engineJs.includes('export function mascot'));
 check('engine.js handles declarative .clip', engineJs.includes('.clip[data-start]'));
 check('editor.js supports splitCut (j-cut/l-cut)', fs.readFileSync('./src/video-editor/editor.js', 'utf8').includes('splitCut'));
+// v2.7.0 — HyperFrames beat-grid, OneTake OM library, ROOM_SFX, event/window.__events
+check('engine.js exports beatAt()',         engineJs.includes('export function beatAt'));
+check('engine.js exports beatTime()',       engineJs.includes('export function beatTime'));
+check('engine.js exports snapToBeat()',     engineJs.includes('export function snapToBeat'));
+check('engine.js exports OM object',        engineJs.includes('export const OM'));
+check('engine.js OM.spring defined',        engineJs.includes('spring: (t,') || engineJs.includes('spring:(t,'));
+check('engine.js OM.iris defined',          engineJs.includes('iris: (t,')   || engineJs.includes('iris:(t,'));
+check('engine.js OM.camera defined',        engineJs.includes('camera: (t,') || engineJs.includes('camera:(t,'));
+check('engine.js OM.carryScore defined',    engineJs.includes('carryScore'));
+check('engine.js exports ROOM_SFX',         engineJs.includes('export const ROOM_SFX'));
+check('engine.js exports event()',          engineJs.includes('export function event'));
+check('engine.js sets window.__events',     engineJs.includes('window.__events'));
+// v2.7.0 — Earshot forge DSP in mixer.js
+const mixerJs = fs.readFileSync('./src/audio-mixer/mixer.js', 'utf8');
+check('mixer.js has forgeModalResonator()', mixerJs.includes('forgeModalResonator'));
+check('mixer.js has forgeSVFilter()',       mixerJs.includes('forgeSVFilter'));
+check('mixer.js has forgeComputedRoom()',   mixerJs.includes('forgeComputedRoom'));
+check('mixer.js has forgeKitSoundBank()',   mixerJs.includes('forgeKitSoundBank'));
+check('mixer.js supports computed: room',  mixerJs.includes("startsWith('computed:')"));
+// v2.7.0 — plan_video_edit J/L-cut + TREATMENT.md
+const serverJsV27 = fs.readFileSync('./src/mcp-server/server.js', 'utf8');
+check('server.js plan_video_edit has bpm param',         serverJsV27.includes('bpm:') && serverJsV27.includes('plan_video_edit'));
+check('server.js plan_video_edit has generate_treatment', serverJsV27.includes('generate_treatment'));
+check('server.js plan_video_edit writes TREATMENT.md',   serverJsV27.includes('TREATMENT.md'));
+check('server.js plan_video_edit assigns cut_type',       serverJsV27.includes('cut_type'));
+check('server.js plan_video_edit assigns audio_offset',   serverJsV27.includes('audio_offset'));
+check('server.js check_upstream_updates returns hasUpdates', serverJsV27.includes('hasUpdates'));
+check('server.js check_upstream_updates returns pendingUpdates', serverJsV27.includes('pendingUpdates'));
+check('server.js render_animation returns sfxEvents',     serverJsV27.includes('sfxEvents'));
 
 // ── Code-Driven Video Harness ─────────────────────────────────────────────
 console.log('\n=== Code-Driven Video Harness ===');
