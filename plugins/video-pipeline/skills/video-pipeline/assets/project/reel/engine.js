@@ -134,6 +134,82 @@ export function stagger(t, dt, els) {
   return result;
 }
 
+// ── Camera choreography (feitangyuan/onetake) ────────────────────────────────
+
+let _cameraWaypoints = [];
+let _cameraTarget = '#stage';
+let _cameraOpts = {};
+
+/**
+ * cameraPath() — Choreograph continuous single-shot camera motion across waypoints.
+ * Compatible with feitangyuan/onetake.
+ *
+ * @param {Array<[number, { x?: number, y?: number, zoom?: number, rotate?: number }]>} waypoints
+ * @param {object} [opts]
+ * @param {HTMLElement|string} [opts.target='#stage'] Stage element to transform
+ * @param {function} [opts.easing]
+ */
+export function cameraPath(waypoints = [], opts = {}) {
+  _cameraWaypoints = [...waypoints].sort((a, b) => a[0] - b[0]);
+  _cameraTarget = opts.target || '#stage';
+  _cameraOpts = opts;
+}
+
+function _tickCamera(t) {
+  if (_cameraWaypoints.length === 0) return;
+  const stage = typeof _cameraTarget === 'string'
+    ? (typeof document !== 'undefined' ? document.querySelector(_cameraTarget) : null)
+    : _cameraTarget;
+  if (!stage) return;
+
+  const wp = _cameraWaypoints;
+  let cam = { x: 0, y: 0, zoom: 1.0, rotate: 0 };
+
+  if (t <= wp[0][0]) {
+    cam = { ...cam, ...wp[0][1] };
+  } else if (t >= wp[wp.length - 1][0]) {
+    cam = { ...cam, ...wp[wp.length - 1][1] };
+  } else {
+    for (let i = 1; i < wp.length; i++) {
+      if (t <= wp[i][0]) {
+        const [t0, c0] = wp[i - 1];
+        const [t1, c1] = wp[i];
+        const p = Math.max(0, Math.min(1, (t - t0) / (t1 - t0)));
+        const ease = _cameraOpts.easing || easeInOut;
+        const ep = ease(p);
+
+        const x0 = c0.x ?? 0, x1 = c1.x ?? 0;
+        const y0 = c0.y ?? 0, y1 = c1.y ?? 0;
+        const z0 = c0.zoom ?? 1, z1 = c1.zoom ?? 1;
+        const r0 = c0.rotate ?? 0, r1 = c1.rotate ?? 0;
+
+        cam.x = x0 + (x1 - x0) * ep;
+        cam.y = y0 + (y1 - y0) * ep;
+        cam.zoom = z0 + (z1 - z0) * ep;
+        cam.rotate = r0 + (r1 - r0) * ep;
+        break;
+      }
+    }
+  }
+
+  stage.style.transform = `translate(${-cam.x}px, ${-cam.y}px) scale(${cam.zoom}) rotate(${cam.rotate}deg)`;
+  stage.style.transformOrigin = 'center center';
+}
+
+/**
+ * cameraShake() — Organic continuous handheld camera noise offset.
+ *
+ * @param {number} t Time in seconds
+ * @param {{ intensity?: number, speed?: number, seed?: string }} [opts]
+ * @returns {{ x: number, y: number, rotate: number }}
+ */
+export function cameraShake(t, { intensity = 6, speed = 2.5, seed = 'cam-shake' } = {}) {
+  const x = noise2D(seed + '_x', t * speed, 0) * intensity;
+  const y = noise2D(seed + '_y', 0, t * speed) * (intensity * 0.75);
+  const rotate = noise2D(seed + '_r', t * (speed * 0.6), 10) * (intensity * 0.08);
+  return { x, y, rotate };
+}
+
 // ── seek(t) — the clock interface ─────────────────────────────────────────────
 
 /**
@@ -141,17 +217,42 @@ export function stagger(t, dt, els) {
  * Called by render.mjs for every frame.
  */
 export function seek(t) {
-  // Tick all layers
+  // 1. Tick all procedural layers
   for (const l of _layers) l._tick(t);
 
-  // Show/hide timed elements
+  // 2. Show/hide timed elements
   for (const entry of _atElements) {
     const visible = t >= entry.t && t < entry.t + entry.duration;
     entry.el.style.display = visible ? '' : 'none';
     if (visible && entry.el._seekFn) entry.el._seekFn(t - entry.t);
   }
 
-  // Live captions
+  // 3. Declarative HyperFrames-style clips (<div class="clip" data-start="1.5" data-duration="3.0">)
+  if (typeof document !== 'undefined') {
+    const clips = document.querySelectorAll('.clip[data-start]');
+    for (let i = 0; i < clips.length; i++) {
+      const el = clips[i];
+      const start = parseFloat(el.getAttribute('data-start') || '0');
+      const dur = parseFloat(el.getAttribute('data-duration') || 'Infinity');
+      const visible = t >= start && t < start + dur;
+      el.style.display = visible ? '' : 'none';
+      if (visible) {
+        const lt = t - start;
+        const progress = dur > 0 && isFinite(dur) ? Math.max(0, Math.min(1, lt / dur)) : 0;
+        el.style.setProperty('--lt', `${lt.toFixed(3)}s`);
+        el.style.setProperty('--progress', progress.toFixed(4));
+        el.setAttribute('data-lt', lt.toFixed(3));
+        el.setAttribute('data-progress', progress.toFixed(4));
+      }
+    }
+  }
+
+  // 4. OneTake Continuous Camera Path
+  if (_cameraWaypoints.length > 0) {
+    _tickCamera(t);
+  }
+
+  // 5. Live captions
   if (_captionData) _tickCaptions(t);
 }
 
@@ -1123,6 +1224,226 @@ export function browserCard(src, {
   return imageCard(src, { x, y, width, height: Math.round(width * (600 / 1024)), duration });
 }
 
+/**
+ * collageCard() — Editorial paper-collage card with halftone texture and washi tape.
+ * Derived from pyang5166/gbro-collage-broll.
+ *
+ * @param {string|HTMLElement} content
+ * @param {object} [opts]
+ * @param {number} [opts.width=720]
+ * @param {number} [opts.tiltX=2]
+ * @param {number} [opts.tiltY=-3]
+ * @param {string} [opts.bg='#fdfbf7']
+ * @param {string} [opts.tapeColor='rgba(254, 240, 138, 0.88)']
+ * @param {number|string} [opts.x='center']
+ * @param {number|string} [opts.y='center']
+ * @param {number} [opts.duration=Infinity]
+ * @returns {HTMLElement}
+ */
+export function collageCard(content, {
+  width = 720,
+  tiltX = 2,
+  tiltY = -3,
+  bg = '#fdfbf7',
+  tapeColor = 'rgba(254, 240, 138, 0.88)',
+  x = 'center',
+  y = 'center',
+  duration = Infinity,
+} = {}) {
+  const card = document.createElement('div');
+  card.className = 'collage-card';
+  card._duration = duration;
+  Object.assign(card.style, {
+    position: 'absolute',
+    width: `${width}px`,
+    background: `${bg}`,
+    backgroundImage: 'radial-gradient(rgba(0,0,0,0.12) 15%, transparent 16%)',
+    backgroundSize: '10px 10px',
+    color: '#18181b',
+    padding: '36px 32px 32px 32px',
+    borderRadius: '4px',
+    transform: `perspective(1000px) rotateX(${tiltX}deg) rotateY(${tiltY}deg)`,
+    boxShadow: '0 20px 40px rgba(0,0,0,0.28), 0 4px 10px rgba(0,0,0,0.14)',
+    border: '1px solid rgba(0,0,0,0.06)',
+    fontFamily: '"Space Grotesk", system-ui, sans-serif',
+  });
+
+  // Washi tape accent strip
+  const tape = document.createElement('div');
+  tape.className = 'collage-tape';
+  Object.assign(tape.style, {
+    position: 'absolute',
+    top: '-14px',
+    left: '50%',
+    transform: 'translateX(-50%) rotate(-2deg)',
+    width: '140px',
+    height: '28px',
+    background: tapeColor,
+    boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
+    backdropFilter: 'blur(2px)',
+    clipPath: 'polygon(0 0, 96% 2%, 100% 98%, 4% 96%)',
+  });
+  card.appendChild(tape);
+
+  if (typeof content === 'string') {
+    const textEl = document.createElement('div');
+    textEl.innerHTML = content;
+    card.appendChild(textEl);
+  } else if (content instanceof HTMLElement) {
+    card.appendChild(content);
+  }
+
+  _positionEl(card, x, y);
+  return card;
+}
+
+/**
+ * mascot() — Procedural vector character with 12 expressive emotions and 12fps line boil.
+ * Derived from JohnHeibel/ClaudeAnimationBase.
+ *
+ * @param {'neutral'|'happy'|'excited'|'thinking'|'confused'|'skeptical'|'surprised'|'alarmed'|'celebrating'|'proud'|'curious'|'sad'} emotion
+ * @param {object} [opts]
+ * @param {number} [opts.size=320] Size in px
+ * @param {string} [opts.color='#f97316'] Primary body color
+ * @param {boolean} [opts.speaking=false] Mouth open/flutter state
+ * @param {number|string} [opts.x='center']
+ * @param {number|string} [opts.y='center']
+ * @param {number} [opts.duration=Infinity]
+ * @returns {HTMLElement & { setEmotion: (e: string) => void, setSpeaking: (s: boolean) => void }}
+ */
+export function mascot(emotion = 'happy', {
+  size = 320,
+  color = '#f97316',
+  speaking = false,
+  x = 'center',
+  y = 'center',
+  duration = Infinity,
+} = {}) {
+  const container = document.createElement('div');
+  container.className = 'mascot-container';
+  container._duration = duration;
+  container.style.width = `${size}px`;
+  container.style.height = `${size}px`;
+  container.style.position = 'absolute';
+  container.style.display = 'inline-block';
+
+  let currentEmotion = emotion;
+  let isSpeaking = speaking;
+
+  function renderSvg(t = 0) {
+    const boilX = (boilSeed('mascot_x', t) * 4) - 2;
+    const boilY = (boilSeed('mascot_y', t) * 4) - 2;
+
+    // Automatic eye blink every ~3.5s
+    const blinkCycle = (t % 3.5);
+    const isBlinking = blinkCycle < 0.14;
+
+    // Mouth geometry per emotion
+    let mouthD = 'M 75 145 Q 100 170 125 145'; // default smile
+    let leftEyeD = isBlinking ? 'M 65 95 L 85 95' : 'M 75 95 m -10,0 a 10,10 0 1,0 20,0 a 10,10 0 1,0 -20,0';
+    let rightEyeD = isBlinking ? 'M 115 95 L 135 95' : 'M 125 95 m -10,0 a 10,10 0 1,0 20,0 a 10,10 0 1,0 -20,0';
+    let leftBrowD = 'M 65 75 Q 75 70 85 75';
+    let rightBrowD = 'M 115 75 Q 125 70 135 75';
+
+    switch (currentEmotion) {
+      case 'excited':
+        mouthD = 'M 70 140 Q 100 185 130 140 Z';
+        leftBrowD = 'M 65 65 Q 75 58 85 65';
+        rightBrowD = 'M 115 65 Q 125 58 135 65';
+        break;
+      case 'thinking':
+        mouthD = 'M 85 150 Q 100 148 115 145';
+        leftBrowD = 'M 65 75 Q 75 78 85 75';
+        rightBrowD = 'M 115 65 Q 125 58 135 65';
+        leftEyeD = 'M 78 90 m -8,0 a 8,8 0 1,0 16,0 a 8,8 0 1,0 -16,0';
+        rightEyeD = 'M 128 90 m -8,0 a 8,8 0 1,0 16,0 a 8,8 0 1,0 -16,0';
+        break;
+      case 'confused':
+        mouthD = 'M 75 152 Q 90 145 105 155 Q 120 145 125 150';
+        leftBrowD = 'M 65 68 Q 75 62 85 70';
+        rightBrowD = 'M 115 78 Q 125 84 135 80';
+        break;
+      case 'skeptical':
+        mouthD = 'M 80 152 L 120 152';
+        leftEyeD = 'M 68 95 L 82 95';
+        leftBrowD = 'M 65 72 L 85 75';
+        rightBrowD = 'M 115 65 Q 125 58 135 65';
+        break;
+      case 'surprised':
+        mouthD = 'M 100 140 m -12,0 a 12,16 0 1,0 24,0 a 12,16 0 1,0 -24,0';
+        leftBrowD = 'M 65 62 Q 75 52 85 62';
+        rightBrowD = 'M 115 62 Q 125 52 135 62';
+        break;
+      case 'alarmed':
+        mouthD = 'M 75 155 Q 100 135 125 155';
+        leftBrowD = 'M 65 80 Q 75 72 85 78';
+        rightBrowD = 'M 115 78 Q 125 72 135 80';
+        break;
+      case 'celebrating':
+        mouthD = 'M 70 140 Q 100 185 130 140 Z';
+        leftEyeD = 'M 65 98 Q 75 88 85 98';
+        rightEyeD = 'M 115 98 Q 125 88 135 98';
+        leftBrowD = 'M 65 65 Q 75 55 85 65';
+        rightBrowD = 'M 115 65 Q 125 55 135 65';
+        break;
+      case 'proud':
+        mouthD = 'M 80 150 Q 105 165 125 142';
+        leftEyeD = 'M 68 96 Q 76 90 84 96';
+        rightEyeD = 'M 116 96 Q 124 90 132 96';
+        break;
+      case 'sad':
+        mouthD = 'M 75 160 Q 100 140 125 160';
+        leftBrowD = 'M 65 70 Q 75 76 85 82';
+        rightBrowD = 'M 115 82 Q 125 76 135 70';
+        break;
+      case 'neutral':
+        mouthD = 'M 80 150 L 120 150';
+        leftBrowD = 'M 65 72 L 85 72';
+        rightBrowD = 'M 115 72 L 135 72';
+        break;
+    }
+
+    if (isSpeaking) {
+      const flutter = Math.sin(t * 18);
+      if (flutter > 0.2) {
+        mouthD = 'M 80 142 Q 100 170 120 142 Z';
+      }
+    }
+
+    container.innerHTML = `
+      <svg viewBox="0 0 200 200" width="100%" height="100%" style="transform: translate(${boilX}px, ${boilY}px)">
+        <path d="M 40 100 C 40 45, 160 45, 160 100 C 160 160, 40 160, 40 100 Z" fill="${color}" stroke="#1e293b" stroke-width="6" stroke-linejoin="round" />
+        <circle cx="58" cy="120" r="10" fill="#fca5a5" opacity="0.6" />
+        <circle cx="142" cy="120" r="10" fill="#fca5a5" opacity="0.6" />
+        <path d="${leftBrowD}" fill="none" stroke="#1e293b" stroke-width="4.5" stroke-linecap="round" />
+        <path d="${rightBrowD}" fill="none" stroke="#1e293b" stroke-width="4.5" stroke-linecap="round" />
+        <path d="${leftEyeD}" fill="#1e293b" stroke="#1e293b" stroke-width="${isBlinking ? 4.5 : 2}" stroke-linecap="round" />
+        <path d="${rightEyeD}" fill="#1e293b" stroke="#1e293b" stroke-width="${isBlinking ? 4.5 : 2}" stroke-linecap="round" />
+        <path d="${mouthD}" fill="${mouthD.endsWith('Z') ? '#7f1d1d' : 'none'}" stroke="#1e293b" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+    `;
+  }
+
+  renderSvg(0);
+
+  container._seekFn = (relTime) => {
+    renderSvg(relTime);
+  };
+
+  container.setEmotion = (e) => {
+    currentEmotion = e;
+    renderSvg(0);
+  };
+
+  container.setSpeaking = (s) => {
+    isSpeaking = Boolean(s);
+    renderSvg(0);
+  };
+
+  _positionEl(container, x, y);
+  return container;
+}
+
 // ── faceAt — talking-head layout helper ──────────────────────────────────────
 
 /**
@@ -1162,15 +1483,20 @@ export function faceAt(layout, {
 
 // ── captions — word-level caption sync ───────────────────────────────────────
 
+let _captionOpts = { style: 'viral', highlightColor: '#facc15' };
+
 /**
- * Register a Whisper outline file for auto-synced captions.
- * The outline file is produced by scripts/transcribe.py
+ * Register a Whisper outline file for auto-synced captions with word-level highlighting.
  * Format: one JSON object per line: { "start": 0.0, "end": 0.5, "text": "word" }
  * or a single JSON array of the same objects.
  *
  * @param {string} outlinePath  Path relative to project root
+ * @param {object} [opts]
+ * @param {'viral'|'cinematic'|'minimal'} [opts.style='viral'] Caption styling preset
+ * @param {string} [opts.highlightColor='#facc15'] Color for active spoken word
  */
-export function captions(outlinePath) {
+export function captions(outlinePath, opts = {}) {
+  _captionOpts = { ..._captionOpts, ...opts };
   fetch(outlinePath)
     .then(r => r.text())
     .then(raw => {
@@ -1191,33 +1517,129 @@ let _captionEl = null;
 function _tickCaptions(t) {
   if (!_captionEl) {
     _captionEl = document.createElement('div');
+    _captionEl.className = 'reel-captions';
+    const isViral = _captionOpts.style === 'viral';
     Object.assign(_captionEl.style, {
       position:   'absolute',
-      bottom:     '80px',
+      bottom:     isViral ? '120px' : '80px',
       left:       '50%',
       transform:  'translateX(-50%)',
-      background: 'rgba(0,0,0,0.72)',
+      background: _captionOpts.style === 'minimal' ? 'transparent' : 'rgba(0,0,0,0.76)',
       color:      '#fff',
-      fontSize:   '32px',
-      fontWeight: '600',
-      padding:    '10px 28px',
-      borderRadius: '8px',
-      maxWidth:   '80%',
+      fontSize:   isViral ? '36px' : '32px',
+      fontWeight: '800',
+      letterSpacing: isViral ? '0.04em' : 'normal',
+      padding:    '12px 32px',
+      borderRadius: '12px',
+      maxWidth:   '84%',
       textAlign:  'center',
       lineHeight: '1.4',
       pointerEvents: 'none',
+      boxShadow:  _captionOpts.style === 'minimal' ? 'none' : '0 10px 30px rgba(0,0,0,0.5)',
     });
     document.getElementById('stage').appendChild(_captionEl);
   }
 
-  // Collect segments whose window overlaps t
-  const active = _captionData
-    .filter(seg => seg.start <= t && t < seg.end + 0.05)
-    .map(seg => seg.text)
-    .join(' ');
+  // Find active segment
+  const activeSeg = _captionData.find(seg => seg.start <= t && t < seg.end + 0.08);
 
-  _captionEl.textContent = active;
-  _captionEl.style.display = active ? '' : 'none';
+  if (!activeSeg) {
+    _captionEl.style.display = 'none';
+    return;
+  }
+
+  _captionEl.style.display = '';
+
+  // Tokenize into words
+  let words = activeSeg.words;
+  if (!words || !Array.isArray(words)) {
+    const rawWords = (activeSeg.text || '').trim().split(/\s+/).filter(Boolean);
+    const dur = Math.max(0.1, (activeSeg.end - activeSeg.start) || 1);
+    const wDur = dur / Math.max(1, rawWords.length);
+    words = rawWords.map((w, idx) => ({
+      word: w,
+      start: activeSeg.start + idx * wDur,
+      end: activeSeg.start + (idx + 1) * wDur,
+    }));
+  }
+
+  // Render spans with active word styling
+  const activeColor = _captionOpts.highlightColor || '#facc15';
+  _captionEl.innerHTML = words.map(w => {
+    const isActive = t >= w.start && t < w.end;
+    const isPast = t >= w.end;
+    if (isActive) {
+      return `<span style="color:${activeColor};transform:scale(1.14);display:inline-block;margin:0 4px;font-weight:900;text-shadow:0 0 16px ${activeColor}88">${w.word}</span>`;
+    } else if (isPast) {
+      return `<span style="color:#ffffff;display:inline-block;margin:0 4px;opacity:0.95">${w.word}</span>`;
+    } else {
+      return `<span style="color:#d1d5db;display:inline-block;margin:0 4px;opacity:0.6">${w.word}</span>`;
+    }
+  }).join(' ');
+}
+
+// ── Web Audio live procedural SFX synthesis (Leonxlnx/earshot) ───────────────────
+
+let _audioCtx = null;
+function _playProceduralSFX(name, vol = 1.0) {
+  if (typeof window === 'undefined' || window.__playwright) return;
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    if (!_audioCtx) _audioCtx = new AudioCtx();
+    if (_audioCtx.state === 'suspended') _audioCtx.resume();
+
+    const t = _audioCtx.currentTime;
+    const gain = _audioCtx.createGain();
+    gain.connect(_audioCtx.destination);
+    gain.gain.setValueAtTime(vol * 0.3, t);
+
+    if (name === 'whoosh') {
+      const osc = _audioCtx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(400, t);
+      osc.frequency.exponentialRampToValueAtTime(80, t + 0.35);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+      osc.connect(gain);
+      osc.start(t);
+      osc.stop(t + 0.35);
+    } else if (name === 'impact') {
+      const osc = _audioCtx.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(120, t);
+      osc.frequency.exponentialRampToValueAtTime(40, t + 0.45);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+      osc.connect(gain);
+      osc.start(t);
+      osc.stop(t + 0.45);
+    } else if (name === 'pop') {
+      const osc = _audioCtx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(450, t);
+      osc.frequency.exponentialRampToValueAtTime(850, t + 0.1);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+      osc.connect(gain);
+      osc.start(t);
+      osc.stop(t + 0.1);
+    } else if (name === 'click') {
+      const osc = _audioCtx.createOscillator();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(2400, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
+      osc.connect(gain);
+      osc.start(t);
+      osc.stop(t + 0.04);
+    } else if (name === 'riser') {
+      const osc = _audioCtx.createOscillator();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(100, t);
+      osc.frequency.exponentialRampToValueAtTime(1200, t + 1.8);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 1.8);
+      osc.connect(gain);
+      osc.start(t);
+      osc.stop(t + 1.8);
+    }
+  } catch (_) {}
 }
 
 // ── cue — sound effect placement & caption synchronization ───────────────────────
@@ -1348,10 +1770,20 @@ function _stylesToCSS(styles) {
 
 if (typeof window !== 'undefined' && !window.__playwright) {
   let _startTime = null;
+  let _prevT = 0;
   function _raf(ts) {
     if (_startTime === null) _startTime = ts;
     const t = Math.min((ts - _startTime) / 1000, REEL.duration);
     seek(t);
+    // Live preview procedural audio playback
+    if (_cues.length > 0) {
+      for (const c of _cues) {
+        if (_prevT < c.t && t >= c.t) {
+          _playProceduralSFX(c.sfxName, c.vol);
+        }
+      }
+    }
+    _prevT = t;
     if (t < REEL.duration) requestAnimationFrame(_raf);
   }
   window.addEventListener('load', () => {

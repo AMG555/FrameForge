@@ -251,6 +251,22 @@ describe('VideoEditor with real media operations', () => {
     assert.ok(probe.duration >= 3.2 && probe.duration <= 3.8);
   });
 
+  it('concatClipsWithTransitions supports splitCut (j-cut audio lead)', () => {
+    const outPath = path.join(tmpDir, 'concat_jcut.mp4');
+    const result = editor.concatClipsWithTransitions({
+      clips: [
+        { path: clip1Path, duration: 2.0, transition: 'fade', transitionDuration: 0.5 },
+        { path: clip2Path, duration: 2.0, transition: 'fade', transitionDuration: 0.5, splitCut: 'j-cut' },
+      ],
+      outputPath: outPath,
+    });
+
+    assert.equal(fs.existsSync(outPath), true);
+    assert.equal(result.clipCount, 2);
+    const probe = editor.probeMedia(outPath);
+    assert.ok(probe.duration >= 3.2 && probe.duration <= 3.8);
+  });
+
   it('editAndAssemble assembles multi-clip video with master audio and music', () => {
     const outPath = path.join(tmpDir, 'master_assembled.mp4');
     const result = editor.editAndAssemble({

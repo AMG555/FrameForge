@@ -156,3 +156,4 @@ const handle = window.delayRender('loading-hdr-texture');
 const texture = await new THREE.TextureLoader().loadAsync('assets/hdr.jpg');
 window.continueRender(handle);
 ```
+

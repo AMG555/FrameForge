@@ -112,7 +112,7 @@ async function syncSkills(opts = {}) {
   }
 
   manifest.lastSync = new Date().toISOString();
-  manifest.version = '2.4.12';
+  manifest.version = '2.4.13';
 
   fs.mkdirSync(path.dirname(MANIFEST_PATH), { recursive: true });
   fs.writeFileSync(MANIFEST_PATH, JSON.stringify(manifest, null, 2), 'utf8');

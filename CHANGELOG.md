@@ -4,6 +4,40 @@ All notable changes to FrameForge are documented here.
 
 ---
 
+## [2.4.13] — 2026-11-12
+
+### Added
+
+- **HyperFrames Declarative Clips** (`engine.js`):
+  - `.clip[data-start]` elements automatically participate in the timeline during `seek(t)` without manual JS registration.
+  - Computes and binds `--lt` (local time in seconds), `--progress` ($0.0000 \to 1.0000$), `data-lt`, and `data-progress` dynamically.
+- **OneTake Continuous Camera Choreography** (`engine.js`):
+  - `cameraPath(waypoints, opts)`: Smooth continuous camera panning, zooming, and tilting across the `#stage` using cubic easing (`easeInOut`) without harsh cuts.
+  - `cameraShake(t, opts)`: Deterministic organic handheld camera noise using 2D continuous simplex noise (`noise2D`).
+- **ClaudeAnimationBase Mascot Vector Character** (`engine.js`):
+  - `mascot(emotion, opts)`: Procedural SVG mascot character supporting 12 emotions (`happy`, `excited`, `thinking`, `confused`, `skeptical`, `surprised`, `alarmed`, `celebrating`, `proud`, `curious`, `sad`, `neutral`).
+  - Includes 12fps line boil, eye blink cycle, and speech mouth flutter (`setSpeaking(true)`).
+- **gbro-collage-broll Editorial Halftone Paper Collage** (`engine.js`):
+  - `collageCard(content, opts)`: Paper collage card component featuring radial halftone dot pattern, washi tape accent strip, 2.5D perspective tilt, and drop shadow.
+- **Viral Karaoke Captions** (`engine.js`):
+  - Enhanced `captions()` and `_tickCaptions()` to split transcript segments into word tokens.
+  - Spoken words pop with $1.14\times$ scale, glow shadow, and high-contrast highlight (`#facc15`).
+- **Earshot Web Audio SFX Live Preview** (`engine.js`):
+  - Real-time procedural audio synthesis in browser preview (`!window.__playwright`) for `cue()` sound triggers (`whoosh`, `impact`, `pop`, `click`, `riser`).
+- **Lemo-Opuscar J-Cut and L-Cut Audio Splits** (`editor.js`):
+  - `splitCut: 'j-cut' | 'l-cut'` support in `concatClipsWithTransitions` using asymmetric S-curve audio crossfades (`qsin` / `hsin`).
+- **FFmpeg Concurrency & Memory Safety** (`editor.js`):
+  - Constrained x264 encoding threads (`-threads 2`) across clip trimming and transition concatenation to prevent thread pool exhaustion and memory allocation failures.
+
+### Tests & Validation
+
+- Unit tests added for camera waypoints, camera shake, declarative clips, karaoke word formatting, and mascot emotion catalog in `engine.test.js`.
+- J-cut transition assembly test added to `editor.test.js`.
+- `deep-validate.js` updated to verify all frontier primitives and editor split cut capabilities.
+- 100% test pass rate across 624 tests in 135 suites.
+
+---
+
 ## [2.4.12] — 2026-11-11
 
 ### Added

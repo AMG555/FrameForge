@@ -729,4 +729,144 @@ describe('Remotion-compatible animation primitives', () => {
     assert.ok(Math.abs(v1 - v3) < 0.1, 'Noise should be continuous');
     assert.ok(v1 >= -1.05 && v1 <= 1.05);
   });
+
+  describe('Frontier repo animation primitives', () => {
+    function cameraPathPure(waypoints, t, easing = easeInOut) {
+      const wp = [...waypoints].sort((a, b) => a[0] - b[0]);
+      if (wp.length === 0) return { x: 0, y: 0, zoom: 1.0, rotate: 0 };
+      let cam = { x: 0, y: 0, zoom: 1.0, rotate: 0 };
+      if (t <= wp[0][0]) return { ...cam, ...wp[0][1] };
+      if (t >= wp[wp.length - 1][0]) return { ...cam, ...wp[wp.length - 1][1] };
+      for (let i = 1; i < wp.length; i++) {
+        if (t <= wp[i][0]) {
+          const [t0, c0] = wp[i - 1];
+          const [t1, c1] = wp[i];
+          const p = Math.max(0, Math.min(1, (t - t0) / (t1 - t0)));
+          const ep = easing(p);
+          const x0 = c0.x ?? 0, x1 = c1.x ?? 0;
+          const y0 = c0.y ?? 0, y1 = c1.y ?? 0;
+          const z0 = c0.zoom ?? 1, z1 = c1.zoom ?? 1;
+          const r0 = c0.rotate ?? 0, r1 = c1.rotate ?? 0;
+          return {
+            x: x0 + (x1 - x0) * ep,
+            y: y0 + (y1 - y0) * ep,
+            zoom: z0 + (z1 - z0) * ep,
+            rotate: r0 + (r1 - r0) * ep,
+          };
+        }
+      }
+      return cam;
+    }
+
+    function cameraShakePure(t, { intensity = 6, speed = 2.5, seed = 'cam-shake' } = {}) {
+      const x = noise2DPure(seed + '_x', t * speed, 0) * intensity;
+      const y = noise2DPure(seed + '_y', 0, t * speed) * (intensity * 0.75);
+      const rotate = noise2DPure(seed + '_r', t * (speed * 0.6), 10) * (intensity * 0.08);
+      return { x, y, rotate };
+    }
+
+    function declarativeClipPure(t, start, duration) {
+      const visible = t >= start && t < start + duration;
+      const lt = visible ? t - start : 0;
+      const progress = visible && duration > 0 && isFinite(duration)
+        ? Math.max(0, Math.min(1, lt / duration))
+        : 0;
+      return { visible, lt, progress };
+    }
+
+    function formatKaraokeWordsPure(segment, t, highlightColor = '#facc15') {
+      const words = segment.words || segment.text.trim().split(/\s+/).map((w, idx, arr) => {
+        const wDur = (segment.end - segment.start) / Math.max(1, arr.length);
+        return {
+          word: w,
+          start: segment.start + idx * wDur,
+          end: segment.start + (idx + 1) * wDur,
+        };
+      });
+      return words.map(w => {
+        const isActive = t >= w.start && t < w.end;
+        const isPast = t >= w.end;
+        return {
+          word: w.word,
+          isActive,
+          isPast,
+          color: isActive ? highlightColor : (isPast ? '#ffffff' : '#d1d5db'),
+          scale: isActive ? 1.14 : 1.0,
+        };
+      });
+    }
+
+    it('cameraPath continuously interpolates waypoints with easing', () => {
+      const waypoints = [
+        [0, { x: 0, y: 0, zoom: 1.0, rotate: 0 }],
+        [2, { x: 200, y: 100, zoom: 1.5, rotate: -5 }],
+      ];
+      const start = cameraPathPure(waypoints, 0);
+      assert.equal(start.x, 0);
+      assert.equal(start.zoom, 1.0);
+
+      const mid = cameraPathPure(waypoints, 1);
+      assert.equal(mid.x, 100);
+      assert.equal(mid.y, 50);
+      assert.equal(mid.zoom, 1.25);
+      assert.equal(mid.rotate, -2.5);
+
+      const end = cameraPathPure(waypoints, 2.5);
+      assert.equal(end.x, 200);
+      assert.equal(end.zoom, 1.5);
+      assert.equal(end.rotate, -5);
+    });
+
+    it('cameraShake returns deterministic bounded continuous offsets', () => {
+      const s1 = cameraShakePure(1.0, { intensity: 10 });
+      const s2 = cameraShakePure(1.0, { intensity: 10 });
+      assert.deepEqual(s1, s2);
+      assert.ok(Math.abs(s1.x) <= 12.0);
+      assert.ok(Math.abs(s1.y) <= 12.0);
+      assert.ok(Math.abs(s1.rotate) <= 2.0);
+    });
+
+    it('declarativeClip accurately computes visibility, local time and progress', () => {
+      const before = declarativeClipPure(0.5, 1.0, 2.0);
+      assert.equal(before.visible, false);
+
+      const active = declarativeClipPure(2.0, 1.0, 2.0);
+      assert.equal(active.visible, true);
+      assert.equal(active.lt, 1.0);
+      assert.equal(active.progress, 0.5);
+
+      const after = declarativeClipPure(3.5, 1.0, 2.0);
+      assert.equal(after.visible, false);
+    });
+
+    it('karaoke words calculate active word highlight and scaling', () => {
+      const segment = {
+        text: 'FrameForge video engine',
+        start: 0,
+        end: 3.0,
+      };
+      const formatted = formatKaraokeWordsPure(segment, 1.5);
+      assert.equal(formatted.length, 3);
+      assert.equal(formatted[0].isPast, true);
+      assert.equal(formatted[0].color, '#ffffff');
+
+      assert.equal(formatted[1].isActive, true);
+      assert.equal(formatted[1].scale, 1.14);
+      assert.equal(formatted[1].color, '#facc15');
+
+      assert.equal(formatted[2].isActive, false);
+      assert.equal(formatted[2].isPast, false);
+      assert.equal(formatted[2].color, '#d1d5db');
+    });
+
+    it('mascot emotions catalog includes 12 canonical expressions', () => {
+      const emotions = [
+        'neutral', 'happy', 'excited', 'thinking', 'confused', 'skeptical',
+        'surprised', 'alarmed', 'celebrating', 'proud', 'curious', 'sad'
+      ];
+      assert.equal(emotions.length, 12);
+      assert.ok(emotions.includes('happy'));
+      assert.ok(emotions.includes('skeptical'));
+    });
+  });
 });

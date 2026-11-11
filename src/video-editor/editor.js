@@ -335,7 +335,7 @@ class VideoEditor {
     vfParts.push('format=yuv420p');
 
     // Build FFmpeg command arguments
-    const ffmpegArgs = ['-nostdin', '-y'];
+    const ffmpegArgs = ['-nostdin', '-y', '-threads', '2'];
 
     // Fast input seek
     if (startSec > 0) {
@@ -385,6 +385,7 @@ class VideoEditor {
 
     // Encoding parameters: broadcast quality BT.709
     ffmpegArgs.push(
+      '-threads', '4',
       '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '22',
       '-profile:v', 'high', '-level', '4.1',
       '-color_range', 'tv', '-colorspace', 'bt709',
@@ -426,6 +427,7 @@ class VideoEditor {
     clips = [],
     transition = 'fade',
     transitionDuration = 0.5,
+    splitCut = 'none',
     outputPath = null,
   } = {}) {
     if (!Array.isArray(clips) || clips.length === 0) {
@@ -464,7 +466,7 @@ class VideoEditor {
 
     if (!usesTransitions) {
       // Fast concat filter without xfade
-      const ffmpegArgs = ['-nostdin', '-y'];
+      const ffmpegArgs = ['-nostdin', '-y', '-threads', '2'];
       for (const c of normClips) {
         ffmpegArgs.push('-i', c.path);
       }
@@ -473,6 +475,7 @@ class VideoEditor {
       ffmpegArgs.push(
         '-filter_complex', filter,
         '-map', '[vout]', '-map', '[aout]',
+        '-threads', '4',
         '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '22',
         '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-ac', '2',
         '-pix_fmt', 'yuv420p',
@@ -488,7 +491,7 @@ class VideoEditor {
     }
 
     // Build xfade + acrossfade filter complex
-    const ffmpegArgs = ['-nostdin', '-y'];
+    const ffmpegArgs = ['-nostdin', '-y', '-threads', '2'];
     for (const c of normClips) {
       ffmpegArgs.push('-i', c.path);
     }
@@ -526,8 +529,21 @@ class VideoEditor {
       vFilters.push(
         `${prevV}${nextV}xfade=transition=${tType}:duration=${tDur.toFixed(3)}:offset=${currentOffset.toFixed(3)}${outV}`
       );
+
+      // Split cut (lemomo-ai/lemo-opuscar): J-cut (audio leads video) or L-cut (audio trails video)
+      const sCut = clipConfig.splitCut || splitCut || 'none';
+      let curve1 = 'tri';
+      let curve2 = 'tri';
+      if (sCut === 'j-cut') {
+        curve1 = 'qsin';
+        curve2 = 'hsin';
+      } else if (sCut === 'l-cut') {
+        curve1 = 'hsin';
+        curve2 = 'qsin';
+      }
+
       aFilters.push(
-        `${prevA}${nextA}acrossfade=d=${tDur.toFixed(3)}:curve1=tri:curve2=tri${outA}`
+        `${prevA}${nextA}acrossfade=d=${tDur.toFixed(3)}:curve1=${curve1}:curve2=${curve2}${outA}`
       );
     }
 
@@ -536,6 +552,7 @@ class VideoEditor {
     ffmpegArgs.push(
       '-filter_complex', filterComplex,
       '-map', '[vout]', '-map', '[aout]',
+      '-threads', '4',
       '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '22',
       '-profile:v', 'high', '-level', '4.1',
       '-color_range', 'tv', '-colorspace', 'bt709',

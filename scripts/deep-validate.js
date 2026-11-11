@@ -294,6 +294,12 @@ check('engine.js exports evolvePath()', engineJs.includes('export function evolv
 check('engine.js exports transition',   engineJs.includes('export const transition'));
 check('engine.js exports absoluteFill()', engineJs.includes('export function absoluteFill'));
 check('engine.js exports loopTime()',   engineJs.includes('export function loopTime'));
+check('engine.js exports cameraPath()', engineJs.includes('export function cameraPath'));
+check('engine.js exports cameraShake()', engineJs.includes('export function cameraShake'));
+check('engine.js exports collageCard()', engineJs.includes('export function collageCard'));
+check('engine.js exports mascot()',      engineJs.includes('export function mascot'));
+check('engine.js handles declarative .clip', engineJs.includes('.clip[data-start]'));
+check('editor.js supports splitCut (j-cut/l-cut)', fs.readFileSync('./src/video-editor/editor.js', 'utf8').includes('splitCut'));
 
 // ── Code-Driven Video Harness ─────────────────────────────────────────────
 console.log('\n=== Code-Driven Video Harness ===');

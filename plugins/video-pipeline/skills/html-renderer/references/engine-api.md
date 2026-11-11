@@ -288,6 +288,95 @@ Register a raw per-frame compute function outside the layer system. For custom c
 
 ---
 
+## Declarative Clips (HyperFrames)
+
+HTML elements with `.clip[data-start]` automatically participate in the timeline without requiring manual `layer()` callbacks.
+
+```html
+<div class="clip" data-start="3.0" data-duration="4.5">
+  <div class="hero-title">Automated Scene</div>
+</div>
+```
+
+Attributes and CSS variables set automatically during `seek(t)`:
+- `style.display`: `''` when active (`t >= data-start && t < data-start + data-duration`), else `'none'`.
+- `--lt`: Local time in seconds formatted as `${lt}s` (e.g. `1.250s`).
+- `--progress`: Normalized progression $0.0000 \to 1.0000$.
+- `data-lt`: Numeric local time attribute.
+- `data-progress`: Numeric progress attribute.
+
+---
+
+## Camera Choreography (OneTake)
+
+### `cameraPath(waypoints[], opts?)`
+Defines continuous, seamless camera pans, zooms, and rotations across the composition without hard cuts.
+
+```js
+cameraPath([
+  [0.0, { x: 0, y: 0, zoom: 1.0, rotate: 0 }],
+  [3.5, { x: 280, y: -120, zoom: 1.35, rotate: -2 }],
+  [7.0, { x: -150, y: 80, zoom: 1.1, rotate: 1 }],
+], {
+  target: '#stage',       // DOM query selector or element to transform
+  easing: easeInOut,      // Easing function for waypoint interpolation
+});
+```
+
+### `cameraShake(t, { intensity?, speed?, seed? }) → { x, y, rotate }`
+Generates smooth, organic handheld camera vibration using 2D continuous noise.
+
+```js
+const shake = cameraShake(t, { intensity: 8, speed: 3.0 });
+stage.style.transform = `translate(${shake.x}px, ${shake.y}px) rotate(${shake.rotate}deg)`;
+```
+
+---
+
+## Frontier Visual Primitives
+
+### `mascot(emotion?, opts?) → HTMLElement`
+Generates a procedural SVG vector mascot character with 12 distinct emotions, 12fps hand-drawn line boil, eye blink cycles, and talking mouth flutter (derived from `ClaudeAnimationBase`).
+
+- **Emotions**: `'neutral'`, `'happy'`, `'excited'`, `'thinking'`, `'confused'`, `'skeptical'`, `'surprised'`, `'alarmed'`, `'celebrating'`, `'proud'`, `'curious'`, `'sad'`.
+- **Options**: `{ size: 320, color: '#f97316', speaking: false, x: 'center', y: 'center', duration: Infinity }`.
+- **Dynamic controls**: `el.setEmotion(name)`, `el.setSpeaking(bool)`.
+
+```js
+const hero = mascot('excited', { size: 380, x: 'center', y: 'bottom' });
+at(2.0, hero);
+hero.setSpeaking(true);
+```
+
+### `collageCard(content, opts?) → HTMLElement`
+Generates editorial halftone paper-collage b-roll cards with washi tape strips, 2.5D perspective tilt, and drop shadow (derived from `gbro-collage-broll`).
+
+- **Options**: `{ width: 720, tiltX: 2, tiltY: -3, bg: '#fdfbf7', tapeColor: 'rgba(254, 240, 138, 0.88)', x: 'center', y: 'center', duration: Infinity }`.
+
+```js
+const card = collageCard('<h3>KEY TAKEAWAYS</h3><p>Halftone textured paper with washi tape.</p>', {
+  width: 680,
+  tiltX: 3,
+  tiltY: -4,
+});
+at(4.0, card);
+```
+
+---
+
+## Audio & Editor Upgrades
+
+### Word-Level Karaoke Captions
+`captions('audio/outline.json', { highlightColor: '#facc15' })` auto-formats transcript segments into word-level tokens. Spoken words receive a $1.14\times$ pop scale, active glow shadow, and high-contrast color highlight.
+
+### Web Audio Procedural Sound Effects (Earshot)
+During interactive development and browser preview (`!window.__playwright`), `cue('whoosh' | 'impact' | 'pop' | 'click' | 'riser', t)` automatically synthesizes procedural SFX using the Web Audio API without needing external asset files.
+
+### J-Cut / L-Cut Audio Splits (Lemo-Opuscar)
+In `VideoEditor.concatClipsWithTransitions`, pass `splitCut: 'j-cut'` (audio of incoming clip starts before video transition with S-curve crossfade) or `splitCut: 'l-cut'` (audio of preceding clip lingers over incoming video).
+
+---
+
 ## Global Aliases
 
 `engine.js` sets these on `window` for the render harness:
