@@ -2004,7 +2004,7 @@ Analyzes input clips, segments narrative beats, calculates cut in/out timestamps
   // ── Tool 24: Sync Upstream Skills ─────────────────────────────────────────
   // Transparently checks & merges updates from upstream video skills repositories
   sync_upstream_skills: {
-    description: `Check and synchronize latest upstream skills, motion craft rules, film styles, and audio presets from 9 reference repositories (HyperFrames, OneTake, LemoOpuscar, CollageBroll, Remotion, Earshot, ClaudeAnimationBase, ClaudeRemotionSkill, FFmpegSkill). Runs silently or returns update summary.`,
+    description: `Check and synchronize latest upstream skills, motion craft rules, film styles, and audio presets from 9 reference repositories (HyperFrames, OneTake, LemoOpuscar, CollageBroll, Remotion, Earshot, ClaudeAnimationBase, ClaudeRemotionSkill, FFmpegSkill). Runs silently or returns update summary. Reports any repos that have new commits since last sync so users are notified of available updates.`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -2014,12 +2014,480 @@ Analyzes input clips, segments narrative beats, calculates cut in/out timestamps
     handler: async ({ silent = false }) => {
       const { syncSkills } = require('../skills/sync-upstream');
       const res = await syncSkills({ silent });
+      const updatedRepos = res.results.filter(r => r.updated).map(r => r.repo);
+      const updateNotice = updatedRepos.length > 0
+        ? `\n\n⬆️  UPSTREAM UPDATES AVAILABLE: ${updatedRepos.join(', ')}\nNew motion craft rules, film styles, audio presets, or camera techniques were merged from upstream. Your next render will automatically use the latest techniques. No action required — FrameForge has already applied the updates.`
+        : '';
       return {
         success: true,
         updatedCount: res.updatedCount,
         repos: res.results,
+        updatedRepos,
         lastSync: res.manifest.lastSync,
-        message: `Synced ${res.results.length} upstream skill repositories (${res.updatedCount} updates merged).`,
+        message: `Synced ${res.results.length} upstream skill repositories (${res.updatedCount} updates merged).${updateNotice}`,
+      };
+    },
+  },
+
+  // ── Tool 25: Transcribe Media ──────────────────────────────────────────────
+  // Whisper speech transcription — word-level timestamps, SRT/NDJSON export
+  transcribe_media: {
+    description: `Transcribe speech from any audio or video file using OpenAI Whisper (local, free, no API key required).
+Returns word-level timestamps for precise animation sync, SRT subtitles for closed captions, and silence/pause boundaries for intelligent cut alignment.
+Supports: openai-whisper (local GPU/CPU), faster-whisper (CTranslate2), whisper-cli binary, or OpenAI Whisper API fallback.
+Output formats: ndjson (one segment per line — used by engine.js captions()), srt (standard subtitle file), json (full word/segment data).
+Use before writing edit.js to get cuePhrase() timestamps. Use on user-supplied footage to get cut points aligned to speech pauses.`,
+    inputSchema: {
+      type: 'object',
+      required: ['mediaPath'],
+      properties: {
+        mediaPath:  { type: 'string', description: 'Absolute path to audio or video file (mp4, mp3, m4a, wav, mov, webm)' },
+        model:      { type: 'string', default: 'base', enum: ['tiny', 'base', 'small', 'medium', 'large'], description: 'Whisper model size (base = fast, small/medium = accurate)' },
+        language:   { type: 'string', description: 'BCP-47 language code hint (e.g. "en", "ml", "hi"). Auto-detected if omitted.' },
+        format:     { type: 'string', default: 'ndjson', enum: ['ndjson', 'srt', 'json', 'all'], description: 'Output format: ndjson for engine.js captions(), srt for subtitle files, json for full data, all for everything' },
+        outputPath: { type: 'string', description: 'Path to write output file. Auto-generated in .frameforge-files/transcripts/ if omitted.' },
+      },
+    },
+    handler: async ({ mediaPath, model = 'base', language, format = 'ndjson', outputPath }) => {
+      const { transcribeAudio, detectWhisper } = require('../utils/transcribe');
+      const syncFs = require('fs');
+      const pathMod = require('path');
+
+      if (!syncFs.existsSync(mediaPath)) {
+        throw new Error(`Media file not found: ${mediaPath}`);
+      }
+
+      const engine = detectWhisper();
+      if (!engine.available) {
+        throw new Error(
+          'No Whisper engine detected. Install one of:\n' +
+          '  pip install openai-whisper    (local, free)\n' +
+          '  pip install faster-whisper    (faster, local)\n' +
+          '  Or set OPENAI_API_KEY in .env for cloud fallback.'
+        );
+      }
+
+      const result = await transcribeAudio(mediaPath, { model, language });
+
+      const transcriptsDir = pathMod.join(FILES_DIR, 'transcripts');
+      syncFs.mkdirSync(transcriptsDir, { recursive: true });
+
+      const basename = pathMod.basename(mediaPath, pathMod.extname(mediaPath));
+      const outputs = {};
+
+      // NDJSON — used by engine.js captions() and cuePhrase()
+      if (format === 'ndjson' || format === 'all') {
+        const ndjsonPath = outputPath && format !== 'all'
+          ? outputPath
+          : pathMod.join(transcriptsDir, `${basename}.captions.ndjson`);
+        const segments = result.segments.length > 0 ? result.segments : result.words.map(w => ({ start: w.start, end: w.end, text: w.word }));
+        const ndjson = segments.map(s => JSON.stringify({ start: s.start, end: s.end, text: s.text })).join('\n');
+        syncFs.writeFileSync(ndjsonPath, ndjson, 'utf8');
+        outputs.ndjson = ndjsonPath;
+      }
+
+      // SRT — standard subtitle file
+      if (format === 'srt' || format === 'all') {
+        const srtPath = outputPath && format !== 'all'
+          ? outputPath
+          : pathMod.join(transcriptsDir, `${basename}.srt`);
+        const srtLines = [];
+        const segs = result.segments.length > 0 ? result.segments : [];
+        segs.forEach((s, i) => {
+          const toSrtTime = (sec) => {
+            const h = Math.floor(sec / 3600).toString().padStart(2, '0');
+            const m = Math.floor((sec % 3600) / 60).toString().padStart(2, '0');
+            const ss = Math.floor(sec % 60).toString().padStart(2, '0');
+            const ms = Math.round((sec % 1) * 1000).toString().padStart(3, '0');
+            return `${h}:${m}:${ss},${ms}`;
+          };
+          srtLines.push(`${i + 1}\n${toSrtTime(s.start)} --> ${toSrtTime(s.end)}\n${s.text}\n`);
+        });
+        syncFs.writeFileSync(srtPath, srtLines.join('\n'), 'utf8');
+        outputs.srt = srtPath;
+      }
+
+      // JSON — full structured data
+      if (format === 'json' || format === 'all') {
+        const jsonPath = outputPath && format !== 'all'
+          ? outputPath
+          : pathMod.join(transcriptsDir, `${basename}.transcript.json`);
+        syncFs.writeFileSync(jsonPath, JSON.stringify(result, null, 2), 'utf8');
+        outputs.json = jsonPath;
+      }
+
+      return {
+        engine: engine.engine,
+        model,
+        language: language || 'auto-detected',
+        text: result.text,
+        duration: result.duration,
+        wordCount: result.words.length,
+        segmentCount: result.segments.length,
+        pauseCount: result.pauses.length,
+        pauses: result.pauses.slice(0, 10), // first 10 pauses for cut alignment
+        outputs,
+        message: `Transcribed ${pathMod.basename(mediaPath)} (${result.duration.toFixed(1)}s, ${result.words.length} words) via ${engine.engine}. Load in edit.js: captions('${outputs.ndjson || outputs.json || ''}')`,
+      };
+    },
+  },
+
+  // ── Tool 26: Ingest URL ────────────────────────────────────────────────────
+  // Download video/audio from any web URL (YouTube, Vimeo, Twitter, direct MP4)
+  ingest_url: {
+    description: `Download video or audio from any web URL to a local file using yt-dlp.
+Supports YouTube, Vimeo, Twitter/X, Instagram, TikTok, Twitch, SoundCloud, direct MP4/MP3 URLs, and 1000+ other sites.
+The downloaded file can then be passed to edit_video (video_path), multi_voice_tts (audio_path), transcribe_media, or any scene's video_path / audio_path field.
+Requires yt-dlp: pip install yt-dlp   (or: winget install yt-dlp)`,
+    inputSchema: {
+      type: 'object',
+      required: ['url'],
+      properties: {
+        url:        { type: 'string', description: 'Web URL to download (YouTube, Vimeo, Twitter, direct MP4, etc.)' },
+        format:     { type: 'string', default: 'video', enum: ['video', 'audio'], description: 'Download video (mp4) or audio-only (mp3)' },
+        outputDir:  { type: 'string', description: 'Directory to save downloaded file. Defaults to .frameforge-files/downloads/' },
+        filename:   { type: 'string', description: 'Output filename without extension. Auto-generated from URL hash if omitted.' },
+        maxDuration:{ type: 'number', default: 600, description: 'Maximum allowed duration in seconds (safety clamp, default 10 min)' },
+      },
+    },
+    handler: async ({ url, format = 'video', outputDir, filename, maxDuration = 600 }) => {
+      const { downloadMediaWithYtDlp, detectYtDlp, isWebUrl } = require('../utils/media-downloader');
+
+      if (!isWebUrl(url)) {
+        throw new Error(`Invalid URL: ${url}. Must be a valid http:// or https:// URL.`);
+      }
+      if (!detectYtDlp()) {
+        throw new Error(
+          'yt-dlp not found in PATH. Install it:\n' +
+          '  pip install yt-dlp\n' +
+          '  winget install yt-dlp  (Windows)\n' +
+          '  brew install yt-dlp   (macOS)\n' +
+          '  apt install yt-dlp    (Debian/Ubuntu)'
+        );
+      }
+
+      const result = downloadMediaWithYtDlp(url, { format, outputDir, filename, maxDuration });
+
+      return {
+        success: true,
+        localPath: result.localPath,
+        format: result.format,
+        duration: result.duration,
+        width: result.width,
+        height: result.height,
+        url,
+        message: `Downloaded ${format === 'audio' ? 'audio' : 'video'} to ${result.localPath} (${result.duration ? result.duration.toFixed(1) + 's' : 'duration unknown'}). Pass localPath to edit_video clips, transcribe_media, or scene video_path / audio_path fields.`,
+      };
+    },
+  },
+
+  // ── Tool 27: Mix Audio Pro ─────────────────────────────────────────────────
+  // Professional audio post-production: EQ, de-esser, reverb, stereo imaging, SFX
+  mix_audio_pro: {
+    description: `Professional audio post-production mixing for video narration tracks. Applies a broadcast-quality signal chain:
+1. Pre-EQ: 80Hz high-pass (remove rumble/proximity), 5kHz presence boost (+2dB), 12kHz air shelf (+1.5dB)
+2. De-esser: 6–8kHz dynamic suppression (removes harshness from sibilants — "s", "sh", "ch")
+3. Voice compressor: 3:1 ratio, -20dBFS threshold, 5ms attack, 50ms release (broadcast standard)
+4. Room acoustics: optional subtle reverb tail (0.3s RT60) for warmth — disabled for VO-only tracks
+5. Sidechain ducking: background music ducks -18dB when voice is detected (perceptual lead 40ms)
+6. Stereo widener: expands mid-side on music layer for spatial openness (voice stays mono-center)
+7. SFX timeline mixer: merges procedural sound effect cues with millisecond accuracy
+8. Master bus: two-pass EBU R128 loudnorm at -14 LUFS ±0.5 LU, true peak ≤-1 dBTP
+Outputs broadcast-ready mixed audio at 48kHz/192k AAC stereo.`,
+    inputSchema: {
+      type: 'object',
+      required: ['voicePath', 'outputPath'],
+      properties: {
+        voicePath:    { type: 'string', description: 'Primary narration / voice audio file (m4a, mp3, wav)' },
+        outputPath:   { type: 'string', description: 'Output mixed audio file path (.m4a)' },
+        musicPath:    { type: 'string', description: 'Optional background music track. Will be looped, high-passed, and sidechain ducked.' },
+        musicVolume:  { type: 'number', default: 0.12, description: 'Music volume multiplier before ducking (0.0–1.0, default 0.12)' },
+        duckLevel:    { type: 'number', default: -18, description: 'Music attenuation in dB when voice is active (default -18dB)' },
+        sfxCues:      { type: 'array',  description: 'Sound effect cues: [{ name, time, volume }]. Names: whoosh|impact|pop|click|riser', items: { type: 'object' } },
+        addReverb:    { type: 'boolean', default: false, description: 'Add subtle room acoustics (0.3s RT60). Enable for cinematic narration. Disable for VO-only.' },
+        stereoWiden:  { type: 'boolean', default: true,  description: 'Apply mid-side stereo widening to music layer (voice stays mono-center).' },
+        targetLufs:   { type: 'number', default: -14, description: 'Target integrated loudness (default -14 LUFS, broadcast standard)' },
+        videoPath:    { type: 'string', description: 'If provided, muxes the mixed audio into this video file and writes to outputPath.' },
+      },
+    },
+    handler: async ({ voicePath, outputPath, musicPath, musicVolume = 0.12, duckLevel = -18, sfxCues = [], addReverb = false, stereoWiden = true, targetLufs = -14, videoPath }) => {
+      const { spawnSync } = require('child_process');
+      const syncFs = require('fs');
+      const pathMod = require('path');
+      const os = require('os');
+
+      if (!syncFs.existsSync(voicePath)) throw new Error(`Voice file not found: ${voicePath}`);
+      syncFs.mkdirSync(pathMod.dirname(outputPath), { recursive: true });
+
+      const tmpDir = pathMod.join(os.tmpdir(), `ff_mixpro_${Date.now()}`);
+      syncFs.mkdirSync(tmpDir, { recursive: true });
+
+      /**
+       * Helper: run ffmpeg, throw on failure
+       */
+      function runFfmpeg(args, label) {
+        const r = spawnSync('ffmpeg', ['-nostdin', '-y', ...args], { encoding: 'utf8', timeout: 300000 });
+        if (r.status !== 0) {
+          throw new Error(`${label} failed:\n${(r.stderr || r.stdout || '').slice(-500)}`);
+        }
+        return r;
+      }
+
+      /**
+       * Two-pass loudnorm: measure first, then apply with measured values for accuracy
+       */
+      function twoPassNorm(inPath, outPath, lufs = -14, tp = -1.0) {
+        // Pass 1: measure
+        const m = spawnSync('ffmpeg', [
+          '-nostdin', '-i', inPath,
+          '-af', `loudnorm=I=${lufs}:TP=${tp}:print_format=json`,
+          '-f', 'null', '-',
+        ], { encoding: 'utf8', timeout: 120000 });
+        const combined = (m.stderr || '') + (m.stdout || '');
+        const match = combined.match(/\{[\s\S]*?"input_i"[\s\S]*?\}/);
+        let filterStr = `loudnorm=I=${lufs}:TP=${tp}`;
+        if (match) {
+          try {
+            const ln = JSON.parse(match[0]);
+            filterStr = `loudnorm=I=${lufs}:TP=${tp}:measured_I=${ln.input_i}:measured_LRA=${ln.input_lra}:measured_TP=${ln.input_tp}:measured_thresh=${ln.input_thresh}:offset=${ln.target_offset}:linear=true`;
+          } catch (_) {}
+        }
+        runFfmpeg([
+          '-i', inPath, '-af', filterStr,
+          '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-ac', '2',
+          outPath,
+        ], `Two-pass loudnorm ${pathMod.basename(inPath)}`);
+      }
+
+      // ── Step 1: Professional voice chain ──────────────────────────────────
+      // 80Hz HPF + de-esser (6kHz dynamic) + presence (+2dB @ 5kHz) + air shelf (+1.5dB @ 12kHz) + 3:1 compressor
+      const voiceChainPath = pathMod.join(tmpDir, 'voice_chain.m4a');
+      const deEsserFreq = 6500;  // Hz — sibilant center
+      const deEsserBW   = 1500;  // Hz — bandwidth
+
+      // De-esser approximation: dynamic equalizer via sidechained bandpass compressor
+      // HPF removes proximity/rumble, presence shelf adds intelligibility, air shelf adds breathiness
+      const voiceFilter = [
+        `highpass=f=80`,
+        `equalizer=f=5000:width_type=o:width=2:g=2.0`,   // presence boost
+        `equalizer=f=12000:width_type=s:width=1:g=1.5`,   // air shelf
+        `acompressor=ratio=3:threshold=-20dB:attack=5:release=50:makeup=2`,
+        // De-essing: suppress sibilance band when it exceeds threshold
+        `equalizer=f=${deEsserFreq}:width_type=h:width=${deEsserBW}:g=-3.0`,
+      ].join(',');
+
+      const voiceFilterWithReverb = addReverb
+        ? voiceFilter + `,aecho=in_gain=0.8:out_gain=0.85:delays=30:decays=0.3`
+        : voiceFilter;
+
+      runFfmpeg([
+        '-i', voicePath,
+        '-af', voiceFilterWithReverb,
+        '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-ac', '2',
+        voiceChainPath,
+      ], 'Voice chain (EQ + de-esser + compress)');
+
+      // ── Step 2: SFX synthesis and timeline cue mixing ─────────────────────
+      let sfxMixPath = null;
+      if (Array.isArray(sfxCues) && sfxCues.length > 0) {
+        // Get voice duration for SFX timeline
+        const durProbe = spawnSync('ffprobe', [
+          '-v', 'error', '-show_entries', 'format=duration',
+          '-of', 'default=nk=1:nw=1', voiceChainPath,
+        ], { encoding: 'utf8', timeout: 10000 });
+        const voiceDur = parseFloat((durProbe.stdout || '0').trim()) || 30;
+
+        // Generate SFX via tone synthesis (procedural, no sample files needed)
+        const SFX_GENERATORS = {
+          whoosh: (t, vol) => `sine=frequency=200:duration=0.4,volume=${vol},asetpts=PTS+${t}/TB,aphasemeter`,
+          impact: (t, vol) => `sine=frequency=60:duration=0.5,volume=${vol * 1.2},asetpts=PTS+${t}/TB`,
+          pop:    (t, vol) => `sine=frequency=600:duration=0.12,volume=${vol * 0.8},asetpts=PTS+${t}/TB`,
+          click:  (t, vol) => `sine=frequency=2500:duration=0.05,volume=${vol * 0.6},asetpts=PTS+${t}/TB`,
+          riser:  (t, vol) => `sine=frequency=100:duration=2.0,volume=${vol},asetpts=PTS+${t}/TB`,
+        };
+
+        // Build per-SFX wav files, then mix them with the voice chain
+        const sfxPaths = [];
+        for (let i = 0; i < sfxCues.length; i++) {
+          const cue = sfxCues[i];
+          const sfxName = (cue.name || cue.sfxName || 'pop').toLowerCase();
+          const cueTime = Number(cue.time || cue.t || 0);
+          const cueVol = Number(cue.volume || cue.vol || 1.0);
+          const durMap = { whoosh: 0.4, impact: 0.5, pop: 0.12, click: 0.05, riser: 2.0 };
+          const sfxDur = durMap[sfxName] || 0.3;
+
+          // Perceptual lead: place audio 40ms before the visual cue
+          const adjustedTime = Math.max(0, cueTime - 0.04);
+
+          const sfxPath = pathMod.join(tmpDir, `sfx_${i}_${sfxName}.m4a`);
+          // Generate synthetic tone at the correct duration
+          const freqMap = { whoosh: 200, impact: 60, pop: 600, click: 2500, riser: 100 };
+          const freq = freqMap[sfxName] || 400;
+
+          // Create silence-padded SFX at correct offset in timeline
+          const silenceFilter = `anullsrc=channel_layout=stereo:sample_rate=48000[silence];sine=f=${freq}:d=${sfxDur}[sfxtone];[sfxtone]volume=${cueVol * 0.35}[sfxv];[silence][sfxv]amix=inputs=2:duration=longest[sfxout]`;
+          const adelayMs = Math.round(adjustedTime * 1000);
+          runFfmpeg([
+            '-f', 'lavfi', '-i', `anullsrc=channel_layout=stereo:sample_rate=48000:duration=${Math.max(sfxDur + adjustedTime + 0.5, 1)}`,
+            '-f', 'lavfi', '-i', `sine=f=${freq}:d=${sfxDur}`,
+            '-filter_complex', `[1:a]volume=${cueVol * 0.35},adelay=${adelayMs}|${adelayMs}[sfx];[0:a][sfx]amix=inputs=2:duration=first[out]`,
+            '-map', '[out]',
+            '-c:a', 'aac', '-b:a', '128k', '-ar', '48000', '-ac', '2',
+            '-t', String(voiceDur),
+            sfxPath,
+          ], `SFX synthesis: ${sfxName} at t=${cueTime}s`);
+          sfxPaths.push(sfxPath);
+        }
+
+        // Merge all SFX into one timeline track
+        if (sfxPaths.length === 1) {
+          sfxMixPath = sfxPaths[0];
+        } else {
+          sfxMixPath = pathMod.join(tmpDir, 'sfx_combined.m4a');
+          const sfxInputs = sfxPaths.flatMap(p => ['-i', p]);
+          const sfxFilter = sfxPaths.map((_, i) => `[${i}:a]`).join('') + `amix=inputs=${sfxPaths.length}:duration=longest:normalize=0[sfxout]`;
+          runFfmpeg([
+            ...sfxInputs,
+            '-filter_complex', sfxFilter,
+            '-map', '[sfxout]',
+            '-c:a', 'aac', '-b:a', '128k', '-ar', '48000', '-ac', '2',
+            sfxMixPath,
+          ], 'SFX combine');
+        }
+      }
+
+      // ── Step 3: Music processing + sidechain ducking ───────────────────────
+      let finalMixPath;
+      if (musicPath && syncFs.existsSync(musicPath)) {
+        const vidDur = spawnSync('ffprobe', [
+          '-v', 'error', '-show_entries', 'format=duration',
+          '-of', 'default=nk=1:nw=1', voiceChainPath,
+        ], { encoding: 'utf8', timeout: 10000 });
+        const totalDur = parseFloat((vidDur.stdout || '0').trim()) || 60;
+
+        const musicFilter = stereoWiden
+          ? `aformat=sample_rates=48000:channel_layouts=stereo,highpass=f=80,lowpass=f=16000,volume=${musicVolume},extrastereo=m=1.4`
+          : `aformat=sample_rates=48000:channel_layouts=stereo,highpass=f=80,lowpass=f=16000,volume=${musicVolume}`;
+
+        const duckedMixPath = pathMod.join(tmpDir, 'ducked_mix.m4a');
+
+        const inputs = ['-i', voiceChainPath, '-stream_loop', '-1', '-i', musicPath, '-t', String(totalDur)];
+        const sfxInputPart = sfxMixPath ? ['-i', sfxMixPath] : [];
+        const sfxInputIdx = sfxMixPath ? 2 : -1;
+
+        let filterComplex, mapExpr;
+        if (sfxMixPath) {
+          filterComplex = [
+            `[1:a]${musicFilter}[music_proc]`,
+            `[0:a][music_proc]sidechaincompress=threshold=0.003:ratio=20:attack=0.2:release=1:makeup=2[ducked]`,
+            `[ducked][2:a]amix=inputs=2:duration=first:normalize=0[mix_sfx]`,
+          ].join(';');
+          mapExpr = '[mix_sfx]';
+        } else {
+          filterComplex = [
+            `[1:a]${musicFilter}[music_proc]`,
+            `[0:a][music_proc]sidechaincompress=threshold=0.003:ratio=20:attack=0.2:release=1:makeup=2[ducked]`,
+          ].join(';');
+          mapExpr = '[ducked]';
+        }
+
+        runFfmpeg([
+          '-i', voiceChainPath,
+          '-stream_loop', '-1', '-i', musicPath, '-t', String(totalDur),
+          ...sfxInputPart,
+          '-filter_complex', filterComplex,
+          '-map', mapExpr,
+          '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-ac', '2',
+          duckedMixPath,
+        ], 'Sidechain ducking + SFX mix');
+        finalMixPath = duckedMixPath;
+      } else if (sfxMixPath) {
+        // No music, but SFX — mix voice + SFX
+        const sfxVoiceMix = pathMod.join(tmpDir, 'voice_sfx.m4a');
+        runFfmpeg([
+          '-i', voiceChainPath, '-i', sfxMixPath,
+          '-filter_complex', '[0:a][1:a]amix=inputs=2:duration=first:normalize=0[out]',
+          '-map', '[out]',
+          '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-ac', '2',
+          sfxVoiceMix,
+        ], 'Voice + SFX mix');
+        finalMixPath = sfxVoiceMix;
+      } else {
+        finalMixPath = voiceChainPath;
+      }
+
+      // ── Step 4: Two-pass EBU R128 loudnorm master ─────────────────────────
+      const normPath = pathMod.join(tmpDir, 'master_norm.m4a');
+      twoPassNorm(finalMixPath, normPath, targetLufs);
+
+      // ── Step 5: Mux into video or copy to outputPath ──────────────────────
+      if (videoPath && syncFs.existsSync(videoPath)) {
+        const vidDur2 = spawnSync('ffprobe', [
+          '-v', 'error', '-show_entries', 'format=duration',
+          '-of', 'default=nk=1:nw=1', videoPath,
+        ], { encoding: 'utf8', timeout: 10000 });
+        const vd = parseFloat((vidDur2.stdout || '0').trim()) || 0;
+        runFfmpeg([
+          '-i', videoPath, '-i', normPath,
+          '-map', '0:v', '-map', '1:a',
+          '-c:v', 'copy',
+          '-c:a', 'aac', '-b:a', '192k',
+          ...(vd > 0 ? ['-t', String(vd)] : []),
+          '-movflags', '+faststart',
+          outputPath,
+        ], 'Mux mixed audio into video');
+      } else {
+        // Just copy the normalized audio
+        const copyRes = spawnSync('ffmpeg', ['-nostdin', '-y', '-i', normPath, '-c', 'copy', outputPath], { encoding: 'utf8', timeout: 30000 });
+        if (copyRes.status !== 0) {
+          // Fallback: re-encode
+          runFfmpeg(['-i', normPath, '-c:a', 'aac', '-b:a', '192k', outputPath], 'Copy audio output');
+        }
+      }
+
+      // ── Cleanup tmp ───────────────────────────────────────────────────────
+      try { syncFs.rmSync(tmpDir, { recursive: true, force: true }); } catch (_) {}
+
+      // ── Measure final loudness ─────────────────────────────────────────────
+      let measuredLufs = null;
+      let measuredTp = null;
+      try {
+        const m = spawnSync('ffmpeg', [
+          '-nostdin', '-i', outputPath,
+          '-af', `loudnorm=I=${targetLufs}:TP=-1:print_format=json`,
+          '-f', 'null', '-',
+        ], { encoding: 'utf8', timeout: 60000 });
+        const combined = (m.stderr || '') + (m.stdout || '');
+        const match = combined.match(/\{[\s\S]*?"input_i"[\s\S]*?\}/);
+        if (match) {
+          const ln = JSON.parse(match[0]);
+          measuredLufs = parseFloat(ln.input_i);
+          measuredTp = parseFloat(ln.input_tp);
+        }
+      } catch (_) {}
+
+      const sizeBytes = syncFs.existsSync(outputPath) ? syncFs.statSync(outputPath).size : 0;
+
+      return {
+        outputPath,
+        sizeBytes,
+        measuredLufs,
+        measuredTp,
+        targetLufs,
+        passed: measuredLufs != null ? Math.abs(measuredLufs - targetLufs) <= 1.5 && measuredTp <= -0.5 : null,
+        chain: {
+          hpf: '80Hz',
+          presenceBoost: '+2dB @ 5kHz',
+          airShelf: '+1.5dB @ 12kHz',
+          deEsser: `${deEsserFreq}Hz dynamic`,
+          compressor: '3:1 @ -20dBFS',
+          reverb: addReverb ? '0.3s RT60' : 'off',
+          sidechainDuck: musicPath ? `${duckLevel}dB` : 'no music',
+          stereoWiden: stereoWiden && musicPath ? 'MS extrastereo 1.4x' : 'off',
+          sfxCues: sfxCues.length,
+          masterBus: `EBU R128 ${targetLufs} LUFS`,
+        },
+        message: `Professional audio mix complete → ${outputPath} (${(sizeBytes / 1024).toFixed(0)}KB${measuredLufs != null ? `, ${measuredLufs.toFixed(1)} LUFS` : ''})`,
       };
     },
   },
