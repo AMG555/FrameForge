@@ -162,9 +162,20 @@ async function cmdSheet() {
   const page = await openPageWithVirtualClock({ browser, htmlPath: HTML_FILE });
   const outPath = flags.out ? path.resolve(CWD, flags.out) : path.join(CHECK_DIR, 'sheet.jpg');
 
-  let times = [0.1, 0.5, 1.0, 1.5, 2.0];
+  let times;
   if (flags.times) {
     times = flags.times.split(',').map(Number).filter(n => !isNaN(n));
+  } else {
+    // Auto-derive timestamps from scene duration so long films get full coverage.
+    // A 60s film at the old [0.1, 0.5, 1.0, 1.5, 2.0] default covers only the first 3%.
+    const duration = await page.evaluate(() =>
+      window.DURATION || window.REEL?.duration || 5
+    );
+    const step = Math.max(0.5, duration / 20);
+    const count = Math.min(20, Math.ceil(duration / step));
+    times = Array.from({ length: count }, (_, i) =>
+      parseFloat(((i + 1) * step).toFixed(2))
+    );
   }
 
   console.log(`🖼 Generating Contact Sheet (${times.length} frames) → ${outPath}`);
@@ -307,12 +318,12 @@ async function cmdPixels() {
 }
 
 async function cmdQuality() {
-  console.log(`🎯 Running Closed-Loop Visual QA Gate (1–10 Scoring) on: ${HTML_PATH}`);
+  console.log(`🎯 Running Closed-Loop Visual QA Gate (1–10 Scoring) on: ${HTML_FILE}`);
   const { browser } = await launchHarnessBrowser();
   const sheetTarget = path.join(CHECK_DIR, 'sheet.jpg');
   const res = await verifySceneQuality({
     browser,
-    htmlPath: HTML_PATH,
+    htmlPath: HTML_FILE,
     sheetPath: sheetTarget,
   });
   await browser.close();
@@ -333,10 +344,32 @@ async function cmdQuality() {
   }
 }
 
+async function cmdLook() {
+  console.log(`🔍 Running Stage & Asset Diagnostic Linter: ${HTML_FILE}`);
+  const lookCandidates = [
+    path.join(CWD, 'scripts', 'look.mjs'),
+    path.resolve(__dirname, '../../../plugins/video-pipeline/skills/video-pipeline/assets/project/scripts/look.mjs'),
+    path.join(__dirname, 'look.mjs'),
+  ];
+  const lookScript = lookCandidates.find(p => fs.existsSync(p));
+  if (lookScript) {
+    const lookArgs = [lookScript];
+    if (flags.strict) lookArgs.push('--strict');
+    const res = spawnSync('node', lookArgs, { stdio: 'inherit', cwd: CWD });
+    if (res.status !== 0) {
+      console.error('❌ Look diagnostics failed. Resolve asset or stage errors before rendering.');
+      process.exit(1);
+    }
+  } else {
+    console.log('  ⚠️ look.mjs not found in project scripts, skipping DOM linter.');
+  }
+}
+
 async function cmdAll() {
-  console.log('🚀 Running Complete Production Pipeline: Storyboard → Verify → Quality → Frames → Encode → Inspect');
+  console.log('🚀 Running Complete Production Pipeline: Doctor → Storyboard → Look → Sheet → Verify → Quality → Frames → Encode');
   await cmdDoctor();
   await cmdStoryboard();
+  await cmdLook();
   await cmdSheet();
   await cmdVerify();
   await cmdQuality();
@@ -345,10 +378,98 @@ async function cmdAll() {
   console.log('\n✨ Production complete! Output ready at out/film.mp4');
 }
 
+/**
+ * Golden stills regression — save or check.
+ *
+ * harness golden --save   Capture 4-keyframe storyboard and write hashes to
+ *                         out/check/golden.json. Run after a video passes QC.
+ * harness golden --check  Re-capture the same 4 keyframes and compare hashes.
+ *                         Fails if any frame hash changed (refactor broke determinism).
+ * harness golden --out <path>  Custom path for golden.json (default: out/check/golden.json)
+ */
+async function cmdGolden() {
+  const goldenPath = flags.out
+    ? path.resolve(CWD, flags.out)
+    : path.join(CHECK_DIR, 'golden.json');
+
+  const { browser } = await launchHarnessBrowser({
+    softGl: flags['soft-gl'],
+    chromePath: flags.chrome,
+  });
+  const page = await openPageWithVirtualClock({ browser, htmlPath: HTML_FILE });
+
+  // Resolve duration
+  const duration = await page.evaluate(() =>
+    window.DURATION || window.REEL?.duration || 5
+  );
+
+  // 4 canonical keyframes (0%, 33%, 66%, 99%)
+  const goldenTimes = [
+    parseFloat((duration * 0.01).toFixed(3)),
+    parseFloat((duration * 0.33).toFixed(3)),
+    parseFloat((duration * 0.66).toFixed(3)),
+    parseFloat((duration * 0.99).toFixed(3)),
+  ];
+
+  async function captureHashes() {
+    const hashes = {};
+    for (const t of goldenTimes) {
+      const buf = await captureFrame(page, t, { type: 'image/png' });
+      const { createHash } = await import('crypto');
+      hashes[String(t)] = createHash('sha256').update(buf).digest('hex').slice(0, 16);
+    }
+    return hashes;
+  }
+
+  if (flags.save) {
+    console.log(`🟡 Golden: capturing ${goldenTimes.length} keyframes → ${goldenPath}`);
+    const hashes = await captureHashes();
+    fs.writeFileSync(goldenPath, JSON.stringify({ htmlFile: HTML_FILE, duration, times: goldenTimes, hashes }, null, 2), 'utf8');
+    await browser.close();
+    console.log(`  ✅ Golden baseline saved: ${goldenPath}`);
+    for (const [t, h] of Object.entries(hashes)) {
+      console.log(`     t=${t}s  hash=${h}`);
+    }
+  } else if (flags.check) {
+    if (!fs.existsSync(goldenPath)) {
+      console.error(`❌ No golden baseline found at ${goldenPath}. Run: harness golden --save first.`);
+      process.exit(1);
+    }
+    const baseline = JSON.parse(fs.readFileSync(goldenPath, 'utf8'));
+    console.log(`🔎 Golden: comparing against baseline (${baseline.times.length} frames) → ${goldenPath}`);
+    const current = await captureHashes();
+    await browser.close();
+
+    let passed = true;
+    for (const t of baseline.times) {
+      const key = String(t);
+      const expected = baseline.hashes[key];
+      const actual   = current[key];
+      if (expected !== actual) {
+        passed = false;
+        console.error(`  ❌ REGRESSION at t=${t}s  expected=${expected}  got=${actual}`);
+      } else {
+        console.log(`  ✅ t=${t}s  hash=${actual} (matches)`);
+      }
+    }
+
+    if (!passed) {
+      console.error('\n❌ GOLDEN CHECK FAILED — refactor broke determinism. Investigate edit.js changes.');
+      process.exit(1);
+    } else {
+      console.log('\n✅ GOLDEN CHECK PASSED — all keyframe hashes match baseline.');
+    }
+  } else {
+    await browser.close();
+    console.log('Usage: harness golden --save   (capture baseline)\n       harness golden --check  (verify against baseline)');
+  }
+}
+
 try {
   switch (command) {
     case 'doctor':     await cmdDoctor();     break;
     case 'storyboard': await cmdStoryboard(); break;
+    case 'look':       await cmdLook();       break;
     case 'verify':     await cmdVerify();     break;
     case 'quality':    await cmdQuality();    break;
     case 'sheet':      await cmdSheet();      break;
@@ -357,9 +478,10 @@ try {
     case 'frames':     await cmdFrames();     break;
     case 'encode':     await cmdEncode();     break;
     case 'pixels':     await cmdPixels();     break;
+    case 'golden':     await cmdGolden();     break;
     case 'all':        await cmdAll();        break;
     default:
-      console.log(`Usage: harness <doctor|storyboard|verify|quality|sheet|strip|crop|frames|encode|pixels|all> [options]`);
+      console.log(`Usage: harness <doctor|storyboard|look|verify|quality|sheet|strip|crop|frames|encode|pixels|golden|all> [options]`);
       break;
   }
 } catch (err) {

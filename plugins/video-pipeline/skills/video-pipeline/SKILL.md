@@ -181,6 +181,11 @@ publish_video({ productionId, masterPath, channels: ["file"] })
 
 Use when: the user wants Remotion-style motion graphics, image gen is unavailable, or they ask for "animated video" or "make it look good". Every pixel is a pure function of time `t`.
 
+> **Model effort (Opus 5.5 / Claude Code):**
+> - Beat sheet + first scene authorship → `effort: xhigh`
+> - Storyboard review, strip-range patches, encode-only runs → `effort: medium`
+> - `tool_choice` must be `auto` (forced tool use not supported in Opus 5.5)
+
 > **Beat sheet gate:** Reply with a beat sheet and 4 keyframe descriptions first. Stop. Wait for approval before writing any scene code.
 
 ```
@@ -214,6 +219,16 @@ render_animation({ projectDir: ".frameforge-files/my-anim/", mode: "crop",
 // 7. Full render (only after stills pass)
 render_animation({ projectDir: ".frameforge-files/my-anim/", mode: "full",
                    audioPath: ".frameforge-files/voice_0.m4a" })
+
+// 8. Closed-loop QA fix protocol (mandatory — Opus 5.5 / Claude Code pattern)
+render_animation({ projectDir: ".frameforge-files/my-anim/", mode: "quality" })
+// Returns: { passed, overallScore, worstFrames: [{time, score, issues}] }
+// If passed: false → fix loop (max 3 rounds):
+//   1. Read worstFrames[].  2. Patch edit.js for those timestamps only.
+//   3. render_animation({ mode: "strip", timestamps: [failingT - 0.5, failingT + 0.5] })
+//   4. render_animation({ mode: "quality" })
+//   5. Repeat until passed or 3 rounds — then escalate to user.
+// Never re-render full film to fix one timestamp. Use strip only.
 ```
 
 Requires one-time: `cd <outDir> && npm install playwright && npx playwright install chromium`

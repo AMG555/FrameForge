@@ -71,17 +71,22 @@
   };
 
   // 4. Seeded PRNG replacement for Math.random()
-  let seed = 0x2F6E2B1;
+  // CRITICAL: re-derive seed from virtualTime on every call so that seek(t) gives
+  // the SAME random sequence regardless of how many frames were rendered before it.
+  // This matches the harness-injected shim in capture.mjs and ensures dev-preview
+  // mode is deterministic even without Playwright in the loop.
   window.Math.random = () => {
-    seed = (seed + 0x6D2B79F5) | 0;
-    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    let s = (0x2F6E2B1 ^ Math.imul(Math.floor(virtualTime), 0x9E3779B9)) | 0;
+    s = (s + 0x6D2B79F5) | 0;
+    let x = Math.imul(s ^ (s >>> 15), 1 | s);
+    x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x;
+    return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
   };
 
   // 5. Global seek contract
   window.seek = async (tSeconds) => {
     virtualTime = tSeconds * 1000;
+    seed = (0x2F6E2B1 ^ Math.imul(Math.floor(tSeconds * 1000), 0x9E3779B9)) | 0;
 
     // Flush due timeouts
     while (timeoutQueue.length > 0 && timeoutQueue[0].runAt <= virtualTime) {

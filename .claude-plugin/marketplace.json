@@ -1,8 +1,8 @@
 {
   "name": "frameforge",
   "displayName": "FrameForge — AI Video Production",
-  "description": "Full AI video production engine. Produce short-form reels (1080×1920), YouTube videos (1920×1080), or code-driven animated explainers — directly from your IDE. Playwright + FFmpeg renders every frame. 17 MCP tools.",
-  "version": "2.3.1",
+  "description": "Full AI video production engine. Produce short-form reels (1080×1920), YouTube videos (1920×1080), or code-driven animated explainers — directly from your IDE. Playwright + FFmpeg renders every frame. 23 MCP tools.",
+  "version": "2.4.10",
   "homepage": "https://github.com/AMG555/FrameForge",
   "plugins": [
     {
@@ -12,7 +12,7 @@
         {
           "name": "video-pipeline",
           "displayName": "FrameForge Video Pipeline",
-          "description": "End-to-end video production: research → script → TTS → images → render → publish. Three paths: (1) IDE writes scenes (most common, no API key), (2) code-driven Playwright animation, (3) auto-research pipeline. 17 MCP tools.",
+          "description": "End-to-end video production: research → script → TTS → images → render → publish. Three paths: (1) IDE writes scenes (most common, no API key), (2) code-driven Playwright animation, (3) auto-research pipeline. 23 MCP tools.",
           "triggerPhrases": [
             "make a video about",
             "produce a reel on",
@@ -26,6 +26,18 @@
             "publish video",
             "overnight batch",
             "queue videos"
+          ]
+        },
+        {
+          "name": "html-renderer",
+          "displayName": "HTML Renderer",
+          "description": "HTML-as-compositor rendering: pure seek(t) function, Playwright capture, closed-loop visual QA.",
+          "triggerPhrases": [
+            "html video",
+            "remotion style",
+            "code-driven animation",
+            "harness render",
+            "render animation"
           ]
         }
       ]

@@ -204,18 +204,58 @@ export async function verifySceneQuality({
     });
   }
 
-  // Motion continuity delta: compare hashes of t=30% vs t=70%
-  // A static/stuck PPT slide will have hash(t1) === hash(t2)
-  const hashEarly = createHash('sha256').update(rawBuffers[1] || rawBuffers[0]).digest('hex');
-  const hashLate  = createHash('sha256').update(rawBuffers[3] || rawBuffers[rawBuffers.length - 1]).digest('hex');
-  const isStuckFrozen = (hashEarly === hashLate);
+  // Motion continuity delta: pixel-luminance MAD between t=30% and t=70% frames.
+  // A pure hash comparison misses slow-drift scenes (e.g. barely-visible zoom) that
+  // look frozen to a human viewer but differ by ≥1 pixel. We require at least 0.5%
+  // of pixels to change by >10 luminance units — this filters lens-flare flickers too.
+  const earlyBuf = rawBuffers[1] || rawBuffers[0];
+  const lateBuf  = rawBuffers[3] || rawBuffers[rawBuffers.length - 1];
+
+  const hashEarly = createHash('sha256').update(earlyBuf).digest('hex');
+  const hashLate  = createHash('sha256').update(lateBuf).digest('hex');
+  const identicalHash = (hashEarly === hashLate);
+
   let motionDelta = 1.0;
+  let isStuckFrozen = identicalHash;
+
+  if (!identicalHash) {
+    // Pixel-level MAD using Playwright canvas read (already done above, reuse page)
+    const pixelMotion = await page.evaluate(async (times) => {
+      const canvas = document.querySelector('canvas') || document.getElementById('stage');
+      if (!canvas) return null;
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width;
+      const h = canvas.height;
+
+      await window.__seek(times[0]);
+      const d1 = ctx.getImageData(0, 0, w, h).data;
+
+      await window.__seek(times[1]);
+      const d2 = ctx.getImageData(0, 0, w, h).data;
+
+      const total = w * h;
+      let changedPixels = 0;
+      for (let i = 0; i < total; i++) {
+        const idx = i * 4;
+        const lum1 = 0.2126 * d1[idx] + 0.7152 * d1[idx + 1] + 0.0722 * d1[idx + 2];
+        const lum2 = 0.2126 * d2[idx] + 0.7152 * d2[idx + 1] + 0.0722 * d2[idx + 2];
+        if (Math.abs(lum1 - lum2) > 10) changedPixels++;
+      }
+      return changedPixels / total;
+    }, [sampleTimes[1] ?? sampleTimes[0], sampleTimes[3] ?? sampleTimes[sampleTimes.length - 1]]);
+
+    if (pixelMotion !== null) {
+      motionDelta = pixelMotion;
+      // Require at least 0.5% of pixels to have changed by >10 luminance units
+      isStuckFrozen = pixelMotion < 0.005;
+    }
+  }
 
   if (isStuckFrozen) {
-    motionDelta = 0.0;
+    motionDelta = identicalHash ? 0.0 : motionDelta;
     sampledFrames.forEach(f => {
       f.score = Math.max(1, f.score - 4);
-      f.issues.push('Stuck motion: zero visual delta between early and late frames');
+      f.issues.push(`Stuck motion: < 0.5% pixel luminance change between t=30% and t=70% (delta=${(motionDelta * 100).toFixed(2)}%)`);
     });
   }
 

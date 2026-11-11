@@ -1,14 +1,20 @@
 {
   "name": "video-pipeline",
   "displayName": "FrameForge Video Pipeline",
-  "version": "2.3.1",
+  "version": "2.4.10",
   "description": "End-to-end AI video production. IDE writes scenes → FrameForge renders. Or: scaffold a Playwright+ffmpeg code-driven animation. Or: auto-research and script the video.",
   "skills": [
     {
       "name": "video-pipeline",
       "path": "skills/video-pipeline/SKILL.md",
       "displayName": "Video Pipeline",
-      "description": "17 MCP tools: create_video_from_script, scaffold_animation_project, render_animation, validate_storyboard, multi_voice_tts, ingest_media, edit_scenes, research_topic, write_script, queue_full_pipeline, and more."
+      "description": "23 MCP tools: create_video_from_script, edit_video, plan_video_edit, preview_scene, verify_scene_quality, scaffold_animation_project, render_animation, validate_storyboard, and more."
+    },
+    {
+      "name": "html-renderer",
+      "path": "skills/html-renderer/SKILL.md",
+      "displayName": "HTML Renderer",
+      "description": "HTML-as-compositor rendering engine: pure function of time t, virtual clock, Playwright headless capture, and FFmpeg broadcast-standard encoding."
     }
   ],
   "mcpServer": {

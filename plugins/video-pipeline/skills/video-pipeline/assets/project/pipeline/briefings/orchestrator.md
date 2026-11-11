@@ -7,6 +7,21 @@ You are the **orchestrator**. You own the full production timeline and the final
 You spawn scene-author and diagram-author subagents, integrate their output, and run
 the verification loop.
 
+## Model effort settings (Opus 5.5 / Claude Code)
+
+Use the right effort level at each stage — wrong effort wastes cost or quality:
+
+| Stage | effort | Reason |
+|-------|--------|--------|
+| Beat sheet + storyboard authorship | `xhigh` | New creative work — maximum reasoning |
+| First-time scene code authorship | `xhigh` | New composition, determinism matters |
+| Storyboard gate review / patch | `medium` | Analytical, not creative |
+| Strip-range patch (fix failing frames) | `medium` | Targeted surgical fix |
+| Encode-only / mux-only runs | `medium` | No creative decisions |
+| Research / scripting (Path 3) | `xhigh` for first draft, `medium` for revisions |
+
+`tool_choice` must always be `auto` — forced tool use is not supported in Opus 5.5.
+
 ## Order of operations
 
 ```

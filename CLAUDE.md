@@ -167,6 +167,33 @@ render_animation({ projectDir: ".frameforge-files/my-animation/", mode: "full",
 - One `strip` per key motion or transition
 - One `crop` per story-carrying face or detail
 
+**Step 5b — Closed-Loop QA Fix Protocol (mandatory after full render)**
+
+After `full` render, run the quality gate:
+```
+render_animation({ projectDir: ".frameforge-files/my-animation/", mode: "quality" })
+```
+Returns `{ passed, overallScore, worstFrames: [{time, score, issues}] }`.
+
+- **`passed: true`** → continue to Step 6.
+- **`passed: false`** → enter the fix loop (max 3 rounds):
+
+```
+Round N (repeat until passed or 3 rounds exhausted):
+  1. Read worstFrames[] — note timestamps and issue descriptions.
+  2. Open edit.js. Fix ONLY the code paths that affect those timestamps.
+  3. Run: render_animation({ mode: "strip", timestamps: [t-0.5, t+0.5] })
+     for each failing timestamp to verify the fix visually.
+  4. Run: render_animation({ mode: "quality" }) again.
+  5. If passed: true → done. If still failing → next round.
+
+After 3 rounds without passing: stop, report worstFrames to user, do not re-render full film.
+```
+
+**Never re-render the full film to fix a single failing timestamp.** Use `strip` on the
+failing time range only. This is the Claude Code + Opus 5.5 closed-loop correction pattern:
+render → score worst 3 frames → patch edit.js → re-strip → re-score → ship.
+
 **Step 6 — Optional: hook variants**
 
 For reels and Shorts, make 2–3 versions with different opening hooks:

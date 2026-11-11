@@ -22,6 +22,27 @@ assigned to you by the orchestrator. You do not edit shared helpers.
 5. If `cuePhrase()` throws a fatal error, your scene has a missing voiceover phrase.
    Fix the phrase match before returning.
 
+## Revision attempt cap — 3 maximum
+
+You have a maximum of **3 revision attempts** per chapter assignment.
+
+- Attempt 1: Initial write → storyboard still → return.
+- Attempt 2: Patch based on orchestrator review → storyboard → return.
+- Attempt 3: Final fix → storyboard → return.
+
+**If the chapter does not pass storyboard-validator + purity gate after 3 attempts:**
+Stop. Do not attempt a 4th revision. Return to the orchestrator with:
+1. The exact error message from `storyboard-validator.mjs` or `verify-purity.mjs`.
+2. The specific line(s) in your scene file you believe are responsible.
+3. What you have already tried.
+
+Unbounded revision loops are the primary driver of token waste. 3 attempts is the cap.
+
+## Model effort
+
+Use `effort: xhigh` for the initial scene authorship. Use `effort: medium` for patch revisions.
+This matches the Opus 5.5 recommended settings: `xhigh` for new creative work, `medium` for targeted fixes.
+
 ## File naming
 
 Your chapter file is: `edit_chapter_N.js` where N is your chapter number.
