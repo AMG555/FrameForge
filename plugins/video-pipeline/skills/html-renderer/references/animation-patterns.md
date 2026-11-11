@@ -267,75 +267,132 @@ python3 scripts/verify_promo.py draft.mp4 --comp comp.html --ref ref.mp4
 - Score 0.5–0.75 → WARNING (acceptable if rhythm is strong)
 - Score > 0.75 → PASS
 
-### The 39-Move Library
+### The OM Motion Library (engine.js `OM` object)
 
-Each move returns numbers for a DOM transform or canvas call. Never re-derive a spring or ease with fixed constants.
+**All moves are pure CSS: `(t, opts) → { transform, opacity, clipPath }`.
+Feed `t` via `seg(currentTime, start, end)` to get normalised 0→1 progress.**
 
-**Entrances** (element appearing):
+Never re-derive springs or eases inline. Use `OM.*` — they encode the correct
+physics and carry the carry-score contract (exit velocity ≥ 0.5× peak velocity).
+
 ```javascript
-// spring — damped settle from outside frame
-OM.spring(t, { tension: 200, friction: 22 })
+import { OM, seg } from './reel/engine.js';
 
-// expo — fast snap to position
-OM.expo(t, { t80: 0.23 })  // t80 = time to reach 80% of destination
-
-// drift — slow float in, lands gently
-OM.drift(t, { duration: 0.8 })
+// Usage pattern: seg() gives normalised t for a time window
+layer('hero').on((t) => {
+  const p = seg(t, 0.5, 1.5);          // 0→1 over 0.5–1.5 seconds
+  Object.assign(heroEl.style, OM.spring(p));
+});
 ```
 
-**Carries** (element surviving a scene boundary):
+**Entrances** (element appearing, enter → stage):
 ```javascript
-// morphRect — container widens into the next scene
-// Original container becomes the next scene's ground
-OM.morphRect(t, fromBox, toBox, { duration: 0.65 })
+OM.spring(t, { scale0: 0.6, scale1: 1.0, opacity0: 0, opacity1: 1 })
+  // → { transform: 'scale(…)', opacity: … }
+  // Damped spring overshoot. Default tension:180, friction:18. Standard arrival.
 
-// iris — stage opens from the subject
-OM.iris(t, subjectBox, { duration: 0.35 })
+OM.rise(t, { dist: 60, opacity0: 0 })
+  // → { transform: 'translateY(…)', opacity: … }
+  // Translates up from dist px below while fading in.
 
-// zoomThrough — camera pushes into a card until it is the scene
-OM.zoomThrough(t, cardBox, { duration: 0.6 })
+OM.iris(t, { cx: '50%', cy: '50%' })
+  // → { clipPath: 'circle(…% at cx cy)' }
+  // Radial clip-path expands from centre. 141% covers full diagonal.
 
-// gather+seal — cast folds into lockup, then lettermark snaps in
-OM.gather(t, elements)
-OM.seal(t, lockupBox, { duration: 0.3 })
+OM.morphRect(t, { axis: 'y' })
+  // → { clipPath: 'inset(…% 0 …% 0)' }
+  // Clip-path from narrow rect to full frame. axis: 'x' or 'y'.
+
+OM.silk(t, { direction: 'left' })
+  // → { clipPath: 'inset(0 …% 0 0)' }
+  // Curtain-pull clip from the specified edge.
+
+OM.zoomThrough(t, { from: 0.8, through: 1.15, to: 1.0 })
+  // → { transform: 'scale(…)' }
+  // Scale through 1× — portal / push-through effect. Peak at t=0.5.
+
+OM.scalePop(t)
+  // → { transform: 'scale(…)', opacity: … }
+  // Title scales from 1.6× down to 1× with expo ease (HyperFrames title pattern).
+
+OM.wordByWord(t, { wordIndex: 0, totalWords: 1, delay: 0.08 })
+  // → { transform: 'translateY(…)', opacity: … }
+  // Per-word spring stagger. Call with different wordIndex for each word.
+
+OM.revealWipe(t, { direction: 'left' })
+  // → { clipPath: 'inset(0 …% 0 0)' }
+  // Horizontal clip wipe — title text reveal.
+
+OM.typewriter(t, { chars: 20 })
+  // → { '--tw-chars': revealed }
+  // Returns CSS custom property for character count (use in CSS clip on ::before).
+
+OM.counterFlip(t, { from: 0, to: 100, height: 60 })
+  // → { transform: 'translateY(…)' }
+  // Odometer-style numeric reveal via vertical translate.
 ```
 
-**Contact and Live Sims** (physics-adjacent):
+**Carries** (element surviving a scene boundary — carry score ≥ 0.5 required):
 ```javascript
-// hand — slow two-sine float, zero in holds
-OM.hand(t, path)          // follows recorded hand path
+OM.irisClose(t, { cx: '50%', cy: '50%' })
+  // → { clipPath: 'circle(…% at cx cy)' }
+  // Reverse of iris — stage contracts to a point.
 
-// shake — additive camera shake on impact
-OM.shake(t, { intensity: 4, decay: 0.2 })
+OM.belt(t, { strips: 6, direction: 'left' })
+  // → { '--belt-strips': 6, '--belt-p': t, transform: … }
+  // Horizontal strip sequence reveal (film-strip / ticker).
 
-// silk — belt/cloth belt moving at given depth
-OM.silk(t, { depth: 0.3, phase: 1.2 })
-
-// ripple — water surface disturbance
-OM.ripple(t, { origin: [960, 540], radius: 200 })
+OM.ripple(t, { cx: '50%', cy: '50%', opacity0: 0.6 })
+  // → { clipPath: 'circle(…% at cx cy)', opacity: … }
+  // Expanding + fading radial wave. Used for carry momentum.
 ```
 
 **Camera** (keyed, operated feel):
 ```javascript
-// camera(t, keys) — puts the camera where each beat needs it
-OM.camera(t, [
-  { t: 0,   x: 960,  y: 540,  scale: 1.0, ease: 'sineInOut' },
-  { t: 1.5, x: 1200, y: 300,  scale: 1.4, ease: 'expoInOut' },  // snap to next beat
-  { t: 3.0, x: 960,  y: 540,  scale: 0.9, ease: 'sineInOut' },
-])
+OM.camera(t, {
+  x0: 0, y0: 0, x1: 20, y1: -10,   // pan range in px
+  scale0: 1.0, scale1: 1.08,         // zoom range
+  seed: 'cam',                        // deterministic noise seed
+  shakeAmp: 2,                        // micro-shake amplitude (px)
+  shakeFreq: 1.5,                     // shake frequency (cycles/sec)
+})
+// → { transform: 'translate(…px, …px) scale(…)' }
+// Slow Ken Burns push + seeded noise micro-shake.
 
-// lattice — faint grid farther back (shows camera movement)
-OM.lattice(t, { depth: 1.5, opacity: 0.08 })
-
-// projectBox — world coordinates → screen coordinates through camera
-OM.projectBox(t, worldBox)  // returns screen-space box
+OM.handheld(t, { amp: 6, freq: 8, seed: 'hh' })
+// → { transform: 'translate(…px, …px) rotate(…deg)' }
+// Vérité/documentary shake. 3-axis (x, y, z rotate).
 ```
 
-**Fluid Set**:
+**Exits** (faster than entrances — OneTake rule):
 ```javascript
-OM.lightField(t)   // a field of light
-OM.belt(t, { depth, speed, phase })  // silk cards on belts at different depths
-OM.odometer(t, value)  // odometer-style digit counter
+OM.popOut(t, { scale1: 1.0, scale2: 1.4 })
+  // → { transform: 'scale(…)', opacity: … }  Uses easeIn.
+
+OM.drop(t, { dist: 120 })
+  // → { transform: 'translateY(…)', opacity: … }  Gravity ease-in.
+
+OM.implode(t, { cx: '50%', cy: '50%' })
+  // → { clipPath: 'circle(…%)', opacity: … }  Iris collapse.
+
+OM.slideExit(t, { direction: 'left', dist: 110 })
+  // → { transform: 'translateX(…%)' }  Off-canvas slide.
+```
+
+**Ambient / Atmospheric** (idle states, breathing room):
+```javascript
+OM.breathe(t, { amp: 0.015, freq: 0.4 })  // subtle scale oscillation
+OM.float(t, { amp: 8, freq: 0.3 })         // sinusoidal vertical drift
+OM.pulseOpacity(t, { lo: 0.7, hi: 1.0, freq: 1.0 }) // rhythmic emphasis
+OM.odometer(t, { from: 0, to: 9, height: 60 }) // digit column roll
+```
+
+**Carry score** (rhythm oracle — check at t=0.8–1.0):
+```javascript
+const score = OM.carryScore(1.0);  // must be ≥ 0.5 to PASS
+// carryScore < 0.5 → the film is a slideshow (FAIL)
+// carryScore 0.5–0.75 → acceptable if rhythm is strong (WARNING)
+// carryScore > 0.75 → PASS
 ```
 
 ### Sound: A Palette in a Room, Never One Beep Per Event

@@ -110,7 +110,7 @@ npm run make -- \
 
 ## 3. Use FrameForge from your IDE
 
-FrameForge exposes 14 MCP tools. Connect your IDE once, then call tools naturally in conversation.
+FrameForge exposes 28 MCP tools. Connect your IDE once, then call tools naturally in conversation.
 
 ### Cloudflare Remote MCP (recommended — works with every IDE)
 
