@@ -4,6 +4,50 @@ All notable changes to FrameForge are documented here.
 
 ---
 
+## [2.4.12] — 2026-11-11
+
+### Added
+
+- **`transcribe_media` MCP tool (Tool #25)** — Whisper speech transcription with word-level timestamps.
+  - Supports `openai-whisper` (local GPU/CPU), `faster-whisper` (CTranslate2), `whisper-cli` binary, or `OPENAI_API_KEY` cloud fallback.
+  - Output formats: `ndjson` (NDJSON for `engine.js captions()`/`cuePhrase()`), `srt` (standard subtitle file), `json` (full structured data), `all` (all three).
+  - Returns silence/pause boundaries for intelligent cut alignment in `plan_video_edit`.
+  - Install: `pip install openai-whisper` (local, free, no API key required).
+- **`ingest_url` MCP tool (Tool #26)** — yt-dlp-powered media ingestion from any web URL.
+  - Supports YouTube, Vimeo, Twitter/X, Instagram, TikTok, Twitch, SoundCloud, direct MP4/MP3 URLs, and 1000+ other sites.
+  - Downloads up to 1080p MP4 (video) or MP3 (audio-only). Probes and returns `duration`, `width`, `height`.
+  - Output goes to `.frameforge-files/downloads/` and can be passed directly to `edit_video`, `transcribe_media`, or any scene `video_path`/`audio_path`.
+  - Install: `pip install yt-dlp` (or `winget install yt-dlp` on Windows).
+- **`mix_audio_pro` MCP tool (Tool #27)** — Professional broadcast-grade audio post-production.
+  - Full 10+ year sound engineer signal chain: 80Hz HPF → presence +2dB@5kHz → air shelf +1.5dB@12kHz → 3:1 compressor → de-esser @6.5kHz → optional room acoustics → sidechain duck (-18dB) → stereo widener (M/S 1.4x) → procedural SFX timeline → two-pass EBU R128 loudnorm.
+  - Procedural SFX synthesis from the earshot pattern: `whoosh` (200Hz/400ms), `impact` (60Hz/500ms), `pop` (600Hz/120ms), `click` (2.5kHz/50ms), `riser` (100Hz/2s). All placed with 40ms perceptual lead.
+  - `sfxCues: [{ name, time, volume }]` — millisecond-accurate placement, no sample files required.
+  - `addReverb: true` — 30ms pre-delay + 0.3s RT60 aecho for cinematic narrator warmth.
+  - `stereoWiden: true` — mid-side extrastereo 1.4x on music layer (voice stays mono-center).
+  - `videoPath` parameter — mux the final mixed audio directly into a video file.
+  - Returns `{ measuredLufs, measuredTp, passed, chain }` with full signal chain summary.
+- **Professional AudioMixer upgrade** (`src/audio-mixer/mixer.js`):
+  - `_buildVoiceChainFilter()` — unified voice chain: HPF + presence EQ + air shelf + compressor + de-esser.
+  - `_twoPassNorm()` — two-pass EBU R128 loudnorm (measure + apply with measured values for linear accuracy).
+  - `_synthesizeSfxCue()` — earshot-pattern procedural SFX synthesis with 40ms perceptual lead via FFmpeg lavfi.
+  - `SFX_FREQ_MAP` and `PERCEPTUAL_LEAD_S` exported for consumers.
+  - `mixWithDucking()` now accepts `{ addReverb, stereoWiden, sfxCues }` optional parameters.
+  - `_sidechainMixPro()` — full pro chain replacing legacy `_sidechainMix()`.
+  - Music band now filtered to 16kHz (up from 8kHz) and stereo-widened when `stereoWiden: true`.
+  - Music attenuation updated from -15dB to -18dB for better voice intelligibility.
+  - Backward-compatible: existing callers work unchanged.
+- **`mix_audio_pro.py`** scaffold script (`plugins/...scripts/mix_audio_pro.py`) — standalone Python CLI with the same professional chain, usable from within HTML-renderer projects via `uv run scripts/mix_audio_pro.py`.
+- **Upstream skills auto-notification** (`src/skills/sync-upstream.js`):
+  - `sync_upstream_skills` MCP tool now returns `updatedRepos[]` and emits a visible user notice when any of the 9 tracked repositories has new commits.
+  - Optional `SKILL_UPDATE_WEBHOOK_URL` env var — POSTs a JSON callback whenever upstream repos update.
+  - Console output in non-silent mode now lists each updated repo and explains that techniques were automatically applied.
+- **Expanded `procedural-sfx.md` reference** — added full professional voice chain documentation (10+ year rationale per stage), music bed mood matching table, and broadcast loudness standards reference (YouTube, Podcast, Netflix, EBU R128).
+
+### Documentation
+- **CLAUDE.md** — Updated tool count to 27, added `PROFESSIONAL AUDIO WORKFLOW` section covering Whisper transcription → cuePhrase sync, yt-dlp ingestion, `mix_audio_pro` call examples, and upstream skills auto-update workflow.
+
+---
+
 ## [2.4.7] — 2026-11-11
 
 ### Added

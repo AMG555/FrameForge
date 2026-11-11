@@ -1,7 +1,7 @@
 {
   "name": "@amg555/frameforge-mcp",
-  "version": "2.4.11",
-  "description": "FrameForge — AI video production engine for agentic IDEs. npx @amg555/frameforge-mcp. FFmpeg + TTS run on your machine. 23 MCP tools.",
+  "version": "2.4.12",
+  "description": "FrameForge — AI video production engine for agentic IDEs. npx @amg555/frameforge-mcp. FFmpeg + TTS run on your machine. 27 MCP tools. Whisper, yt-dlp, broadcast-grade audio.",
   "publishConfig": {
     "access": "public"
   },
