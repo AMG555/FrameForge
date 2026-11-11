@@ -83,14 +83,105 @@ const LANGUAGE_VOICES = {
   'id':    'id-ID-ArdiNeural',      // Indonesian
 };
 
-// ── Argument parsing ──────────────────────────────────────────────────────────
+// ── Subcommand Dispatcher ─────────────────────────────────────────────────────
 
-// Dispatch to code-driven animation harness if invoked as `frameforge harness ...`
-if (process.argv[2] === 'harness') {
+const subCmd = (process.argv[2] || '').toLowerCase();
+
+// 1. Dispatch to code-driven animation harness
+if (subCmd === 'harness') {
   const harnessBin = path.resolve(__dirname, '../harness/bin/harness.mjs');
   const { spawnSync } = require('child_process');
   const res = spawnSync(process.execPath, [harnessBin, ...process.argv.slice(3)], { stdio: 'inherit' });
   process.exit(res.status ?? 0);
+}
+
+// 2. Dispatch to media downloader (yt-dlp)
+if (subCmd === 'download' || subCmd === 'ingest') {
+  const url = process.argv[3];
+  if (!url || url.startsWith('-')) {
+    console.error('Usage: frameforge download <url> [--audio] [--subtitles] [--out-dir <dir>] [--filename <name>]');
+    process.exit(1);
+  }
+  const isAudio = process.argv.includes('--audio') || process.argv.includes('-a');
+  const sub = process.argv.includes('--subtitles') || process.argv.includes('--subs');
+  let outDir, filename;
+  for (let i = 4; i < process.argv.length; i++) {
+    if (process.argv[i] === '--out-dir' || process.argv[i] === '-o') outDir = process.argv[++i];
+    if (process.argv[i] === '--filename' || process.argv[i] === '-f') filename = process.argv[++i];
+  }
+  const { downloadMediaWithYtDlp, detectYtDlp } = require('../utils/media-downloader');
+  if (!detectYtDlp()) {
+    console.error('✖ yt-dlp is not installed. Install with: pip install yt-dlp');
+    process.exit(1);
+  }
+  try {
+    console.log(`⬇️  Downloading with yt-dlp: ${url}`);
+    const res = downloadMediaWithYtDlp(url, { format: isAudio ? 'audio' : 'video', subtitles: sub, outputDir: outDir, filename });
+    console.log(`✔ Downloaded successfully to: ${res.localPath}`);
+    if (res.subtitlePath) console.log(`✔ Subtitles saved to: ${res.subtitlePath}`);
+    if (res.duration) console.log(`  Duration: ${res.duration.toFixed(1)}s (${res.width || 0}x${res.height || 0})`);
+    process.exit(0);
+  } catch (err) {
+    console.error(`✖ Download failed: ${err.message}`);
+    process.exit(1);
+  }
+}
+
+// 3. Dispatch to speech transcription (Whisper)
+if (subCmd === 'transcribe') {
+  const mediaPath = process.argv[3];
+  if (!mediaPath || mediaPath.startsWith('-')) {
+    console.error('Usage: frameforge transcribe <mediaPath> [--model <model>] [--language <lang>] [--format <ndjson|srt|json|all>] [--out <path>]');
+    process.exit(1);
+  }
+  let model = 'base', language, format = 'all', outputPath;
+  for (let i = 4; i < process.argv.length; i++) {
+    if (process.argv[i] === '--model' || process.argv[i] === '-m') model = process.argv[++i];
+    if (process.argv[i] === '--language' || process.argv[i] === '-l') language = process.argv[++i];
+    if (process.argv[i] === '--format' || process.argv[i] === '-f') format = process.argv[++i];
+    if (process.argv[i] === '--out' || process.argv[i] === '-o') outputPath = process.argv[++i];
+  }
+  const { transcribeAudio, detectWhisper } = require('../utils/transcribe');
+  const engine = detectWhisper();
+  console.log(`🎙️  Transcribing with Whisper (${engine.engine}, model: ${model}): ${mediaPath}`);
+  transcribeAudio(mediaPath, { model, language, format, outputPath })
+    .then(res => {
+      console.log(`✔ Transcription complete (${res.duration.toFixed(1)}s, ${res.words.length} words, ${res.segments.length} segments, ${res.pauses.length} pauses)`);
+      if (res.files) {
+        for (const [fmt, p] of Object.entries(res.files)) {
+          console.log(`  ↳ [${fmt.toUpperCase()}] ${p}`);
+        }
+      }
+      process.exit(0);
+    })
+    .catch(err => {
+      console.error(`✖ Transcription failed: ${err.message}`);
+      process.exit(1);
+    });
+}
+
+// 4. Dispatch to upstream skills synchronizer
+if (subCmd === 'sync' || subCmd === 'sync-skills' || subCmd === 'update') {
+  const isSilent = process.argv.includes('--silent');
+  const { syncSkills } = require('../skills/sync-upstream');
+  syncSkills({ silent: isSilent })
+    .then(() => process.exit(0))
+    .catch(err => {
+      console.error(`✖ Upstream sync failed: ${err.message}`);
+      process.exit(1);
+    });
+}
+
+// 5. Dispatch to doctor
+if (subCmd === 'doctor') {
+  require('./doctor');
+  return;
+}
+
+// 6. Dispatch to setup
+if (subCmd === 'setup') {
+  require('./setup-keys');
+  return;
 }
 
 function parseArgs(argv) {
@@ -151,7 +242,17 @@ function parseArgs(argv) {
 
 function printHelp() {
   console.log(`
-FrameForge Make — Flexible Video Generator
+FrameForge — Unified AI Video Production Engine
+
+SUBCOMMANDS:
+  download <url>     Download video/audio from web (YouTube, Twitter, Vimeo, etc.) via yt-dlp
+                     Options: [--audio] [--subtitles] [--out-dir <dir>] [--filename <name>]
+  transcribe <file>  Transcribe speech to word-level timestamps & subtitles via Whisper
+                     Options: [--model <size>] [--language <code>] [--format srt|ndjson|json|all]
+  sync               Synchronize skills from 9 upstream frontier repositories
+  doctor             Pre-flight environment diagnostics (FFmpeg, Whisper, yt-dlp, Playwright)
+  setup              Configure API keys (~/.frameforge/config.json)
+  harness            Run HTML code-driven animation test harness (Playwright + Chromium)
 
 MODES:
   full-auto    (default) Research → Script → AI Images → TTS → Render → Publish
@@ -674,8 +775,11 @@ function summarise(startTime) {
   console.log(`\n⏱️   Total time: ${mins > 0 ? `${mins}m ` : ''}${secs}s\n`);
 }
 
-main().catch(err => {
-  console.error(`\n❌  Fatal error: ${err.message}`);
-  if (process.env.DEBUG_PROVIDERS) console.error(err.stack);
-  process.exit(1);
-});
+const KNOWN_SUBCMDS = ['harness', 'download', 'ingest', 'transcribe', 'sync', 'sync-skills', 'update', 'doctor', 'setup'];
+if (!KNOWN_SUBCMDS.includes(subCmd)) {
+  main().catch(err => {
+    console.error(`\n❌  Fatal error: ${err.message}`);
+    if (process.env.DEBUG_PROVIDERS) console.error(err.stack);
+    process.exit(1);
+  });
+}

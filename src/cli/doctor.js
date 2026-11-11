@@ -208,7 +208,21 @@ if (hasLLMKey) {
   );
 }
 
-// 7. Output directory check
+// 10. Upstream Frontier Skills & Repo Sync
+const { getUpstreamSummary } = require('../skills/sync-upstream');
+const upstream = getUpstreamSummary();
+if (upstream.hasUpdates) {
+  pass('Upstream Skills', `${upstream.repoCount} frontier repos tracked (${upstream.pendingUpdates.length} updates applied)`);
+  for (const u of upstream.pendingUpdates) {
+    console.log(`    ${COLORS.cyan}↳ [${u.category}] ${u.repo} (${u.userImpact})${COLORS.reset}`);
+  }
+} else if (upstream.lastSync) {
+  pass('Upstream Skills', `${upstream.repoCount} frontier repos synced (HyperFrames, OneTake, LemoOpuscar, Remotion, Earshot, ClaudeAnimationBase)`);
+} else {
+  warn('Upstream Skills', 'Not yet synchronized with upstream frontier repos', 'Run "frameforge sync" to check and apply latest animation and editing techniques');
+}
+
+// 11. Output directory check
 const baseDir = process.env.N8N_FILES_DIR || path.join(process.cwd(), '.frameforge-files');
 try {
   fs.mkdirSync(baseDir, { recursive: true });

@@ -88,6 +88,11 @@ function downloadMediaWithYtDlp(url, opts = {}) {
     );
   }
 
+  // Auto-download subtitles / captions if requested
+  if (opts.subtitles) {
+    args.push('--write-subs', '--write-auto-subs', '--sub-lang', opts.subLang || 'en', '--convert-subs', 'srt');
+  }
+
   args.push('-o', outTemplate, url);
 
   const res = spawnSync('yt-dlp', args, {
@@ -133,9 +138,14 @@ function downloadMediaWithYtDlp(url, opts = {}) {
     }
   } catch (_) {}
 
+  // Find subtitle file if generated
+  const subFile = files.find(f => f.startsWith(outBase) && (f.endsWith('.srt') || f.endsWith('.vtt')));
+  const subtitlePath = subFile ? path.join(outDir, subFile) : null;
+
   return {
     success: true,
     localPath,
+    subtitlePath,
     duration,
     width,
     height,

@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { detectWhisper, snapCutToPause } = require('./transcribe');
+const { detectWhisper, snapCutToPause, formatTimestampSrt, formatAsSrt, formatAsNdjson } = require('./transcribe');
 
 test('detectWhisper', () => {
   const res = detectWhisper();
@@ -33,4 +33,32 @@ test('snapCutToPause', async (t) => {
     assert.equal(snapped, 3.5);
   });
 });
+
+test('formatTimestampSrt', () => {
+  assert.equal(formatTimestampSrt(0), '00:00:00,000');
+  assert.equal(formatTimestampSrt(65.45), '00:01:05,450');
+  assert.equal(formatTimestampSrt(3661.123), '01:01:01,123');
+});
+
+test('formatAsSrt', () => {
+  const segments = [
+    { start: 0.5, end: 2.1, text: 'Hello world' },
+    { start: 2.5, end: 4.0, text: 'FrameForge video' },
+  ];
+  const srt = formatAsSrt(segments);
+  assert.match(srt, /1\r?\n00:00:00,500 --> 00:00:02,100\r?\nHello world/);
+  assert.match(srt, /2\r?\n00:00:02,500 --> 00:00:04,000\r?\nFrameForge video/);
+});
+
+test('formatAsNdjson', () => {
+  const segments = [
+    { start: 0.5, end: 2.1, text: 'Hello world' },
+  ];
+  const ndjson = formatAsNdjson(segments);
+  const parsed = JSON.parse(ndjson.trim());
+  assert.equal(parsed.start, 0.5);
+  assert.equal(parsed.end, 2.1);
+  assert.equal(parsed.text, 'Hello world');
+});
+
 
