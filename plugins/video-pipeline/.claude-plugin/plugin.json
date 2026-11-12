@@ -8,7 +8,7 @@
       "name": "video-pipeline",
       "path": "skills/video-pipeline/SKILL.md",
       "displayName": "Video Pipeline",
-      "description": "34 MCP tools: create_video_from_script, edit_video, plan_video_edit, preview_scene, verify_scene_quality, scaffold_animation_project, render_animation, validate_storyboard, mix_audio_pro, transcribe_media, ingest_url, sync_upstream_skills, check_upstream_updates, list_nafay_styles, get_nafay_style_prompt, and more."
+      "description": "34 MCP tools: create_video_from_script, edit_video, plan_video_edit, preview_scene, verify_scene_quality, scaffold_animation_project, render_animation, validate_storyboard, mix_audio_pro, transcribe_media, ingest_url, sync_upstream_skills, check_upstream_updates, list_motion_styles, get_motion_style_prompt, and more."
     },
     {
       "name": "html-renderer",

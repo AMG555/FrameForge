@@ -3,7 +3,7 @@
 story.js is the only code you write for an edit. It draws the motion graphics for the edited video
 (cut.mp4) in one of the seven styles. The page loads, in order:
 
-1. `styles/<style>/base.js`: the style engine, unchanged from the Nafay 3D Style Library reference. It holds
+1. `styles/<style>/base.js`: the style engine, unchanged from the Motion Graphics Style Library reference. It holds
    CM (helpers and seeded randomness), SFX (synthesized sound kit), the style's palette `C`, fonts, drawing
    helpers, and the reference demo (scene functions, `explainer`, `scoreSound`) as a worked example.
 2. `story.js`: yours.

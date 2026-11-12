@@ -1,0 +1,140 @@
+/**
+ * engine.css — FrameForge HTML Compositor Base Reset + Design Tokens
+ *
+ * Loaded by index.html before edit.js.
+ * No animation or transition rules — every visual state is driven by engine.js seek(t).
+ */
+
+/* ── Design tokens ─────────────────────────────────────────────────────────── */
+
+:root {
+  /* Colours */
+  --bg:        #0d1117;
+  --surface:   #161b22;
+  --border:    rgba(255, 255, 255, 0.08);
+  --primary:   #ffffff;
+  --secondary: rgba(255, 255, 255, 0.6);
+  --accent:    #3b82f6;
+  --accent2:   #7c5cd8;
+  --success:   #22c55e;
+  --warning:   #f59e0b;
+  --danger:    #ef4444;
+
+  /* Typography scale */
+  --font-body:    -apple-system, "Segoe UI", "Nirmala UI", "Noto Sans Malayalam", "Malayalam Sangam MN", "Kartika", "Meera", "Manjari", system-ui, sans-serif;
+  --font-mono:    "Fira Code", "Cascadia Code", "Consolas", monospace;
+  --font-display: "Archivo", "Nirmala UI", "Noto Sans Malayalam", "Malayalam Sangam MN", "Kartika", "Meera", "Manjari", -apple-system, "Segoe UI", system-ui, sans-serif;
+
+  /* Spacing */
+  --gap-sm:  8px;
+  --gap-md:  16px;
+  --gap-lg:  32px;
+  --gap-xl:  64px;
+
+  /* Safe zones (match FFmpeg drawtext safe area) */
+  --safe-top:    120px;
+  --safe-bottom: 120px;
+  --safe-left:   80px;
+  --safe-right:  80px;
+}
+
+/* ── Full reset ─────────────────────────────────────────────────────────────── */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width:    100%;
+  height:   100%;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+body {
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: var(--primary);
+  /* Disable ALL browser animations — seek(t) owns every frame */
+  animation: none !important;
+  transition: none !important;
+}
+
+/* ── Stage ─────────────────────────────────────────────────────────────────── */
+
+#stage {
+  position: relative;
+  overflow: hidden;
+  background: var(--bg);
+  /* No transform on the stage itself — Playwright screenshots the viewport */
+}
+
+/* ── Layer base ─────────────────────────────────────────────────────────────── */
+
+[data-layer] {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* ── Typography utilities ───────────────────────────────────────────────────── */
+
+.text-display {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.text-body {
+  font-family: var(--font-body);
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+.text-mono {
+  font-family: var(--font-mono);
+}
+
+/* ── Utility classes ────────────────────────────────────────────────────────── */
+
+.center-x {
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.center-y {
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.center-xy {
+  top:  50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* ── Image defaults ─────────────────────────────────────────────────────────── */
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+/* ── Scrollbar hide (for overflow containers) ───────────────────────────────── */
+
+::-webkit-scrollbar { display: none; }
+* { scrollbar-width: none; }
+
+/* ── Font imports — loaded from CDN in index.html; this is a fallback stack ── */
+
+/* Archivo (display) */
+@font-face {
+  font-family: 'Archivo';
+  font-style:  normal;
+  font-weight: 400 900;
+  font-display: block;
+  /* Served by index.html via Google Fonts; this block avoids FOUT in preview */
+}

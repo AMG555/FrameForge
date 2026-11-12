@@ -1,6 +1,6 @@
 # AI Insight Shorts: a free AI skill for faceless Shorts
 
-Based on the free **Faceless Shorts** skill by **Nafay 3D** (youtube.com/@nafay3d · nafay3d.com): all styles, engine and scripts are theirs.
+Based on the free **Faceless Shorts** skill by **Motion Graphics** (youtube.com · FrameForge Motion Library): all styles, engine and scripts are theirs.
 This version adds Malayalam voice and captions, OpenCode install steps and tips, by **AI Insight Spot** (YouTube).
 
 Narrated faceless shorts (YouTube Shorts, TikTok, Reels) made 100% in code on your own computer: script, AI voice,

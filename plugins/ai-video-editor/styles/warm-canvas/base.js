@@ -1,5 +1,5 @@
 // Warm Canvas (Talking Head) style engine for the ai-video-editor skill.
-// Unchanged from the Nafay 3D Style Library reference, except: the player is removed (the skill's player.js replaces it)
+// Unchanged from the Motion Graphics Style Library reference, except: the player is removed (the skill's player.js replaces it)
 // and TL, CUTS, PUNCH, SCENES are declared with var so your story.js can redefine them.
 // Everything after the 'STYLE:' banner that draws the demo story (scene functions, explainer, scoreSound) is a worked example.
 // =====================================================================================================

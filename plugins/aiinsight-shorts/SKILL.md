@@ -6,7 +6,7 @@ description: Make narrated faceless YouTube Shorts / TikToks / Reels fully in co
 
 # AI Insight Shorts
 
-_Based on the free Faceless Shorts skill by **Nafay 3D** (nafay3d.com). Malayalam voice and captions plus OpenCode notes added by AI Insight Spot · v1.0_
+_Based on the free Faceless Shorts skill by **Motion Graphics** (FrameForge Motion Library). Malayalam voice and captions plus OpenCode notes added by AI Insight Spot · v1.0_
 
 You make a finished vertical short from a topic: script, voice, word-synced captions, animated shots, sound and
 music, rendered to MP4. **Everything is code**: canvas drawing, headless Chrome capture, ffmpeg, a local Kokoro voice,

@@ -1,0 +1,174 @@
+# Provider Environment Variable Reference
+
+All secrets come from environment variables. Never hardcode them.
+Copy `docs/env.template` → `.env` to get started.
+
+---
+
+## LLM Providers (`PROVIDER_LLM`)
+
+### groq (default)
+```bash
+PROVIDER_LLM=groq
+GROQ_API_KEY=gsk_...
+# Optional overrides:
+LLM_MODEL=llama-3.3-70b-versatile   # default
+LLM_BASE_URL=https://api.groq.com/openai/v1
+```
+
+### watsonx (IBM — enterprise / data-residency)
+```bash
+PROVIDER_LLM=watsonx
+WATSONX_API_KEY=...                  # IBM Cloud API key
+WATSONX_PROJECT_ID=...               # from IBM Cloud → watsonx.ai → Projects
+LLM_BASE_URL=https://us-south.ml.cloud.ibm.com/ml/v1   # or eu-de / jp-tok
+LLM_MODEL=ibm/granite-3-3-8b-instruct   # or granite-3-3-2b-instruct
+```
+Granite 3.3 supports function calling and 128 K context. All inference stays
+in your IBM Cloud region — no data leaves your residency boundary.
+
+### openai
+```bash
+PROVIDER_LLM=openai
+OPENAI_API_KEY=sk-...
+LLM_MODEL=gpt-4o        # default
+```
+
+### ollama (local, no key)
+```bash
+PROVIDER_LLM=ollama
+LLM_BASE_URL=http://localhost:11434/api
+LLM_MODEL=llama3.2      # whatever you have pulled
+```
+
+---
+
+## TTS Providers (`PROVIDER_TTS`)
+
+### edge-tts (default — free, no key, 300+ voices, offline)
+```bash
+PROVIDER_TTS=edge-tts
+# No key required. Needs: npm install -g edge-tts
+# Voice list: edge-tts --list-voices
+```
+
+### voxforge (free, private multi-engine neural TTS & voice cloning in Rust)
+```bash
+PROVIDER_TTS=voxforge
+VOXFORGE_URL=http://localhost:5005   # or your self-hosted VoxForge workstation URL
+# Optional:
+VOXFORGE_KEY=...                     # optional auth token if enabled
+VOXFORGE_VOICE=default               # voice/clone reference
+VOXFORGE_MODEL=voxforge-v1           # engine model (XTTS, Piper, Kokoro, Whisper)
+```
+Repo: [AMG555/VoxForge](https://github.com/AMG555/VoxForge) — local, private neural TTS & voice cloning workstation.
+
+### elevenlabs (voice cloning)
+```bash
+PROVIDER_TTS=elevenlabs
+ELEVENLABS_API_KEY=sk_...
+# Optional:
+ELEVENLABS_VOICE_ID=21m00Tcm4TlvDq8ikWAM  # default: Rachel
+```
+
+### azure (enterprise)
+```bash
+PROVIDER_TTS=azure
+AZURE_SPEECH_KEY=...
+AZURE_SPEECH_REGION=eastus   # or westeurope, etc.
+```
+
+### openai
+```bash
+PROVIDER_TTS=openai
+OPENAI_API_KEY=sk-...
+# Uses tts-1-hd model, alloy voice by default
+```
+
+---
+
+## Visuals & Media
+
+FrameForge is **code-driven first**. By default, scenes render using vector animations, kinetic typography, and user-provided media (`image_path` / `video_path`). Diffusion image generation is optional and disabled by default.
+
+### Code-driven animation (default)
+```bash
+# Default mode — zero keys needed, broadcast vector quality
+# Automatically creates animated cards, syntax blocks, terminals, and typography
+```
+
+### Optional Diffusion Image Providers (`ENABLE_AI_IMAGES=true`)
+
+### pollinations (default — free, no key)
+```bash
+PROVIDER_IMAGE=pollinations
+# No key required. Uses flux model.
+```
+
+### fal (fast, FLUX-based — recommended for production)
+```bash
+PROVIDER_IMAGE=fal
+FAL_API_KEY=...
+# Also accepted as: FALAI_API_KEY (legacy alias)
+```
+
+### replicate
+```bash
+PROVIDER_IMAGE=replicate
+REPLICATE_API_TOKEN=r8_...
+```
+
+### dalle (DALL-E 3)
+```bash
+PROVIDER_IMAGE=dalle
+OPENAI_API_KEY=sk-...
+```
+
+---
+
+## Delivery
+
+### Webhook
+```bash
+PUBLISH_WEBHOOK_URL=https://your-receiver.example.com/webhook
+REVIEW_NOTIFY_URL=https://your-receiver.example.com/review
+```
+
+### Local File (default)
+```bash
+# Copies master and shorts to output folder
+# No external credentials needed
+```
+
+---
+
+## Telemetry / state (optional PostgreSQL)
+
+```bash
+DATABASE_URL=postgresql://user:pass@localhost:5432/vidpipeline
+```
+Without this, state is stored to `.n8n-files/productions/` (JSON files)
+and telemetry is written to `logs/usage.ndjson`.
+
+---
+
+## IBM Bob specific
+
+Bob discovers MCP servers from `~/.bob/mcp.json`:
+```json
+{
+  "mcpServers": {
+    "video-pipeline": {
+      "command": "node",
+      "args": ["/absolute/path/to/src/mcp-server/server.js"],
+      "env": {
+        "PROVIDER_LLM": "watsonx",
+        "WATSONX_API_KEY": "${WATSONX_API_KEY}",
+        "WATSONX_PROJECT_ID": "${WATSONX_PROJECT_ID}",
+        "PROVIDER_TTS": "edge-tts"
+      }
+    }
+  }
+}
+```
+Restart Bob after adding. The 6 tools appear in Bob's tool palette.

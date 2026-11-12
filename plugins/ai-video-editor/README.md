@@ -4,7 +4,7 @@ Give your AI coding agent a talking-head video. It asks you a few questions, the
 
 1. Transcribes it on your computer with Whisper (English and Hindi)
 2. Cuts the silent parts and your mistakes (retakes, false starts)
-3. Adds motion graphics in one of 7 styles from the Nafay 3D Style Library
+3. Adds motion graphics in one of 7 styles from the Motion Graphics Style Library
 4. Adds sound effects and optional captions, and renders the final MP4
 
 No paid APIs. Everything runs locally: Whisper, ffmpeg and a headless browser.
@@ -29,4 +29,4 @@ No paid APIs. Everything runs locally: Whisper, ffmpeg and a headless browser.
 - Long videos use a lot of your AI plan's usage, because the agent reads the transcript and writes the graphics code.
 - 16:9 videos for now.
 
-Made by Nafay 3D: youtube.com/@nafay3d
+Made by Motion Graphics: youtube.com

@@ -1,6 +1,6 @@
 ---
 name: ai-video-editor
-description: Edit a talking-head video end to end for free. Asks a few questions, cuts silent parts and mistakes (retakes, false starts) using local Whisper, adds code-drawn motion graphics in one of 7 Nafay 3D styles, and renders the final MP4. English and Hindi. Use when the user gives a video file and wants it edited, cut, or given motion graphics.
+description: Edit a talking-head video end to end for free. Asks a few questions, cuts silent parts and mistakes (retakes, false starts) using local Whisper, adds code-drawn motion graphics in one of 7 Motion Graphics Styles, and renders the final MP4. English and Hindi. Use when the user gives a video file and wants it edited, cut, or given motion graphics.
 ---
 
 # AI Video Editor
