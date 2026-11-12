@@ -356,9 +356,10 @@ const TOOLS = {
         title:        { type: 'string',  description: 'Video title' },
         language:     { type: 'string',  description: 'BCP-47 language hint (e.g. ml, hi, en, ta)' },
         showCaptions: { type: 'boolean', default: false, description: 'Display on-screen synchronized subtitles/captions. Default false.' },
+        showAnchor:   { type: 'boolean', default: false, description: 'Display on-screen anchor/presenter character. Default false.' },
       },
     },
-    handler: async ({ productionId, scenes, orientation = 'landscape', skipImages = false, skipTts = false, withMusic = true, musicVolume = 0.07, topic = '', style = '', theme = '', title = '', language = '', showCaptions = false }) => {
+    handler: async ({ productionId, scenes, orientation = 'landscape', skipImages = false, skipTts = false, withMusic = true, musicVolume = 0.07, topic = '', style = '', theme = '', title = '', language = '', showCaptions = false, showAnchor = false }) => {
       const syncFs = require('fs');
       const { runAssets }   = require('../workflows/assets');
       const { runRender }   = require('../workflows/render');
@@ -404,6 +405,8 @@ const TOOLS = {
         theme,
         title,
         language,
+        showCaptions,
+        showAnchor,
         imageWidth:  renderWidth,
         imageHeight: renderHeight,
       });
@@ -422,6 +425,7 @@ const TOOLS = {
         title,
         language,
         showCaptions,
+        showAnchor,
       });
 
       if (!renderResult.passed) {

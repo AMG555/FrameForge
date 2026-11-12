@@ -3741,10 +3741,14 @@ function drawMainScene(t) {
     ctx.translate(-cx, -cy);
 
     // Primary Gear Train (Interlocking 3 gears)
+    // On dark backgrounds use accent-derived fills so gears are clearly visible.
     const gearSpeed = t * 1.4;
-    drawGear(cx - 150, cy, 140, 24, gearSpeed, IS_LIGHT ? '#e2e8f0' : '#1e293b', ACCENT);
-    drawGear(cx + 90, cy - 80, 105, 18, -gearSpeed * (24 / 18) + 0.17, IS_LIGHT ? '#cbd5e1' : '#334155', ACCENT2);
-    drawGear(cx + 175, cy + 95, 70, 12, gearSpeed * (24 / 12) + 0.25, IS_LIGHT ? '#94a3b8' : '#475569', '#10b981');
+    const gear1Fill = IS_LIGHT ? '#e2e8f0' : ACCENT;
+    const gear2Fill = IS_LIGHT ? '#cbd5e1' : ACCENT2;
+    const gear3Fill = IS_LIGHT ? '#94a3b8' : '#10b981';
+    drawGear(cx - 150, cy, 140, 24, gearSpeed, gear1Fill, IS_LIGHT ? '#64748b' : BG1);
+    drawGear(cx + 90, cy - 80, 105, 18, -gearSpeed * (24 / 18) + 0.17, gear2Fill, IS_LIGHT ? '#64748b' : BG2);
+    drawGear(cx + 175, cy + 95, 70, 12, gearSpeed * (24 / 12) + 0.25, gear3Fill, IS_LIGHT ? '#475569' : BG2);
 
     // Dynamic Kinematic Linkage / Piston
     const pistonCycle = t * 3.5;
@@ -4207,6 +4211,19 @@ function drawMainScene(t) {
     const boardX = cx - boardW / 2;
     const boardY = cy - boardH / 2;
 
+    // Derive display text from actual scene content
+    const boardTitle = CAPTION && CAPTION.trim().length > 0
+      ? CAPTION.trim().toUpperCase().slice(0, 40)
+      : (NARRATION && NARRATION.trim().length > 0
+        ? NARRATION.trim().split(/\s+/).slice(0, 5).join(' ').toUpperCase()
+        : TAG);
+    // Split narration into up to 3 concept segments for pillar descriptions
+    const narWords = NARRATION ? NARRATION.trim().split(/\s+/) : [];
+    const segLen = Math.ceil(narWords.length / 3) || 1;
+    const seg1 = narWords.slice(0, segLen).join(' ').slice(0, 28) || 'Core Concepts';
+    const seg2 = narWords.slice(segLen, segLen * 2).join(' ').slice(0, 28) || 'Key Dynamics';
+    const seg3 = narWords.slice(segLen * 2).join(' ').slice(0, 28) || 'Final Impact';
+
     ctx.save();
     const bScale = Math.min(1, Math.max(0, boardSpring));
     ctx.translate(cx, cy);
@@ -4231,7 +4248,7 @@ function drawMainScene(t) {
     ctx.font = '800 22px ' + FONT_DISPLAY;
     ctx.fillStyle = TEXT_MAIN;
     ctx.textAlign = 'left';
-    ctx.fillText('CORE PRINCIPLES & ARCHITECTURE', boardX + 48, boardY + 50);
+    ctx.fillText(boardTitle, boardX + 48, boardY + 50);
 
     // Live Status Badge
     ctx.fillStyle = 'rgba(16, 185, 129, 0.15)';
@@ -4240,13 +4257,13 @@ function drawMainScene(t) {
     ctx.fill();
     ctx.fillStyle = '#10b981';
     ctx.font = 'bold 13px ' + FONT_DISPLAY;
-    ctx.fillText('● SYSTEM ACTIVE', boardX + boardW - 146, boardY + 48);
+    ctx.fillText('● LIVE', boardX + boardW - 130, boardY + 48);
 
-    // 3 Structured Concept Pillars
+    // 3 Structured Concept Pillars — titles/descriptions derived from scene content
     const pillarData = [
-      { num: '01', title: 'FOUNDATION', desc: 'Core axioms & structure', icon: 'diamond', spr: p1Spring },
-      { num: '02', title: 'DYNAMICS', desc: 'Kinetic transformation', icon: 'gear', spr: p2Spring },
-      { num: '03', title: 'IMPACT', desc: 'Synthesized outcome', icon: 'star', spr: p3Spring },
+      { num: '01', title: 'CONCEPT', desc: seg1, icon: 'diamond', spr: p1Spring },
+      { num: '02', title: 'PROCESS', desc: seg2, icon: 'gear', spr: p2Spring },
+      { num: '03', title: 'RESULT', desc: seg3, icon: 'star', spr: p3Spring },
     ];
 
     const pillarW = (boardW - 128) / 3;
@@ -4311,13 +4328,14 @@ function drawMainScene(t) {
         sCircle(gfxX, gfxY, 8, 825, '#ffffff', 2, '#f59e0b');
       }
 
-      // Feature Check items
+      // Feature indicator dots (visual only — no hardcoded text)
       for (let ch = 0; ch < 3; ch++) {
         const itemY = pillarH - 85 + ch * 24;
         sCircle(28, itemY, 4, 830 + ch, ACCENT, 2, ACCENT);
-        ctx.fillStyle = TEXT_MAIN;
+        ctx.fillStyle = TEXT_MUTED;
         ctx.font = '500 13px ' + FONT_BODY;
-        ctx.fillText('Verification Key 0' + (ch + 1), 42, itemY + 4);
+        const dotLabels = ['Primary', 'Secondary', 'Tertiary'];
+        ctx.fillText(dotLabels[ch], 42, itemY + 4);
       }
 
       ctx.restore();
