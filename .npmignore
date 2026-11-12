@@ -47,3 +47,6 @@ src/harness/test/
 coverage/
 .nyc_output/
 node_modules/
+__pycache__/
+*.pyc
+*.pyo
