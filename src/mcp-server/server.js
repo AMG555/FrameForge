@@ -584,7 +584,7 @@ Example scene:
         voice:          { type: 'string',  description: 'edge-tts voice ID for all scenes, e.g. "ml-IN-MidhunNeural" (Malayalam male), "en-US-BrianNeural" (English). Per-scene voice field overrides this. Full list: edge-tts --list-voices' },
         language:       { type: 'string',  description: 'BCP-47 language hint, e.g. "ml" (Malayalam), "hi" (Hindi), "ta" (Tamil), "te" (Telugu), "en" (English). Auto-selects a default voice for the language when voice is not set.' },
         skipTts:        { type: 'boolean', default: false, description: 'Set true if all scenes already have audio_path' },
-        parallelism:    { type: 'number',  default: 1, description: 'Concurrent TTS synthesis requests (default: 1).' },
+        parallelism:    { type: 'number',  default: 4, description: 'Concurrent TTS synthesis requests (default: 4 for fast multi-scene production).' },
         withMusic:      { type: 'boolean', default: true },
         musicVolume:    { type: 'number',  default: 0.07 },
         topic:          { type: 'string',  description: 'Overall topic/genre for visual aesthetic and background motion (e.g. "Kerala history", "crypto finance", "AI robotics")' },
@@ -595,7 +595,7 @@ Example scene:
         productionId:   { type: 'string',  description: 'Optional — reuse an existing productionId' },
       },
     },
-    handler: async ({ scenes, title = 'FrameForge Video', orientation = 'landscape', voice, language, skipTts = false, parallelism = 1, withMusic = true, musicVolume = 0.07, topic = '', style = '', theme = '', showCaptions = false, showAnchor = false, productionId }) => {
+    handler: async ({ scenes, title = 'FrameForge Video', orientation = 'landscape', voice, language, skipTts = false, parallelism = 4, withMusic = true, musicVolume = 0.07, topic = '', style = '', theme = '', showCaptions = false, showAnchor = false, productionId }) => {
       const { runAssets } = require('../workflows/assets');
       const { runRender } = require('../workflows/render');
 
@@ -3365,14 +3365,14 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     },
   },
 
-  // ── Tool 33: List Nafay 3D Styles ────────────────────────────────────────
-  // Returns all 62 styles from nafay3d.com, optionally filtered by family.
-  list_nafay_styles: {
-    description: `List all 62 motion-graphics styles from the Nafay 3D Style Library (nafay3d.com/\#library). Each style is a full canvas animation with sound, drawn in code by Claude — zero AI images, zero API keys.
+  // ── Tool 33: List Motion Graphics Styles ────────────────────────────────────────
+  // Returns all 62 styles from FrameForge Motion Library, optionally filtered by family.
+  list_motion_styles: {
+    description: `List all 62 motion-graphics styles from the Motion Graphics Style Library (FrameForge Motion Library/\#library). Each style is a full canvas animation with sound, drawn in code by Claude — zero AI images, zero API keys.
 
 Families: Kinetic Type (3) · Hand-Drawn (3) · Screen and UI (1) · Data (6) · Talking Head (1) · Illustrated (7) · 3D (14) · Retro (2) · Shorts Format (10) · Edit Overlay (10) · Character Story (5).
 
-Use list_nafay_styles to discover which style fits the content, then call get_nafay_style_prompt to get the full Claude prompt for that style.`,
+Use list_motion_styles to discover which style fits the content, then call get_motion_style_prompt to get the full Claude prompt for that style.`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -3389,9 +3389,9 @@ Use list_nafay_styles to discover which style fits the content, then call get_na
     handler: ({ family, search } = {}) => {
       const syncFs  = require('fs');
       const pathMod = require('path');
-      const catalogPath = pathMod.resolve(__dirname, '../../plugins/nafay3d-styles/catalog.json');
+      const catalogPath = pathMod.resolve(__dirname, '../../plugins/motion-styles/catalog.json');
       if (!syncFs.existsSync(catalogPath)) {
-        throw new Error(`Nafay 3D catalog not found at ${catalogPath}. Re-clone the FrameForge repo.`);
+        throw new Error(`Motion Graphics catalog not found at ${catalogPath}. Re-clone the FrameForge repo.`);
       }
       let styles = JSON.parse(syncFs.readFileSync(catalogPath, 'utf8'));
       if (family) {
@@ -3408,51 +3408,69 @@ Use list_nafay_styles to discover which style fits the content, then call get_na
       }
       return {
         styles: styles.map(s => ({
-          id:     s.id,
-          num:    s.num,
-          name:   s.name,
-          family: s.family,
-          look:   s.look,
-          demo:   s.demo || null,
-          fonts:  s.fonts || null,
+          id:         s.id,
+          num:        s.num,
+          name:       s.name,
+          family:     s.family,
+          look:       s.look,
+          canvas:     s.canvas || '1280x720',
+          three:      Boolean(s.three),
+          footage:    Boolean(s.footage),
+          demo:       s.demo || null,
+          fonts:      s.fonts || null,
+          promptFile: s.promptFile || `prompts/${s.id}.md`,
+          sourceFile: s.sourceFile || `sources/${s.id}.html`,
         })),
         count: styles.length,
         totalInLibrary: 62,
         catalogPath,
-        message: `${styles.length} style(s) matched. Call get_nafay_style_prompt with a style id to get the full Claude prompt.`,
+        message: `${styles.length} style(s) matched. Call get_motion_style_prompt with a style id to get the full Claude prompt.`,
       };
     },
   },
 
-  // ── Tool 34: Get Nafay Style Prompt ──────────────────────────────────────
-  // Returns the complete Claude prompt for one Nafay 3D style — paste it into
+  // ── Tool 34: Get Motion Style Prompt ──────────────────────────────────────
+  // Returns the complete Claude prompt for one Motion graphics style — paste it into
   // a new Claude chat to get that exact look for your own content.
-  get_nafay_style_prompt: {
-    description: `Get the complete Claude prompt for a Nafay 3D style. Paste it into a new Claude chat to get that exact motion-graphics look built around your own content or timing.
+  get_motion_style_prompt: {
+    description: `Get the complete Claude prompt for a Motion graphics style. Paste it into a new Claude chat to get that exact motion-graphics look built around your own content or timing.
 
-The prompt includes: the full look description, how each beat works, font specs, what to replace (your data), what to keep (the kit helpers), size rules, voiceover timing rules, sheet (visual) rules, and sound design rules.
+The prompt includes: the full look description, how each beat works, font specs, what to replace (your data), what to keep (the kit helpers), size rules, voiceover timing rules, sheet (visual) rules, and sound design rules. Optionally includes full reference source HTML code.
 
-Get a style id from list_nafay_styles first. Source: nafay3d.com — prompts are free to use for your own videos.`,
+Get a style id from list_motion_styles first. Source: FrameForge Motion Library — prompts are free to use for your own videos.`,
     inputSchema: {
       type: 'object',
       required: ['styleId'],
       properties: {
         styleId: {
           type: 'string',
-          description: 'Style id from list_nafay_styles (e.g. "creator-motion", "chalk-talk", "clay-diorama"). Use the exact id field, not the name.',
+          description: 'Style id from list_motion_styles (e.g. "creator-motion", "chalk-talk", "clay-diorama"). Use the exact id field, not the name.',
         },
         topic: {
           type: 'string',
           description: 'Optional: your topic or voiceover subject. If provided, it is injected into the prompt as context.',
         },
+        mode: {
+          type: 'string',
+          enum: ['standard', 'vo'],
+          description: 'Optional: "standard" for direct build or "vo" for word-level voiceover timing and narration mix.',
+        },
+        storyboard: {
+          type: 'boolean',
+          description: 'Optional: if true, prompt requests a 6-10 panel storyboard first before building full animation.',
+        },
+        includeSource: {
+          type: 'boolean',
+          description: 'Optional: if true, embeds the complete standalone reference source HTML file in the prompt.',
+        },
       },
     },
-    handler: ({ styleId, topic } = {}) => {
+    handler: ({ styleId, topic, mode = 'standard', storyboard = false, includeSource = false } = {}) => {
       const syncFs  = require('fs');
       const pathMod = require('path');
-      const catalogPath = pathMod.resolve(__dirname, '../../plugins/nafay3d-styles/catalog.json');
+      const catalogPath = pathMod.resolve(__dirname, '../../plugins/motion-styles/catalog.json');
       if (!syncFs.existsSync(catalogPath)) {
-        throw new Error(`Nafay 3D catalog not found at ${catalogPath}. Re-clone the FrameForge repo.`);
+        throw new Error(`Motion Graphics catalog not found at ${catalogPath}. Re-clone the FrameForge repo.`);
       }
       const styles = JSON.parse(syncFs.readFileSync(catalogPath, 'utf8'));
       const style = styles.find(s => s.id === styleId || s.num === styleId || s.name.toLowerCase() === (styleId || '').toLowerCase());
@@ -3461,45 +3479,53 @@ Get a style id from list_nafay_styles first. Source: nafay3d.com — prompts are
         throw new Error(`Style "${styleId}" not found. Available ids: ${ids}`);
       }
 
-      // Build the prompt exactly as nafay3d.com generates it
-      const topicLine = topic ? `\nMy topic: ${topic}\n` : `\nMy topic: [describe your content or paste your voiceover timing here]\n`;
-      const sheetRules = Array.isArray(style.sheet) ? '\nSheet rules:\n' + style.sheet.map(r => '- ' + r).join('\n') : '';
-      const soundRules = Array.isArray(style.sound) ? '\nSound rules:\n' + style.sound.map(r => '- ' + r).join('\n') : '';
+      // Check for standalone prompt file or source HTML
+      const promptFilePath = pathMod.resolve(__dirname, `../../plugins/motion-styles/prompts/${style.id}.md`);
+      const sourceFilePath = pathMod.resolve(__dirname, `../../plugins/motion-styles/sources/${style.id}.html`);
+      let sourceCode = '';
+      if (includeSource && syncFs.existsSync(sourceFilePath)) {
+        sourceCode = syncFs.readFileSync(sourceFilePath, 'utf8');
+      }
 
-      const prompt = `Make a "${style.name}" animation (Nafay 3D style #${style.num}).
-${topicLine}
-LOOK: ${style.look}
+      // Build the prompt matching FrameForge Motion Library builder
+      const isVo = mode === 'vo';
+      const intro = `I want an animated video in the "${style.name}" style (${style.family}) from the Motion Graphics Style Library. Below is a complete, working reference animation in this style: its core helpers (CM), a synthesized sound kit (SFX), the style's scenes, its sound score and the player page. Treat that file as the ground truth for how this style looks, moves and sounds, and rebuild it around my content.`;
+      const topicText = topic ? topic.trim() : '[No topic yet. Ask me for my topic or script before building anything.]';
+      const timingSection = isVo ? `\nVOICEOVER TIMING\n[No timing pasted yet. Before building, ask me for a word-level SRT or word timestamps of my voiceover. If I only have the audio file, offer to transcribe it into word timings.]\n\nHow to use the timing:\n- Turn it into a list of words with start and end times in seconds. If the timing is per line only, spread each line's words across its span in proportion to their length.\n- Set the duration to the last word's end plus about 1.2 seconds.\n- Build the timeline (TL) from these times. ${style.voLine || ''}\n- Cut between scenes only at idea boundaries (a new step, a new claim, a reveal), never mid-word, and finish each cut just before the next idea's first spoken word.\n- Put the emphasis moves on stressed words. A counter lands at the exact moment its number is spoken.\n- Keep the player's "Load voiceover" button working so I can drop in my audio and hear it in sync.\n` : '';
 
-HOW IT WORKS: ${style.how || ''}
+      const workflowSection = storyboard ? `STORYBOARD FIRST\nBefore building, show me a storyboard and wait for my OK:\n- One HTML page (an artifact if you can) with a grid of 6 to 10 panels, one per beat. Draw each panel on a canvas with the reference's own helpers, scene drawing and finishing pass, so the stills already look like the finished piece. No animation or sound yet.\n- Under each panel: the beat number, its start and end time, the exact on-screen words, the camera move or emphasis, how it gets there from the previous beat (the same scene continuing, or a cut and which kind), and its key sounds.\n- Below the grid, list any facts or numbers you had to assume.\nWhen I approve it (or after my changes), build the full animation and reuse the storyboard's drawing code.` : `BUILD DIRECTLY\nSkip the storyboard and build the full animation now. Afterwards, list any facts or numbers you assumed.`;
 
-FONTS: ${style.fonts || ''}
+      const buildSection = `WHAT TO BUILD\nOne self-contained HTML file (an artifact if you can), built on the reference file below:\n- Keep the page, the player (play/pause, scrub, time, sound toggle, loop, Load voiceover${style.footage ? ', Load footage' : ''}) and the CM and SFX blocks unchanged.${style.lib ? ' Also keep the shared library helpers block (track, txt, chip, slam, rise, wordLine, hd, footage, composite, cam, punch, makeGL and the sound helpers) unchanged.' : ''}${style.canvas ? `\\n- Keep the canvas at ${style.canvas} (9:16, for Shorts, Reels and TikTok).` : ''}${style.three ? '\\n- Keep the Three.js r128 script tag and build every 3D object in code: no models or textures from the web.' : ''}${style.footage ? '\\n- Keep window.loadFootage(url) and the Load footage button working so I can drop in my own clip and see the overlay on it; until then the stand-in presenter shows where I sit in the frame.' : ''}\n- Replace the demo's story: ${style.replace || ''}. Keep and reuse the style's helpers (${style.keep || ''}).\n- Aim for 15 to 40 seconds unless my content needs more, and set the duration in TL.D.\n- Keep window.seek(t), window.DURATION, window.scoreSound and window.SFX exposed, so the video can be rendered frame by frame.\n- Load the style's fonts before the first draw, as the reference does: ${style.fonts || ''}.`;
 
-DEMO TOPIC: ${style.demo || ''}
+      const sheetRules = Array.isArray(style.sheet) ? '\nTHE STYLE\n' + style.sheet.map(r => '- ' + r).join('\n') : '';
+      const sizeRules = `\nRULES THAT KEEP IT IN STYLE\n- Change the story, the words and the props; do not change the medium. Draw every subject accurately for my topic and double-check any facts and numbers you show.\n- Every frame is a pure function of t. Use CM.rng(seed) and CM.noise1(seed) for all randomness, never Math.random. Caching static layers is fine.\n- It will be watched on phones: at ${style.canvas || '1280x720'} ${style.sizes || ''}. Fill the frame.\n- Keep each frame fast, well under 50 ms.\n- Give my topic its own demo content; do not reuse the reference's story ("${style.demo || ''}") unless my content asks for it.`;
 
-WHAT TO REPLACE: ${style.replace || ''}
+      const soundRules = Array.isArray(style.sound) ? '\nSOUND\n' + style.sound.map(r => '- ' + r).join('\n') + '\n' + (isVo ? (style.voMix || '') : (style.full || '')) + '\n- Sync is everything: the sound score reads the same TL times as the picture.' : '';
 
-WHAT TO KEEP: ${style.keep || ''}
+      const renderSection = `\nIF YOU CAN RUN CODE\nRender an MP4: open the file in headless Chrome, call window.seek(i / 30) for every frame, capture the canvas and pipe the frames into ffmpeg. Render the effects with SFX.render(window.scoreSound, window.DURATION, 48000, { voiceover: false }), which returns interleaved stereo floats, and mux them in. With a voiceover, render the effects with { voiceover: true } and mix them under my audio file.`;
 
-SIZE RULES: ${style.sizes || ''}
+      const styleCard = `\nSTYLE CARD\nName: ${style.name}\nFamily: ${style.family}\nLook: ${style.look}\nHow it explains: ${style.how || ''}`;
 
-VOICEOVER TIMING: ${style.voLine || ''}
+      let prompt = `${intro}\n\nMY CONTENT\n${topicText}\n${timingSection}\n${workflowSection}\n\n${buildSection}\n${sheetRules}\n${sizeRules}\n${soundRules}\n${renderSection}\n${styleCard}`;
 
-${style.full || ''}
-${style.voMix || ''}
-${sheetRules}
-${soundRules}
-
-Build this style around my topic. Start by explaining how the animation engine works, then show me a test frame, and only build the full video after I say OK.`.trim();
+      if (includeSource && sourceCode) {
+        prompt += `\n\nREFERENCE SOURCE (the complete working file)\n\`\`\`html\n${sourceCode.trim()}\n\`\`\``;
+      }
 
       return {
-        styleId:  style.id,
-        num:      style.num,
-        name:     style.name,
-        family:   style.family,
+        styleId:     style.id,
+        num:         style.num,
+        name:        style.name,
+        family:      style.family,
+        canvas:      style.canvas || '1280x720',
+        three:       Boolean(style.three),
+        footage:     Boolean(style.footage),
         prompt,
         promptLength: prompt.length,
-        source:   'nafay3d.com — free to use for your own videos',
-        message:  `Prompt for "${style.name}" ready (${prompt.length} chars). Copy it and paste into a new Claude chat${topic ? ` with topic: "${topic}"` : ''}.`,
+        promptPath:  `plugins/motion-styles/prompts/${style.id}.md`,
+        sourcePath:  `plugins/motion-styles/sources/${style.id}.html`,
+        source:      'FrameForge Motion Library — free to use for your own videos',
+        message:     `Prompt for "${style.name}" ready (${prompt.length} chars). Copy it and paste into a new Claude chat${topic ? ` with topic: "${topic}"` : ''}.`,
       };
     },
   },

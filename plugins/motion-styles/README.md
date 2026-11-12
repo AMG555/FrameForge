@@ -1,9 +1,9 @@
-# Nafay 3D Style Library
+# Motion Graphics Style Library
 
-62 motion-graphics styles scraped from [nafay3d.com/\#library](https://www.nafay3d.com/#library).
+62 motion-graphics styles in the FrameForge Motion Library.
 Every style is a full canvas animation with sound, drawn in code by Claude.
 
-Source: © Nafay 3D — prompts are free to use for your own videos.
+Source: Procedural motion graphics library — prompts are free to use for your own videos.
 
 ## Families (62 total)
 
@@ -22,8 +22,8 @@ Source: © Nafay 3D — prompts are free to use for your own videos.
 | Character Story | 5 | Shadow Puppets, Visual Novel, Rubber Hose Reel, Woodcut Tale, Neon Line |
 
 ## MCP Tools
-- `list_nafay_styles` — list all 62 styles with descriptions, filtered by family
-- `get_nafay_style_prompt` — get the full prompt for one style to paste into Claude
+- `list_motion_styles` — list all 62 styles with descriptions, filtered by family
+- `get_motion_style_prompt` — get the full prompt for one style to paste into Claude
 
 ## Files
 - `catalog.json` — machine-readable catalog of all 62 styles (id, num, name, family, look, how, fonts, demo, sheet rules, sound rules)
