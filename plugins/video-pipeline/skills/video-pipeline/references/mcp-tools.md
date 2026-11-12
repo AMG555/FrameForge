@@ -403,7 +403,7 @@ No network requests — reads the local manifest only. Returns:
 ```json
 {
   "lastSync": "2026-11-11T20:00:00Z",
-  "manifestVersion": "2.7.2",
+  "manifestVersion": "2.7.3",
   "totalRepos": 9,
   "syncedCount": 9,
   "repos": [

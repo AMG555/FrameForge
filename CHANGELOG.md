@@ -4,11 +4,18 @@ All notable changes to FrameForge are documented here.
 
 ---
 
-## [2.7.2] — 2026-11-12
+## [2.7.3] — 2026-11-12
 
 ### Added
-- **Full Reference Documentation for all 28 MCP Tools**: Complete parameter schemas and usage examples in `plugins/video-pipeline/skills/video-pipeline/references/mcp-tools.md` covering all animation, scene generation, QA, editor, and media ingestion tools.
-- **mix_audio_pro.py Broadcast Parity**: Synchronized Python audio processor with `mixer.js` — 13 procedural SFX generators, 5 room profiles + computed Sabine RT60 acoustic simulation, platform LUFS presets (YouTube, Podcast, Broadcast, Netflix, Instagram), noise gate (-60dBFS), 300Hz mud notch, and automatic `sfx-events.json` loader for `window.__events` contract.
+- **Scaffolding update**: `new-project.mjs` now imports `beatAt`, `snapToBeat`, `OM`, `ROOM_SFX`, `event`, `seg` in the generated `edit.js` template; copies `mix_audio_pro.py` into every new project; `npm run mix` uses the professional chain by default.
+- **`orchestrator.md`** updated: step 10 now runs `mix_audio_pro.py --sfx-events` after `render.mjs full`, consuming `out/sfx-events.json` from `window.__events()` automatically.
+- **`ANIMATION_GUIDE.md`** step 4 updated to `mix_audio_pro.py --sfx-events`.
+- **`procedural-sfx.md`**: added `event()` / `window.__events()` usage examples.
+- **4 new `deep-validate.js` checks** covering scaffolder import correctness and pro chain copy.
+- **Full Reference Documentation for all 28 MCP Tools**: Complete parameter schemas and usage examples in `mcp-tools.md`.
+
+### Changed
+- `mix_audio_pro.py` v2.7.3 fully synced with `mixer.js`: 13-type SFX map, 5 room profiles, `PLATFORM_LUFS`, noise gate, mud notch, `sfx-events.json` auto-read, `computed:` room format.
 
 ### Fixed
 - **Cloudflare Remote Worker alignment**: Synchronized tool count and server versioning.

@@ -60,7 +60,7 @@ export default {
       return Response.json({
         status:     configured ? 'ok' : 'degraded',
         worker:     'frameforge-mcp',
-        version:    '2.7.2',
+        version:    '2.7.3',
         configured,
         rateLimit: {
           enabled:      !!env.RATE_LIMITS,
@@ -264,7 +264,7 @@ async function handleRPC(body, env) {
         protocolVersion: '2024-11-05',
         serverInfo: {
           name:    'frameforge',
-          version: '2.7.2',
+          version: '2.7.3',
           status:  configured ? 'ready' : 'not_configured',
           // IDEs that surface _meta will show this warning in the tools panel
           ...(configured ? {} : {
