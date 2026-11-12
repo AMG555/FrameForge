@@ -1,7 +1,7 @@
 /**
  * FrameForge MCP Server — MCP 2024-11-05 spec compliant
  *
- * Exposes 30 video production & autonomous editing tools via MCP.
+ * Exposes 32 video production & autonomous editing tools via MCP.
  * Works with IBM Bob, Cursor, Windsurf, Codex, opencode, Claude Code, or any MCP-capable IDE.
  * Primary connection: Cloudflare Remote MCP (cloudflare-mcp/).
  * Alternative: stdio (src/mcp-server/stdio.js) or HTTP (this file).
@@ -2958,6 +2958,405 @@ After scaffolding: edit script.json (narration lines + caption chunks), run voic
           ``,
           `Style guide is included in this response (styleGuide field). Read it fully before writing shots.js.`,
         ].join('\n'),
+      };
+    },
+  },
+
+  // ── Tool 31: Detect Viral Clips ──────────────────────────────────────────
+  // Transcribes a long video, scores transcript windows with an LLM, and
+  // returns ranked clip timestamps ready to pass to edit_video.
+  detect_viral_clips: {
+    description: `Analyze a long video (podcast, webinar, stream, interview) and detect the most viral-worthy moments. Returns ranked clip candidates with start/end timestamps, titles, and hook suggestions — ready to feed into edit_video or reframe.
+
+How it works:
+1. Transcribes the video with Whisper (local, free — same engine as transcribe_media).
+2. Splits the transcript into overlapping windows (default 45s, 10s overlap).
+3. Scores each window with an LLM (Gemini Flash via GEMINI_API_KEY, or any OpenAI-compatible endpoint via LLM_BASE_URL — including Ollama, LM Studio, vLLM).
+4. Returns the top N clip candidates sorted by viral score.
+
+No captions are added or burned into anything. This tool only detects moments and returns timestamps — use edit_video or karaoke_subtitles afterwards if you want subtitles on the clips.`,
+    inputSchema: {
+      type: 'object',
+      required: ['videoPath'],
+      properties: {
+        videoPath:       { type: 'string',  description: 'Path to the local video file to analyze (MP4, MOV, MKV, etc.)' },
+        targetClips:     { type: 'number',  default: 5,  description: 'Target number of clips to return (1-15, default 5). Actual count may be lower if the video lacks enough strong moments.' },
+        clipMinSeconds:  { type: 'number',  default: 15, description: 'Minimum clip length in seconds (default 15)' },
+        clipMaxSeconds:  { type: 'number',  default: 60, description: 'Maximum clip length in seconds (default 60)' },
+        windowSeconds:   { type: 'number',  default: 45, description: 'Transcript window size for scoring (default 45s)' },
+        language:        { type: 'string',  description: 'BCP-47 language hint for Whisper transcription (e.g. "en", "es"). Auto-detected if omitted.' },
+        whisperModel:    { type: 'string',  default: 'base', enum: ['tiny','base','small','medium'], description: 'Whisper model size (base = fast, small/medium = more accurate)' },
+        llmBaseUrl:      { type: 'string',  description: 'OpenAI-compatible LLM endpoint (e.g. http://localhost:11434/v1 for Ollama). Overrides GEMINI_API_KEY when set.' },
+        llmModel:        { type: 'string',  description: 'LLM model name for local endpoint (e.g. "llama3.1", "qwen2.5:7b"). Ignored when using Gemini.' },
+        geminiApiKey:    { type: 'string',  description: 'Google Gemini API key. Falls back to GEMINI_API_KEY env var.' },
+      },
+    },
+    handler: async ({
+      videoPath, targetClips = 5, clipMinSeconds = 15, clipMaxSeconds = 60,
+      windowSeconds = 45, language, whisperModel = 'base',
+      llmBaseUrl, llmModel, geminiApiKey,
+    }) => {
+      const syncFs   = require('fs');
+      const pathMod  = require('path');
+      const https    = require('https');
+      const http     = require('http');
+
+      if (!videoPath || !syncFs.existsSync(videoPath)) {
+        throw new Error(`videoPath does not exist: ${videoPath}`);
+      }
+      const clampedTarget = Math.max(1, Math.min(15, Math.round(targetClips)));
+
+      // ── Step 1: Transcribe ────────────────────────────────────────────────
+      const { transcribeAudio, detectWhisper } = require('../utils/transcribe');
+      const engine = detectWhisper();
+      if (!engine.available) {
+        throw new Error(
+          'Whisper is not installed. Install it with: pip install openai-whisper  (or: pip install faster-whisper)'
+        );
+      }
+
+      const transcriptResult = await transcribeAudio(videoPath, {
+        model: whisperModel,
+        language,
+        format: 'json',
+      });
+      if (!transcriptResult || !Array.isArray(transcriptResult.words) || transcriptResult.words.length === 0) {
+        throw new Error('Transcription returned no words. Check that the video has speech.');
+      }
+
+      const totalDuration = transcriptResult.duration || 0;
+      const words = transcriptResult.words; // [{ word, start, end }]
+
+      // ── Step 2: Build overlapping windows ────────────────────────────────
+      const overlap = Math.round(windowSeconds * 0.22); // ~22% overlap
+      const windows = [];
+      let winStart = 0;
+      while (winStart < totalDuration - clipMinSeconds) {
+        const winEnd = Math.min(winStart + windowSeconds, totalDuration);
+        const winWords = words.filter(w => w.start >= winStart && w.end <= winEnd + 1);
+        if (winWords.length >= 5) {
+          windows.push({
+            index: windows.length,
+            start: winStart,
+            end:   winEnd,
+            text:  winWords.map(w => w.word).join(' ').trim(),
+          });
+        }
+        winStart += windowSeconds - overlap;
+      }
+      if (windows.length === 0) {
+        return {
+          clips: [],
+          totalDuration,
+          message: 'No scoreable windows found — video may be too short or silent.',
+        };
+      }
+
+      // ── Step 3: Score windows with LLM ───────────────────────────────────
+      const resolvedGeminiKey = geminiApiKey || process.env.GEMINI_API_KEY;
+      const resolvedLlmUrl    = llmBaseUrl   || process.env.LLM_BASE_URL;
+
+      // Score in batches of 3 (safe for small context local LLMs) or 8 (Gemini)
+      const batchSize = resolvedLlmUrl ? 3 : 8;
+      const scoredWindows = [];
+
+      const scorePrompt = (batch) => {
+        const items = batch.map((w, i) =>
+          `[${i}] ${w.start.toFixed(1)}s-${w.end.toFixed(1)}s:\n"${w.text.slice(0, 400)}"`
+        ).join('\n\n');
+        return `You are a viral short-form video editor. Score each transcript window 1-10 for its potential as a standalone viral clip (hook strength, emotion, surprise, clarity). For the best windows (score >= 7), suggest a punchy 5-8 word title and a one-sentence hook.
+
+Respond ONLY with a JSON array, one object per window, in the same order:
+[{"index":0,"score":7,"title":"Optional title","hook":"Optional hook sentence"},...]
+
+Transcript windows:
+${items}`;
+      };
+
+      const callLlm = (prompt) => new Promise((resolve, reject) => {
+        const body = JSON.stringify(
+          resolvedLlmUrl
+            ? { model: llmModel || 'llama3.1', messages: [{ role: 'user', content: prompt }], response_format: { type: 'json_object' } }
+            : { contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: 'application/json' } }
+        );
+        const url = resolvedLlmUrl
+          ? new URL('/v1/chat/completions', resolvedLlmUrl)
+          : new URL(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${resolvedGeminiKey}`);
+        const isHttps = url.protocol === 'https:';
+        const lib = isHttps ? https : http;
+        const options = {
+          hostname: url.hostname,
+          port:     url.port || (isHttps ? 443 : 80),
+          path:     url.pathname + url.search,
+          method:   'POST',
+          headers:  { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
+        };
+        const req = lib.request(options, (res) => {
+          let data = '';
+          res.on('data', d => { data += d; });
+          res.on('end', () => {
+            try {
+              const parsed = JSON.parse(data);
+              // Extract text from either Gemini or OpenAI-compat response
+              const text = parsed?.candidates?.[0]?.content?.parts?.[0]?.text
+                        || parsed?.choices?.[0]?.message?.content
+                        || '[]';
+              // Extract JSON array from the text
+              const match = text.match(/\[[\s\S]*\]/);
+              resolve(match ? JSON.parse(match[0]) : []);
+            } catch (e) { resolve([]); }
+          });
+        });
+        req.on('error', reject);
+        req.setTimeout(30000, () => { req.destroy(); reject(new Error('LLM request timed out')); });
+        req.write(body);
+        req.end();
+      });
+
+      for (let i = 0; i < windows.length; i += batchSize) {
+        const batch = windows.slice(i, i + batchSize);
+        try {
+          const scores = await callLlm(scorePrompt(batch));
+          for (const s of scores) {
+            const w = batch[s.index ?? 0];
+            if (w) {
+              scoredWindows.push({
+                ...w,
+                score: Number(s.score) || 5,
+                title: s.title || null,
+                hook:  s.hook  || null,
+              });
+            }
+          }
+        } catch (_) {
+          // If LLM fails, push with neutral score so the tool still returns something
+          for (const w of batch) scoredWindows.push({ ...w, score: 5, title: null, hook: null });
+        }
+      }
+
+      // ── Step 4: Select top N, de-overlap, clamp to clip length ───────────
+      scoredWindows.sort((a, b) => b.score - a.score);
+      const selected = [];
+      for (const w of scoredWindows) {
+        if (selected.length >= clampedTarget) break;
+        // De-overlap: skip if too close to an already-selected clip
+        const tooClose = selected.some(s =>
+          Math.abs(s.start - w.start) < clipMinSeconds * 0.75
+        );
+        if (tooClose) continue;
+        // Clamp to requested length constraints
+        const rawLen = w.end - w.start;
+        const clamped = Math.min(Math.max(rawLen, clipMinSeconds), clipMaxSeconds);
+        selected.push({
+          rank:    selected.length + 1,
+          score:   w.score,
+          start:   parseFloat(w.start.toFixed(2)),
+          end:     parseFloat(Math.min(w.start + clamped, totalDuration).toFixed(2)),
+          duration: parseFloat(clamped.toFixed(2)),
+          title:   w.title || `Clip ${selected.length + 1}`,
+          hook:    w.hook  || null,
+          transcript_preview: w.text.slice(0, 120) + (w.text.length > 120 ? '…' : ''),
+        });
+      }
+
+      // Sort final output by start time (chronological)
+      selected.sort((a, b) => a.start - b.start);
+      selected.forEach((c, i) => { c.rank = i + 1; });
+
+      return {
+        clips:         selected,
+        clipCount:     selected.length,
+        totalDuration: parseFloat(totalDuration.toFixed(2)),
+        windowsScored: scoredWindows.length,
+        transcriptWords: words.length,
+        llmBackend:    resolvedLlmUrl ? 'local' : (resolvedGeminiKey ? 'gemini' : 'none — scores are neutral 5'),
+        message: selected.length > 0
+          ? `Found ${selected.length} viral clip candidate(s) in ${totalDuration.toFixed(0)}s video. Pass each clip's start/end to edit_video (start_time/end_time) to cut them. Add karaoke_subtitles afterwards if you want word-synced captions on the clips.`
+          : 'No high-scoring clips found. Try lowering clipMinSeconds or providing a longer source video.',
+        editVideoHint: selected.map(c =>
+          `{ "video_path": "${videoPath}", "start_time": ${c.start}, "end_time": ${c.end}, "caption": "${c.title}" }`
+        ),
+      };
+    },
+  },
+
+  // ── Tool 32: Karaoke Subtitles ───────────────────────────────────────────
+  // Burns word-synced subtitles into a video clip. Strictly opt-in —
+  // never called automatically; only when the user explicitly asks for captions.
+  karaoke_subtitles: {
+    description: `Burn word-level karaoke-style subtitles into a video clip. Strictly opt-in — only call this when the user explicitly asks for subtitles or captions on a clip. Never add captions automatically.
+
+Uses Whisper to get word-level timestamps, then generates an ASS subtitle file with word-by-word highlighting and burns it into the video with ffmpeg.
+
+Subtitle styles:
+  classic   — white text, black border, bottom-center (TikTok-style)
+  karaoke   — word-by-word highlight: active word is accent colour, rest are white
+  bold_pop  — each word pops in bold with a slight scale (energetic, Reels-style)
+  minimal   — small clean white text, no border (for aesthetic/lo-fi content)
+
+Output is a new video file with subtitles burned in. The source file is NOT modified.`,
+    inputSchema: {
+      type: 'object',
+      required: ['videoPath', 'outputPath'],
+      properties: {
+        videoPath:    { type: 'string', description: 'Path to the source video clip' },
+        outputPath:   { type: 'string', description: 'Path for the output video with burned subtitles' },
+        style:        { type: 'string', enum: ['classic', 'karaoke', 'bold_pop', 'minimal'], default: 'karaoke', description: 'Subtitle visual style (default: karaoke)' },
+        language:     { type: 'string', description: 'BCP-47 language hint for Whisper (e.g. "en", "hi", "ml"). Auto-detected if omitted.' },
+        whisperModel: { type: 'string', default: 'base', enum: ['tiny','base','small','medium'], description: 'Whisper model size' },
+        fontSize:     { type: 'number', default: 72,  description: 'Font size in pixels (default 72 for 1080p portrait)' },
+        accentColor:  { type: 'string', default: '#FFD700', description: 'Highlight colour for the active word in karaoke style (hex, default gold)' },
+        position:     { type: 'string', enum: ['bottom', 'center', 'top'], default: 'bottom', description: 'Vertical position of subtitles' },
+        maxWordsPerLine: { type: 'number', default: 4, description: 'Max words per subtitle line (default 4 — short punchy lines like TikTok)' },
+      },
+    },
+    handler: async ({
+      videoPath, outputPath, style = 'karaoke', language, whisperModel = 'base',
+      fontSize = 72, accentColor = '#FFD700', position = 'bottom', maxWordsPerLine = 4,
+    }) => {
+      const syncFs  = require('fs');
+      const pathMod = require('path');
+      const os      = require('os');
+      const { spawnSync } = require('child_process');
+
+      if (!videoPath || !syncFs.existsSync(videoPath)) {
+        throw new Error(`videoPath does not exist: ${videoPath}`);
+      }
+      syncFs.mkdirSync(pathMod.dirname(pathMod.resolve(outputPath)), { recursive: true });
+
+      // ── Step 1: Transcribe with word-level timestamps ─────────────────────
+      const { transcribeAudio, detectWhisper } = require('../utils/transcribe');
+      const engine = detectWhisper();
+      if (!engine.available) {
+        throw new Error(
+          'Whisper is not installed. Run: pip install openai-whisper  (or: pip install faster-whisper)'
+        );
+      }
+
+      const transcriptResult = await transcribeAudio(videoPath, {
+        model: whisperModel,
+        language,
+        format: 'json',
+      });
+      if (!transcriptResult?.words?.length) {
+        throw new Error('Transcription returned no words. Check that the clip has speech.');
+      }
+
+      const words = transcriptResult.words; // [{ word, start, end }]
+
+      // ── Step 2: Group words into short lines ──────────────────────────────
+      // Each ASS "event" is one line; we highlight the active word within it.
+      const lines = [];
+      let chunk = [];
+      for (const w of words) {
+        chunk.push(w);
+        if (chunk.length >= maxWordsPerLine) {
+          lines.push([...chunk]);
+          chunk = [];
+        }
+      }
+      if (chunk.length) lines.push(chunk);
+
+      // ── Step 3: Build ASS subtitle file ──────────────────────────────────
+      // Convert hex color to ASS BGR format (&H00BBGGRR)
+      const hexToAssBgr = (hex) => {
+        const h = hex.replace('#', '').padEnd(6, '0');
+        const r = h.slice(0, 2); const g = h.slice(2, 4); const b = h.slice(4, 6);
+        return `&H00${b}${g}${r}`.toUpperCase();
+      };
+      const toAssTime = (s) => {
+        const h = Math.floor(s / 3600);
+        const m = Math.floor((s % 3600) / 60);
+        const sec = (s % 60).toFixed(2).padStart(5, '0');
+        return `${h}:${String(m).padStart(2, '0')}:${sec}`;
+      };
+
+      const WHITE  = '&H00FFFFFF';
+      const BLACK  = '&H00000000';
+      const ACCENT = hexToAssBgr(accentColor);
+      const SHADOW = style === 'minimal' ? 0 : 1;
+      const BORDER = style === 'minimal' ? 0 : 3;
+      const BOLD   = style === 'bold_pop' ? -1 : 0;
+      const ALIGN  = position === 'top' ? 8 : position === 'center' ? 5 : 2;
+      const marginV = position === 'top' ? 60 : position === 'center' ? 0 : 80;
+
+      const assHeader = `[Script Info]
+ScriptType: v4.00+
+PlayResX: 1080
+PlayResY: 1920
+WrapStyle: 1
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Arial,${fontSize},${WHITE},${ACCENT},${BLACK},&H80000000,${BOLD},0,0,0,100,100,0,0,1,${BORDER},${SHADOW},${ALIGN},60,60,${marginV},1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+`;
+
+      let assEvents = '';
+      for (const line of lines) {
+        const lineStart = line[0].start;
+        const lineEnd   = line[line.length - 1].end;
+
+        if (style === 'karaoke' || style === 'bold_pop') {
+          // One event per word showing the whole line, with the active word highlighted
+          for (let wi = 0; wi < line.length; wi++) {
+            const w = line[wi];
+            const text = line.map((ww, i) => {
+              const clean = ww.word.replace(/[{}\\]/g, '').trim();
+              if (i === wi) {
+                return style === 'bold_pop'
+                  ? `{\\c${ACCENT}\\b-1\\fscx115\\fscy115}${clean}{\\b0\\fscx100\\fscy100\\c${WHITE}}`
+                  : `{\\c${ACCENT}}${clean}{\\c${WHITE}}`;
+              }
+              return clean;
+            }).join(' ');
+            assEvents += `Dialogue: 0,${toAssTime(w.start)},${toAssTime(w.end)},Default,,0,0,0,,${text}\n`;
+          }
+        } else {
+          // classic / minimal: one event per line, no highlight
+          const text = line.map(w => w.word.replace(/[{}\\]/g, '').trim()).join(' ');
+          assEvents += `Dialogue: 0,${toAssTime(lineStart)},${toAssTime(lineEnd)},Default,,0,0,0,,${text}\n`;
+        }
+      }
+
+      const assContent = assHeader + assEvents;
+      const tmpDir  = require('os').tmpdir();
+      const assPath = pathMod.join(tmpDir, `ff_karaoke_${Date.now()}.ass`);
+      syncFs.writeFileSync(assPath, assContent, 'utf8');
+
+      // ── Step 4: Burn subtitles with ffmpeg ────────────────────────────────
+      // Escape path for ffmpeg ass filter (Windows backslashes + colon)
+      const escapedAss = assPath.replace(/\\/g, '/').replace(/:/g, '\\:');
+
+      const result = spawnSync('ffmpeg', [
+        '-nostdin', '-y',
+        '-i', videoPath,
+        '-vf', `ass='${escapedAss}'`,
+        '-c:v', 'libx264', '-preset', 'fast', '-crf', '18',
+        '-profile:v', 'high', '-pix_fmt', 'yuv420p',
+        '-c:a', 'copy',
+        '-movflags', '+faststart',
+        outputPath,
+      ], { timeout: 5 * 60 * 1000, encoding: 'utf8' });
+
+      // Cleanup temp ASS file
+      try { syncFs.unlinkSync(assPath); } catch (_) {}
+
+      if (result.status !== 0) {
+        throw new Error(`ffmpeg subtitle burn failed: ${(result.stderr || '').slice(-400)}`);
+      }
+
+      const stat = syncFs.statSync(outputPath);
+      return {
+        outputPath,
+        style,
+        linesCount:  lines.length,
+        wordsCount:  words.length,
+        duration:    parseFloat((transcriptResult.duration || 0).toFixed(2)),
+        sizeBytes:   stat.size,
+        message:     `Subtitles burned into ${pathMod.basename(outputPath)} (${lines.length} lines, ${words.length} words, style: ${style}). Source file was NOT modified.`,
       };
     },
   },

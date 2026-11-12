@@ -1,7 +1,7 @@
 {
   "name": "@amg555/frameforge-mcp",
-  "version": "2.7.4",
-  "description": "FrameForge — AI video production engine for agentic IDEs. npx @amg555/frameforge-mcp. FFmpeg + TTS on your machine. 30 MCP tools. Whisper, yt-dlp, broadcast-grade audio, 13-type SFX library, 24 film styles, ClaudeAnimationBase full guide, onetake 39-move library + OM motion primitives, HyperFrames beat-grid, earshot forge DSP, J/L-cut editing, lemo-opuscar TREATMENT.md, upstream auto-update changelog. Faceless Shorts: 6-style aiinsight-shorts (Deep Dive 3D, Night File 3D, Inside Out, Stick Story, Paper Atlas, Tall Tale 3D).",
+  "version": "2.7.5",
+  "description": "FrameForge — AI video production engine for agentic IDEs. npx @amg555/frameforge-mcp. FFmpeg + TTS on your machine. 32 MCP tools. Whisper, yt-dlp, broadcast-grade audio, 13-type SFX library, 24 film styles, ClaudeAnimationBase full guide, onetake 39-move library + OM motion primitives, HyperFrames beat-grid, earshot forge DSP, J/L-cut editing, lemo-opuscar TREATMENT.md, upstream auto-update changelog. Faceless Shorts: 6-style aiinsight-shorts. Viral clip detection + karaoke subtitles (openshorts-inspired, opt-in only).",
   "publishConfig": {
     "access": "public"
   },

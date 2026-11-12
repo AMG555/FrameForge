@@ -105,6 +105,12 @@ const REPOSITORIES = [
     capabilities: ['create_short', 'list_short_styles'],
     userImpact: 'New faceless-shorts styles, kit components, or rendering techniques available from aiinsight-shorts upstream',
   },
+  {
+    id: 'openshorts', repo: 'mutonby/openshorts', branch: 'main', category: 'clip-detection',
+    desc: 'Open-source OpusClip alternative — AI viral moment detection, face-tracked 9:16 reframing (TRACK/SPLIT/SCREENCAST layouts), karaoke subtitles, hook overlays, social auto-publish. MIT. 7.9k stars.',
+    capabilities: ['detect_viral_clips', 'karaoke_subtitles'],
+    userImpact: 'New clip detection algorithms, subtitle styles, layout types, or hook rendering techniques from openshorts upstream',
+  },
 ];
 
 function fetchJson(url) {
