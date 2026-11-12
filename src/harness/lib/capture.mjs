@@ -141,10 +141,10 @@ export const VIRTUAL_CLOCK_INJECTION = `
       }
     } catch (_) {}
 
-    if (window.renderAt) {
-      await window.renderAt(t);
-    } else if (window.seek) {
+    if (window.seek) {
       await window.seek(t);
+    } else if (window.renderAt) {
+      await window.renderAt(t);
     }
     while (_timerQueue.length > 0 && _timerQueue[0].runAt <= _now) {
       const item = _timerQueue.shift();
@@ -198,7 +198,14 @@ export async function captureFrame(page, t, { type = 'image/png', quality = 0.94
   const dataUrl = await page.evaluate(async ({ time, mime, q }) => {
     await window.__seek(time);
     if (window.renderAt) {
-      return await window.renderAt(time, mime, q);
+      const res = await window.renderAt(time, mime, q);
+      if (typeof res === 'string' && res.includes(',')) return res;
+    }
+    const canvas = document.getElementById('stage') || document.querySelector('canvas');
+    if (canvas && typeof canvas.toDataURL === 'function') {
+      try {
+        return canvas.toDataURL(mime, q);
+      } catch (_) {}
     }
     return null;
   }, { time: t, mime: type, q: quality });
@@ -208,8 +215,19 @@ export async function captureFrame(page, t, { type = 'image/png', quality = 0.94
   }
 
   const screenshotType = type === 'image/jpeg' ? 'jpeg' : 'png';
-  return page.screenshot({
-    type: screenshotType,
-    quality: screenshotType === 'jpeg' ? Math.round(quality * 100) : undefined,
-  });
+  let lastErr;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      return await page.screenshot({
+        type: screenshotType,
+        quality: screenshotType === 'jpeg' ? Math.round(quality * 100) : undefined,
+      });
+    } catch (err) {
+      lastErr = err;
+      if (attempt < 2) {
+        await new Promise(r => setTimeout(r, 60 * (attempt + 1)));
+      }
+    }
+  }
+  throw lastErr;
 }

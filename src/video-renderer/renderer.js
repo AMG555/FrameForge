@@ -306,12 +306,13 @@ class VideoRenderer {
           showAnchor: effectiveShowAnchor,
         });
       } catch (err) {
-        console.warn(`[Renderer] Code-driven browser scene render failed (${err.message}), falling back to procedural animation`);
+        console.warn(`[Renderer] Code-driven browser scene render failed (${err.message}):`, err.stack || err);
       }
     }
 
-    // Priority 3: Procedural dynamic animated fallback (dynamic moving gradients / camera drift)
-    const captionFilter = effectiveShowCaptions ? this._captionFilter(caption) : '';
+    // Priority 3: Procedural dynamic animated fallback (subtle gradient / camera drift)
+    const fallbackText = caption || title || topic || '';
+    const captionFilter = effectiveShowCaptions ? this._captionFilter(caption) : (fallbackText ? this._captionFilter(fallbackText) : '');
     let inputArgs = [];
     let vf = '';
 
@@ -328,10 +329,10 @@ class VideoRenderer {
       const c0 = (pal.bg0 || '#0d1117').replace('#', '');
       const c1 = (pal.accent || '#38bdf8').replace('#', '');
       inputArgs = [
-        '-f', 'lavfi', '-i', `gradients=s=${renderWidth}x${renderHeight}:r=30:c0=0x${c0}:c1=0x${c1}:speed=0.5:type=radial`,
+        '-f', 'lavfi', '-i', `gradients=s=${renderWidth}x${renderHeight}:r=${fps}:c0=0x${c0}:c1=0x${c1}:speed=0.01:type=linear`,
         '-i', voicePath,
       ];
-      const vfFilters = ['vignette=PI/4'];
+      const vfFilters = [];
       if (captionFilter) vfFilters.push(captionFilter);
       vf = vfFilters.join(',');
     }
@@ -450,7 +451,7 @@ class VideoRenderer {
       '--fps', String(fps),
       '--first', '0',
       '--last', String(lastFrame),
-      '--workers', '4',
+      '--workers', '2',
     ], { encoding: 'utf8', timeout: 5 * 60 * 1000 });
 
     if (res.status !== 0) {

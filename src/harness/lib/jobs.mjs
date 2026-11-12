@@ -105,7 +105,19 @@ export async function renderFrameJobs({
         const targetFile = path.join(framesDir, filename);
         const tmpFile = `${targetFile}.tmp`;
 
-        const buf = await captureFrame(page, t, { type: mimeType, quality });
+        let buf = null;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            buf = await captureFrame(page, t, { type: mimeType, quality });
+            if (buf && buf.length > 500) break;
+          } catch (err) {
+            if (attempt === 2) throw err;
+            await new Promise(r => setTimeout(r, 80 * (attempt + 1)));
+          }
+        }
+        if (!buf || buf.length <= 500) {
+          throw new Error(`Frame ${frameIdx} captured corrupted or empty image (${buf ? buf.length : 0} bytes)`);
+        }
 
         // Atomic write: write to temp file then rename
         fs.writeFileSync(tmpFile, buf);

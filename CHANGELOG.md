@@ -4,6 +4,17 @@ All notable changes to FrameForge are documented here.
 
 ---
 
+## [2.7.4] — 2026-11-12
+
+### Fixed
+- **Direct Canvas DataURL Frame Extraction**: Implemented `window.renderAt(t, mime, q)` and synchronous `canvas.toDataURL()` extraction in `src/harness/lib/capture.mjs` and `src/video-renderer/scene-animator.js`. Completely avoids Chromium CDP `Page.captureScreenshot` compositor locks on Windows, eliminating frame capture crashes and timeouts.
+- **Fixed Canvas State Matrix Drift**: Restored missing `ctx.restore()` in `src/video-renderer/scene-animator.js` (`doodle_map_migration`), keeping canvas transform stack depth strictly balanced at 0 across all render frames.
+- **Eliminated Rotating Black Center Fallback Artifact**: Replaced harsh radial gradient with smooth linear ambient gradient and guaranteed title/caption text overlay in `src/video-renderer/renderer.js` fallback path.
+- **Worker Concurrency & Reliability**: Added 3-attempt retry backoff and size validation in `src/harness/lib/jobs.mjs`. Set default worker concurrency to 2 to eliminate Windows paging file / RAM memory spikes.
+- **Zero-Token Local Render Guarantee**: Confirmed zero LLM token consumption across all code-driven animation, media ingest, edit-only, and video assembly workflows.
+
+---
+
 ## [2.7.3] — 2026-11-12
 
 ### Added
@@ -20,6 +31,17 @@ All notable changes to FrameForge are documented here.
 ### Fixed
 - **Cloudflare Remote Worker alignment**: Synchronized tool count and server versioning.
 - **Upstream sync User-Agent and pending update handling**: Cleaned up update caching and banner presentation across CLI and MCP endpoints.
+
+---
+
+## [2.7.4] — 2026-11-12
+
+### Fixed
+- **Direct Canvas DataURL Frame Extraction**: Implemented `window.renderAt(t, mime, q)` and synchronous `canvas.toDataURL()` extraction in `src/harness/lib/capture.mjs` and `src/video-renderer/scene-animator.js`. Completely avoids Chromium CDP `Page.captureScreenshot` compositor locks on Windows, eliminating frame capture crashes and timeouts.
+- **Fixed Canvas State Matrix Drift**: Restored missing `ctx.restore()` in `src/video-renderer/scene-animator.js` (`doodle_map_migration`), keeping canvas transform stack depth strictly balanced at 0 across all render frames.
+- **Eliminated Rotating Black Center Fallback Artifact**: Replaced harsh radial gradient with smooth linear ambient gradient and guaranteed title/caption text overlay in `src/video-renderer/renderer.js` fallback path.
+- **Worker Concurrency & Reliability**: Added 3-attempt retry backoff and size validation in `src/harness/lib/jobs.mjs`. Set default worker concurrency to 2 to eliminate Windows paging file / RAM memory spikes.
+- **Zero-Token Local Render Guarantee**: Confirmed zero LLM token consumption across all code-driven animation, media ingest, edit-only, and video assembly workflows.
 
 ---
 

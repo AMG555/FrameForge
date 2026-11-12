@@ -712,6 +712,11 @@ function spring(t, delay = 0, tension = 180, friction = 14) {
 window.seek = async (t) => {
   ${code}
 };
+window.renderAt = async (t, mime = 'image/jpeg', q = 0.92) => {
+  await window.seek(t);
+  const c = document.getElementById('stage') || document.querySelector('canvas');
+  return c && typeof c.toDataURL === 'function' ? c.toDataURL(mime, q) : null;
+};
 </script>
 </body>
 </html>`;
@@ -2848,6 +2853,7 @@ function drawMainScene(t) {
       showShadow: true,
       seed: 760,
     });
+    ctx.restore();
 
   } else if (COMP_THEME === 'doodle_royal_status') {
     // Scene 16: Evolution of Clothing into Royal Mantles, Crowns & Social Status
@@ -4414,6 +4420,10 @@ window.seek = async (t) => {
   drawBackground(t);
   drawMainScene(t);
   drawCinematicOverlay(t);
+};
+window.renderAt = async (t, mime = 'image/jpeg', q = 0.92) => {
+  await window.seek(t);
+  return canvas.toDataURL(mime, q);
 };
 </script>
 </body>

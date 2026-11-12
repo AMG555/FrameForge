@@ -182,7 +182,7 @@ async function syncSkills(opts = {}) {
   const updatedResults = results.filter(r => r.updated);
 
   manifest.lastSync = new Date().toISOString();
-  manifest.version = '2.7.3';
+  manifest.version = '2.7.4';
   manifest.updatedCount = updatedCount;
   if (updatedResults.length > 0) {
     manifest.pendingUpdates = updatedResults.map(r => {
