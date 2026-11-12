@@ -624,7 +624,7 @@ describe('verify_scene_quality and plan_video_edit tools', () => {
 describe('Upstream sync and media tools (check_upstream_updates, transcribe_media, ingest_url, mix_audio_pro)', () => {
   const { TOOLS } = require('./server');
 
-  it('check_upstream_updates tool returns status with 10 repos', async () => {
+  it('check_upstream_updates tool returns status with 11 repos', async () => {
     assert.ok(TOOLS.check_upstream_updates, 'check_upstream_updates missing from TOOLS');
     const res = await TOOLS.check_upstream_updates.handler();
     assert.equal(res.success, true);

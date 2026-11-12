@@ -1,8 +1,8 @@
 {
   "name": "frameforge",
   "displayName": "FrameForge — AI Video Production",
-  "description": "Full AI video production engine. Produce short-form reels (1080×1920), YouTube videos (1920×1080), or code-driven animated explainers — directly from your IDE. Playwright + FFmpeg renders every frame. 28 MCP tools. Whisper, yt-dlp, broadcast audio, 24 film styles, ClaudeAnimationBase, onetake 39-move library, HyperFrames motion craft.",
-  "version": "2.7.4",
+  "description": "Full AI video production engine. Produce short-form reels (1080×1920), YouTube videos (1920×1080), or code-driven animated explainers — directly from your IDE. Playwright + FFmpeg renders every frame. 34 MCP tools. Whisper, yt-dlp, broadcast audio, 24 film styles, ClaudeAnimationBase, onetake 39-move library, HyperFrames motion craft. 62 Nafay 3D styles.",
+  "version": "2.7.6",
   "homepage": "https://github.com/AMG555/FrameForge",
   "plugins": [
     {
@@ -12,7 +12,7 @@
         {
           "name": "video-pipeline",
           "displayName": "FrameForge Video Pipeline",
-          "description": "End-to-end video production: research → script → TTS → images → render → publish. Three paths: (1) IDE writes scenes (most common, no API key), (2) code-driven Playwright animation, (3) auto-research pipeline. 28 MCP tools. Includes Whisper transcription, yt-dlp ingestion, broadcast-grade audio, upstream skills sync.",
+          "description": "End-to-end video production: research → script → TTS → images → render → publish. Three paths: (1) IDE writes scenes (most common, no API key), (2) code-driven Playwright animation, (3) auto-research pipeline. 34 MCP tools. Includes Whisper transcription, yt-dlp ingestion, broadcast-grade audio, upstream skills sync. 62 Nafay 3D styles via list_nafay_styles + get_nafay_style_prompt.",
           "triggerPhrases": [
             "make a video about",
             "produce a reel on",

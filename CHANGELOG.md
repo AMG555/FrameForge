@@ -4,6 +4,25 @@ All notable changes to FrameForge are documented here.
 
 ---
 
+## [2.7.6] — 2026-11-12
+
+### Added
+- **Tools 33–34: `list_nafay_styles` + `get_nafay_style_prompt`** — catalog all 62 Nafay 3D styles from nafay3d.com, retrieve the full Claude prompt for any style by id.
+- **`plugins/nafay3d-styles/catalog.json`** — 62 Nafay 3D style entries (id, name, family, look, how, fonts, demo, replace, keep, sizes, voLine, sheet, sound, full, voMix).
+- **`plugins/faceless-shorts/`** — faceless-shorts v7 (YouTube upload via Zapier, updated aiinsight-shorts fork).
+- **`plugins/ai-video-editor/`** — ai-video-editor v2 (7-style talking-head editor: Warm Canvas, Creator Motion Graphics, Clean Tech, Software Walkthrough, Data Story, Chalk Talk, Pop Info; Python/faster-whisper/Playwright pipeline).
+
+### Fixed
+- **Gradient-only output (critical)**: Root cause was a `ReferenceError` (`effectiveShowCaptions`/`effectiveShowAnchor` were in scope of `renderScene` but not passed into `_renderCodeAnimationScene`). The browser harness silently threw, fell through to the ffmpeg gradient fallback, producing plain color scenes on every render. Fixed in commit `8d2c41f` — all scenes now render as full-canvas animated HTML.
+- **Portrait render crop**: `--width`/`--height` flags were missing from the harness `frames` subprocess call; portrait scenes defaulted to 1920×1080 landscape crop. Fixed.
+- **SFX missing**: `sound_effects` collected in scenes but never wired through `assets.js → render.js → renderer.js → mixer.js`. Full pipeline now connected.
+
+### Changed
+- `package.json` version `2.7.5 → 2.7.6`, description updated to `34 MCP tools`.
+- `SERVER_INFO.version` bumped to `2.7.6`.
+
+---
+
 ## [2.7.4] — 2026-11-12
 
 ### Fixed
