@@ -491,6 +491,13 @@ class TTSProvider {
   }
 
   async _edgeTTS({ text, voice, outputPath }) {
+    try {
+      const { isCommandAvailable, ensureEdgeTts } = require('../utils/tool-installer');
+      if (!isCommandAvailable('edge-tts')) {
+        ensureEdgeTts();
+      }
+    } catch (_) {}
+
     const rawPath   = outputPath.replace(/\.[^.]+$/, '_raw.mp3');
     const txtPath   = rawPath + '.txt';
     const safeVoice = voice || this.selectNarratorVoice(null, text);
@@ -507,11 +514,12 @@ class TTSProvider {
           proc.on('close', code => code === 0 ? resolve() : reject(new Error(`edge-tts exited ${code}: ${stderr}`)));
           proc.on('error', reject);
         });
-        // Normalise audio via FFmpeg — trim trailing silence, normalise levels
+        // Normalise audio via FFmpeg — professional sound engineer voice chain:
+        // Highpass 80Hz (sub rumble cut) -> Mud notch 300Hz -> Vocal presence 4.5kHz -> Smooth broadcast leveling
         await new Promise((resolve, reject) => {
           const proc = spawn('ffmpeg', ['-nostdin', '-y', '-threads', '2',
             '-i', rawPath,
-            '-af', 'silenceremove=stop_periods=-1:stop_duration=0.3:stop_threshold=-40dB,highpass=f=80,volume=1.0,dynaudnorm=f=150:g=5:p=0.95',
+            '-af', 'silenceremove=stop_periods=-1:stop_duration=0.3:stop_threshold=-40dB,highpass=f=80,equalizer=f=300:t=q:w=1.2:g=-1.5,equalizer=f=4500:t=q:w=1.5:g=1.5,volume=1.0,dynaudnorm=f=150:g=5:p=0.95',
             '-ar', '48000', '-ac', '2', '-c:a', 'aac', '-b:a', '192k', outputPath], { timeout: 30000 });
           let stderr = '';
           proc.stderr?.on('data', d => { stderr += d; });

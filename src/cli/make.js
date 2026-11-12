@@ -184,6 +184,13 @@ if (subCmd === 'setup') {
   return;
 }
 
+// 7. Dispatch to auto-installer
+if (subCmd === 'install' || subCmd === 'install-tools') {
+  const { autoInstallAll } = require('../utils/tool-installer');
+  autoInstallAll();
+  process.exit(0);
+}
+
 function parseArgs(argv) {
   const args = {
     mode: 'full-auto',
@@ -194,6 +201,7 @@ function parseArgs(argv) {
     captions: false, subtitles: false,
     scenesFile: '', scriptFile: '', mediaDir: '',
     shorts: true, dryRun: false,
+    sceneCount: null, targetDuration: null,
     noResearch: false, noScript: false, noImages: false, noTts: false, noPublish: false,
     outDir: './output', env: '.env',
   };
@@ -206,6 +214,8 @@ function parseArgs(argv) {
       case '--script-file':   args.scriptFile  = argv[++i] || '';  break;
       case '--media-dir':     args.mediaDir    = argv[++i] || '';  break;
       case '--language':      args.language    = (argv[++i] || 'en').toLowerCase(); break;
+      case '--scenes':        args.sceneCount  = parseInt(argv[++i], 10); break;
+      case '--duration':      args.targetDuration = parseFloat(argv[++i]); break;
       case '--orientation':   args.orientation = (argv[++i] || 'landscape').toLowerCase(); break;
       case '--portrait':      args.orientation = 'portrait'; break;
       case '--captions':
@@ -225,6 +235,11 @@ function parseArgs(argv) {
       case '--dry-run':       args.dryRun      = true; break;
       case '--out-dir':       args.outDir      = argv[++i] || args.outDir; break;
       case '--env':           args.env         = argv[++i] || args.env; break;
+      case '--install-tools': {
+        const { autoInstallAll } = require('../utils/tool-installer');
+        autoInstallAll();
+        break;
+      }
       case '--help': case '-h': printHelp(); process.exit(0); break;
     }
   }
@@ -432,6 +447,10 @@ async function runSingleVideo(args, topic, outDir, workflows) {
         claims:       researchResult.claims,
         topic,
         style:        args.style,
+        language:     args.language,
+        sceneCount:   args.sceneCount,
+        targetDuration: args.targetDuration,
+        format:       args.orientation === 'portrait' ? 'Shorts' : 'YouTube video',
       });
       scenes      = scriptResult.scenes;
       title       = scriptResult.title || topic;

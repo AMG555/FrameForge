@@ -83,6 +83,8 @@ async function runRender({
         colorGrade:        asset.colorGrade,
         showCaptions:      asset.showCaptions !== undefined ? asset.showCaptions : showCaptions,
         showAnchor:        asset.showAnchor !== undefined ? asset.showAnchor : showAnchor,
+        sfxCues:           Array.isArray(asset.sfxCues) ? asset.sfxCues
+                           : Array.isArray(asset.sound_effects) ? asset.sound_effects : [],
         renderWidth,
         renderHeight,
       });

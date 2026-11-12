@@ -110,7 +110,28 @@ export async function launchHarnessBrowser(opts = {}) {
     launchOpts.executablePath = execPath;
   }
 
-  const browser = await chromium.launch(launchOpts);
+  let browser;
+  try {
+    browser = await chromium.launch(launchOpts);
+  } catch (launchErr) {
+    if ((launchErr.message || '').includes('playwright install') || (launchErr.message || '').includes('Executable')) {
+      try {
+        const { createRequire } = await import('module');
+        const req = createRequire(import.meta.url);
+        const { ensurePlaywrightChromium } = req('../../utils/tool-installer');
+        if (ensurePlaywrightChromium()) {
+          browser = await chromium.launch(launchOpts);
+        } else {
+          throw launchErr;
+        }
+      } catch (_) {
+        throw launchErr;
+      }
+    } else {
+      throw launchErr;
+    }
+  }
+
   return { browser, executablePath: execPath || 'bundled-chromium' };
 }
 

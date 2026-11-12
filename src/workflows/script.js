@@ -102,7 +102,7 @@ async function runScript({
   persona      = 'narrator',
   format       = 'YouTube video',
   language     = 'en',
-  sceneCount   = 55,
+  sceneCount   = null,
   targetDuration = null,
   imageStyle   = 'clean flat illustration, white background, bold lines',
 }) {
@@ -121,8 +121,19 @@ async function runScript({
   const anchorWanted = detectAnchorRequested(topic);
   const effectivePersona = persona !== 'video host' ? persona : (anchorWanted ? 'video host' : 'narrator');
 
-  // Fast visual pacing: ≈ 2.5-3.2s per scene cut (never monolithic drags)
-  const targetScenes = targetDuration ? Math.max(8, Math.ceil(targetDuration / 2.8)) : Math.max(sceneCount, 55);
+  // Token-efficient dynamic scene count:
+  // Short-form/reels default to 6 scenes (~30-45s); explainers default to 10-12 scenes (~45-60s)
+  const isShortForm = /short|reel|tiktok|quick/i.test(format) || /short|reel|tiktok/i.test(topic) || (targetDuration && targetDuration <= 90);
+  let targetScenes;
+  if (targetDuration) {
+    targetScenes = Math.max(4, Math.ceil(targetDuration / 3.0));
+  } else if (typeof sceneCount === 'number' && sceneCount > 0) {
+    targetScenes = Math.max(3, sceneCount);
+  } else if (isShortForm) {
+    targetScenes = 6;
+  } else {
+    targetScenes = 12;
+  }
 
   const raw = await retryPol.executeStage('Script', async () => {
     const system = [

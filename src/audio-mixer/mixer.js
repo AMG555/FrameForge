@@ -699,6 +699,75 @@ class AudioMixer {
     } catch { return []; }
   }
 
+  /**
+   * Mix SFX cues into a voice audio track (no music).
+   * Used for per-scene SFX injection before video encode.
+   * @param {string} voicePath  — input voice/narration .m4a
+   * @param {Array}  sfxCues    — [{ name, time, volume }]
+   * @param {string} outputPath — output .m4a
+   */
+  mixSfxIntoAudio(voicePath, sfxCues, outputPath) {
+    if (!Array.isArray(sfxCues) || sfxCues.length === 0) {
+      // Nothing to mix — just copy
+      const r = spawnSync('ffmpeg', ['-nostdin', '-y', '-i', voicePath, '-c', 'copy', outputPath],
+        { timeout: 30000, encoding: 'utf8' });
+      if (r.status !== 0) throw new Error(`SFX passthrough copy failed: ${(r.stderr || '').slice(-200)}`);
+      return outputPath;
+    }
+
+    const tmpDir = path.join(os.tmpdir(), `ff_sfx_${Date.now()}`);
+    fs.mkdirSync(tmpDir, { recursive: true });
+    try {
+      const durProbe = spawnSync('ffprobe', [
+        '-v', 'error', '-show_entries', 'format=duration',
+        '-of', 'default=nk=1:nw=1', voicePath,
+      ], { encoding: 'utf8', timeout: 10000 });
+      const totalDur = parseFloat((durProbe.stdout || '0').trim()) || 30;
+
+      const sfxPaths = sfxCues.map(cue => this._synthesizeSfxCue({
+        sfxName:       (cue.name || cue.sfxName || 'pop').toLowerCase().replace(/-/g, '_'),
+        cueTime:       Number(cue.time || cue.t || 0),
+        cueVol:        Number(cue.volume || cue.vol || 1.0),
+        totalDuration: totalDur,
+        tmpDir,
+      }));
+
+      // Merge all SFX into one track then amix with voice
+      let sfxTrackPath;
+      if (sfxPaths.length === 1) {
+        sfxTrackPath = sfxPaths[0];
+      } else {
+        sfxTrackPath = path.join(tmpDir, 'sfx_combined.m4a');
+        const sfxInputs = sfxPaths.flatMap(p => ['-i', p]);
+        const sfxFilter = sfxPaths.map((_, i) => `[${i}:a]`).join('') +
+          `amix=inputs=${sfxPaths.length}:duration=longest:normalize=0[sfxout]`;
+        const cr = spawnSync('ffmpeg', [
+          '-nostdin', '-y', ...sfxInputs,
+          '-filter_complex', sfxFilter, '-map', '[sfxout]',
+          '-c:a', 'aac', '-b:a', '128k', '-ar', '48000', '-ac', '2',
+          sfxTrackPath,
+        ], { encoding: 'utf8', timeout: 120000 });
+        if (cr.status !== 0) throw new Error(`SFX combine failed: ${(cr.stderr || '').slice(-200)}`);
+      }
+
+      // Mix voice + SFX
+      const mixR = spawnSync('ffmpeg', [
+        '-nostdin', '-y',
+        '-i', voicePath,
+        '-i', sfxTrackPath,
+        '-filter_complex', '[0:a][1:a]amix=inputs=2:duration=first:normalize=0[out]',
+        '-map', '[out]',
+        '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-ac', '2',
+        '-t', String(totalDur),
+        outputPath,
+      ], { timeout: 120000, encoding: 'utf8' });
+      if (mixR.status !== 0) throw new Error(`Voice+SFX mix failed: ${(mixR.stderr || '').slice(-200)}`);
+      return outputPath;
+    } finally {
+      try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch (_) {}
+    }
+  }
+
   // ── Backward-compatible alias for older callers ──────────────────────────
   mixWithDuckingLegacy({ voicePath, musicPath = null, outputPath }) {
     return this.mixWithDucking({ voicePath, musicPath, outputPath });

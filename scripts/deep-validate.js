@@ -30,6 +30,7 @@ check('verify_scene_quality tool defined', code.includes('verify_scene_quality')
 check('plan_video_edit tool defined', code.includes('plan_video_edit'));
 check('sync_upstream_skills tool defined', code.includes('sync_upstream_skills'));
 check('media-downloader exists', fs.existsSync('./src/utils/media-downloader.js'));
+check('tool-installer exists', fs.existsSync('./src/utils/tool-installer.js'));
 check('transcribe engine exists', fs.existsSync('./src/utils/transcribe.js'));
 check('sync-upstream script exists', fs.existsSync('./src/skills/sync-upstream.js'));
 check('video-editor exists', fs.existsSync('./src/video-editor/editor.js'));

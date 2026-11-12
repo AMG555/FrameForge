@@ -136,6 +136,8 @@ async function runAssets({
         colorGrade: scene.color_grade || scene.colorGrade || null,
         showCaptions: scene.show_captions !== undefined ? scene.show_captions : (scene.showCaptions !== undefined ? scene.showCaptions : showCaptions),
         showAnchor:   scene.show_anchor !== undefined ? scene.show_anchor : (scene.showAnchor !== undefined ? scene.showAnchor : showAnchor),
+        sound_effects: Array.isArray(scene.sound_effects) ? scene.sound_effects
+                     : Array.isArray(scene.sfxCues)       ? scene.sfxCues : [],
       };
     }));
     results.push(...batchResults);

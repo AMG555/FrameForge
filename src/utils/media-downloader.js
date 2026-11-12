@@ -95,6 +95,13 @@ function downloadMediaWithYtDlp(url, opts = {}) {
 
   args.push('-o', outTemplate, url);
 
+  if (!detectYtDlp()) {
+    const { ensureYtDlp } = require('./tool-installer');
+    if (!ensureYtDlp()) {
+      throw new Error('yt-dlp is not installed and auto-install failed. Run: pip install yt-dlp');
+    }
+  }
+
   const res = spawnSync('yt-dlp', args, {
     encoding: 'utf8',
     timeout: 180000, // 3 min max

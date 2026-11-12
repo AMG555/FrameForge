@@ -204,7 +204,15 @@ async function transcribeAudio(mediaPath, opts = {}) {
     throw new Error(`Media file not found for transcription: ${mediaPath}`);
   }
 
-  const engine = detectWhisper();
+  let engine = detectWhisper();
+  if (!engine.available) {
+    try {
+      const { ensureWhisper } = require('./tool-installer');
+      if (ensureWhisper()) {
+        engine = detectWhisper();
+      }
+    } catch (_) {}
+  }
   const pauses = detectPausesWithFFmpeg(mediaPath);
   let parsed = { text: '', duration: 0, words: [], segments: [] };
   const isWin = process.platform === 'win32';

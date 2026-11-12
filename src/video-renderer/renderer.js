@@ -175,6 +175,7 @@ class VideoRenderer {
     colorGrade = null,
     showCaptions = false,
     showAnchor = false,
+    sfxCues = [],
   } = {}) {
     const effectiveShowCaptions = Boolean(
       showCaptions ||
@@ -304,6 +305,7 @@ class VideoRenderer {
           musicMood,
           showCaptions: effectiveShowCaptions,
           showAnchor: effectiveShowAnchor,
+          sfxCues,
         });
       } catch (err) {
         console.warn(`[Renderer] Code-driven browser scene render failed (${err.message}):`, err.stack || err);
@@ -392,6 +394,7 @@ class VideoRenderer {
     musicMood,
     showCaptions = false,
     showAnchor = false,
+    sfxCues = [],
   }) {
     let htmlContent;
     if (html && typeof html === 'string' && html.trim().length > 0) {
@@ -446,12 +449,14 @@ class VideoRenderer {
     const res = spawnSync(process.execPath, [
       harnessBin,
       'frames',
-      '--html', animHtmlPath,
-      '--out', framesDir,
-      '--fps', String(fps),
-      '--first', '0',
-      '--last', String(lastFrame),
+      '--html',    animHtmlPath,
+      '--out',     framesDir,
+      '--fps',     String(fps),
+      '--first',   '0',
+      '--last',    String(lastFrame),
       '--workers', '2',
+      '--width',   String(renderWidth),
+      '--height',  String(renderHeight),
     ], { encoding: 'utf8', timeout: 5 * 60 * 1000 });
 
     if (res.status !== 0) {
@@ -471,13 +476,26 @@ class VideoRenderer {
       }
     } catch (_) {}
 
+    // Mix SFX into voice track before encode (earshot perceptual lead contract)
+    let audioForEncode = voicePath;
+    if (Array.isArray(sfxCues) && sfxCues.length > 0) {
+      const sfxMixedPath = path.join(this.vdir, `scene_${sceneIndex}_voice_sfx.m4a`);
+      try {
+        this.mixer.mixSfxIntoAudio(voicePath, sfxCues, sfxMixedPath);
+        audioForEncode = sfxMixedPath;
+        console.log(`[Renderer] 🔊 Scene ${sceneIndex}: mixed ${sfxCues.length} SFX cue(s) into audio`);
+      } catch (sfxErr) {
+        console.warn(`[Renderer] SFX mix failed for scene ${sceneIndex} (using plain voice): ${sfxErr.message}`);
+      }
+    }
+
     const framesPattern = path.join(framesDir, 'f%06d.jpg');
     const encResult = spawnSync('ffmpeg', [
       '-nostdin', '-y', '-threads', '2',
       '-framerate', String(fps),
       '-pattern_type', 'sequence',
       '-i', framesPattern,
-      '-i', voicePath,
+      '-i', audioForEncode,
       '-map', '0:v:0', '-map', '1:a:0',
       '-c:v', 'libx264', '-preset', 'fast', '-crf', '17',
       '-profile:v', 'high', '-level', '4.1',
