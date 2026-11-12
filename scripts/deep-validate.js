@@ -300,6 +300,16 @@ check('engine.js exports collageCard()', engineJs.includes('export function coll
 check('engine.js exports mascot()',      engineJs.includes('export function mascot'));
 check('engine.js handles declarative .clip', engineJs.includes('.clip[data-start]'));
 check('editor.js supports splitCut (j-cut/l-cut)', fs.readFileSync('./src/video-editor/editor.js', 'utf8').includes('splitCut'));
+// v2.7.1 — mix_audio_pro.py parity with mixer.js
+const mixAudioProPy = fs.readFileSync(`${engineAssetBase}/scripts/mix_audio_pro.py`, 'utf8');
+check('mix_audio_pro.py has 13-type SFX map',   mixAudioProPy.includes('"sparkle"') && mixAudioProPy.includes('"deep_boom"') && mixAudioProPy.includes('"swish"'));
+check('mix_audio_pro.py has 5 room profiles',   mixAudioProPy.includes('ROOM_PROFILES'));
+check('mix_audio_pro.py has platform LUFS',     mixAudioProPy.includes('PLATFORM_LUFS'));
+check('mix_audio_pro.py reads sfx-events.json', mixAudioProPy.includes('sfx-events.json'));
+check('mix_audio_pro.py has noise gate step',   mixAudioProPy.includes('noise_gate'));
+check('mix_audio_pro.py has mud notch',         mixAudioProPy.includes('300') && mixAudioProPy.includes('g=-1.5'));
+check('mix_audio_pro.py has computed: room',    mixAudioProPy.includes("computed:"));
+check('mix_audio_pro.py has load_sfx_events',   mixAudioProPy.includes('load_sfx_events'));
 // v2.7.0 — HyperFrames beat-grid, OneTake OM library, ROOM_SFX, event/window.__events
 check('engine.js exports beatAt()',         engineJs.includes('export function beatAt'));
 check('engine.js exports beatTime()',       engineJs.includes('export function beatTime'));
