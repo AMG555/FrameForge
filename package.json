@@ -1,7 +1,7 @@
 {
   "name": "@amg555/frameforge-mcp",
-  "version": "2.7.3",
-  "description": "FrameForge — AI video production engine for agentic IDEs. npx @amg555/frameforge-mcp. FFmpeg + TTS on your machine. 28 MCP tools. Whisper, yt-dlp, broadcast-grade audio, 13-type SFX library, 24 film styles, ClaudeAnimationBase full guide, onetake 39-move library + OM motion primitives, HyperFrames beat-grid, earshot forge DSP, J/L-cut editing, lemo-opuscar TREATMENT.md, upstream auto-update changelog.",
+  "version": "2.7.4",
+  "description": "FrameForge — AI video production engine for agentic IDEs. npx @amg555/frameforge-mcp. FFmpeg + TTS on your machine. 30 MCP tools. Whisper, yt-dlp, broadcast-grade audio, 13-type SFX library, 24 film styles, ClaudeAnimationBase full guide, onetake 39-move library + OM motion primitives, HyperFrames beat-grid, earshot forge DSP, J/L-cut editing, lemo-opuscar TREATMENT.md, upstream auto-update changelog. Faceless Shorts: 6-style aiinsight-shorts (Deep Dive 3D, Night File 3D, Inside Out, Stick Story, Paper Atlas, Tall Tale 3D).",
   "publishConfig": {
     "access": "public"
   },
@@ -20,6 +20,8 @@
     "harness:doctor": "node src/harness/bin/harness.mjs doctor",
     "harness:verify": "node src/harness/bin/harness.mjs verify",
     "skills:sync": "node src/skills/sync-upstream.js",
+    "shorts:new": "bash plugins/aiinsight-shorts/scripts/new_video.sh",
+    "shorts:list": "bash plugins/aiinsight-shorts/scripts/new_video.sh --list",
     "setup": "node src/cli/setup-keys.js",
     "setup:check": "node src/cli/setup-keys.js --check",
     "doctor": "node src/cli/doctor.js",

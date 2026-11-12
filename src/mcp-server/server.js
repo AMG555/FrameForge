@@ -1,7 +1,7 @@
 /**
  * FrameForge MCP Server — MCP 2024-11-05 spec compliant
  *
- * Exposes 28 video production & autonomous editing tools via MCP.
+ * Exposes 30 video production & autonomous editing tools via MCP.
  * Works with IBM Bob, Cursor, Windsurf, Codex, opencode, Claude Code, or any MCP-capable IDE.
  * Primary connection: Cloudflare Remote MCP (cloudflare-mcp/).
  * Alternative: stdio (src/mcp-server/stdio.js) or HTTP (this file).
@@ -2237,7 +2237,7 @@ Professional audio rules applied:
   // ── Tool 28: Check Upstream Updates (fast, offline) ───────────────────────
   // Reads last sync manifest without network requests — returns update status instantly
   check_upstream_updates: {
-    description: `Check the last sync state of all upstream reference repositories (HyperFrames, OneTake, LemoOpuscar, CollageBroll, Remotion, Earshot, ClaudeAnimationBase, ClaudeRemotionSkill, FFmpegSkill). Fast, offline — reads the local manifest only (no network requests). Shows what was last synced, when, which repos had updates, and a human-readable changelog of what improved. To actually fetch new commits and update the manifest, use sync_upstream_skills. Agents and users can call this anytime to see if upstream skills have been updated since the last sync.`,
+    description: `Check the last sync state of all upstream reference repositories (HyperFrames, OneTake, LemoOpuscar, CollageBroll, Remotion, Earshot, ClaudeAnimationBase, ClaudeRemotionSkill, FFmpegSkill, AiinsightShorts). Fast, offline — reads the local manifest only (no network requests). Shows what was last synced, when, which repos had updates, and a human-readable changelog of what improved. To actually fetch new commits and update the manifest, use sync_upstream_skills. Agents and users can call this anytime to see if upstream skills have been updated since the last sync.`,
     inputSchema: { type: 'object', properties: {} },
     handler: async () => {
       const syncFs = require('fs');
@@ -2810,6 +2810,154 @@ Outputs broadcast-ready 48kHz/192k AAC stereo.`,
           masterBus: `EBU R128 ${resolvedLufs} LUFS${platform ? ` (${platform})` : ''}`,
         },
         message: `Professional audio mix complete → ${outputPath} (${(sizeBytes / 1024).toFixed(0)}KB${measuredLufs != null ? `, ${measuredLufs.toFixed(1)} LUFS` : ''}${platform ? `, ${platform} target` : ''})`,
+      };
+    },
+  },
+
+  // ── Tool 29: List Faceless Short Styles ─────────────────────────────────
+  // Returns the 6 aiinsight-shorts styles with descriptions, palettes, and use-cases.
+  list_short_styles: {
+    description: 'List all available faceless-shorts styles from the aiinsight-shorts library. Returns name, description, look rules, typical length, and when to use each style. Six styles: Deep Dive 3D (Zack D. Films-like body/science explainer), Night File 3D (true crime/mysteries), Inside Out (flat 2D x-ray explainer), Stick Story (stick-figure survival steps), Paper Atlas (history in cut paper), Tall Tale 3D (funny true stories).',
+    inputSchema: { type: 'object', properties: {} },
+    handler: async () => {
+      const syncFs = require('fs');
+      const pathMod = require('path');
+      const SHORTS_DIR = pathMod.resolve(__dirname, '../../plugins/aiinsight-shorts/styles');
+      const STYLES = [
+        { id: 'deep-dive',    label: 'Deep Dive 3D',  when: 'body / health / science "what happens if" → flagship 3D', length: '30-45 s', dim: '1080×1920 · 24 fps', voice: 'am_michael', music: 'tension' },
+        { id: 'night-file',   label: 'Night File 3D', when: 'creepy / unexplained / true crime / "this happened in 1971"', length: '30-45 s', dim: '1080×1920 · 24 fps', voice: 'am_onyx', music: 'tension' },
+        { id: 'inside-out',   label: 'Inside Out',    when: 'flat 2D "what happens if" explainer — lighter and faster', length: '25-40 s', dim: '1080×1920 · 30 fps', voice: 'am_michael', music: 'bed' },
+        { id: 'stick-story',  label: 'Stick Story',   when: 'survival / life hacks / "here\'s what you do"', length: '30-45 s', dim: '1080×1920 · 30 fps', voice: 'am_puck', music: 'bed' },
+        { id: 'paper-atlas',  label: 'Paper Atlas',   when: 'historical event / "how X happened"', length: '30-45 s', dim: '1080×1920 · 30 fps', voice: 'bm_george', music: 'tension' },
+        { id: 'tall-tale',    label: 'Tall Tale 3D',  when: 'funny / clever true story / con / loophole / "this guy did X"', length: '40-60 s', dim: '1080×1920 · 30 fps', voice: 'am_michael', music: 'bounce' },
+      ];
+
+      const result = [];
+      for (const s of STYLES) {
+        const styleMdPath = pathMod.join(SHORTS_DIR, s.id, 'STYLE.md');
+        let rules = '';
+        try { rules = syncFs.readFileSync(styleMdPath, 'utf8'); } catch (_) {}
+        const sheetPath = pathMod.join(SHORTS_DIR, s.id, 'style-sheet.png');
+        result.push({
+          ...s,
+          styleGuide: styleMdPath,
+          styleSheetPng: syncFs.existsSync(sheetPath) ? sheetPath : null,
+          exampleDir: pathMod.join(SHORTS_DIR, s.id, 'example'),
+          styleMarkdown: rules,
+        });
+      }
+
+      return {
+        styles: result,
+        count: result.length,
+        skillDir: pathMod.resolve(__dirname, '../../plugins/aiinsight-shorts'),
+        newVideoScript: pathMod.resolve(__dirname, '../../plugins/aiinsight-shorts/scripts/new_video.sh'),
+        voiceScript: pathMod.resolve(__dirname, '../../plugins/aiinsight-shorts/scripts/voice.py'),
+        wordsScript: pathMod.resolve(__dirname, '../../plugins/aiinsight-shorts/scripts/words.py'),
+        estimateScript: pathMod.resolve(__dirname, '../../plugins/aiinsight-shorts/scripts/estimate.py'),
+        message: `${result.length} faceless-short styles available. Call create_short to scaffold a new project from any style.`,
+      };
+    },
+  },
+
+  // ── Tool 30: Create Faceless Short Project ──────────────────────────────
+  // Scaffolds a new short video project from one of the 6 aiinsight-shorts styles.
+  create_short: {
+    description: `Scaffold a new faceless YouTube Short / TikTok / Reel project from the aiinsight-shorts library.
+Copies the chosen style's full working example (engine, shots, fonts, tools) into a project folder, removes the example narration audio so it renders fresh, and prints the next steps.
+
+Six styles: deep-dive (3D body/science "what happens if"), night-file (3D true crime/mystery), inside-out (flat 2D x-ray explainer), stick-story (stick-figure survival), paper-atlas (history in cut paper), tall-tale (3D funny true story).
+
+After scaffolding: edit script.json (narration lines + caption chunks), run voice.py → words.py to generate TTS + word timing, rewrite src/shots.js for your content, then node tools/capture.mjs video to render the MP4.`,
+    inputSchema: {
+      type: 'object',
+      required: ['style', 'shortName'],
+      properties: {
+        style:     { type: 'string', enum: ['deep-dive', 'night-file', 'inside-out', 'stick-story', 'paper-atlas', 'tall-tale'], description: 'Style to use' },
+        shortName: { type: 'string', description: 'URL-safe project name, e.g. "what-if-you-swallow-gum"' },
+        outputDir: { type: 'string', description: 'Parent directory for the project. Defaults to ~/faceless-shorts/<shortName>/' },
+      },
+    },
+    handler: async ({ style, shortName, outputDir }) => {
+      const syncFs = require('fs');
+      const pathMod = require('path');
+      const { spawnSync } = require('child_process');
+
+      const VALID_STYLES = ['deep-dive', 'night-file', 'inside-out', 'stick-story', 'paper-atlas', 'tall-tale'];
+      if (!VALID_STYLES.includes(style)) {
+        throw new Error(`Unknown style "${style}". Choose one of: ${VALID_STYLES.join(', ')}`);
+      }
+      if (!shortName || !/^[a-z0-9-_]+$/i.test(shortName)) {
+        throw new Error('shortName must be URL-safe (letters, digits, hyphens, underscores only)');
+      }
+
+      const skillDir = pathMod.resolve(__dirname, '../../plugins/aiinsight-shorts');
+      const srcExample = pathMod.join(skillDir, 'styles', style, 'example');
+      if (!syncFs.existsSync(srcExample)) {
+        throw new Error(`Style example not found at: ${srcExample}`);
+      }
+
+      const parent = outputDir
+        ? pathMod.resolve(outputDir)
+        : pathMod.join(require('os').homedir(), 'faceless-shorts');
+      const dst = pathMod.join(parent, shortName);
+
+      if (syncFs.existsSync(dst)) {
+        throw new Error(`Project already exists: ${dst}. Choose a different shortName or remove it first.`);
+      }
+
+      // Copy example recursively
+      const copyDir = (src, dest) => {
+        syncFs.mkdirSync(dest, { recursive: true });
+        for (const entry of syncFs.readdirSync(src, { withFileTypes: true })) {
+          const s = pathMod.join(src, entry.name);
+          const d = pathMod.join(dest, entry.name);
+          if (entry.isDirectory()) { copyDir(s, d); }
+          else { syncFs.copyFileSync(s, d); }
+        }
+      };
+      copyDir(srcExample, dst);
+
+      // Create renders/ and review/ dirs (new_video.sh does this too)
+      syncFs.mkdirSync(pathMod.join(dst, 'renders'), { recursive: true });
+      syncFs.mkdirSync(pathMod.join(dst, 'review'),  { recursive: true });
+
+      // Remove example audio so it renders fresh
+      for (const f of ['data/narration.wav', 'data/mix.wav']) {
+        const p = pathMod.join(dst, f);
+        try { syncFs.unlinkSync(p); } catch (_) {}
+      }
+
+      const styleMdPath = pathMod.join(skillDir, 'styles', style, 'STYLE.md');
+      const styleMd = syncFs.existsSync(styleMdPath) ? syncFs.readFileSync(styleMdPath, 'utf8') : '';
+
+      return {
+        success: true,
+        style,
+        shortName,
+        projectDir: dst,
+        scriptJson: pathMod.join(dst, 'script.json'),
+        shotsJs:    pathMod.join(dst, 'src', 'shots.js'),
+        captureCmd: `node ${pathMod.join(dst, 'tools', 'capture.mjs')} check`,
+        voiceCmd:   `python ${pathMod.join(skillDir, 'scripts', 'voice.py')} ${dst}`,
+        wordsCmd:   `python ${pathMod.join(skillDir, 'scripts', 'words.py')} ${dst}`,
+        renderCmd:  `node ${pathMod.join(dst, 'tools', 'capture.mjs')} video ${pathMod.join(dst, 'renders', shortName + '.mp4')}`,
+        styleGuide: styleMd,
+        message: [
+          `✅ Project scaffolded: ${dst}`,
+          ``,
+          `Next steps:`,
+          `1. Edit ${pathMod.join(dst, 'script.json')} — write your narration lines and caption chunks`,
+          `2. Run: python ${pathMod.join(skillDir, 'scripts', 'voice.py')} "${dst}"`,
+          `3. Run: python ${pathMod.join(skillDir, 'scripts', 'words.py')} "${dst}"`,
+          `4. Rewrite ${pathMod.join(dst, 'src', 'shots.js')} for your content (follow STYLE.md)`,
+          `5. Run: node ${pathMod.join(dst, 'tools', 'capture.mjs')} check  (must say CHECK OK)`,
+          `6. Run: node ${pathMod.join(dst, 'tools', 'capture.mjs')} cues`,
+          `7. Run: python ${pathMod.join(dst, 'tools', 'mix.py')} "${dst}"`,
+          `8. Run: node ${pathMod.join(dst, 'tools', 'capture.mjs')} video ${pathMod.join(dst, 'renders', shortName + '.mp4')}`,
+          ``,
+          `Style guide is included in this response (styleGuide field). Read it fully before writing shots.js.`,
+        ].join('\n'),
       };
     },
   },
