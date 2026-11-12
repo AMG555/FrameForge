@@ -24,16 +24,26 @@ const fs = require('fs');
  * @returns {boolean}
  */
 function isCommandAvailable(cmd, args = ['--version']) {
-  try {
-    const res = spawnSync(cmd, args, {
-      encoding: 'utf8',
-      timeout: 4000,
-      shell: false,
-    });
-    return res.status === 0;
-  } catch (_) {
-    return false;
+  // FFmpeg and FFprobe use single-dash -version
+  const checkArgs = (cmd === 'ffmpeg' || cmd === 'ffprobe') && args[0] === '--version'
+    ? ['-version']
+    : args;
+
+  const candidates = process.platform === 'win32' && !path.extname(cmd)
+    ? [cmd, `${cmd}.exe`, `${cmd}.cmd`, `${cmd}.bat`]
+    : [cmd];
+
+  for (const bin of candidates) {
+    try {
+      const res = spawnSync(bin, checkArgs, {
+        encoding: 'utf8',
+        timeout: 4000,
+        shell: false,
+      });
+      if (res.status === 0) return true;
+    } catch (_) {}
   }
+  return false;
 }
 
 /**
@@ -62,6 +72,46 @@ function runInstallCommand(cmd, args, toolName) {
     console.warn(`[ToolInstaller] ⚠️ Failed to auto-install ${toolName}: ${err.message}`);
     return false;
   }
+}
+
+/**
+ * Ensure FFmpeg is installed. Auto-installs via system package managers if missing.
+ * @returns {boolean}
+ */
+function ensureFfmpeg() {
+  if (isCommandAvailable('ffmpeg')) return true;
+
+  console.log('[ToolInstaller] FFmpeg not found on PATH. Attempting automatic installation...');
+  if (process.platform === 'win32') {
+    if (isCommandAvailable('winget', ['--version'])) {
+      if (runInstallCommand('winget', ['install', '--id', 'Gyan.FFmpeg', '-e', '--silent', '--accept-package-agreements', '--accept-source-agreements'], 'FFmpeg (winget)')) {
+        return isCommandAvailable('ffmpeg');
+      }
+    }
+    if (isCommandAvailable('choco', ['--version'])) {
+      if (runInstallCommand('choco', ['install', 'ffmpeg', '-y'], 'FFmpeg (Chocolatey)')) {
+        return isCommandAvailable('ffmpeg');
+      }
+    }
+    if (isCommandAvailable('scoop', ['--version'])) {
+      if (runInstallCommand('scoop', ['install', 'ffmpeg'], 'FFmpeg (Scoop)')) {
+        return isCommandAvailable('ffmpeg');
+      }
+    }
+  } else if (process.platform === 'darwin') {
+    if (isCommandAvailable('brew', ['--version'])) {
+      if (runInstallCommand('brew', ['install', 'ffmpeg'], 'FFmpeg (Homebrew)')) {
+        return isCommandAvailable('ffmpeg');
+      }
+    }
+  } else if (process.platform === 'linux') {
+    if (isCommandAvailable('apt-get', ['--version'])) {
+      if (runInstallCommand('sudo', ['apt-get', 'install', '-y', 'ffmpeg'], 'FFmpeg (apt)')) {
+        return isCommandAvailable('ffmpeg');
+      }
+    }
+  }
+  return false;
 }
 
 /**
@@ -143,15 +193,17 @@ function ensurePlaywrightChromium() {
  */
 function autoInstallAll() {
   console.log('\n=== FrameForge Tool Provisioner ===\n');
+  const ffmpegOk = ensureFfmpeg();
   const ttsOk    = ensureEdgeTts();
   const ytdlpOk  = ensureYtDlp();
   const crOk     = ensurePlaywrightChromium();
-  console.log(`\nResults: edge-tts: ${ttsOk ? '✔' : '✖'}, yt-dlp: ${ytdlpOk ? '✔' : '✖'}, chromium: ${crOk ? '✔' : '✖'}\n`);
-  return { ttsOk, ytdlpOk, crOk };
+  console.log(`\nResults: ffmpeg: ${ffmpegOk ? '✔' : '✖'}, edge-tts: ${ttsOk ? '✔' : '✖'}, yt-dlp: ${ytdlpOk ? '✔' : '✖'}, chromium: ${crOk ? '✔' : '✖'}\n`);
+  return { ffmpegOk, ttsOk, ytdlpOk, crOk };
 }
 
 module.exports = {
   isCommandAvailable,
+  ensureFfmpeg,
   ensureEdgeTts,
   ensureYtDlp,
   ensureWhisper,

@@ -189,6 +189,25 @@ describe('TTSProvider constructor overrides', () => {
     if (saved !== undefined) process.env.TTS_VOICE_GENDER = saved;
     else delete process.env.TTS_VOICE_GENDER;
   });
+
+  it('preserves single voice consistency across multiple scenes without drift', () => {
+    const tts = new TTSProvider({ platform: 'edge-tts' });
+    const scenes = [
+      { scene_id: 1, narration: 'Welcome to this production.' },
+      { scene_id: 2, narration: 'In 1969, Apollo 11 landed on the moon.' },
+      { scene_id: 3, narration: 'Conclusion and summary.' },
+    ];
+    const fullNarration = scenes.map(s => s.narration).join(' ');
+    const productionVoice = tts.selectNarratorVoice(null, fullNarration, 'en');
+
+    // Every scene without scene.voice override locks to the exact same production voice
+    for (const scene of scenes) {
+      const sceneVoice = scene.voice || productionVoice;
+      assert.equal(sceneVoice, productionVoice);
+      const synthesizedVoice = tts.selectNarratorVoice(sceneVoice, scene.narration, 'en');
+      assert.equal(synthesizedVoice, productionVoice);
+    }
+  });
 });
 
 // ── productionId path-traversal guard (MCP server) ────────────────────────────

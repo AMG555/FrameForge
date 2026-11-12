@@ -51,6 +51,14 @@ async function runAssets({
 
   await sm.startStage(productionId, 'Asset_Generation');
 
+  // ── Voice Consistency Lock ────────────────────────────────────────────────
+  // Resolve a single canonical narrator voice for the entire production so that
+  // individual scenes never accidentally switch voices mid-video (e.g. due to
+  // subtle character, punctuation, or script variations in scene narration).
+  // Scene-level overrides (scene.voice) are preserved for intentional multi-speaker dialogue.
+  const allNarrations = scenes.map(s => s.narration || '').filter(Boolean).join(' ');
+  const defaultProductionVoice = voice || ttsGen.selectNarratorVoice(null, allNarrations, language);
+
   const results = [];
 
   // Process scenes in batches of `parallelism`
@@ -101,7 +109,8 @@ async function runAssets({
         voicePath = null;
       } else {
         voicePath = path.join(VDIR, `voice_${idx}.m4a`);
-        const ttsVoice = scene.voice || voice || undefined;
+        // Locked to defaultProductionVoice across all scenes unless scene.voice is explicitly given
+        const ttsVoice = scene.voice || defaultProductionVoice;
         // Pass per-scene language for best-fit voice selection (Unicode detection + BCP-47 hint)
         const sceneLang = scene.language || language || '';
         await retryPol.executeStage('TTS', async () =>

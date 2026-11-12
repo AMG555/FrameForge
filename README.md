@@ -13,7 +13,7 @@
 [![Tests](https://img.shields.io/badge/tests-661%20passing-brightgreen.svg?style=flat-square)](docs/collaboration.md)
 [![Structural Gates](https://img.shields.io/badge/validation-113%20passed-success.svg?style=flat-square)](docs/collaboration.md)
 
-[Quickstart](#-quickstart-in-2-steps) • [100% Free with Arena.ai](#-pro-tip-100-free-code-based-video-generation-zero-subscriptions) • [Two Superpowers](#-two-agent-superpowers-creation--editing) • [Motion Styles](#-62-procedural-motion-graphics-styles) • [Faceless Shorts](#-viral-faceless-shorts-engine) • [MCP Tools](#-34-mcp-tools-reference) • [Collaboration Guide](docs/collaboration.md)
+[Quickstart](#-quickstart-give-this-1-prompt-to-your-ai-agent) • [100% Free with Arena.ai](#-pro-tip-100-free-code-based-video-generation-zero-subscriptions) • [Two Superpowers](#-two-agent-superpowers-creation--editing) • [Motion Styles](#-62-procedural-motion-graphics-styles) • [Faceless Shorts](#-viral-faceless-shorts-engine) • [MCP Tools](#-34-mcp-tools-reference) • [Collaboration Guide](docs/collaboration.md)
 
 </div>
 
@@ -30,51 +30,20 @@
 
 ---
 
-## ⚡ Quickstart in 2 Steps
+## ⚡ Quickstart: Give This 1 Prompt to Your AI Agent
 
-### Step 1: Install FFmpeg (Only Host Requirement)
-```bash
-# Windows
-winget install Gyan.FFmpeg
+No manual downloading or complex configuration needed. FrameForge auto-provisions all runtime tools (FFmpeg, neural TTS voices, Chromium browser engine) automatically.
 
-# macOS
-brew install ffmpeg
+Simply copy and paste this single prompt to your agent (Claude Code, Cursor, Windsurf, or any terminal agent):
 
-# Linux
-sudo apt install ffmpeg
-```
-> **Auto-Provisioned:** FrameForge automatically installs all other dependencies (neural TTS voices, Playwright Chromium browser, Whisper transcription, and yt-dlp) the first time you run it.
+> **"Set up FrameForge MCP from npm package `@amg555/frameforge-mcp` so you have video creation and editing tools, and verify dependencies are ready."**
 
-### Step 2: Connect FrameForge to Your Agent
-Add FrameForge to your agent's MCP configuration:
+Your agent configures MCP and verifies everything on its own.
+*(Want to configure JSON files manually? See the [Manual MCP Setup Guide](docs/mcp-setup.md).)*
 
-#### Claude Code (`~/.claude.json` or CLI)
-```bash
-claude mcp add frameforge npx -y @amg555/frameforge-mcp
-```
+---
 
-#### Cursor / Windsurf / VS Code (`mcp.json`)
-```json
-{
-  "mcpServers": {
-    "frameforge": {
-      "command": "npx",
-      "args": ["-y", "@amg555/frameforge-mcp"]
-    }
-  }
-}
-```
-
-#### Any Agent Framework (LangChain, CrewAI, AutoGen, Python/Node bots)
-```javascript
-const mcpConfig = {
-  command: "npx",
-  args: ["-y", "@amg555/frameforge-mcp"]
-};
-```
-
-### Done! Ask Your Agent
-Open your agent chat and say:
+### Now Ask Your Agent to Create or Edit:
 * **To Create:** *"Make a 45-second vertical reel explaining how GPS triangulation works with bold kinetic captions and sound effects."*
 * **To Edit:** *"Edit my recording raw.mp4: cut all silences and retakes, add kinetic subtitle cards, and export the final video."*
 
@@ -82,16 +51,16 @@ Open your agent chat and say:
 
 ## 🆓 Pro-Tip: 100% Free Code-Based Video Generation (Zero Subscriptions)
 
-### Make Broadcast-Quality AI Videos for $0 with Free Frontier Models (Arena.ai, DeepSeek, AI Studio)
+### Make Broadcast-Quality AI Videos for $0 with Free Agent Platforms (Arena.ai & Web Agents)
 
-You do **NOT** need a paid AI IDE, Claude Pro ($20/mo), ChatGPT Plus ($20/mo), or cloud GPU rental to build stunning videos. Anyone can produce broadcast-grade, deterministic motion-graphics videos completely free using public frontier LLMs on **Chatbot Arena ([arena.ai](https://arena.ai) / [lmarena.ai](https://lmarena.ai))**, **DeepSeek**, or **Google AI Studio (Gemini 2.0 Flash)**.
+You do **NOT** need expensive AI subscriptions or cloud GPU rentals to build stunning videos. **[arena.ai](https://arena.ai)** is a public platform featuring free autonomous agents and frontier AI capabilities for testing. Anyone can use the free agent on **[arena.ai](https://arena.ai)** (or any other free web agent, or budget-friendly agent options) to generate complete video code for $0:
 
-📱 **Works Everywhere — Even on Mobile Phones:** You can prompt and generate full video scripts & code directly on your iPhone or Android browser via `arena.ai` on the go. Then just use our single `npm` command to render the master video!
+📱 **Works Everywhere — Even on Mobile Phones:** You can use the free agent on `arena.ai` directly inside your iPhone or Android browser on the go. Generate full video animations anywhere, then render the master video with our single `npm` command!
 
 ```
  ┌───────────────────────────┐      ┌─────────────────────────────┐      ┌─────────────────────────────┐
- │   1. Pick Motion Style    │ ───► │ 2. Generate (Phone / Web)   │ ───► │    3. Render Free with npm  │
- │   62 Procedural Styles    │      │ Arena.ai / DeepSeek on phone│      │    npx @amg555/frameforge   │
+ │   1. Pick Motion Style    │ ───► │ 2. Generate on arena.ai     │ ───► │    3. Render Free with npm  │
+ │   62 Procedural Styles    │      │ Free web agent (or mobile)  │      │    npx @amg555/frameforge   │
  │   Ready-to-copy prompt    │      │ Pure standalone HTML5 code  │      │    1080p MP4 master ($0)    │
  └───────────────────────────┘      └─────────────────────────────┘      └─────────────────────────────┘
 ```
@@ -99,7 +68,7 @@ You do **NOT** need a paid AI IDE, Claude Pro ($20/mo), ChatGPT Plus ($20/mo), o
 #### The 4-Step $0 Workflow:
 1. **Choose a Style:** Pick any look from our [62 Procedural Motion Styles](plugins/motion-styles/LIBRARY.md) (e.g. `creator-motion`, `data-story`, `clean-tech`, `deep-dive`, `swiss-grid`).
 2. **Grab the Prompt:** Open the style's prompt in [`plugins/motion-styles/prompts/`](plugins/motion-styles/prompts/) (e.g. [`creator-motion.md`](plugins/motion-styles/prompts/creator-motion.md)) and copy the prompt template.
-3. **Generate Code on [arena.ai](https://arena.ai) (Desktop or Mobile Phone):** Paste the prompt + your topic (e.g. *"Explain how GPS triangulation works"*) into any free frontier model on **Chatbot Arena** (Claude 3.7 Sonnet, GPT-4o, DeepSeek-V3/R1, or Gemini 2.0 Flash) from your computer or phone. The LLM writes the complete HTML5 canvas / Three.js animation code.
+3. **Generate Code with Free Agent (Desktop or Mobile Phone):** Open **[arena.ai](https://arena.ai)** in your browser (on PC or phone), select the free agent option, and paste the prompt + your topic (e.g. *"Explain how GPS triangulation works"*). The agent writes the complete HTML5 canvas / Three.js animation code. (You can also use any other free agent, or cheap low-cost agents if you have budget).
 4. **Render Free with Our Single npm Package:** Save as `animation.html` and render into a crisp 1080p broadcast MP4 with one command (runs locally, on VPS, or in Android Termux):
    ```bash
    npx -y @amg555/frameforge-mcp frameforge-harness all --html ./animation.html --out final.mp4
@@ -107,10 +76,10 @@ You do **NOT** need a paid AI IDE, Claude Pro ($20/mo), ChatGPT Plus ($20/mo), o
 
 #### Why Code-Based Video Beats Traditional AI Video:
 * **Zero Cost ($0):** No subscriptions, no cloud rendering credits, no credit card required.
-* **Mobile & Cross-Platform Friendly:** Generate video code on your smartphone in seconds via mobile `arena.ai`, render anytime with our lightweight npm package.
+* **Mobile & Cross-Platform Friendly:** Access free agents on your smartphone in seconds via mobile browser, render anytime with our lightweight npm package.
 * **100% Deterministic & Glitch-Free:** Every frame is a mathematical function of time `t`. Zero melting fingers, zero flickering backgrounds, zero random AI hallucinations.
 * **True Broadcast Quality:** EBU R128 (−14 LUFS) audio mastering, procedural Web Audio SFX kits, spring physics, and organic boil.
-* **Universal Search Tags (SEO):** Free code based video generation • mobile AI video maker • free AI video creation without subscription • open-source text-to-video without API key • arena.ai free video creator • zero-subscription AI video editor • free alternative to Runway, Sora, HeyGen, Pika, and Remotion.
+* **Universal Search Tags (SEO):** Free code based video generation • free agent video creation • mobile AI video maker • free AI video creation without subscription • open-source text-to-video without API key • arena.ai free video agent • zero-subscription AI video editor • free alternative to Runway, Sora, HeyGen, Pika, and Remotion.
 
 ---
 

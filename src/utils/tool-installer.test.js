@@ -1,6 +1,6 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const { isCommandAvailable, ensureEdgeTts, ensureYtDlp } = require('./tool-installer');
+const { isCommandAvailable, ensureFfmpeg, ensureEdgeTts, ensureYtDlp } = require('./tool-installer');
 
 describe('tool-installer', () => {
   it('isCommandAvailable returns boolean', () => {
@@ -10,6 +10,11 @@ describe('tool-installer', () => {
 
     const fakeRes = isCommandAvailable('nonexistent_tool_123456');
     assert.equal(fakeRes, false);
+  });
+
+  it('ensureFfmpeg returns boolean', () => {
+    const res = ensureFfmpeg();
+    assert.equal(typeof res, 'boolean');
   });
 
   it('ensureEdgeTts returns true when edge-tts is available', () => {

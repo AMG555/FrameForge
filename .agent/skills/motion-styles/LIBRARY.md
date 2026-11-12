@@ -4,10 +4,10 @@ Complete catalog of 62 procedural motion-graphics styles in the FrameForge Motio
 Each style is a full canvas animation with sound, synthesized SFX, and deterministic time-based motion.
 
 > 💡 **Visitor Pro-Tip: 100% Free Code-Based Video Generation on [Arena.ai](https://arena.ai) (Even on Mobile!)**
-> You do **not** need a paid AI IDE or subscription to use these styles! Works directly in your smartphone browser:
+> You do **not** need a paid AI IDE or expensive subscription to use these styles! Works directly in your smartphone browser:
 > 1. Pick any style below and click **Prompt** to open its prompt template.
-> 2. Open **Chatbot Arena ([arena.ai](https://arena.ai))**, **DeepSeek**, or **Google AI Studio** on your phone or desktop, paste the prompt + your topic.
-> 3. The free LLM writes the standalone HTML5 animation code.
+> 2. Open **[arena.ai](https://arena.ai)** in your mobile or desktop browser, select the free agent option (or use any other free web agent, or cheap budget agent), and paste the prompt + your topic.
+> 3. The free agent writes the standalone HTML5 animation code.
 > 4. Render into a 1080p MP4 for $0 using our single npm package:
 >    ```bash
 >    npx -y @amg555/frameforge-mcp frameforge-harness all --html ./animation.html --out final.mp4
