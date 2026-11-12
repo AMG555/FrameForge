@@ -52,3 +52,10 @@ __pycache__/
 *.pyo
 
 .agent/
+
+# Style sheet preview images (large PNG previews, not needed in npm CLI)
+plugins/**/style-sheet.png
+**/*.png
+**/*.jpg
+**/*.jpeg
+

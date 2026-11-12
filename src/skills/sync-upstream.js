@@ -117,7 +117,7 @@ function fetchJson(url) {
   return new Promise((resolve, reject) => {
     const opts = {
       headers: {
-        'User-Agent': 'FrameForge-Skill-Sync/2.7.7',
+        'User-Agent': 'FrameForge-Skill-Sync/2.7.8',
         'Accept': 'application/vnd.github.v3+json',
       },
     };
@@ -188,7 +188,7 @@ async function syncSkills(opts = {}) {
   const updatedResults = results.filter(r => r.updated);
 
   manifest.lastSync = new Date().toISOString();
-  manifest.version = '2.7.7';
+  manifest.version = '2.7.8';
   manifest.updatedCount = updatedCount;
   if (updatedResults.length > 0) {
     manifest.pendingUpdates = updatedResults.map(r => {
@@ -278,7 +278,7 @@ function getUpstreamSummary() {
   return {
     repoCount,
     lastSync: manifest.lastSync,
-    version: manifest.version || '2.7.7',
+    version: manifest.version || '2.7.8',
     pendingUpdates: pending,
     hasUpdates: pending.length > 0,
     repos: manifest.repos || {},

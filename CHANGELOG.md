@@ -4,11 +4,11 @@ All notable changes to FrameForge are documented here.
 
 ---
 
-## [2.7.7] — 2026-11-12
+## [2.7.8] — 2026-11-12
 
 ### Changed
 - Slimmed npm tarball distribution: excluded `.agent/` cache and vendor artifacts via `.npmignore` (size reduced from 48MB to 28MB).
-- Upgraded version manifests across core MCP server and sync engine to v2.7.7.
+- Upgraded version manifests across core MCP server and sync engine to v2.7.8.
 
 ---
 

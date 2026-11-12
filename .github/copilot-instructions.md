@@ -122,4 +122,4 @@ sync_upstream_skills()     // fetches new commits from all 9 reference repos
 
 ## VERSION
 
-FrameForge v2.7.7 — 34 MCP tools
+FrameForge v2.7.8 — 34 MCP tools
