@@ -7,8 +7,8 @@ All notable changes to FrameForge are documented here.
 ## [2.7.6] — 2026-11-12
 
 ### Added
-- **Tools 33–34: `list_nafay_styles` + `get_nafay_style_prompt`** — catalog all 62 Nafay 3D styles from nafay3d.com, retrieve the full Claude prompt for any style by id.
-- **`plugins/nafay3d-styles/catalog.json`** — 62 Nafay 3D style entries (id, name, family, look, how, fonts, demo, replace, keep, sizes, voLine, sheet, sound, full, voMix).
+- **Tools 33–34: `list_motion_styles` + `get_motion_style_prompt`** — catalog all 62 Motion Graphics Styles from FrameForge Motion Library, retrieve the full Claude prompt for any style by id.
+- **`plugins/motion-styles/catalog.json`** — 62 Motion graphics style entries (id, name, family, look, how, fonts, demo, replace, keep, sizes, voLine, sheet, sound, full, voMix).
 - **`plugins/faceless-shorts/`** — faceless-shorts v7 (YouTube upload via Zapier, updated aiinsight-shorts fork).
 - **`plugins/ai-video-editor/`** — ai-video-editor v2 (7-style talking-head editor: Warm Canvas, Creator Motion Graphics, Clean Tech, Software Walkthrough, Data Story, Chalk Talk, Pop Info; Python/faster-whisper/Playwright pipeline).
 

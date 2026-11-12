@@ -356,6 +356,8 @@ class TTSProvider {
    * @param {string} [opts.rate]       Speaking rate (overrides TTS_RATE)
    * @param {string} [opts.apiKey]     API key (overrides provider-specific env var)
    * @param {string} [opts.webhookUrl] Webhook URL (overrides WEBHOOK_TTS_URL)
+   * @param {string} [opts.language]   BCP-47 language hint (e.g. 'ml', 'hi', 'fr') used as fallback
+   *                                   voice selector when text is in a Latin script
    */
   constructor(opts = {}) {
     this.name        = (opts.platform || process.env.PROVIDER_TTS || 'edge-tts').toLowerCase();

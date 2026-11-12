@@ -2,425 +2,236 @@
 
 # ⚡ FrameForge
 
-### AI Video Production Engine for Any Agentic IDE
+### The Universal AI Video Creation & Autonomous Editing Engine for Any Agent
 
-**Any IDE. Any topic. Any style. Broadcast-quality videos from a single prompt.**
+**Enable ANY AI agent — terminal bots, autonomous swarms, scripts, or IDEs — to generate broadcast-quality videos and edit raw footage with a single npm command.**
 
-[![npm](https://img.shields.io/npm/v/@amg555/frameforge-mcp.svg?label=npm)](https://www.npmjs.com/package/@amg555/frameforge-mcp)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
-[![Version](https://img.shields.io/badge/version-2.7.6-blue.svg)](CHANGELOG.md)
-[![MCP Spec](https://img.shields.io/badge/MCP-2024--11--05-blue.svg)](https://modelcontextprotocol.io/)
-[![Tests](https://img.shields.io/badge/tests-658%20passing-brightgreen.svg)](#testing)
+[![npm version](https://img.shields.io/npm/v/@amg555/frameforge-mcp.svg?style=flat-square&color=007acc)](https://www.npmjs.com/package/@amg555/frameforge-mcp)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg?style=flat-square)](https://nodejs.org/)
+[![MCP Spec](https://img.shields.io/badge/MCP-2024--11--05-blue.svg?style=flat-square)](https://modelcontextprotocol.io/)
+[![Tests](https://img.shields.io/badge/tests-661%20passing-brightgreen.svg?style=flat-square)](docs/collaboration.md)
+[![Structural Gates](https://img.shields.io/badge/validation-113%20passed-success.svg?style=flat-square)](docs/collaboration.md)
+
+[Quickstart](#-quickstart-in-2-steps) • [100% Free with Arena.ai](#-pro-tip-100-free-code-based-video-generation-zero-subscriptions) • [Two Superpowers](#-two-agent-superpowers-creation--editing) • [Motion Styles](#-62-procedural-motion-graphics-styles) • [Faceless Shorts](#-viral-faceless-shorts-engine) • [MCP Tools](#-34-mcp-tools-reference) • [Collaboration Guide](docs/collaboration.md)
 
 </div>
 
 ---
 
-FrameForge is an MCP server your IDE agent calls to make videos. You (or your agent) write the scenes — FrameForge handles voice, images, FFmpeg compositing, and quality checking. Works in Bob, Cursor, Windsurf, Codex, opencode, Claude Code, and any MCP-capable IDE.
+## 💡 What is FrameForge?
 
-**28 MCP tools.** Includes Whisper transcription, yt-dlp media ingestion, broadcast-grade audio post-production (EQ + de-esser + SFX synthesis + room acoustics), and auto-updating motion craft from 9 frontier video repositories.
+**FrameForge** is an open-source local video engine and **Model Context Protocol (MCP)** server that equips **any AI agent** with two complete superpowers:
+
+1. **Autonomous Video Creation:** Generates full 1080p landscape videos and 9:16 vertical shorts from a single prompt or script.
+2. **Autonomous Video Editing:** Ingests raw video/audio footage, automatically cuts silences, removes bad takes/mistakes, injects kinetic captions & B-roll, and exports polished videos or NLE timelines.
+
+**100% Free & Local:** Runs on your machine with free offline neural voices and deterministic code-drawn graphics. Zero cloud render costs, zero GPU subscriptions, zero AI hallucinations. FrameForge defaults strictly to code-driven procedural animation — zero AI images generated unless explicitly requested.
 
 ---
 
-## Zero-install quickstart (npx)
+## ⚡ Quickstart in 2 Steps
 
-No cloning. No `npm install`. FFmpeg and edge-tts run on your own machine.
-
+### Step 1: Install FFmpeg (Only Host Requirement)
 ```bash
-# 1. Install prerequisites (one-time, system-level)
-#    FFmpeg: https://ffmpeg.org/download.html  →  add bin/ to PATH
-#    edge-tts: pip install edge-tts
+# Windows
+winget install Gyan.FFmpeg
 
-# 2. Configure your API keys (one-time, saved to ~/.frameforge/config.json)
-npx --package=@amg555/frameforge-mcp frameforge-setup
+# macOS
+brew install ffmpeg
 
-# 3. Check everything is ready
-npx --package=@amg555/frameforge-mcp frameforge-doctor
+# Linux
+sudo apt install ffmpeg
+```
+> **Auto-Provisioned:** FrameForge automatically installs all other dependencies (neural TTS voices, Playwright Chromium browser, Whisper transcription, and yt-dlp) the first time you run it.
 
-# 4. Add to your IDE — then ask your agent to make a video
+### Step 2: Connect FrameForge to Your Agent
+Add FrameForge to your agent's MCP configuration:
+
+#### Claude Code (`~/.claude.json` or CLI)
+```bash
+claude mcp add frameforge npx -y @amg555/frameforge-mcp
 ```
 
-Add to your IDE's MCP config (works in Bob, Cursor, Windsurf, Codex, Claude Code, opencode):
-
+#### Cursor / Windsurf / VS Code (`mcp.json`)
 ```json
 {
   "mcpServers": {
     "frameforge": {
       "command": "npx",
-      "args": ["--package=@amg555/frameforge-mcp", "-y", "frameforge-mcp"]
+      "args": ["-y", "@amg555/frameforge-mcp"]
     }
   }
 }
 ```
 
-That's it. Your agent now has 28 video production & autonomous editing tools. FFmpeg and TTS run on your machine — no cloud render costs.
+#### Any Agent Framework (LangChain, CrewAI, AutoGen, Python/Node bots)
+```javascript
+const mcpConfig = {
+  command: "npx",
+  args: ["-y", "@amg555/frameforge-mcp"]
+};
+```
 
-### Standalone CLI Commands (no IDE required)
+### Done! Ask Your Agent
+Open your agent chat and say:
+* **To Create:** *"Make a 45-second vertical reel explaining how GPS triangulation works with bold kinetic captions and sound effects."*
+* **To Edit:** *"Edit my recording raw.mp4: cut all silences and retakes, add kinetic subtitle cards, and export the final video."*
+
+---
+
+## 🆓 Pro-Tip: 100% Free Code-Based Video Generation (Zero Subscriptions)
+
+### Make Broadcast-Quality AI Videos for $0 with Free Frontier Models (Arena.ai, DeepSeek, AI Studio)
+
+You do **NOT** need a paid AI IDE, Claude Pro ($20/mo), ChatGPT Plus ($20/mo), or cloud GPU rental to build stunning videos. Anyone can produce broadcast-grade, deterministic motion-graphics videos completely free using public frontier LLMs on **Chatbot Arena ([arena.ai](https://arena.ai) / [lmarena.ai](https://lmarena.ai))**, **DeepSeek**, or **Google AI Studio (Gemini 2.0 Flash)**.
+
+📱 **Works Everywhere — Even on Mobile Phones:** You can prompt and generate full video scripts & code directly on your iPhone or Android browser via `arena.ai` on the go. Then just use our single `npm` command to render the master video!
+
+```
+ ┌───────────────────────────┐      ┌─────────────────────────────┐      ┌─────────────────────────────┐
+ │   1. Pick Motion Style    │ ───► │ 2. Generate (Phone / Web)   │ ───► │    3. Render Free with npm  │
+ │   62 Procedural Styles    │      │ Arena.ai / DeepSeek on phone│      │    npx @amg555/frameforge   │
+ │   Ready-to-copy prompt    │      │ Pure standalone HTML5 code  │      │    1080p MP4 master ($0)    │
+ └───────────────────────────┘      └─────────────────────────────┘      └─────────────────────────────┘
+```
+
+#### The 4-Step $0 Workflow:
+1. **Choose a Style:** Pick any look from our [62 Procedural Motion Styles](plugins/motion-styles/LIBRARY.md) (e.g. `creator-motion`, `data-story`, `clean-tech`, `deep-dive`, `swiss-grid`).
+2. **Grab the Prompt:** Open the style's prompt in [`plugins/motion-styles/prompts/`](plugins/motion-styles/prompts/) (e.g. [`creator-motion.md`](plugins/motion-styles/prompts/creator-motion.md)) and copy the prompt template.
+3. **Generate Code on [arena.ai](https://arena.ai) (Desktop or Mobile Phone):** Paste the prompt + your topic (e.g. *"Explain how GPS triangulation works"*) into any free frontier model on **Chatbot Arena** (Claude 3.7 Sonnet, GPT-4o, DeepSeek-V3/R1, or Gemini 2.0 Flash) from your computer or phone. The LLM writes the complete HTML5 canvas / Three.js animation code.
+4. **Render Free with Our Single npm Package:** Save as `animation.html` and render into a crisp 1080p broadcast MP4 with one command (runs locally, on VPS, or in Android Termux):
+   ```bash
+   npx -y @amg555/frameforge-mcp frameforge-harness all --html ./animation.html --out final.mp4
+   ```
+
+#### Why Code-Based Video Beats Traditional AI Video:
+* **Zero Cost ($0):** No subscriptions, no cloud rendering credits, no credit card required.
+* **Mobile & Cross-Platform Friendly:** Generate video code on your smartphone in seconds via mobile `arena.ai`, render anytime with our lightweight npm package.
+* **100% Deterministic & Glitch-Free:** Every frame is a mathematical function of time `t`. Zero melting fingers, zero flickering backgrounds, zero random AI hallucinations.
+* **True Broadcast Quality:** EBU R128 (−14 LUFS) audio mastering, procedural Web Audio SFX kits, spring physics, and organic boil.
+* **Universal Search Tags (SEO):** Free code based video generation • mobile AI video maker • free AI video creation without subscription • open-source text-to-video without API key • arena.ai free video creator • zero-subscription AI video editor • free alternative to Runway, Sora, HeyGen, Pika, and Remotion.
+
+---
+
+## 🎬 Two Agent Superpowers: Creation & Editing
+
+```
+                                  Your AI Agent
+                    (Claude Code / Cursor / Windsurf / Swarms)
+                                       │
+                      npx -y @amg555/frameforge-mcp
+                                       │
+                ┌──────────────────────┴──────────────────────┐
+                ▼                                             ▼
+     SUPERPOWER 1: CREATION                        SUPERPOWER 2: EDITING
+  • Ideas/Scripts → Final MP4                   • Raw Footage → Polished Cut
+  • 62 Procedural Motion Styles                 • Auto-cut speech pauses & silences
+  • 6 Viral Faceless Shorts Engines             • Remove false starts & mistake retakes
+  • Playwright time-based canvas (pure t)       • Kinetic captions, B-roll, color grading
+  • Free offline voices (edge-tts)              • Export to DaVinci Resolve / Premiere
+                │                                             │
+                └──────────────────────┬──────────────────────┘
+                                       ▼
+                     Broadcast Master MP4 (EBU R128 −14 LUFS)
+```
+
+### Superpower 1: Autonomous Video Creation
+* **Agent-Scripted Flow (`create_video_from_script`):** Agent writes scene cards; FrameForge synthesizes voice, renders kinetic vector cards, ducks background audio, and encodes 1080p MP4s. No API keys required.
+* **Code-Driven Canvas Animation (`render_animation`):** Every frame is a mathematical function of time `t`. Zero random jitter inside the render loop, 12fps organic boil, spring camera physics, and word-accurate cue triggers (`cuePhrase()`).
+* **Viral Short Automation:** Auto-generates 9:16 vertical reels with word-synced subtitles for TikTok, YouTube Shorts, and Instagram Reels.
+
+### Superpower 2: Autonomous Video Editing
+* **Silence & Pause Cutting:** Automatically detects audio lulls using local Whisper energy levels and slices dead air with configurable pacing (natural 0.3s vs tight 0.15s).
+* **Mistake & Retake Removal:** Detects false starts, repeated lines, slips, and *"wait let me re-do that"* phrases via word-level transcripts and cleanly slices out bad takes.
+* **Automated Motion Overlays:** Injects motion graphics cards, lower thirds, callouts, and browser mockups on top of raw footage.
+* **J-Cuts / L-Cuts & Audio Mixing:** Automatically overlaps audio transitions for cinematic flow, normalizes to EBU R128 (−14 LUFS), and ducks background beds under spoken words.
+* **Export to Professional Editors (`export_to_editor`):** Generates timeline files for **DaVinci Resolve** (FCPXML/EDL), **Premiere Pro**, **After Effects**, **Remotion**, or **CapCut**.
+
+---
+
+## 🎨 62 Procedural Motion-Graphics Styles
+
+FrameForge bundles **62 code-drawn motion-graphics styles** covering every content genre. Every style runs entirely in code on HTML5 Canvas / Three.js r128 with synthesized Web Audio sound kits — zero AI image generation, zero diffusion artifacts.
+
+Full catalog and ready-to-copy prompts in [`plugins/motion-styles/LIBRARY.md`](plugins/motion-styles/LIBRARY.md).
+
+| Family | Count | Popular Styles | Best For |
+|---|---|---|---|
+| **Kinetic Type** | 3 | `creator-motion`, `clean-tech`, `swiss-grid` | Creator edits, business hooks, high-energy reels |
+| **Hand-Drawn** | 3 | `chalk-talk`, `marker-board`, `blueprint` | Whiteboard explainers, education, technical breakdown |
+| **Screen & UI** | 1 | `software-walkthrough` | App demos, SaaS onboarding, feature tutorials |
+| **Data & Explainer** | 6 | `data-story`, `timeline-rail`, `isotype`, `math-canvas` | Charts, market statistics, financial trends |
+| **Talking Head** | 1 | `warm-canvas` | Editorial PiP cards over creator webcam footage |
+| **Illustrated** | 7 | `pop-info`, `paper-craft`, `zine-collage`, `comic-panels` | Infographics, book summaries, narrative stories |
+| **3D & Spatial** | 14 | `clay-diorama`, `bio-glow`, `cosmic-scale`, `exploded-view` | Procedural Three.js 3D models, science, anatomy |
+| **Retro & Tech** | 2 | `pixel-quest`, `terminal` | 8-bit gaming, developer logs, cyber consoles |
+| **Shorts Formats** | 10 | `quiz-countdown`, `top-5-countdown`, `tier-list`, `versus-split` | Viral TikTok, Instagram Reels, YouTube Shorts |
+| **Edit Overlays** | 10 | `punch-captions`, `karaoke-subs`, `callout-kit`, `lower-thirds` | B-roll overlays, subtitle pops, motion badges |
+| **Character Stories** | 5 | `shadow-puppets`, `visual-novel`, `rubber-hose-reel` | Vector character animation, lore, folklore |
+
+---
+
+## 📱 Viral Faceless Shorts Engine
+
+FrameForge includes specialized turnkey engines for vertical short-form automation (YouTube Shorts, TikTok, Instagram Reels) in [`plugins/faceless-shorts/`](plugins/faceless-shorts/):
+
+* **Deep Dive 3D (`deep-dive`):** Zack D. Films style 3D science and anatomy explainers. Sculpted procedural human forms, glowing biological x-rays, and camera tracks.
+* **Night File 3D (`night-file`):** Unsolved mysteries and true-crime cases. Noir lighting, typewriter evidence cards, and crimson subject highlights.
+* **Inside Out (`inside-out`):** 2D x-ray biology and object cutaway explainers with high-contrast subtitle blocks.
+* **Stick Story (`stick-story`):** Expressive stick-figure survival steps, obstacle navigation, and gold step cards.
+* **Paper Atlas (`paper-atlas`):** Historical events mapped on weathered parchment, animated campaign routes, and wax seals.
+* **Tall Tale 3D (`tall-tale`):** Humorous true stories with stylized 2D cartoon characters moving through a 3D procedural world.
+
+---
+
+## 🛠️ 34 MCP Tools Reference
+
+FrameForge registers **34 tools** compliant with the Model Context Protocol (MCP 2024-11-05 spec):
+
+| Category | Tools | Capabilities |
+|---|---|---|
+| **Video Creation** | `create_video_from_script`, `assemble_video`, `render_from_scenes`, `edit_scenes`, `ingest_media`, `publish_video` | Full video assembly, scenes manifest, caption burning, export |
+| **Autonomous Editing** | `edit_video`, `plan_video_edit`, `export_to_editor` | Silence & retake cutting, speed ramps, NLE timeline export (DaVinci/Premiere) |
+| **Motion Styles** | `list_motion_styles`, `get_motion_style_prompt` | Catalog browse & prompt generation across 62 procedural styles |
+| **Code Animation** | `scaffold_animation_project`, `validate_storyboard`, `render_animation`, `preview_scene`, `verify_scene_quality` | Playwright canvas rendering, 12fps organic boil, closed-loop visual QA |
+| **Audio Mastering** | `mix_audio_pro`, `render_tts`, `multi_voice_tts` | EBU R128 (−14 LUFS) broadcast mastering, ducking, 13-type SFX kit |
+| **Media & Speech** | `ingest_url`, `transcribe_media` | Fast yt-dlp downloader & local Whisper word-level transcription |
+| **Research & Queue** | `research_topic`, `write_script`, `queue_full_pipeline`, `get_job_status` | Deep claim extraction, fact-checking, script generation, async worker |
+| **Upstream & Bridges** | `sync_upstream_skills`, `check_upstream_updates`, `external_platform_call` | Technique sync from 9 frontier video repos & cloud provider bridges |
+
+---
+
+## 💻 Direct CLI Usage (Optional)
+
+You can also use FrameForge straight from your terminal without an agent:
 
 ```bash
-# Ingest any web clip or audio via yt-dlp
-npx --package=@amg555/frameforge-mcp frameforge download "https://youtube.com/watch?v=..." --subtitles
+# Ingest any media from the web
+npx -y @amg555/frameforge-mcp frameforge download "https://youtube.com/watch?v=..." --subtitles
 
-# Transcribe speech with word-level timestamps & SRT via Whisper
-npx --package=@amg555/frameforge-mcp frameforge transcribe ./narration.mp3 --format all
+# Transcribe speech with word-level timestamps via local Whisper
+npx -y @amg555/frameforge-mcp frameforge transcribe ./recording.mp3 --format all
 
-# Sync upstream techniques from 9 frontier video repositories
-npx --package=@amg555/frameforge-mcp frameforge sync
-
-# Diagnostics and system check
-npx --package=@amg555/frameforge-mcp frameforge doctor
+# Run interactive diagnostics check
+npx -y @amg555/frameforge-mcp frameforge doctor
 ```
 
 ---
 
-## Other connection methods
+## 🤝 Collaboration, Architecture & Security
 
-### Cloned repo (contributors / local dev)
+Looking for system architecture diagrams, security invariants, contributor workflows, or quality assurance gates?
 
-```bash
-git clone https://github.com/AMG555/FrameForge.git && cd FrameForge && npm run doctor && npm run setup
-```
-
-```json
-{
-  "mcpServers": {
-    "frameforge": {
-      "command": "node",
-      "args": ["/absolute/path/to/FrameForge/src/mcp-server/stdio.js"]
-    }
-  }
-}
-```
-
-### Remote URL (Cloudflare Workers — FFmpeg must run separately)
-
-Deploy once to Cloudflare (free):
-
-```bash
-cd cloudflare-mcp && npm install
-wrangler secret put WORKER_API_URL   # your FrameForge backend URL
-wrangler secret put MCP_AUTH_TOKEN   # any random 32-char string
-wrangler deploy
-```
-
-```json
-{
-  "mcpServers": {
-    "frameforge": {
-      "url": "https://video-mcp.YOUR_SUBDOMAIN.workers.dev/mcp",
-      "headers": { "Authorization": "Bearer YOUR_MCP_AUTH_TOKEN" }
-    }
-  }
-}
-```
+👉 **Read the [Collaboration & Engineering Guide](docs/collaboration.md)**:
+* **Architecture & Deployment:** Stdio, HTTP server, and Cloudflare Remote Workers.
+* **Security Invariants:** Constant-time auth comparisons, SSRF blocklists, path traversal protection, credential redaction.
+* **7-Gate Broadcast QC Standard:** Audio LUFS discipline, peak ceilings, and stream validation.
+* **Upstream Synchronization:** Continuous tracking of 9 frontier video repositories.
+* **Testing:** Automated test suite (661 tests) and structural validator (113 checks).
 
 ---
 
-## Make your first video
+## 📄 License
 
-**New to FrameForge?** Read [`START_HERE.md`](START_HERE.md) — it's a single file you paste into any IDE chat that starts a guided conversation: the agent asks what you want to make, produces a beat sheet for your approval, then drives the full pipeline.
-
-Once connected, tell your IDE:
-
-> *"Make a 60-second explainer video about how GPS works"*
-
-Or call the tool directly:
-
-```
-create_video_from_script({
-  scenes: [
-    {
-      narration: "GPS works by triangulating signals from at least four satellites.",
-      caption: "GPS TRIANGULATION",
-      visual_description: "satellite orbiting earth, flat illustration, bold colors"
-    },
-    {
-      narration: "Your phone measures tiny timing differences to pinpoint your location.",
-      caption: "YOUR LOCATION",
-      visual_description: "phone with pin on map, white background, minimal"
-    }
-  ],
-  title: "How GPS Works"
-})
-```
-
-Output lands in `.frameforge-files/`:
-
-```
-final_video_<id>.mp4   →  1080p landscape master
-short_1_<id>.mp4       →  auto-extracted 9:16 vertical Short
-video_meta.json        →  title, description, tags, chapters
-```
-
-**No API keys required for this path.** `edge-tts` (voice) runs offline and visual cards render procedurally via FFmpeg/Playwright. 100% deterministic, zero diffusion flaws.
-
----
-
-## Two ways to use it
-
-### Your IDE writes the script — no LLM key needed
-
-Your IDE's model writes the scenes. FrameForge runs FFmpeg, TTS, and code-driven kinetic animations or user media. Use `create_video_from_script`. This is the fastest path and what most people want.
-
-### FrameForge researches and scripts itself
-
-For batch runs or when running without an IDE. Requires a free LLM key (Groq or Gemini both have free tiers).
-
-```bash
-npm run make -- --topic "How does GPS actually work?"
-```
-
----
-
-## Bring your own media
-
-Skip AI generation for any scene by supplying your own files:
-
-```json
-{
-  "narration": "Here is the sorting algorithm running step by step.",
-  "caption": "ALGORITHM",
-  "video_path": "/recordings/screen_capture.mp4",
-  "audio_path": "/recordings/my_voice.mp3"
-}
-```
-
-Any combination of `image_path`, `video_path`, `audio_path` works — FrameForge only generates what you don't supply.
-
----
-
-## Tools
-
-28 tools, grouped by what you're doing:
-
-**Make a video from your own script (no LLM key)**
-
-| Tool | What it does |
-|------|-------------|
-| `create_video_from_script` | Full render from scenes you provide — voice, procedural motion graphics / custom code, FFmpeg, quality gate |
-| `edit_video` | Autonomous local video editor — cut, trim, speed-ramp, color-grade, reframe (16:9 / 9:16 / 1:1), add captions, apply xfade transitions, and mix audio |
-| `ingest_media` | Import your own clips, images, and audio into a scenes manifest |
-| `edit_scenes` | Update captions, swap media files, or append scenes to a manifest |
-| `render_from_scenes` | Re-render from an existing manifest, skipping research and scripting |
-| `assemble_video` | FFmpeg render + quality gate — produces the master MP4 |
-| `render_tts` | Generate voice audio for one scene |
-| `multi_voice_tts` | Override TTS provider per call without touching `.env` |
-| `generate_scene_image` | Generate one scene image via the configured image provider |
-| `publish_video` | Deliver the finished video via file copy or HTTP webhook |
-| `external_platform_call` | Bridge to ElevenLabs, Runway, VoxForge, or local FFmpeg editor fallback |
-| `export_to_editor` | Bridge/import into DaVinci Resolve, Premiere Pro, After Effects, Remotion, or CapCut |
-| `plan_video_edit` | Plan/Approve/Render: analyze footage, generate `edit-plan.md` + `edit.json` with rationale per cut |
-
-**Media ingestion (yt-dlp & Whisper)**
-
-| Tool | What it does |
-|------|-------------|
-| `ingest_url` | Download video/audio from YouTube, Vimeo, Twitter/X, TikTok, and 1000+ sites via yt-dlp |
-| `transcribe_media` | Whisper transcription with word-level timestamps → NDJSON (for `cuePhrase()`), SRT, JSON |
-
-**Professional audio post-production**
-
-| Tool | What it does |
-|------|-------------|
-| `mix_audio_pro` | Broadcast-grade chain: HPF → EQ → de-esser → compressor → reverb → duck → stereo widen → SFX synthesis → two-pass EBU R128 |
-
-**Auto-research pipeline (needs a free LLM key)**
-
-| Tool | What it does |
-|------|-------------|
-| `research_topic` | Research any topic and extract fact-checked claims |
-| `write_script` | Generate a structured scene script from research claims |
-| `queue_full_pipeline` | Queue a full research → render → publish run; returns `{ jobId }` immediately |
-| `get_job_status` | Poll a queued job for `{ status, stage, result }` |
-
-**Code-driven animated video (Playwright + FFmpeg)**
-
-| Tool | What it does |
-|------|-------------|
-| `scaffold_animation_project` | Create a project where every frame is a pure function of time `t` |
-| `validate_storyboard` | Check `STORYBOARD.md` against the 4-gate beat-sheet contract |
-| `render_animation` | Run the Playwright renderer: sheet / strip / storyboard / crop / full / quality / golden |
-| `preview_scene` | Render still frames of a scene HTML/code for visual inspection before full render |
-| `verify_scene_quality` | Closed-loop visual QA gate: 1–10 score on content, exposure, layout, and motion delta |
-
-**Upstream skills**
-
-| Tool | What it does |
-|------|-------------|
-| `sync_upstream_skills` | Fetch latest commits from 9 reference repos and update local manifest. Returns per-category update summary with `userImpact` and affected tools. |
-| `check_upstream_updates` | Fast offline read of local manifest — shows last sync time, per-repo SHA, and sync status without any network requests. |
-
----
-
-## Providers
-
-Switch any provider with one `.env` change — no code changes.
-
-**Voice (TTS)**
-
-| Provider | Free? | Key needed |
-|----------|-------|------------|
-| `edge-tts` | ✅ free, offline | none — **default** |
-| `voxforge` | ✅ free, local/private | none — `VOXFORGE_URL` ([VoxForge](https://github.com/AMG555/VoxForge)) |
-| `elevenlabs` | paid | `ELEVENLABS_API_KEY` |
-| `azure` | paid | `AZURE_SPEECH_KEY` + `AZURE_SPEECH_REGION` |
-| `openai` | paid | `OPENAI_API_KEY` |
-| `webhook` | — | `WEBHOOK_TTS_URL` |
-
-Set `PROVIDER_TTS=<name>`.
-
-**Visuals & Media**
-
-FrameForge is **code-driven first**: scenes render via crisp vector animations, kinetic typography, and user-provided media (clips, b-roll, photos) — zero diffusion artifacts, zero AI slop, 100% deterministic.
-
-| Visual Mode / Provider | Type | Key needed |
-|------------------------|------|------------|
-| `code-driven` | **Default** — kinetic cards, typography, spring motion | none — **recommended default** |
-| `user-media` | User-supplied `image_path` or `video_path` in scene | none |
-| `pollinations` | Optional AI diffusion (opt-in via `--ai-images`) | none |
-| `falai` | Optional AI diffusion (fast FLUX) | `FALAI_API_KEY` at fal.ai |
-| `replicate` | Optional AI diffusion (FLUX-schnell) | `REPLICATE_API_KEY` |
-| `dalle` | Optional AI diffusion (DALL-E 3) | `OPENAI_API_KEY` |
-| `webhook` | Custom image/video generation endpoint | `WEBHOOK_IMAGE_URL` |
-
-Set `ENABLE_AI_IMAGES=true` or pass `--ai-images` only if you explicitly want AI diffusion images. Default is clean code-driven animation.
-
-**LLM — only for the auto-research path**
-
-> Skip entirely when using `create_video_from_script`.
-
-| Provider | Free? | Key needed |
-|----------|-------|------------|
-| `groq` | ✅ free tier | `GROQ_API_KEY` at console.groq.com |
-| `gemini` | ✅ free tier | `GEMINI_API_KEY` at aistudio.google.com |
-| `ollama` | ✅ fully local | none — set `OLLAMA_MODEL` |
-| `openrouter` | pay per use | `OPENROUTER_API_KEY` |
-| `anthropic` | paid | `ANTHROPIC_API_KEY` |
-| `openai` | paid | `OPENAI_API_KEY` |
-
-Set `PROVIDER_LLM=<name>`.
-
----
-
-## Quality gates
-
-Every video passes 7 checks before delivery. Any failure blocks the output.
-
-| Check | Requirement |
-|-------|------------|
-| Resolution | 1920×1080 landscape or 1080×1920 portrait |
-| Video codec | H.264, high profile, yuv420p |
-| Loudness | −14 LUFS ± 1.5 LU (broadcast standard) |
-| True peak | ≤ −0.5 dBTP |
-| Black frames | None longer than 0.5 s |
-| Frozen frames | None longer than 0.5 s |
-| File integrity | > 1 MB, valid video + audio streams |
-
----
-
-## CLI commands
-
-**Via npx (no clone needed):**
-
-| Command | What it does |
-|---------|-------------|
-| `npx --package=@amg555/frameforge-mcp frameforge-setup` | Interactive key wizard — saves to `~/.frameforge/config.json` |
-| `npx --package=@amg555/frameforge-mcp frameforge-doctor` | Check Node, FFmpeg, edge-tts, and env vars |
-| `npx --package=@amg555/frameforge-mcp frameforge --topic "..."` | Full pipeline: research → render → deliver |
-
-**Via cloned repo:**
-
-| Command | What it does |
-|---------|-------------|
-| `npm run doctor` | Check Node, FFmpeg, edge-tts, and env vars |
-| `npm run setup` | Interactive key wizard — writes `.env` |
-| `npm run mcp` | Start MCP server on port 3210 |
-| `npm run mcp:stdio` | stdio MCP server for direct IDE connection |
-| `npm run make -- --topic "..."` | Full pipeline: research → render → deliver |
-| `npm run validate` | Deep structural validation (113 checks) |
-| `npm test` | Test suite (512 tests) |
-
----
-
-## Architecture
-
-```
-YOUR IDE (Bob / Codex / opencode / Cursor / Windsurf / Claude Code)
-         │
-         │  HTTPS + SSE  (Cloudflare Remote MCP — optional)
-         ▼
-[Cloudflare Worker]     proxies tool calls, keeps IDE context lean
-         │
-         │  HTTP + INTERNAL_API_TOKEN
-         ▼
-[FrameForge Node]       runs on VPS / Pi / your machine / Render.com
-         │
-         ├─ src/mcp-server/     17 MCP tools
-         ├─ src/workflows/      research → script → assets → render → publish
-         ├─ src/pipeline/       state machine, retry, telemetry, manifest
-         ├─ src/video-renderer/ FFmpeg scene render + concat
-         ├─ src/audio-mixer/    LUFS normalise, sidechain ducking
-         └─ src/quality-gate/   7-point output validation
-```
-
----
-
-## Security
-
-- **Timing-safe auth** — all token comparisons use `crypto.timingSafeEqual`
-- **SSRF protection** — webhook and pipeline URLs validated against RFC-1918 / loopback / link-local blocklist
-- **Path traversal guards** — `productionId`, `audioPath`, `localPath` validated before any file I/O
-- **CLI injection guards** — animation timestamps allowlisted before passing to `render.mjs`
-- **Worker API auth** — `INTERNAL_API_TOKEN` Bearer check on all internal routes
-- **Body size limits** — all HTTP servers reject requests > 4 MB with HTTP 413
-- **Credential redaction** — 14+ regex patterns strip API keys from all logs
-
-Report vulnerabilities: [SECURITY.md](SECURITY.md)
-
----
-
-## Deployment
-
-**npx (no install — recommended for users):**
-
-```bash
-npx --package=@amg555/frameforge-mcp frameforge-setup
-# then add the IDE config from the quickstart above
-```
-
-**VPS / Pi / self-hosted (cloned repo):**
-
-```bash
-git clone https://github.com/AMG555/FrameForge.git && cd FrameForge
-cp docs/env.template .env   # edit with your keys
-npm run mcp
-```
-
-See [`docs/deployment.md`](docs/deployment.md) for Docker, systemd, and Render.com setup.
-
----
-
-## Testing
-
-```bash
-npm test          # 512 tests, 0 failures
-npm run validate  # 113 structural checks
-```
-
----
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md).
-
-1. `npm run doctor` passes on your OS
-2. `npm test` passes (512/512)
-3. `npm run validate` passes (113/113)
-4. FFmpeg commands keep `-nostdin` and cross-platform font paths
-
----
-
-## License
-
-MIT — see [LICENSE](LICENSE).
+Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for details. Built for creators and autonomous agents pushing the frontier of video production.

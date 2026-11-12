@@ -1,7 +1,7 @@
 {
   "name": "@amg555/frameforge-mcp",
   "version": "2.7.6",
-  "description": "FrameForge — AI video production engine for agentic IDEs. npx @amg555/frameforge-mcp. FFmpeg + TTS on your machine. 34 MCP tools. Whisper, yt-dlp, broadcast-grade audio, 13-type SFX library, 24 film styles, ClaudeAnimationBase full guide, onetake 39-move library + OM motion primitives, HyperFrames beat-grid, earshot forge DSP, J/L-cut editing, lemo-opuscar TREATMENT.md, upstream auto-update changelog. Faceless Shorts: 6-style aiinsight-shorts. Viral clip detection + karaoke subtitles (openshorts-inspired, opt-in only). 62 Nafay 3D styles catalog.",
+  "description": "FrameForge — Universal AI video creation & autonomous editing engine for any AI agent, CLI, or IDE. npx @amg555/frameforge-mcp. FFmpeg + TTS on your machine. 34 MCP tools. Whisper transcription, yt-dlp ingestion, broadcast-grade audio, 62 procedural motion styles, 6 viral faceless shorts engines, autonomous video editor with retake/silence cutting, J/L-cuts, timeline export to DaVinci/Premiere.",
   "publishConfig": {
     "access": "public"
   },
