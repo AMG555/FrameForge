@@ -133,7 +133,7 @@ const editLines = [
   ` * If a layer is only active until t=X, it must explicitly hide itself after t=X.`,
   ` */`,
   ``,
-  `import { reel, layer, text, wallCard, stamp, at, stagger, captions, cue, codeCard, terminal, imageCard, chip } from './reel/engine.js';`,
+  `import { reel, layer, text, wallCard, stamp, at, stagger, captions, cue, event, codeCard, terminal, imageCard, chip, beatAt, snapToBeat, OM, ROOM_SFX, seg } from './reel/engine.js';`,
   ``,
   `// ── Compositor config ────────────────────────────────────────────────────────`,
   `reel({`,
@@ -303,6 +303,7 @@ copyAsset('scripts/encode.mjs',       'scripts/encode.mjs');
 copyAsset('scripts/look.mjs',         'scripts/look.mjs');
 copyAsset('scripts/storyboard-validator.mjs', 'scripts/storyboard-validator.mjs');
 copyAsset('scripts/mix_audio.py',     'scripts/mix_audio.py');
+copyAsset('scripts/mix_audio_pro.py', 'scripts/mix_audio_pro.py');
 copyAsset('scripts/verify.py',        'scripts/verify.py');
 copyAsset('scripts/transcribe.py',    'scripts/transcribe.py');
 copyAsset('scripts/capture.mjs',      'scripts/capture.mjs');
@@ -335,7 +336,8 @@ const pkg = {
     'render:crop':         'node scripts/render.mjs crop 9:16',
     'render:full':         'node scripts/render.mjs full',
     'render:mux':          'node scripts/render.mjs mux',
-    'mix':                 'uv run scripts/mix_audio.py',
+    'mix':                 'uv run scripts/mix_audio_pro.py',
+    'mix:basic':           'uv run scripts/mix_audio.py',
     'transcribe':          'uv run scripts/transcribe.py',
     'verify':              'uv run scripts/verify.py',
     'capture':             'node scripts/capture.mjs',
@@ -397,7 +399,9 @@ console.log(`  2. Edit STORYBOARD.md:      fill in shots, events, reads, transit
 console.log(`  3. Validate storyboard:     node scripts/storyboard-validator.mjs STORYBOARD.md`);
 console.log(`  4. Pre-flight check:        node scripts/look.mjs`);
 console.log(`  5. Check visuals:           node scripts/render.mjs sheet`);
-console.log(`  6. Mix audio (TTS):         uv run scripts/mix_audio.py`);
+console.log(`  6. Mix audio (TTS):         uv run scripts/mix_audio_pro.py`);
+console.log(`     Professional chain:      uv run scripts/mix_audio_pro.py --room broadcast --platform youtube`);
+console.log(`     With sfx-events.json:    uv run scripts/mix_audio_pro.py --sfx-events`);
 console.log(`  7. Full render:             node scripts/render.mjs full`);
 console.log(`  8. Verify quality gates:    uv run scripts/verify.py\n`);
 

@@ -34,10 +34,14 @@ Use the right effort level at each stage — wrong effort wastes cost or quality
 7. Run render.mjs sheet (one sheet per shot)
 8. Review sheets, request patches from the responsible subagent
 9. Run render.mjs full (full encode, all workers)
-10. Run verify.py (7-gate QC)
-11. If QC fails: identify the responsible chapter, re-assign to a fresh subagent
-12. Mux audio: render.mjs mux --audio=audio/final_mix.wav
-13. Final verify.py pass
+    → After full render, out/sfx-events.json is auto-generated from window.__events()
+10. Run mix_audio_pro.py (professional signal chain):
+    uv run scripts/mix_audio_pro.py --room broadcast --platform youtube
+    (--sfx-events flag reads out/sfx-events.json automatically if present)
+11. Run verify.py (7-gate QC)
+12. If QC fails: identify the responsible chapter, re-assign to a fresh subagent
+13. Mux audio: render.mjs mux --audio=out/audio_mix_pro.m4a
+14. Final verify.py pass
 ```
 
 ## Subagent rules

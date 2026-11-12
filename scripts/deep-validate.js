@@ -259,6 +259,11 @@ check('log-redaction has Tavily tvly- pattern',   redaction.includes('tvly') || 
 // ── html-renderer scaffolder ──────────────────────────────────────────────
 console.log('\n=== html-renderer scaffolder ===');
 check('new-project.mjs exists', fs.existsSync('./scripts/html-renderer/new-project.mjs'));
+const newProjectMjs = fs.readFileSync('./scripts/html-renderer/new-project.mjs', 'utf8');
+check('new-project.mjs imports OM and beatAt', newProjectMjs.includes('beatAt') && newProjectMjs.includes('OM'));
+check('new-project.mjs imports event()',        newProjectMjs.includes("'event'") || newProjectMjs.includes(', event,'));
+check('new-project.mjs copies mix_audio_pro.py', newProjectMjs.includes("'scripts/mix_audio_pro.py'"));
+check('new-project.mjs npm run mix uses pro',   newProjectMjs.includes('mix_audio_pro.py') && newProjectMjs.includes("'mix'"));
 
 // ── html-renderer engine assets ──────────────────────────────────────────
 console.log('\n=== html-renderer engine assets ===');

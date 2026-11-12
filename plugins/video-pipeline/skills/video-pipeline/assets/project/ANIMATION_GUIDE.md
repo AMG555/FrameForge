@@ -156,7 +156,8 @@ Never capture audio from the browser. Audio is a separate pass:
 1. TTS generates audio → word-level timestamps from `scripts/transcribe.py`
 2. Scene resolves animation anchors from those timestamps via `cuePhrase()`
 3. `node scripts/render.mjs full` renders video frames (silent)
-4. `uv run scripts/mix_audio.py` builds the final audio track
+4. `uv run scripts/mix_audio_pro.py --sfx-events --room broadcast --platform youtube` builds the final audio track
+   (reads out/sfx-events.json from window.__events() automatically; use `mix_audio.py` for the simple chain)
 5. `node scripts/render.mjs mux` merges with `-c:v copy` (video stream untouched)
 
 `cuePhrase(phrase)` **throws a fatal build error** if the phrase cannot be found
