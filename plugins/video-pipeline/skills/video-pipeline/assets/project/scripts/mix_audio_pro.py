@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 mix_audio_pro.py — Professional broadcast-grade audio post-production chain.
-v2.7.1 — synced with mixer.js: 13-type SFX library, 5 room profiles, noise gate,
+v2.7.2 — synced with mixer.js: 13-type SFX library, 5 room profiles, noise gate,
          mud notch, sfx-events.json auto-read (window.__events contract).
 
 15+ year sound engineer signal chain applied via FFmpeg:
@@ -18,7 +18,7 @@ v2.7.1 — synced with mixer.js: 13-type SFX library, 5 room profiles, noise gat
  10. Master bus: two-pass EBU R128 loudnorm at target LUFS, true peak ≤-1 dBTP
      Platforms: youtube (-14) | podcast (-16) | broadcast (-23) | netflix (-27) | instagram (-14)
 
-New in v2.7.1:
+New in v2.7.2:
   --sfx-events  Auto-load sfx-events.json from out/ (window.__events contract from render.mjs)
   --room        Named room profile or computed:sizeM:damp:earlyMs
   --platform    Platform LUFS preset (youtube|podcast|broadcast|netflix|instagram)
@@ -316,7 +316,7 @@ def load_sfx_events(events_path: pathlib.Path) -> list[tuple[str, float, float]]
 
 def main():
     p = argparse.ArgumentParser(
-        description="Professional audio post-production (15+ yr sound engineer chain, v2.7.1)"
+        description="Professional audio post-production (15+ yr sound engineer chain, v2.7.2)"
     )
     p.add_argument("--music",           default=None,   help="Background music file")
     p.add_argument("--music-vol",       default="0.12", help="Music volume before ducking (default 0.12)")
@@ -554,7 +554,7 @@ def main():
         if not tp_ok:
             print(f"  ⚠  True peak above -0.5 dBTP")
 
-    print(f"\n  Signal chain (v2.7.1):")
+    print(f"\n  Signal chain (v2.7.2):")
     if args.noise_gate:
         print(f"  noise gate (-60dBFS) →")
     print(f"  80Hz HPF → mud notch -1.5dB@300Hz → presence +2dB@5kHz → air shelf +1.5dB@12kHz")

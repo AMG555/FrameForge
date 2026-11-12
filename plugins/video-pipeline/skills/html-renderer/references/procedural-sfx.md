@@ -48,13 +48,25 @@ mix_audio_pro({
 })
 ```
 
-Or in `edit.js` for render-time visual sync (engine.js `cue()` function):
+Or in `edit.js` for render-time visual sync (engine.js `cue()` and `event()` functions):
 ```javascript
-import { cue } from './reel/engine.js';
-cue('whoosh',    2.5, 0.8);   // registered in window.__cues for render.mjs
+import { cue, event, ROOM_SFX } from './reel/engine.js';
+
+// cue() — registers in window.__cues (legacy, render.mjs live preview)
+cue('whoosh',    2.5, 0.8);
 cue('impact',   8.0, 1.0);
 cue('riser',   18.0, 0.7);
 cue('deep_boom',30.0, 0.9);
+
+// event() — registers in window.__events() and is written to out/sfx-events.json
+// by render.mjs after probe. mix_audio_pro.py reads it automatically.
+event('sfx', 2.5,  { sfxName: 'whoosh',    vol: 0.8 });
+event('sfx', 8.0,  { sfxName: 'impact',    vol: 1.0 });
+event('sfx', 30.0, { material: 'sub',      vol: 0.9 }); // OneTake ROOM_SFX → deep_boom
+
+// Then: render.mjs writes out/sfx-events.json
+// mix_audio_pro.py reads it automatically (no --sfx flags needed):
+//   uv run scripts/mix_audio_pro.py --music assets/bg.mp3 --platform youtube --room broadcast
 ```
 
 ---

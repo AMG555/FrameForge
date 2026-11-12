@@ -55,6 +55,45 @@ Returns: `{ productionId, masterPath, passed, sizeBytes, sceneCount }`
 
 Returns: `{ productionId, scenes, title, description, tags, sceneCount }`
 
+### generate_scene_image
+
+```json
+{
+  "productionId": "prod-001",
+  "sceneIndex": 0,
+  "visualDescription": "router emitting waves, flat illustration",
+  "imagePath": "/optional/custom/image.png"
+}
+```
+
+Registers or generates code-driven visual card for one scene.
+
+### render_tts
+
+```json
+{
+  "productionId": "prod-001",
+  "sceneIndex": 0,
+  "text": "WiFi sends data as invisible radio waves.",
+  "voice": "en-US-GuyNeural"
+}
+```
+
+Converts scene narration text to audio using configured TTS provider.
+
+### assemble_video
+
+```json
+{
+  "productionId": "prod-001",
+  "sceneCount": 15,
+  "withMusic": true,
+  "musicVolume": 0.07
+}
+```
+
+Assembles rendered scenes into final MP4 and validates quality gate.
+
 ### render_from_scenes
 
 ```json
@@ -231,6 +270,117 @@ Style options include all lemo-opuscar film styles:
 
 Returns: `{ planPath, editJsonPath, planMarkdown, editConfig }`.
 
+### edit_video — Execute planned cuts and color grading
+
+```json
+{
+  "edit_file": ".frameforge-files/edit.json",
+  "footage": ["/path/clip1.mp4", "/path/clip2.mp4"],
+  "output_path": ".frameforge-files/final_cut.mp4",
+  "cuts": [
+    { "clip": 0, "start": 0, "end": 4.5, "speed": 1.0, "color_grade": "cinematic", "transition": "fade" }
+  ],
+  "audio_path": ".frameforge-files/voice_0.m4a",
+  "music_path": "/path/to/bg.mp3",
+  "color_grade": "cinematic",
+  "auto_fit": true
+}
+```
+
+Renders frame-exact edits with FFmpeg filtergraphs, J/L-cuts, pan/zoom camera moves, and color grading.
+
+### export_to_editor — Export to Premiere Pro / DaVinci Resolve
+
+```json
+{
+  "project_dir": ".frameforge-files/project",
+  "format": "edl",
+  "output_path": ".frameforge-files/project/timeline.edl",
+  "title": "FrameForge Timeline"
+}
+```
+
+Formats: `edl` (CMX 3600), `fcpxml` (Final Cut Pro / DaVinci), `otio` (OpenTimelineIO).
+
+---
+
+## Code-driven HTML animation (Claude Opus 5.5 pure-function-of-t)
+
+### scaffold_animation_project
+
+```json
+{
+  "outDir": "./my-animation",
+  "title": "Why Planets Orbit",
+  "width": 1920,
+  "height": 1080,
+  "fps": 30,
+  "scenes": [
+    { "narration": "Gravity curves spacetime.", "caption": "SPACETIME CURVATURE" }
+  ]
+}
+```
+
+Scaffolds a zero-diffusion HTML compositor project (`index.html`, `reel/engine.js`, `edit.js`, `scripts/render.mjs`).
+
+### validate_storyboard
+
+```json
+{ "storyboardPath": "./my-animation/STORYBOARD.md" }
+```
+
+Validates storyboard against 4 hard gates: event timestamps, non-overlapping reads, named transitions, no on-screen text slop.
+
+### generate_scene_code
+
+```json
+{
+  "visual_description": "Sun bending gravity grid with orbiting Earth particle trail",
+  "caption": "SPACETIME CURVATURE",
+  "style": "cosmic_space",
+  "duration": 4.0
+}
+```
+
+Generates pure mathematical `window.seek(t)` canvas animation code.
+
+### preview_scene
+
+```json
+{
+  "html": "<html>...</html>",
+  "duration": 4.0,
+  "timestamps": [0.1, 2.0, 3.9]
+}
+```
+
+Renders headless Chromium still frames (PNGs) to let the agent visually inspect layout, typography, and colors before rendering.
+
+### verify_scene_quality
+
+```json
+{
+  "htmlPath": "./my-animation/scene_1.html",
+  "duration": 4.0,
+  "sampleRate": 2
+}
+```
+
+Closed-loop QA grading (1–10 score): content presence, exposure, layout balance, motion delta. Returns worst frames for automated patch loop.
+
+### render_animation
+
+```json
+{
+  "projectDir": "./my-animation",
+  "mode": "full"
+}
+```
+
+Modes: `full` (renders MP4), `sheet` (contact sheet), `stills` (specific frames), `strip` (motion strip), `look` (pre-render linter), `quality` (QA gate), `golden` (regression diff).
+Returns `{ success, videoPath, sfxEvents }`.
+
+
 ### sync_upstream_skills — Fetch new commits from 9 reference repos
 
 ```json
@@ -253,7 +403,7 @@ No network requests — reads the local manifest only. Returns:
 ```json
 {
   "lastSync": "2026-11-11T20:00:00Z",
-  "manifestVersion": "2.7.1",
+  "manifestVersion": "2.7.2",
   "totalRepos": 9,
   "syncedCount": 9,
   "repos": [

@@ -4,6 +4,34 @@ All notable changes to FrameForge are documented here.
 
 ---
 
+## [2.7.2] — 2026-11-12
+
+### Added
+- **Full Reference Documentation for all 28 MCP Tools**: Complete parameter schemas and usage examples in `plugins/video-pipeline/skills/video-pipeline/references/mcp-tools.md` covering all animation, scene generation, QA, editor, and media ingestion tools.
+- **mix_audio_pro.py Broadcast Parity**: Synchronized Python audio processor with `mixer.js` — 13 procedural SFX generators, 5 room profiles + computed Sabine RT60 acoustic simulation, platform LUFS presets (YouTube, Podcast, Broadcast, Netflix, Instagram), noise gate (-60dBFS), 300Hz mud notch, and automatic `sfx-events.json` loader for `window.__events` contract.
+
+### Fixed
+- **Cloudflare Remote Worker alignment**: Synchronized tool count and server versioning.
+- **Upstream sync User-Agent and pending update handling**: Cleaned up update caching and banner presentation across CLI and MCP endpoints.
+
+---
+
+## [2.7.3] — 2026-11-12
+
+### Added
+- **`mix_audio_pro.py` v2.7.3** — synced fully with `mixer.js` audio chain:
+  - 13-type SFX map (was 5): all of whoosh/swish/impact/deep_boom/punch/pop/click/riser/chime/buzz/tick/sparkle/transition.
+  - 5 named room profiles: `studio_dry`, `broadcast`, `cinematic`, `concert_hall`, `intimate`.
+  - `PLATFORM_LUFS` presets: `--platform youtube|podcast|broadcast|netflix|instagram`.
+  - Noise gate step: `--noise-gate` flag (agate -60dBFS).
+  - Mud notch filter: -1.5dB @ 300Hz (acoustic pocket carving).
+  - `--sfx-events` flag + `load_sfx_events()`: auto-reads `out/sfx-events.json` from `window.__events()` contract.
+  - `computed:sizeM:damp:earlyMs` room format (Sabine RT60 approximation, earshot forgeComputedRoom parity).
+  - 9 new `deep-validate.js` checks covering all of the above.
+- **`procedural-sfx.md`** — updated `event()` usage examples showing `window.__events()` / `sfx-events.json` auto-pipeline.
+
+---
+
 ## [2.7.1] — 2026-11-11
 
 ### Fixed
