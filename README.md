@@ -13,12 +13,13 @@
 [![Tests](https://img.shields.io/badge/tests-661%20passing-brightgreen.svg?style=flat-square)](docs/collaboration.md)
 [![Structural Gates](https://img.shields.io/badge/validation-113%20passed-success.svg?style=flat-square)](docs/collaboration.md)
 
-[Quickstart](#-quickstart-give-this-1-prompt-to-your-ai-agent) • [100% Free with Arena.ai](#-pro-tip-100-free-code-based-video-generation-zero-subscriptions) • [Two Superpowers](#-two-agent-superpowers-creation--editing) • [Motion Styles](#-62-procedural-motion-graphics-styles) • [Faceless Shorts](#-viral-faceless-shorts-engine) • [MCP Tools](#-34-mcp-tools-reference) • [Collaboration Guide](docs/collaboration.md)
+[Quickstart](#quickstart) • [100% Free Path (Arena.ai)](#free-arena) • [Two Superpowers](#superpowers) • [Motion Styles](#styles) • [Faceless Shorts](#shorts) • [34 MCP Tools](#tools) • [Collaboration Guide](docs/collaboration.md)
 
 </div>
 
 ---
 
+<a id="what-is-frameforge"></a>
 ## 💡 What is FrameForge?
 
 **FrameForge** is an open-source local video engine and **Model Context Protocol (MCP)** server that equips **any AI agent** with two complete superpowers:
@@ -30,6 +31,7 @@
 
 ---
 
+<a id="quickstart"></a>
 ## ⚡ Quickstart: Give This 1 Prompt to Your AI Agent
 
 No manual downloading or complex configuration needed. FrameForge auto-provisions all runtime tools (FFmpeg, neural TTS voices, Chromium browser engine) automatically.
@@ -47,8 +49,11 @@ Your agent configures MCP and verifies everything on its own.
 * **To Create:** *"Make a 45-second vertical reel explaining how GPS triangulation works with bold kinetic captions and sound effects."*
 * **To Edit:** *"Edit my recording raw.mp4: cut all silences and retakes, add kinetic subtitle cards, and export the final video."*
 
+> 💡 **Style Tip:** You can specify any of our [62 Motion Styles](plugins/motion-styles/LIBRARY.md) directly in your prompt (e.g. *"in `creator-motion` style"* or *"in `deep-dive` 3D style"*). If you don't name a style, your agent will automatically pick the best-fitting style for your topic!
+
 ---
 
+<a id="free-arena"></a>
 ## 🆓 Pro-Tip: 100% Free Code-Based Video Generation (Zero Subscriptions)
 
 ### Make Broadcast-Quality AI Videos for $0 with Free Agent Platforms (Arena.ai & Web Agents)
@@ -83,6 +88,7 @@ You do **NOT** need expensive AI subscriptions or cloud GPU rentals to build stu
 
 ---
 
+<a id="superpowers"></a>
 ## 🎬 Two Agent Superpowers: Creation & Editing
 
 ```
@@ -119,6 +125,7 @@ You do **NOT** need expensive AI subscriptions or cloud GPU rentals to build stu
 
 ---
 
+<a id="styles"></a>
 ## 🎨 62 Procedural Motion-Graphics Styles
 
 FrameForge bundles **62 code-drawn motion-graphics styles** covering every content genre. Every style runs entirely in code on HTML5 Canvas / Three.js r128 with synthesized Web Audio sound kits — zero AI image generation, zero diffusion artifacts.
@@ -141,6 +148,7 @@ Full catalog and ready-to-copy prompts in [`plugins/motion-styles/LIBRARY.md`](p
 
 ---
 
+<a id="shorts"></a>
 ## 📱 Viral Faceless Shorts Engine
 
 FrameForge includes specialized turnkey engines for vertical short-form automation (YouTube Shorts, TikTok, Instagram Reels) in [`plugins/faceless-shorts/`](plugins/faceless-shorts/):
@@ -154,20 +162,22 @@ FrameForge includes specialized turnkey engines for vertical short-form automati
 
 ---
 
+<a id="tools"></a>
 ## 🛠️ 34 MCP Tools Reference
 
 FrameForge registers **34 tools** compliant with the Model Context Protocol (MCP 2024-11-05 spec):
 
-| Category | Tools | Capabilities |
+| Category | Tools (All 34 Listed) | Capabilities |
 |---|---|---|
-| **Video Creation** | `create_video_from_script`, `assemble_video`, `render_from_scenes`, `edit_scenes`, `ingest_media`, `publish_video` | Full video assembly, scenes manifest, caption burning, export |
-| **Autonomous Editing** | `edit_video`, `plan_video_edit`, `export_to_editor` | Silence & retake cutting, speed ramps, NLE timeline export (DaVinci/Premiere) |
-| **Motion Styles** | `list_motion_styles`, `get_motion_style_prompt` | Catalog browse & prompt generation across 62 procedural styles |
-| **Code Animation** | `scaffold_animation_project`, `validate_storyboard`, `render_animation`, `preview_scene`, `verify_scene_quality` | Playwright canvas rendering, 12fps organic boil, closed-loop visual QA |
-| **Audio Mastering** | `mix_audio_pro`, `render_tts`, `multi_voice_tts` | EBU R128 (−14 LUFS) broadcast mastering, ducking, 13-type SFX kit |
-| **Media & Speech** | `ingest_url`, `transcribe_media` | Fast yt-dlp downloader & local Whisper word-level transcription |
-| **Research & Queue** | `research_topic`, `write_script`, `queue_full_pipeline`, `get_job_status` | Deep claim extraction, fact-checking, script generation, async worker |
-| **Upstream & Bridges** | `sync_upstream_skills`, `check_upstream_updates`, `external_platform_call` | Technique sync from 9 frontier video repos & cloud provider bridges |
+| **Video Creation (7)** | `create_video_from_script`, `assemble_video`, `render_from_scenes`, `edit_scenes`, `ingest_media`, `publish_video`, `generate_scene_image` | Full video assembly, scenes manifest, caption burning, scene graphics export |
+| **Autonomous Editing (5)** | `edit_video`, `plan_video_edit`, `export_to_editor`, `detect_viral_clips`, `karaoke_subtitles` | Silence & retake cutting, viral hook scoring, kinetic subs, NLE export (DaVinci/Premiere) |
+| **Motion Styles (2)** | `list_motion_styles`, `get_motion_style_prompt` | Catalog browse & prompt generation across 62 procedural styles |
+| **Faceless Shorts (2)** | `list_short_styles`, `create_short` | 6 vertical formats (Zack D. 3D, true crime noir, stick figure, paper atlas) |
+| **Code Animation (6)** | `scaffold_animation_project`, `validate_storyboard`, `generate_scene_code`, `preview_scene`, `render_animation`, `verify_scene_quality` | Playwright canvas rendering, 12fps organic boil, closed-loop visual QA |
+| **Audio Mastering (3)** | `mix_audio_pro`, `render_tts`, `multi_voice_tts` | EBU R128 (−14 LUFS) broadcast mastering, ducking, 13-type SFX kit |
+| **Media & Speech (2)** | `ingest_url`, `transcribe_media` | Fast yt-dlp downloader & local Whisper word-level transcription |
+| **Research & Queue (4)** | `research_topic`, `write_script`, `queue_full_pipeline`, `get_job_status` | Deep claim extraction, fact-checking, script generation, async worker |
+| **Upstream & Bridges (3)** | `sync_upstream_skills`, `check_upstream_updates`, `external_platform_call` | Technique sync from 9 frontier video repos & cloud provider bridges |
 
 ---
 

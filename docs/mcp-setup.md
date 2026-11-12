@@ -120,3 +120,4 @@ PORT=3000 node src/mcp-server/server.js
 ```
 Then connect via SSE endpoint: `http://localhost:3000/sse`.
 See [Collaboration Guide](collaboration.md) for remote worker deployment details.
+
