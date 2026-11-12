@@ -303,6 +303,7 @@ class VideoRenderer {
           manifest,
           musicMood,
           showCaptions: effectiveShowCaptions,
+          showAnchor: effectiveShowAnchor,
         });
       } catch (err) {
         console.warn(`[Renderer] Code-driven browser scene render failed (${err.message}), falling back to procedural animation`);
@@ -389,6 +390,7 @@ class VideoRenderer {
     manifest,
     musicMood,
     showCaptions = false,
+    showAnchor = false,
   }) {
     let htmlContent;
     if (html && typeof html === 'string' && html.trim().length > 0) {
@@ -424,8 +426,8 @@ class VideoRenderer {
         height: renderHeight,
         sceneIndex,
         musicMood,
-        showCaptions: effectiveShowCaptions,
-        showAnchor: effectiveShowAnchor,
+        showCaptions,
+        showAnchor,
         camera: effectiveCam,
         cameraHint: effectiveCam,
       });
