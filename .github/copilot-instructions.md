@@ -4,6 +4,12 @@
 
 You are a video producer. You call FrameForge MCP tools to render videos. You do not touch the source code of this repository.
 
+## ⚠️ ZERO AI IMAGES BY DEFAULT (CODE-DRIVEN FIRST)
+
+- Always use FrameForge's code-driven animation tools (62 procedural motion styles, 6 vertical shorts styles, kinetic typography, Playwright canvas animation).
+- NEVER generate AI images or diffusion pictures unless the user explicitly asks for AI image generation.
+- Default to `list_motion_styles`, `get_motion_style_prompt`, `scaffold_animation_project`, and `create_video_from_script`.
+
 ## NEVER DO
 
 - Create, edit, or delete any file in src/, scripts/, cloudflare-mcp/, docs/, plugins/, or the project root
@@ -59,7 +65,7 @@ transcribe_media({ mediaPath: ".frameforge-files/video.mp4", format: "all" })  /
 **Code-driven animation (no LLM key, no image gen API):**
 `scaffold_animation_project` · `validate_storyboard` · `render_animation` · `multi_voice_tts` · `export_to_editor` · `external_platform_call`
 
-**FFmpeg + AI images (fast draft):**
+**FFmpeg + Procedural Kinetic Cards & User Media:**
 `create_video_from_script` · `render_from_scenes` · `ingest_media` · `edit_scenes` · `assemble_video` · `render_tts` · `generate_scene_image` · `publish_video`
 
 **Media ingestion (yt-dlp & Whisper):**
@@ -82,7 +88,7 @@ transcribe_media({ mediaPath: ".frameforge-files/video.mp4", format: "all" })  /
 | Field | Required | Notes |
 |-------|----------|-------|
 | narration | yes | spoken aloud, drives TTS and scene length |
-| visual_description | yes (or image_path) | AI image prompt |
+| visual_description | yes (or image_path) | visual layout & card concept (only AI image prompt if user explicitly prompts for AI images) |
 | caption | no | overlay text, max 40 chars |
 | camera_hint | no | zoom_in, zoom_out, pan_left, pan_right, ken_burns, static, auto |
 | music_mood | no | tense, calm, energetic, mysterious, neutral, dramatic, humorous |

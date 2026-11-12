@@ -204,7 +204,7 @@ function detectAesthetic({
   // Explicit override wins
   const explicit = (theme || style || '').toLowerCase().trim();
   if (AESTHETICS[explicit]) return explicit;
-  if (/doodle|sketch|hand[-\s]?drawn|drawing|white background|cream background|cartoon|illustration/i.test(explicit)) return 'hand_drawn_doodle';
+  if (/doodle|sketch|hand[-\s]?drawn|drawing|whiteboard|white background|cream background|cartoon|illustration|explainer|pencil/i.test(explicit)) return 'hand_drawn_doodle';
   if (/cyber|tech|code|ai|crypto|hacker|futur/i.test(explicit)) return 'cyber_tech';
   if (/doc|history|ancient|story|cinema|kerala|temple|culture/i.test(explicit)) return 'cinematic_documentary';
   if (/finan|market|stock|money|invest|crypto|business/i.test(explicit)) return 'finance_executive';
@@ -218,8 +218,8 @@ function detectAesthetic({
   // Keyword scan across all textual signals (English + Multilingual)
   const combined = `${topic} ${title} ${visualDescription} ${narration} ${caption} ${musicMood}`.toLowerCase();
 
-  // Hand-Drawn Doodle / Sketch / Cartoon
-  if (/(?:^|[^\w])(doodle|sketch|hand[-\s]?drawn|drawing|white background|cream background|paper|cartoon)(?:[^\w]|$)/.test(combined)
+  // Hand-Drawn Doodle / Sketch / Cartoon / Whiteboard Explainer
+  if (/(?:^|[^\w])(doodle|sketch|hand[-\s]?drawn|drawing|whiteboard|white background|cream background|paper|cartoon|explainer|pencil|chalkboard|marker)(?:[^\w]|$)/.test(combined)
       || /ഡൂഡിൽ|വര|വരച്ച|ചിത്രരചന|रेखाचित्र|कार्टून/.test(combined)) {
     return 'hand_drawn_doodle';
   }
@@ -267,6 +267,11 @@ function detectAesthetic({
   if (/(?:^|[^\w])(luxury|minimal|architect|premium|bespoke|couture|gallery|elegance|aesthetic|curated|pure)(?:[^\w]|$)/.test(combined)) {
     return 'minimal_luxury';
   }
+  // Warm Creative / Art / Lifestyle / Food / Travel / Personal
+  if (/(?:^|[^\w])(creative|art|design|lifestyle|food|cook|travel|personal|vlog|story|human|emotion|family|love|warmth|vibrant|colorful|paint|studio|craft|maker|passion|inspiration|community|culture|life|everyday|people)(?:[^\w]|$)/.test(combined)
+      || /creative|warm_creative/.test((theme || style || '').toLowerCase())) {
+    return 'warm_creative';
+  }
 
   // Fallback by music mood if available
   if (musicMood === 'energetic') return 'hype_sports';
@@ -274,6 +279,8 @@ function detectAesthetic({
   if (musicMood === 'dramatic') return 'cinematic_documentary';
   if (musicMood === 'calm') return 'nature_organic';
   if (musicMood === 'mysterious') return 'cosmic_space';
+  if (musicMood === 'uplifting' || musicMood === 'happy') return 'warm_creative';
+  if (musicMood === 'corporate' || musicMood === 'professional') return 'minimal_luxury';
 
   // Default to versatile cyber_tech for general modern explainers
   return 'cyber_tech';

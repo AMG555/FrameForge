@@ -100,8 +100,8 @@ const REPOSITORIES = [
     userImpact: 'New FFmpeg filter patterns or video editing operations available',
   },
   {
-    id: 'aiinsight-shorts', repo: 'nafay3d/aiinsight-shorts', branch: 'main', category: 'shorts',
-    desc: '6-style faceless-shorts skill (Deep Dive 3D, Night File 3D, Inside Out, Stick Story, Paper Atlas, Tall Tale 3D) — canvas+three.js, Kokoro TTS, Whisper word-sync, ffmpeg MP4. By Nafay 3D / AI Insight Spot.',
+    id: 'aiinsight-shorts', repo: 'frameforge/aiinsight-shorts', branch: 'main', category: 'shorts',
+    desc: '6-style faceless-shorts skill (Deep Dive 3D, Night File 3D, Inside Out, Stick Story, Paper Atlas, Tall Tale 3D) — canvas+three.js, Kokoro TTS, Whisper word-sync, ffmpeg MP4. By Motion Graphics / AI Insight Spot.',
     capabilities: ['create_short', 'list_short_styles'],
     userImpact: 'New faceless-shorts styles, kit components, or rendering techniques available from aiinsight-shorts upstream',
   },

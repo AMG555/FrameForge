@@ -38,9 +38,9 @@ async function runAssets({
   showCaptions = false,
   showAnchor = false,
 }) {
-  const ttsGen    = new TTSProvider();
+  const ttsGen    = new TTSProvider({ language });
   const sm        = new StateMachine({ mode: 'file', stateDir: STATE_DIR });
-  const retryPol  = new RetryPolicy({ maxAttempts: 3, baseDelayMs: 8000 });
+  const retryPol  = new RetryPolicy({ maxAttempts: 3, baseDelayMs: 2000 });
   const telemetry = new Telemetry({ mode: 'file', logPath: `${FILES_DIR}/usage.ndjson` });
 
   await sm.init();
@@ -102,10 +102,41 @@ async function runAssets({
       } else {
         voicePath = path.join(VDIR, `voice_${idx}.m4a`);
         const ttsVoice = scene.voice || voice || undefined;
+        // Pass per-scene language for best-fit voice selection (Unicode detection + BCP-47 hint)
+        const sceneLang = scene.language || language || '';
         await retryPol.executeStage('TTS', async () =>
-          ttsGen.synthesize({ text: scene.narration, voice: ttsVoice, outputPath: voicePath })
+          ttsGen.synthesize({ text: scene.narration, voice: ttsVoice, outputPath: voicePath, language: sceneLang })
         );
         await telemetry.track({ productionId, stage: 'TTS', provider: process.env.PROVIDER_TTS || 'edge-tts', operation: 'tts_synthesis', units: scene.narration.length });
+      }
+
+      // Auto-inject SFX cues when none are provided, based on music mood and scene position.
+      // This adds a subtle transition sound at scene open (t=0.05) so the edit feels alive.
+      let sfxCues = Array.isArray(scene.sound_effects) ? scene.sound_effects
+                  : Array.isArray(scene.sfxCues)       ? scene.sfxCues : [];
+      if (sfxCues.length === 0) {
+        const mood = (scene.music_mood || 'neutral').toLowerCase();
+        const sceneIdx0 = scene.scene_id - 1;
+        // Only inject for non-video scenes (code-animation / image paths)
+        if (!scene.video_path) {
+          if (mood === 'energetic' || mood === 'hype') {
+            sfxCues = [{ name: 'whoosh', time: 0.05, volume: 0.18 }];
+          } else if (mood === 'dramatic' || mood === 'cinematic') {
+            // Every 3rd dramatic scene gets a deep_boom for emphasis
+            sfxCues = sceneIdx0 % 3 === 0
+              ? [{ name: 'deep_boom', time: 0.05, volume: 0.15 }]
+              : [{ name: 'transition', time: 0.05, volume: 0.12 }];
+          } else if (mood === 'tense' || mood === 'urgent') {
+            sfxCues = [{ name: 'impact', time: 0.05, volume: 0.20 }];
+          } else if (mood === 'uplifting' || mood === 'happy') {
+            sfxCues = [{ name: 'chime', time: 0.05, volume: 0.15 }];
+          } else if (mood === 'mysterious') {
+            sfxCues = [{ name: 'riser', time: 0.05, volume: 0.10 }];
+          } else {
+            // neutral / default: subtle swish at scene open
+            sfxCues = [{ name: 'swish', time: 0.05, volume: 0.10 }];
+          }
+        }
       }
 
       return {
@@ -136,12 +167,14 @@ async function runAssets({
         colorGrade: scene.color_grade || scene.colorGrade || null,
         showCaptions: scene.show_captions !== undefined ? scene.show_captions : (scene.showCaptions !== undefined ? scene.showCaptions : showCaptions),
         showAnchor:   scene.show_anchor !== undefined ? scene.show_anchor : (scene.showAnchor !== undefined ? scene.showAnchor : showAnchor),
-        sound_effects: Array.isArray(scene.sound_effects) ? scene.sound_effects
-                     : Array.isArray(scene.sfxCues)       ? scene.sfxCues : [],
+        sound_effects: sfxCues,
       };
     }));
     results.push(...batchResults);
-    if (i + parallelism < scenes.length) {
+    // Small inter-batch pause only for remote TTS APIs to avoid rate-limiting.
+    // edge-tts is a local subprocess — no pause needed.
+    const provider = (process.env.PROVIDER_TTS || 'edge-tts').toLowerCase();
+    if (i + parallelism < scenes.length && provider !== 'edge-tts') {
       await new Promise(r => setTimeout(r, 200));
     }
   }

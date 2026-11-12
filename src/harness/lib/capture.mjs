@@ -154,11 +154,14 @@ export const VIRTUAL_CLOCK_INJECTION = `
       await document.fonts.ready;
     }
 
+    // Wait for any delayRender handles — max 3s to avoid pipeline stalls
     if (_delayHandles.size > 0) {
       const startW = _realDateNow();
-      while (_delayHandles.size > 0 && _realDateNow() - startW < 10000) {
+      while (_delayHandles.size > 0 && _realDateNow() - startW < 3000) {
         await new Promise(r => _realSetTimeout(r, 10));
       }
+      // Force-clear stale handles so we never block indefinitely
+      _delayHandles.clear();
     }
   };
 })();
@@ -194,7 +197,8 @@ export async function openPageWithVirtualClock(browserOrOpts, htmlPathArg, optsA
   return page;
 }
 
-export async function captureFrame(page, t, { type = 'image/png', quality = 0.94 } = {}) {
+export async function captureFrame(page, t, { type = 'image/png', quality = 0.94, timeoutMs = 15000 } = {}) {
+  // page.evaluate with an explicit timeout so a hung seek() never stalls the whole pipeline
   const dataUrl = await page.evaluate(async ({ time, mime, q }) => {
     await window.__seek(time);
     if (window.renderAt) {
@@ -208,7 +212,7 @@ export async function captureFrame(page, t, { type = 'image/png', quality = 0.94
       } catch (_) {}
     }
     return null;
-  }, { time: t, mime: type, q: quality });
+  }, { time: t, mime: type, q: quality }, { timeout: timeoutMs });
 
   if (typeof dataUrl === 'string' && dataUrl.includes(',')) {
     return Buffer.from(dataUrl.slice(dataUrl.indexOf(',') + 1), 'base64');

@@ -92,6 +92,9 @@ export async function renderFrameJobs({
 
   await Promise.all(
     pages.map(async (page) => {
+      // Per-frame timeout: 20s is generous for a single seek+capture at 1920×1080
+      const FRAME_TIMEOUT_MS = 20000;
+
       while (true) {
         let frameIdx;
         if (nextIdx < todo.length) {
@@ -108,7 +111,7 @@ export async function renderFrameJobs({
         let buf = null;
         for (let attempt = 0; attempt < 3; attempt++) {
           try {
-            buf = await captureFrame(page, t, { type: mimeType, quality });
+            buf = await captureFrame(page, t, { type: mimeType, quality, timeoutMs: FRAME_TIMEOUT_MS });
             if (buf && buf.length > 500) break;
           } catch (err) {
             if (attempt === 2) throw err;

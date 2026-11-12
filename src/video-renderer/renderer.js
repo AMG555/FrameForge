@@ -201,7 +201,14 @@ class VideoRenderer {
     }
     const voiceDur   = this._getAudioDuration(voicePath);
     const dur        = (typeof duration === 'number' && duration > 0) ? Math.max(duration, voiceDur) : voiceDur;
-    const clampedDur = Math.max(1, Number.isFinite(dur) ? dur + 0.15 : 3.15);
+    // Hard cap: individual scenes should be 1–12s. Longer narration → more scenes, not longer frames.
+    // This prevents a single browser render job from blocking the pipeline for minutes.
+    const MAX_SCENE_DUR = 12;
+    const rawDur     = Number.isFinite(dur) ? dur + 0.15 : 3.15;
+    const clampedDur = Math.min(MAX_SCENE_DUR, Math.max(1, rawDur));
+    if (rawDur > MAX_SCENE_DUR) {
+      console.warn(`[Renderer] Scene ${sceneIndex}: narration duration ${rawDur.toFixed(2)}s exceeds max ${MAX_SCENE_DUR}s. Clamped. Consider splitting long narration into shorter scenes.`);
+    }
 
     const isVideoInput = Boolean(videoPath) || (videoPath && /\.(mp4|mov|webm|mkv|m4v)$/i.test(videoPath));
 
@@ -490,34 +497,36 @@ class VideoRenderer {
     }
 
     const framesPattern = path.join(framesDir, 'f%06d.jpg');
-    const encResult = spawnSync('ffmpeg', [
-      '-nostdin', '-y', '-threads', '2',
-      '-framerate', String(fps),
-      '-pattern_type', 'sequence',
-      '-i', framesPattern,
-      '-i', audioForEncode,
-      '-map', '0:v:0', '-map', '1:a:0',
-      '-c:v', 'libx264', '-preset', 'fast', '-crf', '17',
-      '-profile:v', 'high', '-level', '4.1',
-      '-color_range', 'tv', '-colorspace', 'bt709',
-      '-color_primaries', 'bt709', '-color_trc', 'bt709',
-      '-x264-params', 'colorprim=bt709:transfer=bt709:colormatrix=bt709:aq-mode=3:deblock=-1,-1',
-      '-pix_fmt', 'yuv420p',
-      '-c:a', 'aac', '-b:a', '320k', '-ar', '48000', '-ac', '2',
-      '-af', `apad=whole_dur=${clampedDur}`,
-      '-t', String(clampedDur),
-      '-movflags', '+faststart',
-      outputPath,
-    ], { timeout: 5 * 60 * 1000, encoding: 'utf8' });
+    let encResult;
+    try {
+      encResult = spawnSync('ffmpeg', [
+        '-nostdin', '-y', '-threads', '2',
+        '-framerate', String(fps),
+        '-pattern_type', 'sequence',
+        '-i', framesPattern,
+        '-i', audioForEncode,
+        '-map', '0:v:0', '-map', '1:a:0',
+        '-c:v', 'libx264', '-preset', 'fast', '-crf', '17',
+        '-profile:v', 'high', '-level', '4.1',
+        '-color_range', 'tv', '-colorspace', 'bt709',
+        '-color_primaries', 'bt709', '-color_trc', 'bt709',
+        '-x264-params', 'colorprim=bt709:transfer=bt709:colormatrix=bt709:aq-mode=3:deblock=-1,-1',
+        '-pix_fmt', 'yuv420p',
+        '-c:a', 'aac', '-b:a', '320k', '-ar', '48000', '-ac', '2',
+        '-af', `apad=whole_dur=${clampedDur}`,
+        '-t', String(clampedDur),
+        '-movflags', '+faststart',
+        outputPath,
+      ], { timeout: 5 * 60 * 1000, encoding: 'utf8' });
+    } finally {
+      // Always clean up frames and html — even if encode fails — to avoid accumulating GBs on disk
+      try { fs.rmSync(framesDir, { recursive: true, force: true }); } catch (_) {}
+      try { fs.unlinkSync(animHtmlPath); } catch (_) {}
+    }
 
     if (encResult.status !== 0) {
       throw new Error(`Scene ${sceneIndex} video encode failed: ${(encResult.stderr || '').slice(-300)}`);
     }
-
-    try {
-      fs.rmSync(framesDir, { recursive: true, force: true });
-      fs.unlinkSync(animHtmlPath);
-    } catch (_) {}
 
     manifest?.setSceneRendered(sceneIndex, outputPath);
     return outputPath;

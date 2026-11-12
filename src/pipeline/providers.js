@@ -371,37 +371,87 @@ class TTSProvider {
    * @param {string} [text]           narration text for language detection
    * @returns {string}
    */
-  selectNarratorVoice(explicitVoice, text = '') {
+  selectNarratorVoice(explicitVoice, text = '', langHint = '') {
     if (explicitVoice) return explicitVoice;
 
-    // Language detection for edge-tts
-    if (this.name === 'edge-tts' && text) {
-      const gender = (process.env.TTS_VOICE_GENDER || 'default').toLowerCase();
-      if (/[\u0D00-\u0D7F]/.test(text)) {
+    const gender = (process.env.TTS_VOICE_GENDER || 'default').toLowerCase();
+
+    // Language detection for edge-tts — Unicode-range script detection + BCP-47 hint
+    if (this.name === 'edge-tts') {
+      // Unicode script ranges (text content detection)
+      if (text && /[\u0D00-\u0D7F]/.test(text)) {
         return gender === 'female' ? 'ml-IN-SobhanaNeural' : 'ml-IN-MidhunNeural';
       }
-      if (/[\u0900-\u097F]/.test(text)) {
+      if (text && /[\u0900-\u097F]/.test(text)) {
         return gender === 'female' ? 'hi-IN-SwaraNeural' : 'hi-IN-MadhurNeural';
       }
-      if (/[\u0B80-\u0BFF]/.test(text)) {
+      if (text && /[\u0B80-\u0BFF]/.test(text)) {
         return gender === 'female' ? 'ta-IN-PallaviNeural' : 'ta-IN-ValluvarNeural';
       }
-      if (/[\u0C00-\u0C7F]/.test(text)) {
+      if (text && /[\u0C00-\u0C7F]/.test(text)) {
         return gender === 'female' ? 'te-IN-ShrutiNeural' : 'te-IN-MohanNeural';
       }
-      if (/[\u4E00-\u9FFF]/.test(text)) {
+      if (text && /[\u0C80-\u0CFF]/.test(text)) {
+        // Kannada
+        return gender === 'female' ? 'kn-IN-SapnaNeural' : 'kn-IN-GaganNeural';
+      }
+      if (text && /[\u0980-\u09FF]/.test(text)) {
+        // Bengali
+        return gender === 'female' ? 'bn-IN-TanishaaNeural' : 'bn-IN-BashkarNeural';
+      }
+      if (text && /[\u4E00-\u9FFF\u3400-\u4DBF]/.test(text)) {
         return gender === 'female' ? 'zh-CN-XiaoxiaoNeural' : 'zh-CN-YunjianNeural';
       }
-      if (/[\u3040-\u30FF]/.test(text)) {
+      if (text && /[\u3040-\u30FF\u31F0-\u31FF]/.test(text)) {
         return gender === 'female' ? 'ja-JP-NanamiNeural' : 'ja-JP-KeitaNeural';
       }
-      if (/[\u0600-\u06FF]/.test(text)) {
+      if (text && /[\uAC00-\uD7AF]/.test(text)) {
+        // Korean
+        return gender === 'female' ? 'ko-KR-SunHiNeural' : 'ko-KR-InJoonNeural';
+      }
+      if (text && /[\u0600-\u06FF]/.test(text)) {
         return gender === 'female' ? 'ar-SA-ZariyahNeural' : 'ar-SA-HamedNeural';
       }
+      if (text && /[\u0400-\u04FF]/.test(text)) {
+        // Cyrillic (Russian)
+        return gender === 'female' ? 'ru-RU-SvetlanaNeural' : 'ru-RU-DmitryNeural';
+      }
+
+      // BCP-47 language hint fallback (used when text is English but language is known)
+      const lang = (langHint || this._overrides.language || process.env.TTS_LANGUAGE || '').toLowerCase().slice(0, 2);
+      const LANG_VOICE_MAP = {
+        ml: gender === 'female' ? 'ml-IN-SobhanaNeural'  : 'ml-IN-MidhunNeural',
+        hi: gender === 'female' ? 'hi-IN-SwaraNeural'    : 'hi-IN-MadhurNeural',
+        ta: gender === 'female' ? 'ta-IN-PallaviNeural'  : 'ta-IN-ValluvarNeural',
+        te: gender === 'female' ? 'te-IN-ShrutiNeural'   : 'te-IN-MohanNeural',
+        kn: gender === 'female' ? 'kn-IN-SapnaNeural'    : 'kn-IN-GaganNeural',
+        bn: gender === 'female' ? 'bn-IN-TanishaaNeural' : 'bn-IN-BashkarNeural',
+        mr: gender === 'female' ? 'mr-IN-AarohiNeural'   : 'mr-IN-ManoharNeural',
+        gu: gender === 'female' ? 'gu-IN-DhwaniNeural'   : 'gu-IN-NiranjanNeural',
+        pa: gender === 'female' ? 'pa-IN-OjasvNeural'    : 'pa-IN-OjasvNeural',
+        ur: gender === 'female' ? 'ur-PK-UzmaNeural'     : 'ur-PK-AsadNeural',
+        zh: gender === 'female' ? 'zh-CN-XiaoxiaoNeural' : 'zh-CN-YunjianNeural',
+        ja: gender === 'female' ? 'ja-JP-NanamiNeural'   : 'ja-JP-KeitaNeural',
+        ko: gender === 'female' ? 'ko-KR-SunHiNeural'    : 'ko-KR-InJoonNeural',
+        ar: gender === 'female' ? 'ar-SA-ZariyahNeural'  : 'ar-SA-HamedNeural',
+        ru: gender === 'female' ? 'ru-RU-SvetlanaNeural' : 'ru-RU-DmitryNeural',
+        fr: gender === 'female' ? 'fr-FR-DeniseNeural'   : 'fr-FR-HenriNeural',
+        de: gender === 'female' ? 'de-DE-KatjaNeural'    : 'de-DE-ConradNeural',
+        es: gender === 'female' ? 'es-ES-ElviraNeural'   : 'es-ES-AlvaroNeural',
+        pt: gender === 'female' ? 'pt-BR-FranciscaNeural': 'pt-BR-AntonioNeural',
+        it: gender === 'female' ? 'it-IT-ElsaNeural'     : 'it-IT-DiegoNeural',
+        nl: gender === 'female' ? 'nl-NL-ColetteNeural'  : 'nl-NL-MaartenNeural',
+        pl: gender === 'female' ? 'pl-PL-ZofiaNeural'    : 'pl-PL-MarekNeural',
+        sv: gender === 'female' ? 'sv-SE-SofieNeural'    : 'sv-SE-MattiasNeural',
+        tr: gender === 'female' ? 'tr-TR-EmelNeural'     : 'tr-TR-AhmetNeural',
+        vi: gender === 'female' ? 'vi-VN-HoaiMyNeural'   : 'vi-VN-NamMinhNeural',
+        id: gender === 'female' ? 'id-ID-GadisNeural'    : 'id-ID-ArdiNeural',
+        th: gender === 'female' ? 'th-TH-PremwadeeNeural': 'th-TH-NiwatNeural',
+      };
+      if (lang && LANG_VOICE_MAP[lang]) return LANG_VOICE_MAP[lang];
     }
 
-    const voices  = NARRATOR_VOICES[this.name] || NARRATOR_VOICES['edge-tts'];
-    const gender  = (process.env.TTS_VOICE_GENDER || 'default').toLowerCase();
+    const voices = NARRATOR_VOICES[this.name] || NARRATOR_VOICES['edge-tts'];
     return voices[gender] || voices.default;
   }
 
@@ -411,8 +461,8 @@ class TTSProvider {
    *   voice is optional — if omitted, selectNarratorVoice() picks automatically
    * @returns {Promise<string>} resolves with outputPath
    */
-  async synthesize({ text, voice, outputPath }) {
-    const resolvedVoice = this.selectNarratorVoice(voice, text);
+  async synthesize({ text, voice, outputPath, language = '' }) {
+    const resolvedVoice = this.selectNarratorVoice(voice, text, language);
     switch (this.name) {
       case 'edge-tts':   return this._edgeTTS({ text, voice: resolvedVoice, outputPath });
       case 'elevenlabs': return this._elevenLabs({ text, voice: resolvedVoice, outputPath });

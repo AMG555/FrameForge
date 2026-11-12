@@ -30,7 +30,9 @@ produce it — from research through render to final MP4.
 > 3. **Style?** `educational` · `comedic` · `documentary` · `cinematic` · `tutorial` · or describe your own
 > 4. **How long?** `Short (15–60s)` · `Medium (1–3 min)` · `Long (5–10 min)`
 > 5. **Voice?** `Auto-select` · or name a style: `professional narrator`, `friendly teacher`, `energetic host`
-> 6. **Any footage, images, or audio to include?** (paste file paths, or say "generate everything")
+> 6. **Any footage, images, or audio to include?** (paste file paths, or say "generate with code animation")
+>
+> *(Note: FrameForge renders with 100% code-driven motion graphics and procedural animation by default — zero AI slop, zero diffusion artifacts. AI image generation is only used if you explicitly ask for it!)*
 >
 > Answer as many or as few as you like. I'll fill in the rest.
 
@@ -47,7 +49,7 @@ Once you have the user's answers, choose the right render path and follow it pre
 ### PATH A — IDE-written scenes (fastest, most common)
 
 Use for: any video where you (the IDE agent) write the narration and visual descriptions.
-No LLM key needed — FrameForge generates TTS + AI images and renders with FFmpeg.
+No LLM key needed — FrameForge generates TTS + procedural kinetic cards / user media and renders with FFmpeg. No AI images generated unless user explicitly requests them.
 
 **Step A1 — Beat Sheet Gate (MANDATORY)**
 
