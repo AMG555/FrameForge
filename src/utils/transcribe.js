@@ -225,7 +225,20 @@ async function transcribeAudio(mediaPath, opts = {}) {
 import json, sys
 from faster_whisper import WhisperModel
 model = WhisperModel("${modelName}", device="auto", compute_type="auto")
-segments, info = model.transcribe("${cleanPath}", word_timestamps=True${opts.language ? `, language="${opts.language}"` : ''})
+try:
+    segments, info = model.transcribe("${cleanPath}", word_timestamps=True${opts.language ? `, language="${opts.language}"` : ''})
+except Exception as _av_err:
+    # PyAV 16+ removed metadata_errors kwarg which crashes faster-whisper on file paths.
+    # Fallback: decode via ffmpeg directly to 16kHz mono float32 PCM numpy buffer.
+    try:
+        import subprocess, numpy as np
+        raw = subprocess.run(['ffmpeg', '-v', 'error', '-i', "${cleanPath}", '-ac', '1', '-ar', '16000', '-f', 'f32le', '-'], capture_output=True, check=True).stdout
+        audio_data = np.frombuffer(raw, dtype=np.float32)
+        segments, info = model.transcribe(audio_data, word_timestamps=True${opts.language ? `, language="${opts.language}"` : ''})
+    except Exception as _pcm_err:
+        sys.stderr.write(f"Whisper transcription failed: {_av_err}; PCM fallback failed: {_pcm_err}\\n")
+        sys.exit(1)
+
 words = []
 seg_list = []
 idx = 0
@@ -246,6 +259,8 @@ print(json.dumps(out))
     const res = spawnSync('python', ['-c', pyScript], { encoding: 'utf8', timeout: 180000, shell: false });
     if (res.status === 0) {
       try { parsed = JSON.parse(res.stdout); } catch (_) {}
+    } else {
+      console.warn(`[Transcribe] ⚠️ faster-whisper exited with status ${res.status}: ${(res.stderr || res.stdout || '').trim()}`);
     }
   }
 

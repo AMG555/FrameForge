@@ -5,6 +5,7 @@
 #   ./install.sh --project   copy into ./.claude/skills  (this project only)
 #   ./install.sh --link      symlink instead of copy (edits to repo are live)
 #   ./install.sh --bob       copy into ~/.bob/skills  (IBM Bob global)
+#   ./install.sh --deps      also run ./setup-deps.sh to install ffmpeg, whisper & tools
 #
 # An existing skill with the same name is moved aside to <name>.bak.<ts>.
 set -euo pipefail
@@ -13,13 +14,15 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 SRC="$HERE/plugins/video-pipeline/skills"
 DEST="$HOME/.claude/skills"
 MODE=copy
+RUN_DEPS=false
 
 for a in "$@"; do
   case "$a" in
     --link)    MODE=link ;;
     --project) DEST="$PWD/.claude/skills" ;;
     --bob)     DEST="$HOME/.bob/skills" ;;
-    -h|--help) sed -n 2,10p "$0"; exit 0 ;;
+    --deps)    RUN_DEPS=true ;;
+    -h|--help) sed -n 2,12p "$0"; exit 0 ;;
     *) echo "unknown option: $a"; exit 1 ;;
   esac
 done
@@ -41,17 +44,27 @@ for dir in "$SRC"/*; do
   echo "  installed $name → $target ($MODE)"
 done
 
+if [ "$RUN_DEPS" = true ]; then
+  echo
+  echo "Running dependency provisioner..."
+  bash "$HERE/setup-deps.sh"
+fi
+
 echo
 echo "Dependencies (must be available in PATH):"
 for t in ffmpeg ffprobe node npm; do
-  printf "  %-10s %s\n" "$t" "$(command -v "$t" 2>/dev/null || echo 'MISSING — install it')"
+  printf "  %-10s %s\n" "$t" "$(command -v "$t" 2>/dev/null || echo 'MISSING — run ./setup-deps.sh')"
 done
-# Optional: edge-tts for free TTS
+# edge-tts for free TTS
 if command -v edge-tts >/dev/null 2>&1; then
   echo "  edge-tts   $(command -v edge-tts) (free TTS, no key)"
 else
-  echo "  edge-tts   not found — run: pip install edge-tts"
+  echo "  edge-tts   not found — run ./setup-deps.sh"
 fi
+
+echo
+echo "To automatically install missing tools (FFmpeg, Whisper, PyAV 15.1.0, Chromium), run:"
+echo "  ./setup-deps.sh"
 
 echo
 echo "Next steps:"

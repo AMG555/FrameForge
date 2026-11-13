@@ -14,7 +14,7 @@ import shutil
 import subprocess
 import sys
 
-PKGS = {"faster_whisper": "faster-whisper", "playwright": "playwright", "numpy": "numpy", "PIL": "pillow"}
+PKGS = {"faster_whisper": "faster-whisper", "av": "av==15.1.0", "playwright": "playwright", "numpy": "numpy", "PIL": "pillow"}
 
 
 def ffmpeg_hint():

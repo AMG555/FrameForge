@@ -114,12 +114,31 @@ def main():
     print(f"loading Whisper '{model}' ({'GPU' if cuda and a.device != 'cpu' else 'CPU'}). The first run downloads it once.", flush=True)
     m, dev = load_model(model, a.device)
     t0 = time.time()
-    segs, tinfo = m.transcribe(
-        wav, language=None if lang == "auto" else lang, word_timestamps=True, vad_filter=False,
-        beam_size=5, condition_on_previous_text=False,
-        initial_prompt=PROMPTS.get(lang if lang != "auto" else "en"))
+    try:
+        segs, tinfo = m.transcribe(
+            wav, language=None if lang == "auto" else lang, word_timestamps=True, vad_filter=False,
+            beam_size=5, condition_on_previous_text=False,
+            initial_prompt=PROMPTS.get(lang if lang != "auto" else "en"))
+        first_seg = next(segs, None)
+    except Exception as _av_err:
+        # PyAV 16+ removed metadata_errors kwarg, crashing faster-whisper on file paths.
+        print(f"Whisper file decode failed ({_av_err}); decoding via ffmpeg float32 PCM...", file=sys.stderr)
+        import numpy as np
+        raw = run(["ffmpeg", "-v", "error", "-i", wav, "-ac", "1", "-ar", "16000", "-f", "f32le", "-"]).stdout
+        segs, tinfo = m.transcribe(
+            np.frombuffer(raw, dtype=np.float32), language=None if lang == "auto" else lang, word_timestamps=True, vad_filter=False,
+            beam_size=5, condition_on_previous_text=False,
+            initial_prompt=PROMPTS.get(lang if lang != "auto" else "en"))
+        first_seg = next(segs, None)
+
+    def iter_all():
+        if first_seg is not None:
+            yield first_seg
+        for s in segs:
+            yield s
+
     words, segments = [], []
-    for s in segs:
+    for s in iter_all():
         first = len(words)
         for w in (s.words or []):
             text = w.word.strip()

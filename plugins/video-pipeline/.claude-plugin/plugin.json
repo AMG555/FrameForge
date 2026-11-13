@@ -1,7 +1,7 @@
 {
   "name": "video-pipeline",
   "displayName": "FrameForge Video Pipeline",
-  "version": "2.7.8",
+  "version": "2.7.9",
   "description": "End-to-end AI video production. IDE writes scenes → FrameForge renders. Or: scaffold a Playwright+ffmpeg code-driven animation. Or: auto-research and script the video.",
   "skills": [
     {

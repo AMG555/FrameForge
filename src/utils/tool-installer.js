@@ -158,20 +158,23 @@ function ensureYtDlp() {
 }
 
 /**
- * Ensure whisper is installed. Auto-installs via pip if missing.
+ * Ensure whisper is installed. Auto-installs faster-whisper with av==15.1.0 via pip if missing.
  * @returns {boolean}
  */
 function ensureWhisper() {
-  // Check if python has whisper module
-  const check = spawnSync('python', ['-c', 'import whisper; print("ok")'], {
+  // Check if python has faster-whisper or whisper module
+  const check = spawnSync('python', ['-c', 'import importlib.util, sys; sys.exit(0 if (importlib.util.find_spec("faster_whisper") or importlib.util.find_spec("whisper")) else 1)'], {
     encoding: 'utf8',
     timeout: 4000,
     shell: process.platform === 'win32',
   });
-  if (check.status === 0 && (check.stdout || '').includes('ok')) return true;
+  if (check.status === 0) return true;
 
-  console.log('[ToolInstaller] Whisper engine not found. Attempting auto-install (openai-whisper)...');
+  console.log('[ToolInstaller] Whisper engine not found. Attempting auto-install (faster-whisper with av==15.1.0)...');
   if (isCommandAvailable('python', ['-m', 'pip', '--version'])) {
+    if (runInstallCommand('python', ['-m', 'pip', 'install', '--quiet', 'faster-whisper', 'av==15.1.0'], 'faster-whisper')) {
+      return true;
+    }
     if (runInstallCommand('python', ['-m', 'pip', 'install', '--quiet', 'openai-whisper'], 'openai-whisper')) {
       return true;
     }

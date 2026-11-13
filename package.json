@@ -23,6 +23,7 @@
     "shorts:new": "bash plugins/aiinsight-shorts/scripts/new_video.sh",
     "shorts:list": "bash plugins/aiinsight-shorts/scripts/new_video.sh --list",
     "setup": "node src/cli/setup-keys.js",
+    "setup:deps": "bash setup-deps.sh",
     "setup:check": "node src/cli/setup-keys.js --check",
     "doctor": "node src/cli/doctor.js",
     "mcp": "node src/mcp-server/server.js",
