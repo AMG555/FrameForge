@@ -67,7 +67,8 @@ const { runPublishing } = require('../workflows/publishing');
 const { StateMachine }  = require('../pipeline/state-machine');
 const { RetryPolicy }   = require('../pipeline/retry-policy');
 
-const PORT      = parseInt(process.env.WORKER_PORT || '3211', 10);
+const PORT      = parseInt(process.env.PORT || process.env.WORKER_PORT || '3211', 10);
+const HOST      = process.env.HOST || process.env.WORKER_HOST || '0.0.0.0';
 const FILES_DIR = process.env.N8N_FILES_DIR || path.join(os.homedir(), '.frameforge-files');
 const STATE_DIR = path.join(FILES_DIR, 'state');
 
@@ -330,8 +331,8 @@ async function start() {
     catch (err) { jsonResponse(res, 500, { error: err.message }); }
   });
 
-  server.listen(PORT, '127.0.0.1', () => {
-    console.log(`[Worker] HTTP API listening on http://127.0.0.1:${PORT}`);
+  server.listen(PORT, HOST, () => {
+    console.log(`[Worker] HTTP API listening on http://${HOST}:${PORT}`);
     console.log(`[Worker] Submit jobs: POST /jobs { type, payload }`);
     _drainQueue(); // start any re-queued jobs
   });

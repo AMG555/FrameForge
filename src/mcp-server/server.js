@@ -46,7 +46,8 @@ const { AudioMixer }    = require('../audio-mixer/mixer');
 const { QualityGate }   = require('../quality-gate/gate');
 const { runPublishing } = require('../workflows/publishing');
 
-const PORT        = parseInt(process.env.MCP_PORT || '3210', 10);
+const PORT        = parseInt(process.env.PORT || process.env.MCP_PORT || '3210', 10);
+const HOST        = process.env.HOST || process.env.MCP_HOST || '0.0.0.0';
 const FILES_DIR   = process.env.N8N_FILES_DIR || path.join(os.homedir(), '.frameforge-files');
 const STATE_DIR   = path.join(FILES_DIR, 'state');
 const USAGE_LOG   = path.join(FILES_DIR, 'usage.ndjson');
@@ -3711,8 +3712,8 @@ async function start() {
     res.end(JSON.stringify(response));
   });
 
-  server.listen(PORT, '127.0.0.1', () => {
-    console.log(`[video-pipeline MCP] listening on http://127.0.0.1:${PORT}`);
+  server.listen(PORT, HOST, () => {
+    console.log(`[video-pipeline MCP] listening on http://${HOST}:${PORT}`);
     console.log(`[video-pipeline MCP] protocol: MCP 2024-11-05`);
     console.log(`[video-pipeline MCP] tools: ${Object.keys(TOOLS).join(', ')}`);
   });
