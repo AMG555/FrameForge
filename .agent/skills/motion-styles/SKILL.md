@@ -1,6 +1,6 @@
 ---
 name: motion-styles
-description: Complete library of 62 procedural motion-graphics styles in FrameForge. Every style is a full canvas animation with synthesized sound (SFX kit), pure function of time t, and zero AI diffusion/hallucination artifacts. Use when the user wants high-energy kinetic typography, 3D explainers, Zack D. Films style animations, infographics, chalkboard, UI walkthroughs, or retro motion graphics, or wants to copy prompts for any of the 62 Motion Graphics Styles.
+description: Complete library of 62 procedural motion-graphics styles in FrameForge. Every style is a full canvas animation with synthesized sound (SFX kit), pure function of time t, and zero AI diffusion/hallucination artifacts. Use when the user wants high-energy kinetic typography, 3D explainers, animations, infographics, chalkboard, UI walkthroughs, or retro motion graphics, or wants to copy prompts for any of the 62 Motion Graphics Styles.
 ---
 
 # Motion Graphics Style Library (62 Styles)

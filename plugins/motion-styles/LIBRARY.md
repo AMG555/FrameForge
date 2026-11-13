@@ -1,6 +1,6 @@
-# Motion Graphics Style Library (96 Styles)
+# Motion Graphics Style Library (102 Styles)
 
-Complete catalog of 96 procedural motion-graphics styles in the FrameForge Motion Library.
+Complete catalog of 102 procedural motion-graphics styles in the FrameForge Motion Library.
 Each style is a full canvas animation with sound, synthesized SFX, and deterministic time-based motion.
 
 > 💡 **Visitor Pro-Tip: 100% Free Code-Based Video Generation on [Arena.ai](https://arena.ai) (Even on Mobile!)**
@@ -368,7 +368,7 @@ Each style is a full canvas animation with sound, synthesized SFX, and determini
 | 74 | **Glass and Light** | `glass-and-light` | 720x1280 | ✓ | - | Space Grotesk (500 and 700), JetBrains Mono (500 and 700) | [Prompt](prompts/glass-and-light.md) | [HTML](sources/glass-and-light.html) |
 | 75 | **Factory Line** | `factory-line` | 720x1280 | ✓ | - | Fredoka (500 to 700), JetBrains Mono (700) | [Prompt](prompts/factory-line.md) | [HTML](sources/factory-line.html) |
 | 76 | **White Model** | `white-model` | 720x1280 | ✓ | - | Space Grotesk (700), JetBrains Mono (500 and 700) | [Prompt](prompts/white-model.md) | [HTML](sources/white-model.html) |
-| 77 | **Voxel** | `voxel` | 720x1280 | ✓ | - | Press Start 2P, JetBrains Mono (500 and 700) | [Prompt](prompts/voxel.md) | [HTML](sources/voxel.html) |
+| 77 | **Archivalel** | `voxel` | 720x1280 | ✓ | - | Press Start 2P, JetBrains Mono (500 and 700) | [Prompt](prompts/voxel.md) | [HTML](sources/voxel.html) |
 | 78 | **Data Skyline** | `data-skyline` | 720x1280 | ✓ | - | Space Grotesk (500 and 700), JetBrains Mono (500 and 700) | [Prompt](prompts/data-skyline.md) | [HTML](sources/data-skyline.html) |
 | 79 | **Ink and Toon** | `ink-and-toon` | 720x1280 | ✓ | - | Bangers, Inter (600 to 800) | [Prompt](prompts/ink-and-toon.md) | [HTML](sources/ink-and-toon.html) |
 | 80 | **Pin Wall** | `pin-wall` | 720x1280 | ✓ | - | Inter (700 to 900), JetBrains Mono (700) | [Prompt](prompts/pin-wall.md) | [HTML](sources/pin-wall.html) |
@@ -558,7 +558,7 @@ Each style is a full canvas animation with sound, synthesized SFX, and determini
 </details>
 
 <details>
-<summary><b>#77 Voxel</b> (`voxel`) - Details</summary>
+<summary><b>#77 Archivalel</b> (`voxel`) - Details</summary>
 
 - **Look:** Small cube voxel model in Three.js like Minecraft: colourful cubes placed one by one to build a recognisable subject from bottom to top in a bright cartoon palette.
 - **How it explains:** Cubes pop into place layer by layer, the camera orbits the finished model, and callout cards label each section.
@@ -1338,3 +1338,91 @@ Each style is a full canvas animation with sound, synthesized SFX, and determini
 
 </details>
 
+
+
+---
+
+## New Procedural Styles (#97 to #102)
+
+### High-Converting Editorial, Tech, and 3D Assembly Styles
+
+| # | Name | ID | Canvas | 3D | Overlay | Fonts | Prompt File | Source Code |
+|---|------|----|--------|----|---------|-------|-------------|-------------|
+| 97 | **Paper Collage Film** | `paper-collage-film` | 1920x1080 | - | - | Fraunces, Ultra, Inter | [Prompt](prompts/paper-collage-film.md) | [HTML](sources/paper-collage-film.html) |
+| 98 | **Aurora Glass** | `aurora-glass` | 1280x720 | - | - | Plus Jakarta Sans, Inter, Space Mono | [Prompt](prompts/aurora-glass.md) | [HTML](sources/aurora-glass.html) |
+| 99 | **Archival Explainer** | `archival-explainer` | 1280x720 | - | - | Fraunces, Archivo, Caveat | [Prompt](prompts/archival-explainer.md) | [HTML](sources/archival-explainer.html) |
+| 100 | **Product Launch UI** | `product-launch-ui` | 1280x720 | - | - | Inter, Inter Tight, JetBrains Mono | [Prompt](prompts/product-launch-ui.md) | [HTML](sources/product-launch-ui.html) |
+| 101 | **3D Assembly Guide** | `assembly-3d` | 1280x720 | Yes | - | Inter Tight, JetBrains Mono | [Prompt](prompts/assembly-3d.md) | [HTML](sources/assembly-3d.html) |
+| 102 | **Metamorphosis Specimen** | `metamorphosis-specimen` | 1280x720 | - | - | Cinzel, Caveat, JetBrains Mono | [Prompt](prompts/metamorphosis-specimen.md) | [HTML](sources/metamorphosis-specimen.html) |
+
+<details>
+<summary><b>#97 Paper Collage Film</b> (`paper-collage-film`)</summary>
+
+- **Look:** Torn-paper stop-motion collage film on twos: layered paper strips with white fibrous edges, watercolour sky, halftone textures, photo cutouts dropping in with squash and bounce, push-ins to paper iris zooms, kaleidoscopic mirrors, and title drops on torn bands.
+- **How it explains:** Continuous camera journey through physical paper layers: rip wipes reveal new scenes, photo cutouts slap and settle, details zoom through paper irises, paper strip rockets transition upwards, and text slams with white paper backings and perspective drop shadows.
+- **Fonts:** Fraunces, Ultra, Inter
+- **Demo:** Physical Torn Paper Wildlife Trailer
+- **Prompt file:** `prompts/paper-collage-film.md`
+- **Reference code:** `sources/paper-collage-film.html`
+
+</details>
+
+<details>
+<summary><b>#98 Aurora Glass</b> (`aurora-glass`)</summary>
+
+- **Look:** Premium dark creator tech explainer: deep near-black canvas (#0A0E14) with a rising cyan aurora bloom, floating frosted glassmorphism cards with hairline top highlights, edge-lit neon phone mockups, glowing geometric typography, and smooth focus-stacked parallax.
+- **How it explains:** Gliding camera moves through a layered 3D depth of field: key metrics and headlines glow with soft blue halos, glass tiles spring in with parallax drift, dashed connector lines draw between nodes, and data pills pulse with beat-synced timing.
+- **Fonts:** Plus Jakarta Sans (600-800), Inter (400-600), Space Mono
+- **Demo:** The architecture of next-gen AI systems
+- **Prompt file:** `prompts/aurora-glass.md`
+- **Reference code:** `sources/aurora-glass.html`
+
+</details>
+
+<details>
+<summary><b>#99 Archival Explainer</b> (`archival-explainer`)</summary>
+
+- **Look:** Investigative editorial documentary collage: warm newsprint paper (#efe9dc) with fine print grain, archival cutouts with thick colored sticker borders, signature cyan-blue marker highlight boxes, high-contrast Fraunces serif headlines, and snappy stop-motion on twos.
+- **How it explains:** Snappy stepped cuts and low-shutter timing: yellow and cyan marker sweeps highlight scanned document evidence, hand-drawn arrows connect margin notes, pushpin maps track routes, and photo cards rack focus in shallow 3D space.
+- **Fonts:** Fraunces (300 to 900 italic), Archivo (700 caps), Caveat
+- **Demo:** How global shipping routes secretly changed
+- **Prompt file:** `prompts/archival-explainer.md`
+- **Reference code:** `sources/archival-explainer.html`
+
+</details>
+
+<details>
+<summary><b>#100 Product Launch UI</b> (`product-launch-ui`)</summary>
+
+- **Look:** Fast-paced modern SaaS product launch: floating smartphone mockups with cascading lockscreen push notification cards, interactive chat bubbles popping into view, expressive mascot eye acting (blink, look left/right, wink), and 3D rotating gold coin particle bursts.
+- **How it explains:** Smooth app-flow storytelling: cold open text bubble pulls back into mobile chat, mascot character drops in with squash and stretch, invoice/task status cards slide in, lockscreen zooms into full app, and spinning 3D coins celebrate conversions.
+- **Fonts:** Inter, Inter Tight, JetBrains Mono
+- **Demo:** Introducing FlowBot: Invoices on Autopilot
+- **Prompt file:** `prompts/product-launch-ui.md`
+- **Reference code:** `sources/product-launch-ui.html`
+
+</details>
+
+<details>
+<summary><b>#101 3D Assembly Guide</b> (`assembly-3d`)</summary>
+
+- **Look:** Step-by-step procedural exploded assembly instructions: clean cream backdrop, precision 3D mechanical components gliding smoothly into interlocking slots, rotating threaded screws driving into fastener holes, and dimensional callout badges.
+- **How it explains:** Technical manual brought to life in code: components hover in exploded view, guide arrows indicate motion paths, screws spin with ratchet sound cues, parts snap together with solid locking clicks, and floating step markers track progress.
+- **Fonts:** Inter Tight, JetBrains Mono
+- **Demo:** Modular furniture precision assembly
+- **Prompt file:** `prompts/assembly-3d.md`
+- **Reference code:** `sources/assembly-3d.html`
+
+</details>
+
+<details>
+<summary><b>#102 Metamorphosis Specimen</b> (`metamorphosis-specimen`)</summary>
+
+- **Look:** Scientific biological documentary: deep navy cyan blueprint grid alternating with warm colored-pencil specimen illustrations, circular microscope loupe overlays with measurement calipers, and synthesized marimba/bell score.
+- **How it explains:** Microscopic life-cycle progression: cross-sectional blueprint views cut to organic hand-drawn details, magnifying reticles zoom into cellular structures, stage indicators step forward, and delicate lines animate organic growth.
+- **Fonts:** Cinzel, Caveat, JetBrains Mono
+- **Demo:** The metamorphosis of the monarch butterfly
+- **Prompt file:** `prompts/metamorphosis-specimen.md`
+- **Reference code:** `sources/metamorphosis-specimen.html`
+
+</details>

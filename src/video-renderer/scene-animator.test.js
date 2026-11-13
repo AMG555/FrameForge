@@ -310,3 +310,48 @@ describe('scene-animator wrapCodeInHarnessHtml', () => {
     assert.ok(html.includes('function boilSeed('));
   });
 });
+
+describe('scene-animator extended procedural motion styles (#97 to #102)', () => {
+  it('maps paper-collage-film to hand_drawn_doodle and paper_collage_film theme', () => {
+    assert.equal(detectAesthetic({ style: 'paper-collage-film' }), 'hand_drawn_doodle');
+    assert.equal(detectComponentTheme({ style: 'paper-collage-film' }), 'paper_collage_film');
+    const html = generateSceneHtml({ style: 'paper-collage-film', caption: 'Physical Collage' });
+    assert.ok(html.includes('COMP_THEME = "paper_collage_film"'));
+  });
+
+  it('maps aurora-glass to cyber_tech and aurora_glass theme', () => {
+    assert.equal(detectAesthetic({ style: 'aurora-glass' }), 'cyber_tech');
+    assert.equal(detectComponentTheme({ style: 'aurora-glass' }), 'aurora_glass');
+    const html = generateSceneHtml({ style: 'aurora-glass', caption: 'Aurora Glass' });
+    assert.ok(html.includes('COMP_THEME = "aurora_glass"'));
+  });
+
+  it('maps archival-explainer to cinematic_documentary and archival_investigative theme', () => {
+    assert.equal(detectAesthetic({ style: 'archival-explainer' }), 'cinematic_documentary');
+    assert.equal(detectComponentTheme({ style: 'archival-explainer' }), 'archival_investigative');
+    const html = generateSceneHtml({ style: 'archival-explainer', caption: 'Archival Evidence' });
+    assert.ok(html.includes('COMP_THEME = "archival_investigative"'));
+  });
+
+  it('maps product-launch-ui to cyber_tech and product_launch_saas theme', () => {
+    assert.equal(detectAesthetic({ style: 'product-launch-ui' }), 'cyber_tech');
+    assert.equal(detectComponentTheme({ style: 'product-launch-ui' }), 'product_launch_saas');
+    const html = generateSceneHtml({ style: 'product-launch-ui', caption: 'Invoices Autopilot' });
+    assert.ok(html.includes('COMP_THEME = "product_launch_saas"'));
+  });
+
+  it('maps assembly-3d to cyber_tech and assembly_exploded_3d theme', () => {
+    assert.equal(detectAesthetic({ style: 'assembly-3d' }), 'cyber_tech');
+    assert.equal(detectComponentTheme({ style: 'assembly-3d' }), 'assembly_exploded_3d');
+    const html = generateSceneHtml({ style: 'assembly-3d', caption: 'Step 01 Assembly' });
+    assert.ok(html.includes('COMP_THEME = "assembly_exploded_3d"'));
+  });
+
+  it('maps metamorphosis-specimen to nature_organic and specimen_blueprint_microscopy theme', () => {
+    assert.equal(detectAesthetic({ style: 'metamorphosis-specimen' }), 'nature_organic');
+    assert.equal(detectComponentTheme({ style: 'metamorphosis-specimen' }), 'specimen_blueprint_microscopy');
+    const html = generateSceneHtml({ style: 'metamorphosis-specimen', caption: 'Monarch Specimen' });
+    assert.ok(html.includes('COMP_THEME = "specimen_blueprint_microscopy"'));
+  });
+});
+

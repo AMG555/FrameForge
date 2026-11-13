@@ -47,7 +47,7 @@ This project is configured with full agent skills, multi-engine video rendering,
 ### 3. `faceless-shorts` — Viral Vertical Video Engine
 - **Location:** `.agent/skills/faceless-shorts/` and `plugins/faceless-shorts/`
 - **Engine:** Kokoro local AI voice + Whisper word-level timing + 3D/2D procedural canvas + FFmpeg.
-- **Styles:** Deep Dive 3D (Zack D. Films style), Night File 3D (true crime/mystery), Inside Out (2D x-ray), Stick Story (survival steps), Paper Atlas (historical cut paper), Tall Tale 3D (cartoon 3D storytime).
+- **Styles:** Deep Dive 3D (), Night File 3D (true crime/mystery), Inside Out (2D x-ray), Stick Story (survival steps), Paper Atlas (historical cut paper), Tall Tale 3D (cartoon 3D storytime).
 
 ### 4. `video-pipeline` & `html-renderer` — FrameForge Native Engines
 - **Location:** `.agent/skills/video-pipeline/` and `.agent/skills/html-renderer/`

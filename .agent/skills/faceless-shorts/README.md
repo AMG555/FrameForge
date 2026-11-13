@@ -4,7 +4,7 @@ Narrated faceless shorts (YouTube Shorts, TikTok, Reels) made 100% in code on yo
 word-synced captions, animation, sound effects and music, rendered to MP4. No AI video, no API keys, no credits.
 
 **Styles** (each has a style sheet, a style guide and a finished example video project)
-1. **Deep Dive 3D** (flagship): Zack D. Films-like 3D "What happens if…?" explainers. Example: *What happens if you hold your breath?*
+1. **Deep Dive 3D** (flagship): 3D "What happens if…?" explainers. Example: *What happens if you hold your breath?*
 2. **Night File 3D**: unsolved mysteries and true crime in dark 3D rooms. Example: *The man who jumped out of a plane* (D.B. Cooper).
 3. **Inside Out**: flat 2D x-ray explainers. Example: *What if you swallow gum?*
 4. **Stick Story**: stick-figure survival steps. Example: *What if the power went out for 3 days?*

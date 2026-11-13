@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Archival Explainer — FrameForge Motion Library</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #0b0f17; font-family: sans-serif; display: flex; align-items: center; justify-content: center; }
+    canvas { width: 100%; height: 100%; max-width: 1280px; max-height: 720px; aspect-ratio: 16/9; display: block; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+  </style>
+</head>
+<body>
+<canvas id="stage" width="1280" height="720"></canvas>
+<script>
+window.DURATION = 30;
+const canvas = document.getElementById('stage');
+const ctx = canvas.getContext('2d');
+const W = 1280, H = 720;
+
+function spring(t, t0, st = 180, dm = 14) {
+  if (t < t0) return 0;
+  const dt = t - t0;
+  const w = Math.sqrt(st);
+  return 1 - Math.exp(-dm * dt * 0.5) * Math.cos(w * dt);
+}
+
+function render(t) {
+  ctx.clearRect(0, 0, W, H);
+  // Background
+  ctx.fillStyle = '#0f172a';
+  ctx.fillRect(0, 0, W, H);
+
+  // Style Title Card
+  const s = spring(t, 0.1);
+  ctx.save();
+  ctx.translate(W / 2, H / 2);
+  ctx.scale(Math.min(1.2, Math.max(0, s)), Math.min(1.2, Math.max(0, s)));
+  ctx.fillStyle = '#38bdf8';
+  ctx.font = 'bold 54px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('Archival Explainer', 0, -20);
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '24px sans-serif';
+  ctx.fillText('Investigative editorial documentary collage: warm newsprint paper (#efe9dc) with...', 0, 40);
+  ctx.restore();
+}
+
+window.seek = function(t) { render(t); };
+let start = null;
+function loop(now) {
+  if (!start) start = now;
+  const t = ((now - start) / 1000) % window.DURATION;
+  render(t);
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

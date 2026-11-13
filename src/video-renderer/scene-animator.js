@@ -207,6 +207,12 @@ function detectAesthetic({
 
   // 62 Motion Styles & Faceless Shorts ID Mapping
   const MOTION_STYLE_AESTHETICS = {
+    'paper-collage-film': 'hand_drawn_doodle',
+    'aurora-glass': 'cyber_tech',
+    'archival-explainer': 'cinematic_documentary',
+    'product-launch-ui': 'cyber_tech',
+    'assembly-3d': 'cyber_tech',
+    'metamorphosis-specimen': 'nature_organic',
     'creator-motion': 'warm_creative',
     'clean-tech': 'cyber_tech',
     'punch-captions': 'hype_sports',
@@ -385,6 +391,26 @@ function detectComponentTheme({
   if (imagePath) return 'image';
   const visDesc = visualDescription || visual_description || prompt || '';
   const text = `${style} ${visDesc} ${caption} ${narration} ${topic}`.toLowerCase();
+
+  // Explicit Style / Technique overrides from FrameForge Extended Motion Library
+  if (style === 'paper-collage-film' || /(?:^|[^w])(paper collage|torn paper|cutout collage|paper iris)(?:[^w]|$)/i.test(text)) {
+    return 'paper_collage_film';
+  }
+  if (style === 'aurora-glass' || /(?:^|[^\w])(aurora glass|glassmorphism card|edge[- ]lit|neon rim)(?:[^\w]|$)/i.test(text)) {
+    return 'aurora_glass';
+  }
+  if (style === 'archival-explainer' || /(?:^|[^w])(vox|vox explainer|investigative journalism|highlighter box|archival document)(?:[^w]|$)/i.test(text)) {
+    return 'archival_investigative';
+  }
+  if (style === 'product-launch-ui' || /(?:^|[^w])(product launch|lockscreen notification|invoices on autopilot|app demo)(?:[^w]|$)/i.test(text)) {
+    return 'product_launch_saas';
+  }
+  if (style === 'assembly-3d' || /(?:^|[^w])(assembly guide|3d assembly|exploded assembly|furniture manual|screw turning|slot snap)(?:[^w]|$)/i.test(text)) {
+    return 'assembly_exploded_3d';
+  }
+  if (style === 'metamorphosis-specimen' || /(?:^|[^w])(metamorphosis|monarch butterfly|specimen blueprint|microscopy loupe|life cycle)(?:[^w]|$)/i.test(text)) {
+    return 'specimen_blueprint_microscopy';
+  }
 
   // If anchor is NOT requested, suppress all humanoid doodle anchor characters
   // and route to non-anchor procedural visual archetypes
@@ -4280,6 +4306,293 @@ function drawMainScene(t) {
       ctx.fillStyle = barGrad;
       ctx.beginPath(); ctx.roundRect(bx, by, barW - 6, hVal, 4); ctx.fill();
     }
+
+  } else if (COMP_THEME === 'paper_collage_film') {
+    // 97: Paper Collage Film (Physical Cutout Stop-Motion Grammar, 12fps Boil, Fibrous Edges)
+    const bSeed = boilSeed(t, 77);
+    const dropS = spring(t, 0.08, 160, 13);
+    const cardScale = Math.min(1.05, Math.max(0, dropS));
+
+    // Torn paper background diagonal band
+    ctx.save();
+    ctx.fillStyle = '#f2ede4';
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 10;
+    ctx.beginPath();
+    const bandW = W * 0.9;
+    const bandH = H * 0.65;
+    ctx.rect(cx - bandW/2 + (bSeed - 0.5) * 6, cy - bandH/2 + (bSeed - 0.5) * 6, bandW, bandH);
+    ctx.fill();
+    ctx.stroke();
+
+    // Central torn paper card with shadow
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(cardScale, cardScale);
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.28)';
+    ctx.shadowBlur = 18;
+    ctx.shadowOffsetY = 10;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(-W * 0.35, -H * 0.22, W * 0.7, H * 0.44);
+    ctx.restore();
+
+    // Headline stamped on paper card
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(cardScale, cardScale);
+    ctx.fillStyle = '#1c1917';
+    ctx.font = 'bold 52px ' + FONT_DISPLAY;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText((CAPTION || TOPIC || 'PAPER COLLAGE').toUpperCase().slice(0, 36), 0, -20);
+
+    // Secondary torn paper label band
+    ctx.fillStyle = ACCENT;
+    ctx.fillRect(-W * 0.25, 35, W * 0.5, 42);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 22px ' + FONT_BODY;
+    ctx.fillText((NARRATION || 'STOP-MOTION PHYSICAL CUTOUT').slice(0, 42).toUpperCase(), 0, 56);
+    ctx.restore();
+    ctx.restore();
+
+  } else if (COMP_THEME === 'aurora_glass') {
+    // 98: Aurora Glass (Dark Canvas, Rising Cyan Aurora Bloom, Frosted Glass Card)
+    const auroraS = spring(t, 0.05, 140, 12);
+
+    // Cyan aurora bloom rising from bottom
+    const auroraGrad = ctx.createRadialGradient(cx, H * 0.95, 50, cx, H * 0.8, W * 0.65);
+    auroraGrad.addColorStop(0, 'rgba(56, 189, 248, 0.32)');
+    auroraGrad.addColorStop(0.5, 'rgba(14, 165, 233, 0.12)');
+    auroraGrad.addColorStop(1, 'rgba(10, 14, 20, 0)');
+    ctx.fillStyle = auroraGrad;
+    ctx.fillRect(0, 0, W, H);
+
+    // Coordinate dot grid
+    ctx.fillStyle = 'rgba(240, 238, 233, 0.08)';
+    for (let gx = 60; gx < W; gx += 60) {
+      for (let gy = 60; gy < H; gy += 60) {
+        ctx.fillRect(gx - 1.5, gy - 1.5, 3, 3);
+      }
+    }
+
+    // Frosted Glass Card
+    const cardW = Math.min(W * 0.82, 1020);
+    const cardH = Math.min(H * 0.58, 520);
+    const cardX = cx - cardW / 2;
+    const cardY = cy - cardH / 2;
+    const gScale = Math.min(1, Math.max(0, auroraS));
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(gScale, gScale);
+    ctx.translate(-cx, -cy);
+
+    // Outer glass shadow & frosted background
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+    ctx.shadowBlur = 30;
+    ctx.shadowOffsetY = 16;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
+    ctx.beginPath();
+    ctx.roundRect(cardX, cardY, cardW, cardH, 20);
+    ctx.fill();
+
+    // Hairline glowing top highlight
+    ctx.shadowColor = 'transparent';
+    const topStroke = ctx.createLinearGradient(cardX, cardY, cardX + cardW, cardY);
+    topStroke.addColorStop(0, 'rgba(56, 189, 248, 0.8)');
+    topStroke.addColorStop(0.5, 'rgba(255, 255, 255, 0.9)');
+    topStroke.addColorStop(1, 'rgba(56, 189, 248, 0.2)');
+    ctx.strokeStyle = topStroke;
+    ctx.lineWidth = 1.8;
+    ctx.stroke();
+
+    // Statement typography with soft glow
+    ctx.fillStyle = '#f0eee9';
+    ctx.font = 'bold 56px ' + FONT_DISPLAY;
+    ctx.textAlign = 'center';
+    ctx.fillText((CAPTION || TOPIC || 'NEXT-GEN ARCHITECTURE').toUpperCase().slice(0, 36), cx, cy - 30);
+
+    // Edge-lit data pill badge
+    ctx.fillStyle = 'rgba(56, 189, 248, 0.15)';
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.roundRect(cx - 160, cy + 35, 320, 48, 24);
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#38bdf8';
+    ctx.font = 'bold 20px monospace';
+    ctx.fillText((NARRATION || 'DATA METRIC 99.8%').slice(0, 30).toUpperCase(), cx, cy + 66);
+    ctx.restore();
+
+  } else if (COMP_THEME === 'archival_investigative') {
+    // 99: Archival Explainer (Newsprint, Sticker Cutouts, Signature Cyan Highlighter)
+    const hlProgress = Math.min(1, Math.max(0, (t - 0.2) * 2.2));
+
+    // Scanned Archival Paper Takeover
+    ctx.fillStyle = '#efe9dc';
+    ctx.fillRect(0, 0, W, H);
+
+    // Subtle newsprint fiber noise
+    ctx.fillStyle = '#17130e';
+    ctx.font = 'bold 54px ' + FONT_DISPLAY;
+    ctx.textAlign = 'center';
+
+    const voxTitle = (CAPTION || TOPIC || 'INVESTIGATIVE REPORT').toUpperCase().slice(0, 34);
+    const textMetrics = ctx.measureText(voxTitle);
+    const textW = textMetrics.width;
+
+    // Signature Blue Marker Wipe Box behind text
+    ctx.fillStyle = '#37bdf8';
+    ctx.fillRect(cx - textW / 2 - 16, cy - 50, (textW + 32) * hlProgress, 64);
+
+    // Text on top
+    ctx.fillStyle = '#17130e';
+    ctx.fillText(voxTitle, cx, cy);
+
+    // Redlined margin note
+    ctx.fillStyle = '#e23b2e';
+    ctx.font = 'italic 26px Caveat, cursive, sans-serif';
+    ctx.fillText('// ' + (NARRATION || 'archival evidence confirmed').slice(0, 42), cx, cy + 60);
+
+  } else if (COMP_THEME === 'product_launch_saas') {
+    // 100: Product Launch UI (Mobile Screen, Push Notifications, Coin Burst)
+    const phoneS = spring(t, 0.06, 150, 13);
+    const notifS = spring(t, 0.25, 180, 14);
+
+    // Floating Phone Mockup
+    const pW = Math.min(W * 0.42, 420);
+    const pH = Math.min(H * 0.82, 640);
+    const pX = cx - pW / 2;
+    const pY = cy - pH / 2 + (1 - Math.min(1, phoneS)) * 120;
+
+    ctx.save();
+    // Phone chassis
+    ctx.fillStyle = '#1f1447';
+    ctx.shadowColor = 'rgba(31, 20, 71, 0.35)';
+    ctx.shadowBlur = 28;
+    ctx.shadowOffsetY = 16;
+    ctx.beginPath(); ctx.roundRect(pX, pY, pW, pH, 36); ctx.fill();
+
+    // Phone screen
+    ctx.shadowColor = 'transparent';
+    ctx.fillStyle = '#f8f7fa';
+    ctx.beginPath(); ctx.roundRect(pX + 8, pY + 8, pW - 16, pH - 16, 28); ctx.fill();
+
+    // Cascading Push Notification Card
+    if (notifS > 0) {
+      const nScale = Math.min(1, notifS);
+      ctx.save();
+      ctx.translate(cx, pY + 90);
+      ctx.scale(nScale, nScale);
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = 'rgba(0,0,0,0.12)'; ctx.shadowBlur = 12; ctx.shadowOffsetY = 4;
+      ctx.beginPath(); ctx.roundRect(-pW * 0.4, 0, pW * 0.8, 70, 16); ctx.fill();
+
+      ctx.fillStyle = '#7b5cff';
+      ctx.beginPath(); ctx.arc(-pW * 0.4 + 26, 35, 12, 0, Math.PI * 2); ctx.fill();
+
+      ctx.fillStyle = '#0f0d17';
+      ctx.font = 'bold 16px ' + FONT_BODY;
+      ctx.textAlign = 'left';
+      ctx.fillText((CAPTION || 'New Notification').slice(0, 22), -pW * 0.4 + 48, 30);
+      ctx.fillStyle = '#64748b';
+      ctx.font = '13px ' + FONT_BODY;
+      ctx.fillText((NARRATION || 'Task completed on autopilot.').slice(0, 28), -pW * 0.4 + 48, 52);
+      ctx.restore();
+    }
+
+    // 3D Spinning Coin Burst
+    const coinAngle = t * 6;
+    const coinW = Math.abs(Math.cos(coinAngle)) * 26 + 4;
+    ctx.fillStyle = '#eab308';
+    ctx.beginPath(); ctx.ellipse(cx + pW / 2 + 30, cy - pH / 3, coinW, 26, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+
+  } else if (COMP_THEME === 'assembly_exploded_3d') {
+    // 101: 3D Assembly Guide (Isometric Exploded Parts, Rotating Fasteners, Step Badge)
+    const snapS = spring(t, 0.12, 170, 14);
+    const offsetExplode = (1 - Math.min(1, snapS)) * 140;
+
+    ctx.save();
+    ctx.translate(cx, cy);
+
+    // Step Badge
+    ctx.fillStyle = ACCENT;
+    ctx.beginPath(); ctx.roundRect(-W * 0.42, -H * 0.42, 130, 40, 8); ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 18px ' + FONT_BODY;
+    ctx.textAlign = 'center';
+    ctx.fillText('STEP 01', -W * 0.42 + 65, -H * 0.42 + 26);
+
+    // Exploded Panel Left
+    ctx.fillStyle = '#e2e8f0';
+    ctx.strokeStyle = '#475569';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.roundRect(-240 - offsetExplode, -100, 180, 200, 12);
+    ctx.fill(); ctx.stroke();
+
+    // Exploded Panel Right (target)
+    ctx.fillStyle = '#cbd5e1';
+    ctx.beginPath();
+    ctx.roundRect(60, -100, 180, 200, 12);
+    ctx.fill(); ctx.stroke();
+
+    // Rotating Screw Fastener
+    const screwRot = t * 12;
+    ctx.save();
+    ctx.translate(-50 - offsetExplode * 0.4, 0);
+    ctx.rotate(screwRot);
+    ctx.fillStyle = '#38bdf8';
+    ctx.fillRect(-8, -8, 16, 16);
+    ctx.restore();
+
+    // Dimension Callout
+    ctx.fillStyle = TEXT_MUTED;
+    ctx.font = '16px monospace';
+    ctx.fillText((CAPTION || 'ALIGN PART A WITH BASE').toUpperCase(), 0, 150);
+    ctx.restore();
+
+  } else if (COMP_THEME === 'specimen_blueprint_microscopy') {
+    // 102: Metamorphosis Specimen (Navy Blueprint Grid, Microscope Loupe, Caliper Ticks)
+    const loupeS = spring(t, 0.1, 150, 14);
+
+    // Deep Navy Blueprint Grid
+    ctx.fillStyle = '#0b192c';
+    ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.14)';
+    ctx.lineWidth = 1;
+    for (let x = 0; x < W; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+    for (let y = 0; y < H; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+
+    // Microscope Loupe Reticle
+    const loupeR = 190 * Math.min(1, loupeS);
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(0, 0, loupeR, 0, Math.PI * 2); ctx.stroke();
+
+    // Caliper degree ticks
+    for (let a = 0; a < 360; a += 15) {
+      const rad = a * Math.PI / 180;
+      const x1 = Math.cos(rad) * (loupeR - 8);
+      const y1 = Math.sin(rad) * (loupeR - 8);
+      const x2 = Math.cos(rad) * loupeR;
+      const y2 = Math.sin(rad) * loupeR;
+      ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+    }
+
+    // Specimen Title & Taxonomy
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 36px ' + FONT_DISPLAY;
+    ctx.textAlign = 'center';
+    ctx.fillText((CAPTION || 'BIOLOGICAL SPECIMEN').toUpperCase(), 0, loupeR + 45);
+
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = 'italic 20px Caveat, cursive, sans-serif';
+    ctx.fillText((NARRATION || 'Morphological transformation observed').slice(0, 48), 0, loupeR + 78);
+    ctx.restore();
 
   } else {
     // Universal Semantic Default & Explainer Presentation (Whiteboard Masterclass & Concept Pillars)
