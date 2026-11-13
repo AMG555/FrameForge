@@ -1,36 +1,6 @@
 ---
 name: html-renderer
-description: |
-  HTML-as-compositor renderer for FrameForge. Every video frame is a pure
-  function of time rendered by a headless browser (Playwright + Chromium)
-  and encoded by FFmpeg. Produces exact, pixel-perfect animation — React
-  component quality without a React runtime. Use this as an alternative to
-  FFmpeg-only zoompan when richer motion graphics are required: kinetic text,
-  morphing layouts, spring-physics, counters, progress rings, captions
-  synced to audio, and any CSS/SVG animation. Pairs with the FrameForge
-  pipeline: script JSON → HTML compositor → frame PNGs → FFmpeg encode.
-  Compatible with IBM Bob, Kiro, Cursor, Windsurf, Claude Code, Codex,
-  opencode, and any agentic IDE connected via MCP. Activate when the user
-  asks for richer animation, Remotion-style rendering, HTML-based video, or
-  "make it look like the reference repo".
-
-  Advanced animation patterns (read references/ after scaffold):
-    references/animation-patterns.md  — ClaudeAnimationBase 12fps boil, onetake 39-move library,
-                                        collage B-roll 3-gate, Remotion spring patterns
-    references/character-animation.md — ClaudeAnimationBase full ANIMATION_GUIDE (31 emotions,
-                                        timing principles, pure-fn constraint, review loop)
-    references/motion-craft.md        — 10 hard motion craft rules (springs, 5-layer stack, exits faster)
-    references/film-styles.md         — 24 cinematic film styles (anamorphic, cyberpunk, anime, lofi...)
-    references/hyperframes-motion.md  — HyperFrames motion craft (GSAP eases, beat grid, transitions,
-                                        measured from official launch films)
-    references/directing.md           — lemo-opuscar directing method (story, sound layers, rhythm,
-                                        camera, performance, review loop, delivery checklist)
-    references/earshot-audio.md       — earshot professional audio (5 loops, forge DSP, sound bank,
-                                        LUFS tables, J/L cuts, AI-verifiable audio metrics)
-    references/onetake-camera.md      — zero-cut continuous camera choreography
-    references/collage-broll.md       — editorial paper collage + halftone 2.5D
-    references/procedural-sfx.md      — 13-type SFX library with room profiles + platform LUFS targets
-    references/render-contract.md     — determinism contract (bans Date.now, Math.random, CSS transitions)
+description: HTML-as-compositor engine for FrameForge. Renders pixel-perfect pure-function-of-time (t) canvas/DOM animations via Playwright Chromium and FFmpeg with organic 12fps boil, spring physics, and audio ducking.
 ---
 
 # HTML Renderer — FrameForge Extension

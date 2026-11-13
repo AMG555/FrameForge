@@ -74,11 +74,21 @@ Gate rules — revise if ANY are true:
 - Any seam is missing a transition label
 - Total duration doesn't match requested length ±10%
 
-**Step A2 — Render**
+**Step A2 — Render (Dynamic Per-Scene Styles)**
+
+Assign each scene an appropriate `style` matching its narrative role (e.g. `creator-motion`, `clean-tech`, `data-story`, `versus-split`, `chalk-talk`, `deep-dive`):
 
 ```
 create_video_from_script({
-  scenes: [ { narration: "...", caption: "...", visual_description: "...", camera_hint: "zoom_in" } ],
+  scenes: [
+    {
+      narration: "...",
+      caption: "...",
+      visual_description: "...",
+      style: "clean-tech",         // choose from 62 Motion Styles or 10 aesthetics
+      camera_hint: "zoom_in"
+    }
+  ],
   title: "My Video",
   orientation: "landscape",   // "portrait" for Reels/Shorts/TikTok
   voice: "en-US-BrianNeural", // or use language: "en"

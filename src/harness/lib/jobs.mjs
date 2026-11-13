@@ -123,8 +123,8 @@ export async function renderFrameJobs({
         }
 
         // Atomic write: write to temp file then rename
-        fs.writeFileSync(tmpFile, buf);
-        fs.renameSync(tmpFile, targetFile);
+        await fs.promises.writeFile(tmpFile, buf);
+        await fs.promises.rename(tmpFile, targetFile);
 
         doneCount++;
         if (onProgress) {
