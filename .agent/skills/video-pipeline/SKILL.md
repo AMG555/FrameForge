@@ -150,16 +150,17 @@ FrameForge renders full-canvas, broadcast-quality motion graphics (24fps pure fu
 - **Option B — Direct Agent Code:** Provide `html` (complete page with `window.DURATION` & `window.seek(t)`) or `code` (canvas drawing instructions for `t`). FrameForge executes your program directly via headless Chromium.
 - **Option C — Generate & Inspect (Layer 3 Loop):** Call `generate_scene_code({ visual_description, style })` to synthesize canvas drawing code. Then call `preview_scene({ html, timestamps: [0.1, 1.5, 2.9] })` to render PNG stills to disk, visually verify the scene in the IDE, tweak if needed, and pass into `create_video_from_script`.
 - **Option D — Multilingual & Regional Scripts:** Pass `language: "ml"` (Malayalam), `"hi"` (Hindi), etc. Native DirectWrite/HarfBuzz font stacks (`Nirmala UI`, `Noto Sans Malayalam`) render conjuncts without broken glyphs.
+- **Dynamic Per-Scene Styles (Essential):** Never use a single flat style for the entire video. Assign each scene an appropriate `style` from the 62 Motion Styles or 10 Aesthetic families (e.g., Hook: `creator-motion` / `headline-backdrop`; Explanations: `clean-tech` / `swiss-grid`; Data/Charts: `data-story` / `finance_executive`; Comparisons: `versus-split`; Mechanisms: `deep-dive`).
 
 ```js
 create_video_from_script({
   topic: "GPS Satellites and Orbital Mechanics",
-  style: "cosmic_space",
   language: "en",
   scenes: [
     {
       narration: "GPS uses trilateration from atomic clock satellites orbiting Earth.",
       caption: "TRILATERATION",
+      style: "cosmic_space",
       visual_description: "3D Earth rotating with 4 satellite orbits and microwave beams converging",
       // Optional: you can pass your own Canvas code or complete HTML:
       // code: "ctx.fillStyle = '#0c1116'; ctx.fillRect(0,0,W,H); ..."
@@ -167,6 +168,7 @@ create_video_from_script({
     {
       narration: "Relativistic time dilation requires nanosecond daily corrections.",
       caption: "TIME DILATION",
+      style: "clean-tech",
       visual_description: "Quantum atomic clock oscillation with compounding nanosecond curve"
     }
   ],

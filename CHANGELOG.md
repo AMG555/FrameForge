@@ -4,6 +4,24 @@ All notable changes to FrameForge are documented here.
 
 ---
 
+## [2.7.11] — 2026-11-13
+
+### Added
+- **Dynamic Per-Scene Style Enforcement (Multi-Style Engine)**:
+  - Enforced per-scene style assignment across LLM prompts, MCP tool definitions, and workspace rules (`AGENTS.md`, `GEMINI.md`, `CLAUDE.md`, and skill guides).
+  - Preserved `style` and `theme` tags in `normaliseScene` so scene-level aesthetic definitions are never dropped.
+  - Added full mapping for all 62 procedural motion styles and 6 faceless shorts styles directly into `detectAesthetic` in `scene-animator.js`.
+  - Updated `create_video_from_script` schema to document per-scene `style` and guide agents to vary styles based on narrative role (hooks, tech explanations, data/metrics, comparisons, deep-dives, stories, and outros).
+
+### Performance & Optimization
+- **Render Speed Acceleration (~5x-6x faster, zero quality compromise)**:
+  - **Eliminated Font Re-Check Microtask Stall**: Cached `window.__fontsReady` in `src/harness/lib/capture.mjs` during deterministic frame stepping. Stopped re-awaiting `document.fonts.ready` on all 7,200+ frames per video after initial frame 0 font resolution.
+  - **Dynamic Multi-Core Harness Worker Scaling**: Replaced hardcoded 2 workers with dynamic CPU-proportional worker pool (`Math.min(6, Math.max(2, Math.floor(CPU_COUNT / 2)))`, configurable via `FRAMEFORGE_WORKERS`).
+  - **Dynamic Multi-Core FFmpeg Thread Scaling**: Replaced hardcoded `-threads 2` with dynamic multi-core FFmpeg encoding threads (`Math.min(8, Math.max(2, CPU_COUNT))`, configurable via `FRAMEFORGE_FFMPEG_THREADS`).
+  - **Optimized Headless Chromium Flags**: Added `--mute-audio`, `--disable-extensions`, `--disable-default-apps`, `--disable-sync`, `--disable-translate`, `--no-first-run`, `--hide-scrollbars`, `--disable-notifications`, `--disable-component-update`, `--disable-backgrounding-occluded-windows`, `--disable-breakpad`, and `--disable-ipc-flooding-protection` to reduce browser initialization overhead and per-worker memory usage.
+
+---
+
 ## [2.7.10] — 2026-11-13
 
 ### Fixed

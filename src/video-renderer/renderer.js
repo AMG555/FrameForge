@@ -26,6 +26,23 @@ const os    = require('os');
 const fs    = require('fs');
 
 const DEFAULT_FILES_DIR = process.env.N8N_FILES_DIR || path.join(os.homedir(), '.frameforge-files');
+const CPU_COUNT = (os.cpus() && os.cpus().length) || 4;
+
+function getOptimalHarnessWorkers() {
+  if (process.env.FRAMEFORGE_WORKERS) {
+    const val = parseInt(process.env.FRAMEFORGE_WORKERS, 10);
+    if (!isNaN(val) && val > 0) return String(val);
+  }
+  return String(Math.min(6, Math.max(2, Math.floor(CPU_COUNT / 2))));
+}
+
+function getOptimalFfmpegThreads() {
+  if (process.env.FRAMEFORGE_FFMPEG_THREADS) {
+    const val = parseInt(process.env.FRAMEFORGE_FFMPEG_THREADS, 10);
+    if (!isNaN(val) && val > 0) return String(val);
+  }
+  return String(Math.min(8, Math.max(2, CPU_COUNT)));
+}
 
 const { buildCameraFilter, selectCameraHint } = require('../animation/animation-system');
 const { AudioMixer }                          = require('../audio-mixer/mixer');
@@ -229,7 +246,7 @@ class VideoRenderer {
       vfList.push('format=yuv420p');
       const vf = vfList.join(',');
 
-      const ffmpegArgs = ['-nostdin', '-y', '-threads', '2'];
+      const ffmpegArgs = ['-nostdin', '-y', '-threads', getOptimalFfmpegThreads()];
 
       if (startSec > 0) {
         ffmpegArgs.push('-ss', startSec.toFixed(3));
@@ -347,7 +364,7 @@ class VideoRenderer {
     }
 
     const result = spawnSync('ffmpeg', [
-      '-nostdin', '-y', '-threads', '2',
+      '-nostdin', '-y', '-threads', getOptimalFfmpegThreads(),
       ...inputArgs,
       '-vf', vf || `scale=${renderWidth}:${renderHeight},format=yuv420p`,
       '-af', `apad=whole_dur=${clampedDur}`,
@@ -461,7 +478,7 @@ class VideoRenderer {
       '--fps',     String(fps),
       '--first',   '0',
       '--last',    String(lastFrame),
-      '--workers', '2',
+      '--workers', getOptimalHarnessWorkers(),
       '--width',   String(renderWidth),
       '--height',  String(renderHeight),
     ], { encoding: 'utf8', timeout: 5 * 60 * 1000 });
@@ -500,7 +517,7 @@ class VideoRenderer {
     let encResult;
     try {
       encResult = spawnSync('ffmpeg', [
-        '-nostdin', '-y', '-threads', '2',
+        '-nostdin', '-y', '-threads', getOptimalFfmpegThreads(),
         '-framerate', String(fps),
         '-pattern_type', 'sequence',
         '-i', framesPattern,
@@ -565,7 +582,7 @@ class VideoRenderer {
 
     // Step 1: Concat scenes → raw_concat.mp4 (no audio processing yet)
     const concatResult = spawnSync('ffmpeg', [
-      '-nostdin', '-y', '-threads', '2',
+      '-nostdin', '-y', '-threads', getOptimalFfmpegThreads(),
       '-f', 'concat', '-safe', '0', '-i', concatPath,
       '-map', '0:v', '-map', '0:a',
       '-c:v', 'copy', '-c:a', 'copy',

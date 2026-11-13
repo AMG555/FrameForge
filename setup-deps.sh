@@ -181,3 +181,4 @@ fi
 echo
 say "${C_GREEN}${C_BOLD}All core FrameForge dependencies configured successfully!${C_RESET}"
 echo "You can now run: npx @amg555/frameforge-mcp frameforge-doctor"
+

@@ -83,6 +83,18 @@ export function getBrowserLaunchFlags({ softGl = false, gpuAngle = null } = {}) 
     '--disable-renderer-backgrounding',
     '--disable-background-timer-throttling',
     '--disable-gpu-watchdog',
+    '--mute-audio',
+    '--disable-extensions',
+    '--disable-default-apps',
+    '--disable-sync',
+    '--disable-translate',
+    '--no-first-run',
+    '--hide-scrollbars',
+    '--disable-notifications',
+    '--disable-component-update',
+    '--disable-backgrounding-occluded-windows',
+    '--disable-breakpad',
+    '--disable-ipc-flooding-protection',
   ];
 }
 

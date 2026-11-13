@@ -68,6 +68,8 @@ function normaliseScene(raw, index) {
     image_path:    raw.image_path  || null,
     video_path:    raw.video_path  || null,
     audio_path:    raw.audio_path  || null,
+    style:         raw.style ? String(raw.style).trim() : (raw.motion_style ? String(raw.motion_style).trim() : undefined),
+    theme:         raw.theme ? String(raw.theme).trim() : undefined,
     html:          raw.html        || null,
     code:          raw.code || raw.animation_code || null,
     metadata: {
@@ -166,6 +168,7 @@ async function runScript({
       'sound_effects [ { effect_id, timing: "start"|"middle"|"end", volume } ],',
       'music_mood: "tense"|"calm"|"energetic"|"mysterious"|"neutral"|"dramatic"|"humorous",',
       'camera_hint: "zoom_in"|"zoom_out"|"pan_left"|"pan_right"|"static"|"auto",',
+      'style: visual style for this scene (e.g. "creator-motion", "clean-tech", "data-story", "chalk-talk", "swiss-grid", "versus-split", "deep-dive", "cyber_tech", "cosmic_space", "minimal_luxury"). VARY styles across scenes — never keep the entire video in a single flat style!',
       'metadata { importance, hook_potential (0-1), standalone (bool) }',
       '',
       'RESPOND WITH EXACTLY:',

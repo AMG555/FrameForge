@@ -11,6 +11,21 @@ This project is configured with full agent skills, multi-engine video rendering,
 
 ---
 
+## 🎭 DYNAMIC PER-SCENE STYLE RULE (MULTI-STYLE VIDEOS)
+- **NEVER render an entire video with a single flat or monotonous style.**
+- When generating scripts or calling `create_video_from_script`, assign an appropriate `style` to each scene matching its narrative role:
+  - **Hook / Opener**: `creator-motion`, `headline-backdrop`, `punch-captions`, or `breaking-desk`
+  - **Concept / Architecture / Logic**: `clean-tech`, `swiss-grid`, or `cyber_tech`
+  - **Data / Stats / Metrics**: `data-story`, `finance_executive`, or `chart`
+  - **Comparisons / Dilemma**: `versus-split` or `versus_comparison`
+  - **Processes / Step-by-Step**: `process_pipeline` or `tactics-board`
+  - **Deep Dive / Mechanism**: `deep-dive`, `mechanism_physics`, or `magnification_focus`
+  - **Story / History / Context**: `chalk-talk`, `doc-cinema`, or `cinematic_documentary`
+  - **Climax / Outro**: `creator-motion`, `minimal_luxury`, or `cosmic_space`
+- Even if the user doesn't specify a style name, the agent MUST automatically assign the best matching motion style to each scene.
+
+---
+
 ## Active Skills in this Workspace
 
 ### 1. `motion-styles` — 62 Motion-Graphics Styles

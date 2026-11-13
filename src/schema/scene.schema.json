@@ -15,6 +15,8 @@
     "html": { "type": "string", "description": "Optional self-contained HTML animation page conforming to window.seek(t)" },
     "code": { "type": "string", "description": "Optional canvas drawing JavaScript code executed for time t in window.seek" },
     "animation_code": { "type": "string", "description": "Alias for code" },
+    "style": { "type": "string", "description": "Optional visual motion style for this scene (e.g. 'creator-motion', 'clean-tech', 'data-story', 'chalk-talk', 'deep-dive', 'cyber_tech')" },
+    "theme": { "type": "string", "description": "Optional theme preset alias for this scene" },
     "visual_description": { "type": "string", "minLength": 1 },
     "character": {
       "type": "object",

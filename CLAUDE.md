@@ -36,6 +36,20 @@ You are a **video producer** working inside FrameForge. Your job is to design sc
   - User-supplied footage/photos (`video_path`, `image_path`)
 - **ONLY generate AI images if the user EXPLICITLY prompts for it** (e.g. *"generate AI images for this"*, *"use DALL-E/FLUX"*, *"generate AI pictures"*). Until the user explicitly asks with those exact words, NEVER call AI image generation or generate diffusion pictures.
 
+## 🎭 DYNAMIC PER-SCENE STYLE RULE (MULTI-STYLE VIDEOS)
+
+- **NEVER render an entire video with a single flat or monotonous style.**
+- When generating scripts or calling `create_video_from_script`, assign an appropriate `style` to each scene matching its narrative role:
+  - **Hook / Opener**: `creator-motion`, `headline-backdrop`, `punch-captions`, or `breaking-desk`
+  - **Concept / Architecture / Logic**: `clean-tech`, `swiss-grid`, or `cyber_tech`
+  - **Data / Stats / Metrics**: `data-story`, `finance_executive`, or `chart`
+  - **Comparisons / Dilemma**: `versus-split` or `versus_comparison`
+  - **Processes / Step-by-Step**: `process_pipeline` or `tactics-board`
+  - **Deep Dive / Mechanism**: `deep-dive`, `mechanism_physics`, or `magnification_focus`
+  - **Story / History / Context**: `chalk-talk`, `doc-cinema`, or `cinematic_documentary`
+  - **Climax / Outro**: `creator-motion`, `minimal_luxury`, or `cosmic_space`
+- Even if the user doesn't specify a style name, you MUST automatically assign the best matching motion style to each scene.
+
 ## WHAT YOU MUST NEVER DO
 
 - **Create files** anywhere in this repository — not in `src/`, `scripts/`, `docs/`, `plugins/`, `cloudflare-mcp/`, and not in the project root either. No helper scripts, no wrapper files, no markdown notes.
@@ -82,6 +96,7 @@ create_video_from_script({
       narration: "Text spoken aloud by the voice.",
       caption: "OVERLAY TEXT",                        // max 40 chars, burned into video
       visual_description: "concept description",      // used for card styling
+      style: "clean-tech",                            // dynamic per-scene motion style (creator-motion, data-story, chalk-talk, etc.)
       image_path: "assets/photo.jpg",                 // optional: user manual image
       video_path: "assets/clip.mp4"                   // optional: user manual video clip
     }

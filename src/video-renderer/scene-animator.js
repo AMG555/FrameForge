@@ -204,6 +204,79 @@ function detectAesthetic({
   // Explicit override wins
   const explicit = (theme || style || '').toLowerCase().trim();
   if (AESTHETICS[explicit]) return explicit;
+
+  // 62 Motion Styles & Faceless Shorts ID Mapping
+  const MOTION_STYLE_AESTHETICS = {
+    'creator-motion': 'warm_creative',
+    'clean-tech': 'cyber_tech',
+    'punch-captions': 'hype_sports',
+    'karaoke-subs': 'hype_sports',
+    'swiss-grid': 'minimal_luxury',
+    'headline-backdrop': 'breaking_news',
+    'chalk-talk': 'hand_drawn_doodle',
+    'marker-board': 'hand_drawn_doodle',
+    'paper-craft': 'hand_drawn_doodle',
+    'rubber-hose-reel': 'hand_drawn_doodle',
+    'woodcut-tale': 'cinematic_documentary',
+    'shadow-puppets': 'cinematic_documentary',
+    'stick-story': 'hand_drawn_doodle',
+    'software-walkthrough': 'cyber_tech',
+    'terminal': 'cyber_tech',
+    'chat-story': 'warm_creative',
+    'callout-kit': 'cyber_tech',
+    'lower-thirds': 'breaking_news',
+    'stack-split': 'minimal_luxury',
+    'data-story': 'finance_executive',
+    'market-tape': 'finance_executive',
+    'isotype': 'finance_executive',
+    'timeline-rail': 'cinematic_documentary',
+    'tier-list': 'hype_sports',
+    'top-5-countdown': 'hype_sports',
+    'quiz-countdown': 'warm_creative',
+    'warm-canvas': 'warm_creative',
+    'podcast-clip': 'warm_creative',
+    'pop-info': 'warm_creative',
+    'recipe-steps': 'nature_organic',
+    'sticker-pop': 'warm_creative',
+    'clay-diorama': 'warm_creative',
+    'bio-glow': 'nature_organic',
+    'cosmic-scale': 'cosmic_space',
+    'exploded-view': 'cyber_tech',
+    'low-poly-atlas': 'cinematic_documentary',
+    'size-lineup': 'cosmic_space',
+    'data-city': 'cyber_tech',
+    'glass-icons': 'minimal_luxury',
+    'iso-cutaway': 'cyber_tech',
+    'globe-arcs': 'cosmic_space',
+    'physics-toybox': 'cyber_tech',
+    'deep-layers': 'cyber_tech',
+    'synth-grid': 'retro_synthwave',
+    'product-turntable': 'minimal_luxury',
+    'deep-dive': 'cosmic_space',
+    'inside-out': 'nature_organic',
+    'night-file': 'cinematic_documentary',
+    'paper-atlas': 'cinematic_documentary',
+    'tall-tale': 'warm_creative',
+    'pixel-quest': 'retro_synthwave',
+    'vhs-camcorder': 'retro_synthwave',
+    'glitch-pack': 'cyber_tech',
+    'neon-line': 'retro_synthwave',
+    'blueprint': 'cyber_tech',
+    'zine-collage': 'warm_creative',
+    'comic-panels': 'warm_creative',
+    'parchment-map': 'cinematic_documentary',
+    'evidence-board': 'cinematic_documentary',
+    'storybook': 'warm_creative',
+    'math-canvas': 'cyber_tech',
+    'tactics-board': 'hype_sports',
+    'versus-split': 'hype_sports',
+    'myth-or-fact': 'breaking_news',
+    'quote-cinema': 'cinematic_documentary',
+    'breaking-desk': 'breaking_news',
+    'doc-cinema': 'cinematic_documentary',
+    'visual-novel': 'warm_creative',
+  };
+  if (MOTION_STYLE_AESTHETICS[explicit]) return MOTION_STYLE_AESTHETICS[explicit];
   if (/doodle|sketch|hand[-\s]?drawn|drawing|whiteboard|white background|cream background|cartoon|illustration|explainer|pencil/i.test(explicit)) return 'hand_drawn_doodle';
   if (/cyber|tech|code|ai|crypto|hacker|futur/i.test(explicit)) return 'cyber_tech';
   if (/doc|history|ancient|story|cinema|kerala|temple|culture/i.test(explicit)) return 'cinematic_documentary';
@@ -304,13 +377,14 @@ function detectComponentTheme({
   caption = '',
   narration = '',
   topic = '',
+  style = '',
   imagePath = null,
   aesthetic = 'cyber_tech',
   anchorWanted = true,
 } = {}) {
   if (imagePath) return 'image';
   const visDesc = visualDescription || visual_description || prompt || '';
-  const text = `${visDesc} ${caption} ${narration} ${topic}`.toLowerCase();
+  const text = `${style} ${visDesc} ${caption} ${narration} ${topic}`.toLowerCase();
 
   // If anchor is NOT requested, suppress all humanoid doodle anchor characters
   // and route to non-anchor procedural visual archetypes
@@ -790,6 +864,7 @@ function generateSceneHtml({
     caption,
     narration,
     topic,
+    style,
     imagePath,
     aesthetic: aestheticKey,
     anchorWanted,

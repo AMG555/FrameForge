@@ -59,6 +59,17 @@ describe('scene-animator detectAesthetic', () => {
     assert.equal(detectAesthetic({ style: 'doodle' }), 'hand_drawn_doodle');
     assert.equal(detectAesthetic({ theme: 'sketch' }), 'hand_drawn_doodle');
   });
+
+  it('maps 62 Motion Styles catalog IDs to appropriate aesthetics', () => {
+    assert.equal(detectAesthetic({ style: 'creator-motion' }), 'warm_creative');
+    assert.equal(detectAesthetic({ style: 'clean-tech' }), 'cyber_tech');
+    assert.equal(detectAesthetic({ style: 'data-story' }), 'finance_executive');
+    assert.equal(detectAesthetic({ style: 'chalk-talk' }), 'hand_drawn_doodle');
+    assert.equal(detectAesthetic({ style: 'deep-dive' }), 'cosmic_space');
+    assert.equal(detectAesthetic({ style: 'inside-out' }), 'nature_organic');
+    assert.equal(detectAesthetic({ style: 'swiss-grid' }), 'minimal_luxury');
+    assert.equal(detectAesthetic({ style: 'versus-split' }), 'hype_sports');
+  });
 });
 
 describe('scene-animator getScriptFontStack', () => {

@@ -150,8 +150,9 @@ export const VIRTUAL_CLOCK_INJECTION = `
       const item = _timerQueue.shift();
       try { item.fn(...item.args); } catch (_) {}
     }
-    if (document.fonts && document.fonts.ready) {
+    if (!window.__fontsReady && document.fonts && document.fonts.ready) {
       await document.fonts.ready;
+      window.__fontsReady = true;
     }
 
     // Wait for any delayRender handles — max 3s to avoid pipeline stalls
@@ -188,8 +189,9 @@ export async function openPageWithVirtualClock(browserOrOpts, htmlPathArg, optsA
 
   // Await fonts before frame 0
   await page.evaluate(async () => {
-    if (document.fonts && document.fonts.ready) {
+    if (!window.__fontsReady && document.fonts && document.fonts.ready) {
       await document.fonts.ready;
+      window.__fontsReady = true;
     }
   });
 

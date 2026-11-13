@@ -11,6 +11,21 @@ This workspace equips agents with complete video production, procedural motion g
 
 ---
 
+## 🎭 DYNAMIC PER-SCENE STYLE RULE (MULTI-STYLE VIDEOS)
+- **NEVER render an entire video with a single flat or monotonous style.**
+- When generating scripts or calling `create_video_from_script`, assign an appropriate `style` to each scene matching its narrative role:
+  - **Hook / Opener**: `creator-motion`, `headline-backdrop`, `punch-captions`, or `breaking-desk`
+  - **Concept / Architecture / Logic**: `clean-tech`, `swiss-grid`, or `cyber_tech`
+  - **Data / Stats / Metrics**: `data-story`, `finance_executive`, or `chart`
+  - **Comparisons / Dilemma**: `versus-split` or `versus_comparison`
+  - **Processes / Step-by-Step**: `process_pipeline` or `tactics-board`
+  - **Deep Dive / Mechanism**: `deep-dive`, `mechanism_physics`, or `magnification_focus`
+  - **Story / History / Context**: `chalk-talk`, `doc-cinema`, or `cinematic_documentary`
+  - **Climax / Outro**: `creator-motion`, `minimal_luxury`, or `cosmic_space`
+- Even if the user doesn't specify a style name, the agent MUST automatically assign the best matching motion style to each scene.
+
+---
+
 ## Workspace Skills Hierarchy
 
 1. **Procedural Motion Graphics:**
