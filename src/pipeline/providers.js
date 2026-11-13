@@ -370,7 +370,10 @@ class TTSProvider {
    * picks by gender preference (TTS_VOICE_GENDER=male|female|default).
    *
    * @param {string} [explicitVoice]  voice passed by caller (takes priority)
-   * @param {string} [text]           narration text for language detection
+   * @param {string} [text]           narration text — Unicode range detection selects script-appropriate voice
+   * @param {string} [langHint]       BCP-47 language code (e.g. 'fr', 'pt') — used when text is Latin-script
+   *                                  but the production language is known. Falls back to _overrides.language
+   *                                  and then to TTS_LANGUAGE env var.
    * @returns {string}
    */
   selectNarratorVoice(explicitVoice, text = '', langHint = '') {
@@ -430,7 +433,7 @@ class TTSProvider {
         bn: gender === 'female' ? 'bn-IN-TanishaaNeural' : 'bn-IN-BashkarNeural',
         mr: gender === 'female' ? 'mr-IN-AarohiNeural'   : 'mr-IN-ManoharNeural',
         gu: gender === 'female' ? 'gu-IN-DhwaniNeural'   : 'gu-IN-NiranjanNeural',
-        pa: gender === 'female' ? 'pa-IN-OjasvNeural'    : 'pa-IN-OjasvNeural',
+        pa: 'pa-IN-OjasvNeural', // edge-tts only has one Punjabi voice (gender-neutral)
         ur: gender === 'female' ? 'ur-PK-UzmaNeural'     : 'ur-PK-AsadNeural',
         zh: gender === 'female' ? 'zh-CN-XiaoxiaoNeural' : 'zh-CN-YunjianNeural',
         ja: gender === 'female' ? 'ja-JP-NanamiNeural'   : 'ja-JP-KeitaNeural',
@@ -552,7 +555,8 @@ class TTSProvider {
 
     const rawPath   = outputPath.replace(/\.[^.]+$/, '_raw.mp3');
     const txtPath   = rawPath + '.txt';
-    const safeVoice = voice || this.selectNarratorVoice(null, text);
+    // voice is always pre-resolved by synthesize() — this fallback is purely defensive
+    const safeVoice = voice || this.selectNarratorVoice(null, text, this._overrides.language || '');
     // No artificial rate manipulation — use the voice's natural cadence.
     // Only a mild rate adjustment from env (e.g. TTS_RATE='+0%') is supported.
     const rate = this._overrides.rate || process.env.TTS_RATE || '+0%';

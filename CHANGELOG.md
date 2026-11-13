@@ -4,6 +4,17 @@ All notable changes to FrameForge are documented here.
 
 ---
 
+## [2.7.9] — 2026-11-13
+
+### Fixed
+- **TTS language reliability**: `selectNarratorVoice` now accepts a `langHint` param (BCP-47) and covers 25 languages with the correct edge-tts Neural voice. Added Unicode-range detection for Korean (`\uAC00-\uD7AF`), Kannada (`\u0C80-\u0CFF`), Bengali (`\u0980-\u09FF`), and Cyrillic/Russian (`\u0400-\u04FF`). Punjabi entry corrected to gender-neutral `pa-IN-OjasvNeural` (edge-tts only ships one Punjabi voice).
+- **Language propagated end-to-end**: `render_tts` tool now accepts a `language` field; `runAssets` passes `sceneLang` to every `tts.synthesize()` call; `_edgeTTS` defensive `safeVoice` fallback now uses `_overrides.language`. `TTSProvider` constructor JSDoc documents `opts.language`.
+- **Voice Consistency Lock**: `runAssets` pre-resolves a single canonical narrator voice across all narration text before the scene loop — no more mid-video voice drift from punctuation/script variations. Per-scene `scene.voice` still overrides for intentional multi-speaker dialogue.
+- **Parallelism default**: `runAssets` function default raised from 1 → 4 (matching `create_video_from_script` and `render_from_scenes`); TTS now runs 4 scenes concurrently by default.
+- **TTS retry delay**: `baseDelayMs` in `runAssets` reduced from 8000ms → 2000ms; inter-batch pause skipped entirely for `edge-tts` (local subprocess, no rate limit).
+
+---
+
 ## [2.7.8] — 2026-11-12
 
 ### Changed

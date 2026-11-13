@@ -27,7 +27,7 @@ const VDIR      = `${FILES_DIR}/video_tmp`;
 async function runAssets({
   productionId,
   scenes,
-  parallelism = 1,
+  parallelism = 4,
   skipTts = false,
   voice = null,
   topic = '',
