@@ -4,7 +4,7 @@ All notable changes to FrameForge are documented here.
 
 ---
 
-## [2.7.9] — 2026-11-13
+## [2.7.10] — 2026-11-13
 
 ### Fixed
 - **PyAV 16+ / `faster-whisper` silent transcription failure fixed**: `faster-whisper` calls `av.open(..., metadata_errors="ignore")`, which was removed in PyAV 16+. With default `av` 19+, transcription previously crashed or silently returned 0 words, falling back to pause-only cuts. Added automatic fallback to decode audio via FFmpeg 16kHz float32 PCM numpy buffer in `src/utils/transcribe.js` and `plugins/ai-video-editor/scripts/transcribe.py`. Pinned `av==15.1.0` in `requirements.txt`, `setup.py`, `setup.sh`, and `tool-installer.js`.
