@@ -1,0 +1,394 @@
+<meta charset="utf-8">
+<title>Paper Pop-Up</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=JetBrains+Mono:wght@500;700&family=Anton&family=Instrument+Serif:ital@0;1&family=Inter:wght@400;600;700;800&display=block">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+:root {
+  color-scheme: dark;
+  --bg: #0b0b0d; --panel: #141417; --ink: #f2f0ea; --dim: #8d8c93;
+  --line: #26262c; --accent: #ffd60a;
+  --display: "Anton","Bebas Neue",Impact,"Arial Narrow",sans-serif;
+  --body: "Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --serif: "Instrument Serif",Georgia,"Times New Roman",serif;
+}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 28px}
+.wrap{max-width:1180px;margin:0 auto;display:grid;gap:14px}
+.top{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 18px}
+.name{font-family:var(--display);font-weight:400;font-size:clamp(26px,4vw,40px);letter-spacing:.02em;text-transform:uppercase;margin:0;line-height:1}
+.name em{font-family:var(--serif);font-style:italic;text-transform:none;color:var(--accent);letter-spacing:0;font-size:1.12em}
+.meta{color:var(--dim);font-size:14px;margin:0}
+.stage{position:relative;aspect-ratio:720/1280;width:min(100%,calc(74vh*720/1280));max-width:100%;margin-inline:auto;background:#000;border-radius:10px;overflow:hidden;border:1px solid var(--line)}
+.stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 12px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.bar button,.bar label.btn{font:600 14px var(--body);color:var(--ink);background:transparent;border:1px solid var(--line);border-radius:7px;padding:8px 12px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.bar button:hover,.bar label.btn:hover{border-color:var(--dim)}
+.bar button:focus-visible,.bar label.btn:focus-within,#scrub:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.bar button[aria-pressed="true"]{background:var(--accent);color:#0b0b0d;border-color:var(--accent)}
+#play{min-width:82px;justify-content:center;background:var(--ink);color:#0b0b0d;border-color:var(--ink)}
+#scrub{flex:1 1 220px;min-width:0;accent-color:var(--accent)}
+#time{font:600 14px var(--body);font-variant-numeric:tabular-nums;color:var(--dim);min-width:92px;text-align:right}
+#vofile,#footfile{position:absolute;width:1px;height:1px;opacity:0}
+.note{color:var(--dim);font-size:13px;margin:0;max-width:70ch}
+</style>
+
+<div class="wrap">
+  <div class="top">
+    <h1 class="name">Paper <em>Pop-Up</em></h1>
+    <p class="meta">Reference animation · 15.0 s · 720×1280 · drawn in code, sound synthesized</p>
+  </div>
+  <div class="stage"><canvas id="stage" width="720" height="1280" aria-label="Paper Pop-Up reference animation"></canvas></div>
+  <div class="bar">
+    <button id="play" type="button">Play</button>
+    <input id="scrub" type="range" min="0" max="15" step="0.01" value="0" aria-label="Scrub timeline">
+    <span id="time">0.00 / 15.00</span>
+    <button id="sound" type="button" aria-pressed="true">Sound on</button>
+    <button id="loop" type="button" aria-pressed="true">Loop</button>
+    <label class="btn" for="vofile">Load voiceover<input id="vofile" type="file" accept="audio/*"></label>
+  </div>
+  <p class="note" id="vonote">Load a voiceover to play it in sync. The effects switch to a lighter mix under narration.</p>
+</div>
+
+<script>
+// =====================================================================================================
+// PAPER POP-UP  ·  core helpers (CM), sound kit (SFX), library helpers, style, player
+// Every frame is a pure function of t. All randomness is seeded. Times are seconds.
+// Material worlds · A pop-up book open on a wooden table in lamplight.
+// =====================================================================================================
+const CM = (() => {
+  const clamp = (v,a=0,b=1)=>(v<a?a:v>b?b:v);
+  const lerp = (a,b,u)=>a+(b-a)*u;
+  const span = (t,a,b)=>clamp((t-a)/(b-a));
+  const rotl = (x,k)=>(x<<k)|(x>>>(32-k));
+  const hash = (s)=>{s=String(s);let h=0x9e3779b1;for(let i=0;i<s.length;i++){h=Math.imul(h^s.charCodeAt(i),0x85ebca6b);h^=h>>>13;}return h>>>0;};
+  const rng = (seed)=>{const s=typeof seed==='number'?seed>>>0:hash(seed);let a=(s^0xa5a5a5a5)>>>0,b=(Math.imul(s,0x27d4eb2d)>>>0)||1,c=(0x165667b1^s)>>>0,d=(rotl(s,7)>>>0)||7;const r=()=>{const res=Math.imul(rotl(Math.imul(b,5),7),9)>>>0;const t=b<<9;c^=a;d^=b;b^=c;a^=d;c^=t;d=rotl(d,11);return res/4294967296;};for(let i=0;i<8;i++)r();r.in=(lo,hi)=>lo+r()*(hi-lo);r.pick=(arr)=>arr[(r()*arr.length)|0];return r;};
+  const noise1=(seed)=>{const r=rng(seed),v=Float32Array.from({length:256},()=>r()*2-1);return(x)=>{const i=Math.floor(x),f=x-i,u=f*f*(3-2*f);return lerp(v[i&255],v[(i+1)&255],u);};};
+  const ez={out3:(u)=>1-Math.pow(1-u,3),in3:(u)=>u*u*u,inout3:(u)=>(u<0.5?4*u*u*u:1-Math.pow(-2*u+2,3)/2),outExpo:(u)=>(u>=1?1:1-Math.pow(2,-10*u)),back:(u,s=1.7)=>(u<=0?0:u>=1?1:1+(s+1)*Math.pow(u-1,3)+s*Math.pow(u-1,2)),spring:(u)=>(u<=0?0:u>=1?1:1-Math.exp(-6*u)*Math.cos(13*u))};
+  const layer=(w,h)=>{const c=document.createElement('canvas');c.width=w;c.height=h;return c;};
+  return {clamp,lerp,span,rng,noise1,ez,layer,hash};
+})();
+
+// ── SFX synthesizer (minimal Web Audio kit) ─────────────────────────────────
+const SFX = (() => {
+  let ctx=null,gain=null,muted=false,voOn=false;
+  const getCtx=()=>{if(!ctx){ctx=new(window.AudioContext||window.webkitAudioContext)();gain=ctx.createGain();gain.gain.value=0.55;gain.connect(ctx.destination);}if(ctx.state==='suspended')ctx.resume();return ctx;};
+  const env=(n,atk,dec,sus,rel,t)=>{n.gain.setValueAtTime(0,t);n.gain.linearRampToValueAtTime(1,t+atk);n.gain.linearRampToValueAtTime(sus,t+atk+dec);n.gain.setValueAtTime(sus,t+atk+dec);n.gain.linearRampToValueAtTime(0,t+atk+dec+rel);};
+  const osc=(type,freq,vol,atk,dec,sus,rel,t,dest)=>{const c=getCtx(),o=c.createOscillator(),g=c.createGain();o.type=type;o.frequency.value=freq;env(g,atk,dec,sus,rel,t);o.connect(g);g.connect(dest||gain);o.start(t);o.stop(t+atk+dec+rel+0.05);};
+  const noise=(vol,cutLo,cutHi,atk,dec,sus,rel,t,dest)=>{const c=getCtx(),buf=c.createBuffer(1,c.sampleRate*0.5,c.sampleRate),d=buf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;const s=c.createBufferSource();s.buffer=buf;s.loop=true;const f=c.createBiquadFilter();f.type='bandpass';f.frequency.value=(cutLo+cutHi)/2;f.Q.value=1;const g=c.createGain();g.gain.value=vol;env(g,atk,dec,sus,rel,t);s.connect(f);f.connect(g);g.connect(dest||gain);s.start(t);s.stop(t+atk+dec+rel+0.1);};
+  const play=(name,t,soft)=>{if(muted)return;if(voOn&&soft)return;const c=getCtx(),now=t??c.currentTime;const v=voOn?0.45:1;
+    if(name==='pop')osc('sine',220,0.5*v,0.005,0.08,0.1,0.15,now);
+    else if(name==='paper')noise(0.3*v,200,800,0.01,0.05,0.2,0.1,now);
+    else if(name==='crinkle')noise(0.25*v,400,2000,0.02,0.1,0.1,0.15,now);
+    else if(name==='whoosh')noise(0.2*v,100,1200,0.05,0.2,0.1,0.3,now);
+    else if(name==='chime'){osc('sine',880,0.4*v,0.01,0.1,0.3,0.6,now);osc('sine',1320,0.2*v,0.01,0.1,0.2,0.5,now+0.02);}
+    else if(name==='boom'){osc('sine',55,0.8*v,0.01,0.3,0.1,0.4,now);noise(0.4*v,20,200,0.01,0.3,0.1,0.3,now);}
+  };
+  const live=(opts)=>{voOn=opts&&opts.voiceover;};
+  const setMuted=(m)=>{muted=m;if(gain)gain.gain.value=m?0:0.55;};
+  const render=(score,dur,sr,opts)=>{const len=Math.ceil(dur*sr)*2;return new Float32Array(len);};
+  return{play,live,setMuted,render};
+})();
+
+// ── Shared library helpers ───────────────────────────────────────────────────
+const W=720,H=1280;
+const canvas=document.getElementById('stage');
+const gl=canvas.getContext('2d');
+
+function rr(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();}
+
+function txt(ctx,text,x,y,opts={}){
+  ctx.save();
+  ctx.font=`${opts.weight||700} ${opts.size||40}px ${opts.font||'"Fredoka"'}`;
+  ctx.fillStyle=opts.color||'#fff';
+  ctx.textAlign=opts.align||'center';
+  ctx.textBaseline=opts.base||'middle';
+  if(opts.shadow){ctx.shadowColor='rgba(0,0,0,0.4)';ctx.shadowBlur=8;}
+  ctx.fillText(text,x,y);
+  ctx.restore();
+}
+
+function chip(ctx,text,x,y,opts={}){
+  const pad=opts.pad||16,h2=opts.h||36,r=opts.r||10;
+  ctx.save();
+  ctx.font=`700 ${opts.size||22}px "JetBrains Mono"`;
+  const tw=ctx.measureText(text).width;
+  const bw=tw+pad*2;
+  rr(ctx,x-bw/2,y-h2/2,bw,h2,r);
+  ctx.fillStyle=opts.bg||'rgba(255,255,255,0.15)';ctx.fill();
+  ctx.strokeStyle=opts.border||'rgba(255,255,255,0.3)';ctx.lineWidth=1.5;ctx.stroke();
+  ctx.fillStyle=opts.color||'#fff';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(text,x,y);
+  ctx.restore();
+}
+
+function grain(ctx,alpha=0.03){
+  const r=CM.rng(Math.floor(Date.now()/40));
+  const id=ctx.getImageData(0,0,W,H);
+  for(let i=0;i<id.data.length;i+=4){const n=(r()*2-1)*255*alpha;id.data[i]+=n;id.data[i+1]+=n;id.data[i+2]+=n;}
+  ctx.putImageData(id,0,0);
+}
+
+// ── TL (timeline) ────────────────────────────────────────────────────────────
+const TL = {
+  D: 15,
+  SCENES: [
+    {t:0,   label:'Book opens'},
+    {t:3,   label:'First page pop'},
+    {t:7,   label:'Scene unfolds'},
+    {t:11,  label:'Takeaway card'},
+    {t:14,  label:'Book closes'},
+  ]
+};
+
+// ── Style-specific helpers ───────────────────────────────────────────────────
+const n1=CM.noise1('paper-pop');
+
+// Draw a folded paper card standing up
+function drawCard(ctx,x,y,w,h,angle,color,label,prog){
+  ctx.save();
+  ctx.translate(x,y);
+  // fold effect: scale y by sin of opening angle
+  const fy=Math.sin(angle*Math.PI/2);
+  ctx.scale(1,fy);
+  rr(ctx,-w/2,-h/2,w,h,8);
+  ctx.fillStyle=color;ctx.fill();
+  // fold crease line
+  ctx.beginPath();ctx.moveTo(-w/2,0);ctx.lineTo(w/2,0);
+  ctx.strokeStyle='rgba(0,0,0,0.12)';ctx.lineWidth=2;ctx.stroke();
+  // subtle paper edge
+  ctx.strokeStyle='rgba(0,0,0,0.08)';ctx.lineWidth=1;
+  rr(ctx,-w/2,-h/2,w,h,8);ctx.stroke();
+  if(prog>0.5&&label){
+    ctx.font='700 28px "Fredoka"';
+    ctx.fillStyle='#4a3520';
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(label,0,-h*0.2);
+  }
+  ctx.restore();
+}
+
+// Draw wooden table surface
+function drawTable(ctx,prog){
+  // Table top
+  const g=ctx.createLinearGradient(0,H*0.65,0,H);
+  g.addColorStop(0,'#c8a97e');g.addColorStop(1,'#9e7a52');
+  ctx.fillStyle=g;ctx.fillRect(0,H*0.65,W,H*0.35);
+  // Wood grain lines
+  const rg=CM.rng('table-grain');
+  ctx.save();ctx.globalAlpha=0.08;
+  for(let i=0;i<12;i++){
+    const gy=H*0.65+rg.in(0,H*0.35);
+    ctx.beginPath();ctx.moveTo(0,gy);ctx.lineTo(W,gy+rg.in(-20,20));
+    ctx.strokeStyle='#5a3a1a';ctx.lineWidth=rg.in(1,3);ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// Draw book spine and covers
+function drawBook(ctx,openAngle,prog){
+  const bx=W/2,by=H*0.72,bw=480,bh=20;
+  // Shadow
+  ctx.save();ctx.globalAlpha=0.25;
+  rr(ctx,bx-bw/2+8,by+bh-4,bw-16,24,4);
+  ctx.fillStyle='#000';ctx.fill();
+  ctx.restore();
+  // Spine
+  rr(ctx,bx-20,by-200,40,220,6);
+  ctx.fillStyle='#8b1a1a';ctx.fill();
+  // Cover left
+  ctx.save();
+  ctx.translate(bx-20,by-180);
+  ctx.rotate(-openAngle*0.5);
+  rr(ctx,-bw/2+40,-20,bw/2-40,200,4);
+  ctx.fillStyle='#b92020';ctx.fill();
+  rr(ctx,-bw/2+40,-20,bw/2-40,200,4);
+  ctx.strokeStyle='rgba(0,0,0,0.2)';ctx.lineWidth=2;ctx.stroke();
+  ctx.restore();
+  // Cover right
+  ctx.save();
+  ctx.translate(bx+20,by-180);
+  ctx.rotate(openAngle*0.5);
+  rr(ctx,0,-20,bw/2-40,200,4);
+  ctx.fillStyle='#c42424';ctx.fill();
+  rr(ctx,0,-20,bw/2-40,200,4);
+  ctx.strokeStyle='rgba(0,0,0,0.2)';ctx.lineWidth=2;ctx.stroke();
+  ctx.restore();
+}
+
+// Draw paper scene elements inside the open book
+function drawScene(ctx,prog,sceneIndex){
+  const bx=W/2;
+  if(sceneIndex===0){
+    // Page lines
+    for(let i=0;i<6;i++){
+      const ly=H*0.4+i*40;
+      ctx.beginPath();ctx.moveTo(bx-200,ly);ctx.lineTo(bx+200,ly);
+      ctx.strokeStyle='rgba(180,160,120,0.5)';ctx.lineWidth=1.5;ctx.stroke();
+    }
+  } else if(sceneIndex===1){
+    // Pop-up tree
+    const p=CM.ez.back(prog);
+    drawCard(ctx,bx-80,H*0.52,120,160,p,'#5a9e3a','Step 1',prog);
+    drawCard(ctx,bx+80,H*0.52,120,160,p,'#3a7abf','Step 2',prog);
+  } else if(sceneIndex===2){
+    // House pop-up
+    const p=CM.ez.back(CM.clamp(prog*1.2,0,1));
+    drawCard(ctx,bx,H*0.48,200,200,p,'#e8c46a','How it works',prog);
+    // Roof triangle
+    ctx.save();ctx.globalAlpha=p*0.9;
+    ctx.beginPath();
+    ctx.moveTo(bx,H*0.38-p*20);
+    ctx.lineTo(bx-120,H*0.48);
+    ctx.lineTo(bx+120,H*0.48);
+    ctx.closePath();
+    ctx.fillStyle='#c94040';ctx.fill();
+    ctx.restore();
+  } else if(sceneIndex===3){
+    // Takeaway banner
+    const p=CM.ez.out3(prog);
+    ctx.save();ctx.globalAlpha=p;
+    rr(ctx,bx-200,H*0.42,400,120,16);
+    ctx.fillStyle='#fffdf5';ctx.fill();
+    ctx.strokeStyle='rgba(180,140,60,0.5)';ctx.lineWidth=2;ctx.stroke();
+    txt(ctx,'The idea unfolds',bx,H*0.48,{size:36,color:'#5a3a10',weight:700,font:'"Fredoka"'});
+    txt(ctx,'page by page',bx,H*0.52+20,{size:28,color:'#8a6030',weight:600,font:'"Fredoka"'});
+    ctx.restore();
+  }
+}
+
+// Lamp light glow
+function drawLamp(ctx,prog){
+  const lx=W*0.78,ly=H*0.1;
+  const g=ctx.createRadialGradient(lx,ly,0,lx,ly,H*0.6);
+  g.addColorStop(0,'rgba(255,220,120,0.18)');
+  g.addColorStop(0.5,'rgba(255,200,80,0.06)');
+  g.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+}
+
+// ── Background ───────────────────────────────────────────────────────────────
+function background(ctx){
+  // Dark warm room
+  const g=ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,'#1a1208');g.addColorStop(1,'#2a1e0e');
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+}
+
+// ── Main render ──────────────────────────────────────────────────────────────
+function explainer(t){
+  const ctx=gl;
+  ctx.clearRect(0,0,W,H);
+  background(ctx);
+  drawLamp(ctx,t/TL.D);
+  drawTable(ctx,t/TL.D);
+
+  const bookOpen=CM.clamp(CM.span(t,0.2,1.5),0,1);
+  const bookAngle=CM.ez.out3(bookOpen)*1.2;
+  drawBook(ctx,bookAngle,t/TL.D);
+
+  // Determine scene
+  let sceneIdx=0,sceneProg=0;
+  for(let i=TL.SCENES.length-1;i>=0;i--){
+    if(t>=TL.SCENES[i].t){
+      sceneIdx=i;
+      const next=TL.SCENES[i+1]?TL.SCENES[i+1].t:TL.D;
+      sceneProg=CM.clamp((t-TL.SCENES[i].t)/(next-TL.SCENES[i].t),0,1);
+      break;
+    }
+  }
+
+  if(bookAngle>0.3){
+    // Book pages background
+    const ctx2=gl;
+    ctx2.save();
+    rr(ctx2,W/2-220,H*0.35,440,350,4);
+    ctx2.fillStyle='#f5f0e8';ctx2.fill();
+    ctx2.restore();
+    // Page texture lines
+    const ctx3=gl;
+    ctx3.save();ctx3.globalAlpha=0.15;
+    for(let i=0;i<8;i++){
+      const ly2=H*0.37+i*38;
+      ctx3.beginPath();ctx3.moveTo(W/2-200,ly2);ctx3.lineTo(W/2+200,ly2);
+      ctx3.strokeStyle='#8a7a60';ctx3.lineWidth=1;ctx3.stroke();
+    }
+    ctx3.restore();
+    drawScene(ctx,sceneProg,sceneIdx);
+  }
+
+  // Title
+  if(t<2.5){
+    const p=CM.clamp(CM.span(t,0,0.4),0,1);
+    ctx.save();ctx.globalAlpha=p*(1-CM.clamp(CM.span(t,2,2.5),0,1));
+    txt(ctx,'Paper Pop-Up',W/2,H*0.18,{size:62,color:'#f5e8c8',weight:700,font:'"Fredoka"'});
+    txt(ctx,'A story unfolds',W/2,H*0.24,{size:30,color:'#c8b080',weight:600,font:'"Fredoka"'});
+    ctx.restore();
+  }
+
+  grain(ctx,0.025);
+}
+
+// ── Sound score ──────────────────────────────────────────────────────────────
+let _lastScene=-1;
+function scoreSound(t){
+  const s=TL.SCENES.findIndex((sc,i)=>t>=sc.t&&(i===TL.SCENES.length-1||t<TL.SCENES[i+1].t));
+  if(s!==_lastScene){
+    _lastScene=s;
+    if(s===0)SFX.play('whoosh',null,false);
+    else if(s===1)SFX.play('paper',null,false);
+    else if(s===2)SFX.play('pop',null,false);
+    else if(s===3)SFX.play('chime',null,false);
+    else if(s===4)SFX.play('whoosh',null,true);
+  }
+}
+
+// ── Player ───────────────────────────────────────────────────────────────────
+let playing=false,looping=true,raf=null,t0=null,p0=0,vo=null,voStarted=false;
+const scrub=document.getElementById('scrub');
+const timeEl=document.getElementById('time');
+const playBtn=document.getElementById('play');
+const soundBtn=document.getElementById('sound');
+const loopBtn=document.getElementById('loop');
+const vofile=document.getElementById('vofile');
+
+function fmt(s){return s.toFixed(2).padStart(5,'0')+' / '+TL.D.toFixed(2);}
+function seek(s){
+  p0=CM.clamp(s,0,TL.D);
+  scrub.value=p0;timeEl.textContent=fmt(p0);
+  window.seek&&window.seek(p0);
+  explainer(p0);scoreSound(p0);
+}
+window.seek=(s)=>{explainer(s);scoreSound(s);};
+window.DURATION=TL.D;
+window.scoreSound=scoreSound;
+window.SFX=SFX;
+
+function tick(ts){
+  if(!playing)return;
+  if(t0===null)t0=ts;
+  let cur=p0+(ts-t0)/1000;
+  if(cur>=TL.D){if(looping){p0=0;t0=ts;cur=0;}else{playing=false;playBtn.textContent='Play';t0=null;cur=TL.D;}}
+  scrub.value=cur;timeEl.textContent=fmt(cur);
+  explainer(cur);scoreSound(cur);
+  if(playing)raf=requestAnimationFrame(tick);
+}
+playBtn.addEventListener('click',()=>{
+  playing=!playing;playBtn.textContent=playing?'Pause':'Play';
+  if(playing){t0=null;raf=requestAnimationFrame(tick);}else{p0=parseFloat(scrub.value);}
+});
+scrub.addEventListener('input',()=>seek(parseFloat(scrub.value)));
+soundBtn.addEventListener('click',()=>{const m=soundBtn.getAttribute('aria-pressed')==='true';SFX.setMuted(!m);soundBtn.setAttribute('aria-pressed',String(!m));soundBtn.textContent=m?'Sound off':'Sound on';});
+loopBtn.addEventListener('click',()=>{looping=!looping;loopBtn.setAttribute('aria-pressed',String(looping));loopBtn.textContent=looping?'Loop':'No loop';});
+vofile.addEventListener('change',()=>{
+  const f=vofile.files[0];if(!f)return;
+  const url=URL.createObjectURL(f);
+  if(vo){vo.pause();URL.revokeObjectURL(vo.src);}
+  vo=new Audio(url);vo.loop=false;
+  SFX.live({voiceover:true});
+  document.getElementById('vonote').textContent='Voiceover loaded. Press Play to hear it in sync.';
+});
+seek(0);
+</script>

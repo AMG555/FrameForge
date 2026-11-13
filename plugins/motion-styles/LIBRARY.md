@@ -1,6 +1,6 @@
-# Motion Graphics Style Library (62 Styles)
+# Motion Graphics Style Library (96 Styles)
 
-Complete catalog of 62 procedural motion-graphics styles in the FrameForge Motion Library.
+Complete catalog of 96 procedural motion-graphics styles in the FrameForge Motion Library.
 Each style is a full canvas animation with sound, synthesized SFX, and deterministic time-based motion.
 
 > 💡 **Visitor Pro-Tip: 100% Free Code-Based Video Generation on [Arena.ai](https://arena.ai) (Even on Mobile!)**
@@ -23,7 +23,7 @@ Each style is a full canvas animation with sound, synthesized SFX, and determini
 | **Data** | 6 | Data Story, Timeline Rail, Isotype... |
 | **Talking Head** | 1 | Warm Canvas... |
 | **Illustrated** | 7 | Pop Info, Paper Craft, Zine Collage... |
-| **3D** | 14 | Clay Diorama, Bio Glow, Cosmic Scale... |
+| **3D** | 48 | Clay Diorama, Bio Glow, Cosmic Scale, Paper Pop-Up, Tiny Diorama, Neon Sign... |
 | **Retro** | 2 | Pixel Quest, Terminal... |
 | **Shorts Format** | 10 | Quiz Countdown, Top 5 Countdown, Tier List... |
 | **Edit Overlay** | 10 | Punch Captions, Karaoke Subs, Callout Kit... |
@@ -336,7 +336,7 @@ Each style is a full canvas animation with sound, synthesized SFX, and determini
 
 </details>
 
-### 3D (14 styles)
+### 3D (48 styles)
 
 | # | Name | ID | Canvas | 3D | Overlay | Fonts | Prompt File | Source Code |
 |---|------|----|--------|----|---------|-------|-------------|-------------|
@@ -354,6 +354,450 @@ Each style is a full canvas animation with sound, synthesized SFX, and determini
 | 19 | **Deep Layers** | `deep-layers` | 720x1280 | ✓ | - | Anton, JetBrains Mono (500 and 700) | [Prompt](prompts/deep-layers.md) | [HTML](sources/deep-layers.html) |
 | 20 | **Synth Grid** | `synth-grid` | 720x1280 | ✓ | - | Anton (skewed, chrome gradient), Permanent Marker, JetBrains Mono (700) | [Prompt](prompts/synth-grid.md) | [HTML](sources/synth-grid.html) |
 | 21 | **Product Turntable** | `product-turntable` | 720x1280 | ✓ | - | Instrument Serif (italic), Inter (500 to 800), JetBrains Mono (500) | [Prompt](prompts/product-turntable.md) | [HTML](sources/product-turntable.html) |
+| 63 | **Paper Pop-Up** | `paper-pop-up` | 720x1280 | ✓ | - | Fredoka (500 to 700), JetBrains Mono (500 and 700) | [Prompt](prompts/paper-pop-up.md) | [HTML](sources/paper-pop-up.html) |
+| 64 | **Tiny Diorama** | `tiny-diorama` | 720x1280 | ✓ | - | Space Grotesk (500 and 700), JetBrains Mono (500 and 700) | [Prompt](prompts/tiny-diorama.md) | [HTML](sources/tiny-diorama.html) |
+| 65 | **Blueprint Build** | `blueprint-build` | 720x1280 | ✓ | - | Space Grotesk (700), JetBrains Mono (500 and 700) | [Prompt](prompts/blueprint-build.md) | [HTML](sources/blueprint-build.html) |
+| 66 | **Spotlight Stage** | `spotlight-stage` | 720x1280 | ✓ | - | Instrument Serif (italic), Inter (500 to 800), JetBrains Mono (500) | [Prompt](prompts/spotlight-stage.md) | [HTML](sources/spotlight-stage.html) |
+| 67 | **Neon Sign** | `neon-sign` | 720x1280 | ✓ | - | Anton, JetBrains Mono (500 and 700) | [Prompt](prompts/neon-sign.md) | [HTML](sources/neon-sign.html) |
+| 68 | **Marble Run** | `marble-run` | 720x1280 | ✓ | - | Fredoka (500 to 700), JetBrains Mono (700) | [Prompt](prompts/marble-run.md) | [HTML](sources/marble-run.html) |
+| 69 | **X-Ray** | `x-ray` | 720x1280 | ✓ | - | Space Grotesk (500 and 700), JetBrains Mono (500 and 700) | [Prompt](prompts/x-ray.md) | [HTML](sources/x-ray.html) |
+| 70 | **LED Wall** | `led-wall` | 720x1280 | ✓ | - | Inter (500 to 900), JetBrains Mono (700) | [Prompt](prompts/led-wall.md) | [HTML](sources/led-wall.html) |
+| 71 | **Inflated** | `inflated` | 720x1280 | ✓ | - | Fredoka (500 to 700), Inter (700 and 800) | [Prompt](prompts/inflated.md) | [HTML](sources/inflated.html) |
+| 72 | **Painted** | `painted` | 720x1280 | ✓ | - | Instrument Serif (italic), Caveat (700), Inter (500) | [Prompt](prompts/painted.md) | [HTML](sources/painted.html) |
+| 73 | **Circuit City** | `circuit-city` | 720x1280 | ✓ | - | Space Grotesk (500 and 700), JetBrains Mono (500 and 700) | [Prompt](prompts/circuit-city.md) | [HTML](sources/circuit-city.html) |
+| 74 | **Glass and Light** | `glass-and-light` | 720x1280 | ✓ | - | Space Grotesk (500 and 700), JetBrains Mono (500 and 700) | [Prompt](prompts/glass-and-light.md) | [HTML](sources/glass-and-light.html) |
+| 75 | **Factory Line** | `factory-line` | 720x1280 | ✓ | - | Fredoka (500 to 700), JetBrains Mono (700) | [Prompt](prompts/factory-line.md) | [HTML](sources/factory-line.html) |
+| 76 | **White Model** | `white-model` | 720x1280 | ✓ | - | Space Grotesk (700), JetBrains Mono (500 and 700) | [Prompt](prompts/white-model.md) | [HTML](sources/white-model.html) |
+| 77 | **Voxel** | `voxel` | 720x1280 | ✓ | - | Press Start 2P, JetBrains Mono (500 and 700) | [Prompt](prompts/voxel.md) | [HTML](sources/voxel.html) |
+| 78 | **Data Skyline** | `data-skyline` | 720x1280 | ✓ | - | Space Grotesk (500 and 700), JetBrains Mono (500 and 700) | [Prompt](prompts/data-skyline.md) | [HTML](sources/data-skyline.html) |
+| 79 | **Ink and Toon** | `ink-and-toon` | 720x1280 | ✓ | - | Bangers, Inter (600 to 800) | [Prompt](prompts/ink-and-toon.md) | [HTML](sources/ink-and-toon.html) |
+| 80 | **Pin Wall** | `pin-wall` | 720x1280 | ✓ | - | Inter (700 to 900), JetBrains Mono (700) | [Prompt](prompts/pin-wall.md) | [HTML](sources/pin-wall.html) |
+| 81 | **Toy Blocks** | `toy-blocks` | 720x1280 | ✓ | - | Fredoka (500 to 700), JetBrains Mono (700) | [Prompt](prompts/toy-blocks.md) | [HTML](sources/toy-blocks.html) |
+| 82 | **Particle Swarm** | `particle-swarm` | 720x1280 | ✓ | - | Inter (500 to 900), JetBrains Mono (700) | [Prompt](prompts/particle-swarm.md) | [HTML](sources/particle-swarm.html) |
+| 83 | **Museum Gallery** | `museum-gallery` | 720x1280 | ✓ | - | Instrument Serif (italic), Inter (500 to 700) | [Prompt](prompts/museum-gallery.md) | [HTML](sources/museum-gallery.html) |
+| 84 | **Pencil Sketch** | `pencil-sketch` | 720x1280 | ✓ | - | Instrument Serif (italic), Caveat (700), Inter (500) | [Prompt](prompts/pencil-sketch.md) | [HTML](sources/pencil-sketch.html) |
+| 85 | **Domino Chain** | `domino-chain` | 720x1280 | ✓ | - | Fredoka (500 to 700), JetBrains Mono (700) | [Prompt](prompts/domino-chain.md) | [HTML](sources/domino-chain.html) |
+| 86 | **Node Network** | `node-network` | 720x1280 | ✓ | - | Space Grotesk (500 and 700), JetBrains Mono (500 and 700) | [Prompt](prompts/node-network.md) | [HTML](sources/node-network.html) |
+| 87 | **Shadow Box** | `shadow-box` | 720x1280 | ✓ | - | Instrument Serif (italic), Inter (600 to 800) | [Prompt](prompts/shadow-box.md) | [HTML](sources/shadow-box.html) |
+| 88 | **Layer Stack** | `layer-stack` | 720x1280 | ✓ | - | Space Grotesk (500 and 700), JetBrains Mono (500 and 700) | [Prompt](prompts/layer-stack.md) | [HTML](sources/layer-stack.html) |
+| 89 | **Dithered** | `dithered` | 720x1280 | ✓ | - | Press Start 2P, JetBrains Mono (500 and 700) | [Prompt](prompts/dithered.md) | [HTML](sources/dithered.html) |
+| 90 | **Floating Screens** | `floating-screens` | 720x1280 | ✓ | - | Inter (500 to 900), JetBrains Mono (500 and 700) | [Prompt](prompts/floating-screens.md) | [HTML](sources/floating-screens.html) |
+| 91 | **Device Hero** | `device-hero` | 720x1280 | ✓ | - | Inter (700 to 900), JetBrains Mono (500) | [Prompt](prompts/device-hero.md) | [HTML](sources/device-hero.html) |
+| 92 | **Studio Product** | `studio-product` | 720x1280 | ✓ | - | Instrument Serif (italic), Inter (500 to 800), JetBrains Mono (500) | [Prompt](prompts/studio-product.md) | [HTML](sources/studio-product.html) |
+| 93 | **Split-Flap Board** | `split-flap-board` | 720x1280 | ✓ | - | Anton, JetBrains Mono (500 and 700) | [Prompt](prompts/split-flap-board.md) | [HTML](sources/split-flap-board.html) |
+| 94 | **Hero Icon** | `hero-icon` | 720x1280 | ✓ | - | Inter (700 to 900), JetBrains Mono (700) | [Prompt](prompts/hero-icon.md) | [HTML](sources/hero-icon.html) |
+| 95 | **Embossed** | `embossed` | 720x1280 | ✓ | - | Playfair Display (700 and 900, italic), Inter (500) | [Prompt](prompts/embossed.md) | [HTML](sources/embossed.html) |
+| 96 | **Monument Type** | `monument-type` | 720x1280 | ✓ | - | Anton, JetBrains Mono (500 and 700) | [Prompt](prompts/monument-type.md) | [HTML](sources/monument-type.html) |
+
+<details>
+<summary><b>#63 Paper Pop-Up</b> (`paper-pop-up`) - Details</summary>
+
+- **Look:** A pop-up book open on a wooden table in lamplight. Every scene is built from flat die-cut card: printed in a few flat colours, creased down the middle, standing in layers on the open page.
+- **How it explains:** The book opens, then pages pop up one by one. Each pop-up panel lifts as the idea arrives, card layers fan apart to show structure, and the book closes on the takeaway.
+- **Fonts:** Fredoka (500 to 700), JetBrains Mono (500 and 700)
+- **Demo:** How a Seed Becomes a Tree
+- **Prompt file:** `prompts/paper-pop-up.md`
+- **Reference code:** `sources/paper-pop-up.html`
+
+</details>
+
+<details>
+<summary><b>#64 Tiny Diorama</b> (`tiny-diorama`) - Details</summary>
+
+- **Look:** A self-contained miniature city on one floating tile in Three.js: tiny buildings with lit windows, micro-streets, model trees, and a diorama sky on a studio table.
+- **How it explains:** Buildings pop onto the tile one by one, streets connect, the camera orbits close to show the detail, then cranes high for the whole reveal.
+- **Fonts:** Space Grotesk (500 and 700), JetBrains Mono (500 and 700)
+- **Demo:** The City of Ideas
+- **Prompt file:** `prompts/tiny-diorama.md`
+- **Reference code:** `sources/tiny-diorama.html`
+
+</details>
+
+<details>
+<summary><b>#65 Blueprint Build</b> (`blueprint-build`) - Details</summary>
+
+- **Look:** A technical 3D draft: cyan construction lines on deep navy, dimension ticks, labelled parts, and the mechanism itself animated from wireframe to shaded surface.
+- **How it explains:** The blueprint draws itself in 3D line by line, parts get dimension annotations, then the mechanism animates to show how it works.
+- **Fonts:** Space Grotesk (700), JetBrains Mono (500 and 700)
+- **Demo:** How a Gear Train Works
+- **Prompt file:** `prompts/blueprint-build.md`
+- **Reference code:** `sources/blueprint-build.html`
+
+</details>
+
+<details>
+<summary><b>#66 Spotlight Stage</b> (`spotlight-stage`) - Details</summary>
+
+- **Look:** A toy theatre at night in Three.js: dark wooden stage, a single warm amber spotlight, velvet curtains, and props revealed by the light.
+- **How it explains:** The curtain rises, the spotlight sweeps to reveal each prop, narrator cards appear in the lit zone, and the finale gets the full stage lit.
+- **Fonts:** Instrument Serif (italic), Inter (500 to 800), JetBrains Mono (500)
+- **Demo:** The Big Reveal
+- **Prompt file:** `prompts/spotlight-stage.md`
+- **Reference code:** `sources/spotlight-stage.html`
+
+</details>
+
+<details>
+<summary><b>#67 Neon Sign</b> (`neon-sign`) - Details</summary>
+
+- **Look:** Glowing glass neon tubes in Three.js, buzzing to life letter by letter on a dark brick wall with a warm ambient glow, tube flicker and a soft bloom pass.
+- **How it explains:** Tubes flicker on letter by letter with a buzz, the finished sign pulses with a warm glow, and a key word flashes bright for emphasis.
+- **Fonts:** Anton, JetBrains Mono (500 and 700)
+- **Demo:** Open for Ideas
+- **Prompt file:** `prompts/neon-sign.md`
+- **Reference code:** `sources/neon-sign.html`
+
+</details>
+
+<details>
+<summary><b>#68 Marble Run</b> (`marble-run`) - Details</summary>
+
+- **Look:** Handmade wooden marble run tracks in Three.js, a glass marble rolling step by step down ramps, through funnels and gates, with warm pine-wood textures and soft shadows.
+- **How it explains:** The camera tracks the marble beat by beat through each gate (a concept), time slows at the key cause-and-effect moment, and a counter runs at the bottom.
+- **Fonts:** Fredoka (500 to 700), JetBrains Mono (700)
+- **Demo:** How Gravity Accelerates
+- **Prompt file:** `prompts/marble-run.md`
+- **Reference code:** `sources/marble-run.html`
+
+</details>
+
+<details>
+<summary><b>#69 X-Ray</b> (`x-ray`) - Details</summary>
+
+- **Look:** A dark radiograph aesthetic: 3D objects rendered as ghostly white on black with bone-density shading and thin label leader lines.
+- **How it explains:** The object rotates in X-ray view, then layers peel apart to show internal structure, each layer highlighted with a label.
+- **Fonts:** Space Grotesk (500 and 700), JetBrains Mono (500 and 700)
+- **Demo:** Inside a Seed
+- **Prompt file:** `prompts/x-ray.md`
+- **Reference code:** `sources/x-ray.html`
+
+</details>
+
+<details>
+<summary><b>#70 LED Wall</b> (`led-wall`) - Details</summary>
+
+- **Look:** A massive pixel grid in 3D, each LED dot individually lit in vivid RGB, spelling words, showing data bars and icon patterns against a dark studio.
+- **How it explains:** Pixels light up in scan-line sweeps, patterns morph from random noise to meaningful shapes, and text forms letter by letter.
+- **Fonts:** Inter (500 to 900), JetBrains Mono (700)
+- **Demo:** Every Pixel Counts
+- **Prompt file:** `prompts/led-wall.md`
+- **Reference code:** `sources/led-wall.html`
+
+</details>
+
+<details>
+<summary><b>#71 Inflated</b> (`inflated`) - Details</summary>
+
+- **Look:** Glossy inflatable 3D shapes in pastel colours in Three.js, like blown-up rubber letters and objects with a shiny white highlight and soft shadow.
+- **How it explains:** Objects inflate from flat to full volume with a soft squeak, bounce and settle into place, then sway gently in the air.
+- **Fonts:** Fredoka (500 to 700), Inter (700 and 800)
+- **Demo:** Puffed Up with Purpose
+- **Prompt file:** `prompts/inflated.md`
+- **Reference code:** `sources/inflated.html`
+
+</details>
+
+<details>
+<summary><b>#72 Painted</b> (`painted`) - Details</summary>
+
+- **Look:** 3D geometry rendered with an oil paint filter: thick impasto strokes, saturated colour, visible brushwork direction, and an artist signature in the corner.
+- **How it explains:** The scene starts as a 3D render, then paint strokes bloom progressively over it from background to foreground, finished like a hand-painted canvas.
+- **Fonts:** Instrument Serif (italic), Caveat (700), Inter (500)
+- **Demo:** The Art of Explanation
+- **Prompt file:** `prompts/painted.md`
+- **Reference code:** `sources/painted.html`
+
+</details>
+
+<details>
+<summary><b>#73 Circuit City</b> (`circuit-city`) - Details</summary>
+
+- **Look:** A PCB circuit board as a city at night in Three.js: copper traces as roads, component chips as skyscrapers, LEDs as street lights, signal pulse travelling the grid.
+- **How it explains:** The camera flies along traces like roads, components light up with callout cards, and the signal pulse travels the full circuit.
+- **Fonts:** Space Grotesk (500 and 700), JetBrains Mono (500 and 700)
+- **Demo:** How Data Travels
+- **Prompt file:** `prompts/circuit-city.md`
+- **Reference code:** `sources/circuit-city.html`
+
+</details>
+
+<details>
+<summary><b>#74 Glass and Light</b> (`glass-and-light`) - Details</summary>
+
+- **Look:** Laboratory glassware in Three.js with caustic light refractions and clean white studio lighting: beakers, flasks and tubes that catch and bend light.
+- **How it explains:** Glass vessels fill with coloured liquid, caustic light patterns move across the surface, and label cards draw out as each vessel is highlighted.
+- **Fonts:** Space Grotesk (500 and 700), JetBrains Mono (500 and 700)
+- **Demo:** Light Bends in Water
+- **Prompt file:** `prompts/glass-and-light.md`
+- **Reference code:** `sources/glass-and-light.html`
+
+</details>
+
+<details>
+<summary><b>#75 Factory Line</b> (`factory-line`) - Details</summary>
+
+- **Look:** A toy production line in Three.js: a rolling conveyor belt, small robotic arms, and product units transforming station by station.
+- **How it explains:** The camera follows a product unit along the belt station by station, each station has a label card, and the finished product pops out at the end.
+- **Fonts:** Fredoka (500 to 700), JetBrains Mono (700)
+- **Demo:** From Raw to Ready
+- **Prompt file:** `prompts/factory-line.md`
+- **Reference code:** `sources/factory-line.html`
+
+</details>
+
+<details>
+<summary><b>#76 White Model</b> (`white-model`) - Details</summary>
+
+- **Look:** An architect's white model in Three.js: crisp white geometry on a grey base, soft ambient shadow, blue skylight, and black annotation dimension lines.
+- **How it explains:** Parts assemble one by one with a soft click, the camera orbits at eye level, and annotations draw out from each element.
+- **Fonts:** Space Grotesk (700), JetBrains Mono (500 and 700)
+- **Demo:** Building by Design
+- **Prompt file:** `prompts/white-model.md`
+- **Reference code:** `sources/white-model.html`
+
+</details>
+
+<details>
+<summary><b>#77 Voxel</b> (`voxel`) - Details</summary>
+
+- **Look:** Small cube voxel model in Three.js like Minecraft: colourful cubes placed one by one to build a recognisable subject from bottom to top in a bright cartoon palette.
+- **How it explains:** Cubes pop into place layer by layer, the camera orbits the finished model, and callout cards label each section.
+- **Fonts:** Press Start 2P, JetBrains Mono (500 and 700)
+- **Demo:** Block by Block
+- **Prompt file:** `prompts/voxel.md`
+- **Reference code:** `sources/voxel.html`
+
+</details>
+
+<details>
+<summary><b>#78 Data Skyline</b> (`data-skyline`) - Details</summary>
+
+- **Look:** Bar chart as an architect's stone tower model in Three.js: each bar is a chunky white tower on a marble base, the tallest gets an amber spotlight and hero callout.
+- **How it explains:** Towers rise in order with their values counting up, the camera pans along the skyline, and the tallest gets a spotlight and hero callout.
+- **Fonts:** Space Grotesk (500 and 700), JetBrains Mono (500 and 700)
+- **Demo:** The 5 Tallest Numbers
+- **Prompt file:** `prompts/data-skyline.md`
+- **Reference code:** `sources/data-skyline.html`
+
+</details>
+
+<details>
+<summary><b>#79 Ink and Toon</b> (`ink-and-toon`) - Details</summary>
+
+- **Look:** 3D geometry rendered with a hand-inked cel shader: thick black outlines, flat cell colours, cross-hatch shadows and speech bubble cards.
+- **How it explains:** Objects appear with a draw-on ink stroke effect, animate in flat cel style with squash and stretch, and speech bubble cards deliver each beat.
+- **Fonts:** Bangers, Inter (600 to 800)
+- **Demo:** The Cartoon Machine
+- **Prompt file:** `prompts/ink-and-toon.md`
+- **Reference code:** `sources/ink-and-toon.html`
+
+</details>
+
+<details>
+<summary><b>#80 Pin Wall</b> (`pin-wall`) - Details</summary>
+
+- **Look:** A pin art relief wall in Three.js: thousands of metal pins pushed to different depths forming a 3D portrait, with raking warm light that reveals the relief.
+- **How it explains:** Pins sweep in waves from random to portrait, then a hand presses in and pins depress in a ripple, and the raking light shifts to reveal depth.
+- **Fonts:** Inter (700 to 900), JetBrains Mono (700)
+- **Demo:** Every Face Tells a Story
+- **Prompt file:** `prompts/pin-wall.md`
+- **Reference code:** `sources/pin-wall.html`
+
+</details>
+
+<details>
+<summary><b>#81 Toy Blocks</b> (`toy-blocks`) - Details</summary>
+
+- **Look:** Wooden ABC blocks in Three.js: warm pine finish, painted letters on each face, stacked on a playmat with soft toy lighting and a tilt-shift blur.
+- **How it explains:** Blocks fall from above and stack one at a time, each block is a concept, then they topple in a satisfying chain at the end.
+- **Fonts:** Fredoka (500 to 700), JetBrains Mono (700)
+- **Demo:** Build the Foundation
+- **Prompt file:** `prompts/toy-blocks.md`
+- **Reference code:** `sources/toy-blocks.html`
+
+</details>
+
+<details>
+<summary><b>#82 Particle Swarm</b> (`particle-swarm`) - Details</summary>
+
+- **Look:** Sixty thousand glass beads in Three.js forming shapes from void to portrait, then morphing through data patterns with a cool iridescent glow.
+- **How it explains:** Beads fly in from the void, cluster into a shape, disperse and reform as text, then scatter for the outro.
+- **Fonts:** Inter (500 to 900), JetBrains Mono (700)
+- **Demo:** When Chaos Becomes Order
+- **Prompt file:** `prompts/particle-swarm.md`
+- **Reference code:** `sources/particle-swarm.html`
+
+</details>
+
+<details>
+<summary><b>#83 Museum Gallery</b> (`museum-gallery`) - Details</summary>
+
+- **Look:** A dark gallery hall at night in Three.js: white pedestals with spotlit exhibits, marble floor reflections, and placard cards on each piece.
+- **How it explains:** The camera dolly-walks the gallery, each exhibit is revealed by its spotlight with a placard card rising, and the final room has the key piece lit by all spots.
+- **Fonts:** Instrument Serif (italic), Inter (500 to 700)
+- **Demo:** The Collection
+- **Prompt file:** `prompts/museum-gallery.md`
+- **Reference code:** `sources/museum-gallery.html`
+
+</details>
+
+<details>
+<summary><b>#84 Pencil Sketch</b> (`pencil-sketch`) - Details</summary>
+
+- **Look:** 3D geometry rendered as a graphite pencil sketch in a white sketchbook: construction lines, hatching, and a watercolour wash that blooms on top.
+- **How it explains:** A pencil draws the subject line by line with hatch shading, then a watercolour wash blooms over the sketch to add depth and mood.
+- **Fonts:** Instrument Serif (italic), Caveat (700), Inter (500)
+- **Demo:** Sketching the Idea
+- **Prompt file:** `prompts/pencil-sketch.md`
+- **Reference code:** `sources/pencil-sketch.html`
+
+</details>
+
+<details>
+<summary><b>#85 Domino Chain</b> (`domino-chain`) - Details</summary>
+
+- **Look:** Wooden dominoes in Three.js on a glossy floor, each one toppling into the next in real physics, with a slow-motion moment at the key cause-and-effect beat.
+- **How it explains:** The camera tracks the chain reaction domino by domino, time slows to show the key mechanism, then speeds back up for the finish.
+- **Fonts:** Fredoka (500 to 700), JetBrains Mono (700)
+- **Demo:** The Chain Reaction
+- **Prompt file:** `prompts/domino-chain.md`
+- **Reference code:** `sources/domino-chain.html`
+
+</details>
+
+<details>
+<summary><b>#86 Node Network</b> (`node-network`) - Details</summary>
+
+- **Look:** Porcelain ceramic token nodes on a surface in Three.js, connected by arcing copper wires with a signal pulse travelling each connection.
+- **How it explains:** Nodes light up and connections draw between them, signal pulses travel along the wires, and clusters form with leader labels.
+- **Fonts:** Space Grotesk (500 and 700), JetBrains Mono (500 and 700)
+- **Demo:** The Connected World
+- **Prompt file:** `prompts/node-network.md`
+- **Reference code:** `sources/node-network.html`
+
+</details>
+
+<details>
+<summary><b>#87 Shadow Box</b> (`shadow-box`) - Details</summary>
+
+- **Look:** A paper-cut light box in Three.js: stacked paper layers backlit by warm LED, silhouettes at different depths telling the story, depth revealed by the backlight.
+- **How it explains:** Layers slide into depth one at a time, the backlight floods in through each gap, and silhouettes at each layer reveal the narrative.
+- **Fonts:** Instrument Serif (italic), Inter (600 to 800)
+- **Demo:** Light and Shadow
+- **Prompt file:** `prompts/shadow-box.md`
+- **Reference code:** `sources/shadow-box.html`
+
+</details>
+
+<details>
+<summary><b>#88 Layer Stack</b> (`layer-stack`) - Details</summary>
+
+- **Look:** Stacked glass sheets in Three.js, each layer labelled, fanning apart to show the diagram inside, then stacking back for the overview.
+- **How it explains:** Layers fan out with spring physics, each one highlights its content with a label card, then they stack back and the overview annotates the whole.
+- **Fonts:** Space Grotesk (500 and 700), JetBrains Mono (500 and 700)
+- **Demo:** The Stack Explained
+- **Prompt file:** `prompts/layer-stack.md`
+- **Reference code:** `sources/layer-stack.html`
+
+</details>
+
+<details>
+<summary><b>#89 Dithered</b> (`dithered`) - Details</summary>
+
+- **Look:** 3D rendered with 1-bit ordered dithering: pixel checkerboard patterns, a retro limited palette, and dither dissolve transitions.
+- **How it explains:** The scene draws in with a dither dissolve, dither patterns animate with the content, and key moments get a bright pixel flash.
+- **Fonts:** Press Start 2P, JetBrains Mono (500 and 700)
+- **Demo:** Pixel Perfect
+- **Prompt file:** `prompts/dithered.md`
+- **Reference code:** `sources/dithered.html`
+
+</details>
+
+<details>
+<summary><b>#90 Floating Screens</b> (`floating-screens`) - Details</summary>
+
+- **Look:** White cards backed by clear glass in Three.js, floating in soft studio space, each showing a UI screen, orbiting slowly in a loose constellation.
+- **How it explains:** Cards float in one by one with spring physics, the camera orbits the constellation, and each card's content types on as it faces you.
+- **Fonts:** Inter (500 to 900), JetBrains Mono (500 and 700)
+- **Demo:** Your App on Stage
+- **Prompt file:** `prompts/floating-screens.md`
+- **Reference code:** `sources/floating-screens.html`
+
+</details>
+
+<details>
+<summary><b>#91 Device Hero</b> (`device-hero`) - Details</summary>
+
+- **Look:** A flagship phone as the hero in a launch video in Three.js: cinematic fog, rotating device, spec callouts on thin leader lines and a dramatic crane shot.
+- **How it explains:** The phone emerges from fog, rotates for the full reveal, spec callouts pop out one at a time, and the camera cranes for the hero shot.
+- **Fonts:** Inter (700 to 900), JetBrains Mono (500)
+- **Demo:** Meet the Next One
+- **Prompt file:** `prompts/device-hero.md`
+- **Reference code:** `sources/device-hero.html`
+
+</details>
+
+<details>
+<summary><b>#92 Studio Product</b> (`studio-product`) - Details</summary>
+
+- **Look:** Dark seamless studio product shot in Three.js: a single hero object under a raking warm key light and cool rim, showing off material and form.
+- **How it explains:** The product turns slowly under perfect studio lighting, a light sweep glides across it, and spec cards pop out one at a time.
+- **Fonts:** Instrument Serif (italic), Inter (500 to 800), JetBrains Mono (500)
+- **Demo:** Beautifully Made
+- **Prompt file:** `prompts/studio-product.md`
+- **Reference code:** `sources/studio-product.html`
+
+</details>
+
+<details>
+<summary><b>#93 Split-Flap Board</b> (`split-flap-board`) - Details</summary>
+
+- **Look:** A mechanical airport departure board in 3D: individual flap segments cycling through letters with a satisfying clack, until the final message settles letter by letter.
+- **How it explains:** Flaps cycle through the alphabet letter by letter with a clack, each row settles in turn, and the complete message lands with a final click.
+- **Fonts:** Anton, JetBrains Mono (500 and 700)
+- **Demo:** THE TRUTH ARRIVES
+- **Prompt file:** `prompts/split-flap-board.md`
+- **Reference code:** `sources/split-flap-board.html`
+
+</details>
+
+<details>
+<summary><b>#94 Hero Icon</b> (`hero-icon`) - Details</summary>
+
+- **Look:** One giant chunky 3D app icon tile in Three.js, rotating slowly on a dark background with frosted glass edges, deep shadow and a vivid face gradient.
+- **How it explains:** The icon pops in with overshoot, rotates to show the full face, spec callout cards pop around it, and the final frame holds the hero shot.
+- **Fonts:** Inter (700 to 900), JetBrains Mono (700)
+- **Demo:** One App to Rule It
+- **Prompt file:** `prompts/hero-icon.md`
+- **Reference code:** `sources/hero-icon.html`
+
+</details>
+
+<details>
+<summary><b>#95 Embossed</b> (`embossed`) - Details</summary>
+
+- **Look:** Letterpress cotton paper in Three.js: deeply embossed type with a raking warm light that reveals the depth, and raw paper fibre texture.
+- **How it explains:** Type presses into the paper with a satisfying thud, a raking warm light moves across to reveal the emboss depth, and the paper texture catches the light.
+- **Fonts:** Playfair Display (700 and 900, italic), Inter (500)
+- **Demo:** Pressed Into History
+- **Prompt file:** `prompts/embossed.md`
+- **Reference code:** `sources/embossed.html`
+
+</details>
+
+<details>
+<summary><b>#96 Monument Type</b> (`monument-type`) - Details</summary>
+
+- **Look:** Colossal concrete letter architecture in Three.js: giant brutalist type as actual buildings at golden hour, viewed from a slow drone with windows lighting at dusk.
+- **How it explains:** The drone sweeps over the letter-buildings at dusk, windows light on one by one, and the camera cranes back to reveal the full word as architecture.
+- **Fonts:** Anton, JetBrains Mono (500 and 700)
+- **Demo:** THE WORD IN STONE
+- **Prompt file:** `prompts/monument-type.md`
+- **Reference code:** `sources/monument-type.html`
+
+</details>
+
+
 
 <details>
 <summary><b>#08 Clay Diorama</b> (`clay-diorama`) - Details</summary>

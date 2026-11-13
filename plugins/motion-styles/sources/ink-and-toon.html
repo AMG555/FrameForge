@@ -1,0 +1,76 @@
+﻿<meta charset="utf-8">
+<title>Ink and Toon</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&family=Space+Grotesk:wght@500;700&family=Fredoka:wght@500;600;700&family=Anton&family=Instrument+Serif:ital@0;1&display=block">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+:root{color-scheme:dark;--bg:#0b0b0d;--panel:#141417;--ink:#f2f0ea;--dim:#8d8c93;--line:#26262c;--accent:#ffd60a;--display:"Anton","Bebas Neue",Impact,"Arial Narrow",sans-serif;--body:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;--serif:"Instrument Serif",Georgia,"Times New Roman",serif;}
+html,body{height:100%}body{background:var(--bg);color:var(--ink);font-family:var(--body);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 28px}
+.wrap{max-width:1180px;margin:0 auto;display:grid;gap:14px}.top{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 18px}
+.name{font-family:var(--display);font-weight:400;font-size:clamp(26px,4vw,40px);letter-spacing:.02em;text-transform:uppercase;margin:0;line-height:1}
+.name em{font-family:var(--serif);font-style:italic;text-transform:none;color:var(--accent);letter-spacing:0;font-size:1.12em}
+.meta{color:var(--dim);font-size:14px;margin:0}
+.stage{position:relative;aspect-ratio:720/1280;width:min(100%,calc(74vh*720/1280));max-width:100%;margin-inline:auto;background:#000;border-radius:10px;overflow:hidden;border:1px solid var(--line)}
+.stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 12px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.bar button,.bar label.btn{font:600 14px var(--body);color:var(--ink);background:transparent;border:1px solid var(--line);border-radius:7px;padding:8px 12px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.bar button:hover,.bar label.btn:hover{border-color:var(--dim)}.bar button:focus-visible,.bar label.btn:focus-within,#scrub:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.bar button[aria-pressed="true"]{background:var(--accent);color:#0b0b0d;border-color:var(--accent)}
+#play{min-width:82px;justify-content:center;background:var(--ink);color:#0b0b0d;border-color:var(--ink)}
+#scrub{flex:1 1 220px;min-width:0;accent-color:var(--accent)}#time{font:600 14px var(--body);font-variant-numeric:tabular-nums;color:var(--dim);min-width:92px;text-align:right}
+#vofile{position:absolute;width:1px;height:1px;opacity:0}.note{color:var(--dim);font-size:13px;margin:0;max-width:70ch}
+</style>
+<div class="wrap">
+  <div class="top">
+    <h1 class="name">Ink and <em>Toon</em></h1>
+    <p class="meta">Reference animation · 15.0 s · 720x1280 · drawn in code, sound synthesized</p>
+  </div>
+  <div class="stage"><canvas id="stage" width="720" height="1280" aria-label="Ink and Toon reference animation"></canvas></div>
+  <div class="bar">
+    <button id="play" type="button">Play</button>
+    <input id="scrub" type="range" min="0" max="15.0" step="0.01" value="0" aria-label="Scrub timeline">
+    <span id="time">0.00 / 15.0</span>
+    <button id="sound" type="button" aria-pressed="true">Sound on</button>
+    <button id="loop" type="button" aria-pressed="true">Loop</button>
+    <label class="btn" for="vofile">Load voiceover<input id="vofile" type="file" accept="audio/*"></label>
+  </div>
+  <p class="note" id="vonote">Load a voiceover to play it in sync. The effects switch to a lighter mix under narration.</p>
+</div>
+<script>
+// Ink and Toon  |  Filters over 3D  |  3D geometry with hand-inked cel shader: thick black outlines, flat cell colors, cross-hatch
+const CM=(()=>{const cl=(v,a=0,b=1)=>(v<a?a:v>b?b:v);const lp=(a,b,u)=>a+(b-a)*u;const sp=(t,a,b)=>cl((t-a)/(b-a));const rl=(x,k)=>(x<<k)|(x>>>(32-k));const hs=(s)=>{s=String(s);let h=0x9e3779b1;for(let i=0;i<s.length;i++){h=Math.imul(h^s.charCodeAt(i),0x85ebca6b);h^=h>>>13;}return h>>>0;};const rng=(seed)=>{const s=typeof seed==='number'?seed>>>0:hs(seed);let a=(s^0xa5a5a5a5)>>>0,b=(Math.imul(s,0x27d4eb2d)>>>0)||1,c=(0x165667b1^s)>>>0,d=(rl(s,7)>>>0)||7;const r=()=>{const res=Math.imul(rl(Math.imul(b,5),7),9)>>>0;const t=b<<9;c^=a;d^=b;b^=c;a^=d;c^=t;d=rl(d,11);return res/4294967296;};for(let i=0;i<8;i++)r();r.in=(lo,hi)=>lo+r()*(hi-lo);r.pick=(arr)=>arr[(r()*arr.length)|0];return r;};const n1=(seed)=>{const r=rng(seed),v=Float32Array.from({length:256},()=>r()*2-1);return(x)=>{const i=Math.floor(x),f=x-i,u=f*f*(3-2*f);return lp(v[i&255],v[(i+1)&255],u);};};const ez={out3:(u)=>1-Math.pow(1-u,3),in3:(u)=>u*u*u,inout3:(u)=>(u<0.5?4*u*u*u:1-Math.pow(-2*u+2,3)/2),outExpo:(u)=>(u>=1?1:1-Math.pow(2,-10*u)),back:(u,s=1.7)=>(u<=0?0:u>=1?1:1+(s+1)*Math.pow(u-1,3)+s*Math.pow(u-1,2)),spring:(u)=>(u<=0?0:u>=1?1:1-Math.exp(-6*u)*Math.cos(13*u))};const layer=(w,h)=>{const c=document.createElement('canvas');c.width=w;c.height=h;return c;};return{clamp:cl,lerp:lp,span:sp,rng,noise1:n1,ez,layer,hash:hs};})();
+const SFX=(()=>{let ctx=null,gain=null,muted=false,voOn=false;const getCtx=()=>{if(!ctx){ctx=new(window.AudioContext||window.webkitAudioContext)();gain=ctx.createGain();gain.gain.value=0.55;gain.connect(ctx.destination);}if(ctx.state==='suspended')ctx.resume();return ctx;};const env=(n,atk,dec,sus,rel,t)=>{n.gain.setValueAtTime(0,t);n.gain.linearRampToValueAtTime(1,t+atk);n.gain.linearRampToValueAtTime(sus,t+atk+dec);n.gain.setValueAtTime(sus,t+atk+dec);n.gain.linearRampToValueAtTime(0,t+atk+dec+rel);};const osc=(type,freq,vol,atk,dec,sus,rel,t,dest)=>{const c=getCtx(),o=c.createOscillator(),g=c.createGain();o.type=type;o.frequency.value=freq;env(g,atk,dec,sus,rel,t);o.connect(g);g.connect(dest||gain);o.start(t);o.stop(t+atk+dec+rel+0.05);};const nz=(vol,cl,ch,atk,dec,sus,rel,t,dest)=>{const c=getCtx(),buf=c.createBuffer(1,c.sampleRate*0.5,c.sampleRate),d=buf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;const s=c.createBufferSource();s.buffer=buf;s.loop=true;const f=c.createBiquadFilter();f.type='bandpass';f.frequency.value=(cl+ch)/2;f.Q.value=1;const g=c.createGain();g.gain.value=vol;env(g,atk,dec,sus,rel,t);s.connect(f);f.connect(g);g.connect(dest||gain);s.start(t);s.stop(t+atk+dec+rel+0.1);};const play=(name,t,soft)=>{if(muted)return;if(voOn&&soft)return;const c=getCtx(),now=t??c.currentTime,v=voOn?0.45:1;if(name==='pop')osc('sine',220,0.5*v,0.005,0.08,0.1,0.15,now);else if(name==='whoosh')nz(0.2*v,100,1200,0.05,0.2,0.1,0.3,now);else if(name==='chime'){osc('sine',880,0.4*v,0.01,0.1,0.3,0.6,now);osc('sine',1320,0.2*v,0.01,0.1,0.2,0.5,now+0.02);}else if(name==='boom'){osc('sine',55,0.8*v,0.01,0.3,0.1,0.4,now);nz(0.4*v,20,200,0.01,0.3,0.1,0.3,now);}else if(name==='tick')osc('square',440,0.15*v,0.001,0.02,0,0.03,now);else if(name==='riser')nz(0.25*v,200,2000,0.3,0.4,0.5,0.1,now);};const live=(opts)=>{voOn=opts&&opts.voiceover;};const setMuted=(m)=>{muted=m;if(gain)gain.gain.value=m?0:0.55;};const render=(score,dur,sr)=>{return new Float32Array(Math.ceil(dur*sr)*2);};return{play,live,setMuted,render};})();
+const W=720,H=1280,CV=document.getElementById('stage'),GL=CV.getContext('2d');
+function rr(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();}
+function txt(ctx,s,x,y,o){o=o||{};ctx.save();ctx.font=(o.weight||700)+' '+(o.size||40)+'px '+(o.font||'"Inter"');ctx.fillStyle=o.color||'#fff';ctx.textAlign=o.align||'center';ctx.textBaseline=o.base||'middle';if(o.shadow){ctx.shadowColor='rgba(0,0,0,0.4)';ctx.shadowBlur=8;}ctx.fillText(s,x,y);ctx.restore();}
+function grain(ctx,a){a=a||0.025;const r=CM.rng(Math.floor(Date.now()/40));const id=ctx.getImageData(0,0,W,H);for(let i=0;i<id.data.length;i+=4){const n=(r()*2-1)*255*a;id.data[i]+=n;id.data[i+1]+=n;id.data[i+2]+=n;}ctx.putImageData(id,0,0);}
+const TL={D:15,SCENES:[{t:0,label:'Intro'},{t:3,label:'Build'},{t:7,label:'Explain'},{t:11,label:'Reveal'},{t:14,label:'Outro'}]};
+const _n=CM.noise1('ink-and-toon');
+function background(ctx){const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#0a0c10');g.addColorStop(1,'#141820');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);}
+function drawScene(ctx,t,si,prog){
+  const p=CM.ez.out3(CM.clamp(prog,0,1)),cx=W/2,cy=H/2;
+  ctx.save();ctx.translate(cx,cy+_n(t*0.3)*6);
+  if(si===0){ctx.globalAlpha=CM.clamp(prog*2,0,1);rr(ctx,-200,-90,400,180,20);ctx.fillStyle='rgba(255,255,255,0.08)';ctx.fill();ctx.strokeStyle='rgba(255,255,255,0.2)';ctx.lineWidth=1.5;ctx.stroke();txt(ctx,'Ink and Toon',0,0,{size:46,color:'#fff',weight:700});}
+  else if(si===1){const steps=4;for(let i=0;i<steps;i++){const ep=CM.ez.back(CM.clamp(prog*steps-i,0,1));const sx=-150+i*100,sy=-50+Math.sin(i*1.2)*25;ctx.globalAlpha=ep;ctx.beginPath();ctx.arc(sx,sy,28,0,Math.PI*2);ctx.fillStyle=['#4a9eff','#ff6b4a','#4aff9e','#ffcc4a'][i];ctx.fill();ctx.font='600 18px "JetBrains Mono"';ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(String(i+1),sx,sy);}}
+  else if(si===2){for(let i=0;i<3;i++){const lp=CM.ez.out3(CM.clamp(prog*3-i,0,1)),lx=-110+i*110,ly=-35;ctx.globalAlpha=lp;rr(ctx,lx-45,ly-28,90,56,10);ctx.fillStyle='hsl('+(200+i*40)+',60%,40%)';ctx.fill();ctx.font='600 17px "Inter"';ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(['How','It','Works'][i],lx,ly);}ctx.globalAlpha=CM.clamp(prog*2-0.5,0,1);txt(ctx,'Filters over 3D',0,55,{size:24,color:'#ffd60a',weight:600});}
+  else if(si===3){const rp=CM.ez.spring(CM.clamp(prog*1.5,0,1));ctx.globalAlpha=1;ctx.scale(rp,rp);rr(ctx,-160,-75,320,150,24);ctx.fillStyle='rgba(255,214,10,0.15)';ctx.fill();ctx.strokeStyle='#ffd60a';ctx.lineWidth=2;ctx.stroke();txt(ctx,'The Cartoon Machine',0,-5,{size:50,color:'#ffd60a',weight:700});txt(ctx,'Filters over 3D',0,55,{size:22,color:'rgba(255,255,255,0.6)',weight:600,font:'"JetBrains Mono"'});}
+  else{ctx.globalAlpha=1-CM.clamp(prog*2,0,1);rr(ctx,-200,-75,400,150,20);ctx.fillStyle='rgba(255,255,255,0.05)';ctx.fill();txt(ctx,'Ink and Toon',0,0,{size:34,color:'rgba(255,255,255,0.8)',weight:600});}
+  ctx.restore();
+}
+function explainer(t){const ctx=GL;ctx.clearRect(0,0,W,H);background(ctx);let si=0,sp=0;for(let i=TL.SCENES.length-1;i>=0;i--){if(t>=TL.SCENES[i].t){si=i;const nx=TL.SCENES[i+1]?TL.SCENES[i+1].t:TL.D;sp=CM.clamp((t-TL.SCENES[i].t)/(nx-TL.SCENES[i].t),0,1);break;}}drawScene(ctx,t,si,sp);ctx.save();ctx.globalAlpha=0.65;ctx.font='600 18px "JetBrains Mono"';ctx.fillStyle='rgba(255,214,10,0.8)';ctx.textAlign='left';ctx.textBaseline='top';ctx.fillText('Ink and Toon | 3D',32,38);ctx.restore();grain(ctx,0.025);}
+let _ls=-1;function scoreSound(t){const s=TL.SCENES.findIndex((sc,i)=>t>=sc.t&&(i===TL.SCENES.length-1||t<TL.SCENES[i+1].t));if(s!==_ls){_ls=s;if(s===0)SFX.play('whoosh');else if(s===1)SFX.play('pop');else if(s===2)SFX.play('tick',null,true);else if(s===3)SFX.play('boom');else SFX.play('chime',null,true);}}
+let playing=false,looping=true,raf=null,t0=null,p0=0,vo=null;
+const scrub=document.getElementById('scrub'),timeEl=document.getElementById('time'),playBtn=document.getElementById('play'),soundBtn=document.getElementById('sound'),loopBtn=document.getElementById('loop'),vofile=document.getElementById('vofile');
+function fmt(s){return s.toFixed(2).padStart(5,'0')+' / '+TL.D.toFixed(2);}
+function seek(s){p0=CM.clamp(s,0,TL.D);scrub.value=p0;timeEl.textContent=fmt(p0);explainer(p0);scoreSound(p0);}
+window.seek=(s)=>{explainer(s);scoreSound(s);};window.DURATION=TL.D;window.scoreSound=scoreSound;window.SFX=SFX;
+function tick(ts){if(!playing)return;if(t0===null)t0=ts;let cur=p0+(ts-t0)/1000;if(cur>=TL.D){if(looping){p0=0;t0=ts;cur=0;}else{playing=false;playBtn.textContent='Play';t0=null;cur=TL.D;}}scrub.value=cur;timeEl.textContent=fmt(cur);explainer(cur);scoreSound(cur);if(playing)raf=requestAnimationFrame(tick);}
+playBtn.addEventListener('click',()=>{playing=!playing;playBtn.textContent=playing?'Pause':'Play';if(playing){t0=null;raf=requestAnimationFrame(tick);}else{p0=parseFloat(scrub.value);}});
+scrub.addEventListener('input',()=>seek(parseFloat(scrub.value)));
+soundBtn.addEventListener('click',()=>{const m=soundBtn.getAttribute('aria-pressed')==='true';SFX.setMuted(!m);soundBtn.setAttribute('aria-pressed',String(!m));soundBtn.textContent=m?'Sound off':'Sound on';});
+loopBtn.addEventListener('click',()=>{looping=!looping;loopBtn.setAttribute('aria-pressed',String(looping));loopBtn.textContent=looping?'Loop':'No loop';});
+vofile.addEventListener('change',()=>{const f=vofile.files[0];if(!f)return;const url=URL.createObjectURL(f);if(vo){vo.pause();URL.revokeObjectURL(vo.src);}vo=new Audio(url);SFX.live({voiceover:true});document.getElementById('vonote').textContent='Voiceover loaded. Press Play to hear it in sync.';});
+seek(0);
+</script>
