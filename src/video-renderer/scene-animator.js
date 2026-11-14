@@ -4863,6 +4863,36 @@ async function generateSceneCodeWithLLM({
   try {
     const { LLMProvider } = require('../pipeline/providers');
     const llm = new LLMProvider();
+    // Map style name to its aesthetic family so the LLM gets precise visual direction
+    const STYLE_AESTHETICS = {
+      'creator-motion': 'warm, energetic kinetic typography with bold color blocks',
+      'clean-tech': 'minimalist cyan-on-dark tech diagrams with glowing grid lines',
+      'punch-captions': 'bold centered text explosions on solid color fields',
+      'swiss-grid': 'precision grid typography, black-and-white, tight leading',
+      'headline-backdrop': 'bold news-style full-bleed typography with ticker elements',
+      'breaking-desk': 'broadcast news desk aesthetic, urgent red accents, lower thirds',
+      'data-story': 'animated bar/line charts, big numbers, finance color palette',
+      'finance_executive': 'dark executive palette, gold accents, animated financial metrics',
+      'versus-split': 'split-screen duel layout, contrasting colors on each side',
+      'versus_comparison': 'side-by-side animated comparison with labels and icons',
+      'deep-dive': 'layered depth zoom, orbital rings, cosmic-scale perspective',
+      'mechanism_physics': 'physics-accurate diagrams with labeled force vectors',
+      'magnification_focus': 'lens-flare zoom-in with callout annotation rings',
+      'chalk-talk': 'white chalk strokes on dark slate, hand-drawn feel',
+      'doc-cinema': 'filmic grain texture, sepia-tone palette, slow ken-burns drift',
+      'cinematic_documentary': 'wide cinematic letterbox, desaturated color grade, dramatic shadows',
+      'minimal_luxury': 'off-white canvas, single-weight lines, restrained palette',
+      'cosmic_space': 'star field parallax, glowing nebula arcs, deep navy background',
+      'cyber_tech': 'dark grid, neon cyan/magenta particles, digital glyph overlays',
+      'retro_synthwave': '80s grid horizon, neon purple/pink, sun-rise silhouette',
+      'nature_organic': 'soft greens, fluid organic shapes, parallax leaf or wave motion',
+      'hype_sports': 'diagonal speed lines, saturated red/orange, impact cut transitions',
+      'warm_creative': 'warm amber palette, overlapping circles, painterly texture strokes',
+      'breaking_news': 'urgent red headline bar, ticker text, news-broadcast grid',
+    };
+    const resolvedStyle = style && style.trim() ? style.trim() : 'cinematic';
+    const aestheticHint = STYLE_AESTHETICS[resolvedStyle] || `${resolvedStyle} motion graphics aesthetic`;
+
     const system = `You are an elite creative motion graphics developer writing high-end JavaScript Canvas animation code for video production.
 You write code where EVERY PIXEL IS A PURE FUNCTION OF TIME t (seconds).
 AVAILABLE VARIABLES:
@@ -4872,22 +4902,22 @@ AVAILABLE HELPERS:
 - easeIn(t), easeOut(t), easeInOut(t), boilSeed(t, seed), hash(i)
 RULES:
 1. Every element must animate smoothly over time t [0..DURATION].
-2. If narration, key phrase, or visual direction involves human actions, history, emotions, characters, or daily life (e.g. choosing clothes, shivering in cold, sewing hides, meeting another tribe, mirror reflection, thinking by fire), ALWAYS animate expressive hand-drawn doodled human figures actively performing those actions (limbs, head, gestures, facial expressions, setting props) rather than sterile abstract diagrams.
-3. Fill the canvas with rich visual geometry, fluid strokes, animated characters, particles, or cinematic diagrams matching the prompt.
-4. NEVER use Math.random(), setTimeout, setInterval, Date.now(), performance.now(). All motion must be a pure mathematical function of time t.
-5. Output ONLY raw executable JavaScript code for the body of window.seek = async (t) => { ... }.
-6. NO markdown backticks, NO explanations. Start directly with JavaScript.`;
+2. If narration or visual direction involves human actions, history, emotions, or daily life, ALWAYS animate expressive hand-drawn doodled human figures actively performing those actions.
+3. Fill the canvas with rich visual geometry matching the STYLE aesthetic below.
+4. NEVER use Math.random(), setTimeout, setInterval, Date.now(), performance.now(). All motion must be a pure function of t.
+5. Output ONLY raw executable JavaScript for the body of window.seek = async (t) => { ... }.
+6. NO markdown, NO explanations. Start directly with JavaScript.`;
 
     const user = `TOPIC: ${topic || 'Visual Explainer'}
+STYLE: ${resolvedStyle} — ${aestheticHint}
 VISUAL DIRECTION: ${visualDescription || caption || 'Dynamic motion graphics'}
 KEY PHRASE: ${caption}
 NARRATION: ${narration}
-STYLE: ${style || 'cinematic'}
 DURATION: ${duration}s
 
-Write the canvas drawing code for time t.`;
+Write the canvas drawing code for time t. Match the ${resolvedStyle} aesthetic precisely.`;
 
-    const raw = await llm.chat({ system, user, temperature: 0.7, maxTokens: 4000 });
+    const raw = await llm.chat({ system, user, temperature: 0.7, maxTokens: 2000 });
     if (!raw) return null;
     let cleanCode = raw.trim();
     if (cleanCode.startsWith('```')) {

@@ -27,7 +27,7 @@ const VDIR      = `${FILES_DIR}/video_tmp`;
 async function runAssets({
   productionId,
   scenes,
-  parallelism = 4,
+  parallelism = 6,
   skipTts = false,
   voice = null,
   topic = '',
@@ -103,10 +103,30 @@ async function runAssets({
       // Priority: audio_path (pre-recorded) > TTS synthesis.
       // --no-tts / skipTts: skip synthesis (scene must have audio_path or silence is used).
       let voicePath;
+      const syncFs = require('fs');
       if (scene.audio_path) {
+        // Validate the user-supplied audio file actually exists before passing to FFmpeg.
+        if (!syncFs.existsSync(scene.audio_path)) {
+          throw new Error(
+            `Scene ${scene.scene_id}: audio_path does not exist: "${scene.audio_path}". ` +
+            `Check the file path and try again, or remove audio_path to let TTS synthesize narration automatically.`
+          );
+        }
         voicePath = scene.audio_path;
       } else if (skipTts || scene._skipTts) {
-        voicePath = null;
+        // Fallback: generate silent audio of scene.duration (or 3.0s) so visual renders cleanly without voice
+        const sceneDur = (typeof scene.duration === 'number' && scene.duration > 0) ? scene.duration : 3.0;
+        voicePath = path.join(VDIR, `silent_${idx}.m4a`);
+        if (!syncFs.existsSync(voicePath)) {
+          const { spawnSync } = require('child_process');
+          spawnSync('ffmpeg', [
+            '-nostdin', '-y',
+            '-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo',
+            '-t', String(sceneDur),
+            '-c:a', 'aac', '-b:a', '128k',
+            voicePath,
+          ], { encoding: 'utf8' });
+        }
       } else {
         voicePath = path.join(VDIR, `voice_${idx}.m4a`);
         // Locked to defaultProductionVoice across all scenes unless scene.voice is explicitly given

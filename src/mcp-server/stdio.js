@@ -31,6 +31,17 @@
 
 'use strict';
 
+// Mark npx execution so provider warning messages give the right fix instructions.
+// When run as `npx frameforge-mcp`, __filename lands inside the npm cache (not a local clone).
+// We set a flag rather than relying on a fragile path check in every consumer.
+if (!process.env.__FRAMEFORGE_NPX__) {
+  const _fp = require('path').resolve(process.argv[1] || __filename);
+  const _npmCache = require('path').join(require('os').homedir(), '.npm');
+  if (_fp.startsWith(_npmCache) || _fp.includes('_npx') || _fp.includes(require('path').join('npm', 'cache'))) {
+    process.env.__FRAMEFORGE_NPX__ = '1';
+  }
+}
+
 // Load config BEFORE requiring server.js so env vars are set when providers initialise
 require('../config/load-config').loadConfig();
 

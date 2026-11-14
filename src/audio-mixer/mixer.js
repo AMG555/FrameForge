@@ -355,7 +355,7 @@ class AudioMixer {
       '-nostdin', '-y',
       '-i', inPath,
       '-af', filterStr,
-      '-ar', '48000', '-ac', '2', '-c:a', 'aac', '-b:a', '192k',
+      '-ar', '48000', '-ac', '2', '-c:a', 'aac', '-b:a', '320k',
       outPath,
     ], { timeout: 120000, encoding: 'utf8' });
 
@@ -447,7 +447,7 @@ class AudioMixer {
       ...ffmpegInputs,
       '-filter_complex', filterExpr,
       '-map', '[out]',
-      '-c:a', 'aac', '-b:a', '128k', '-ar', '48000', '-ac', '2',
+      '-c:a', 'aac', '-b:a', '320k', '-ar', '48000', '-ac', '2',
       '-t', String(padDuration),
       sfxPath,
     ], { encoding: 'utf8', timeout: 60000 });
@@ -482,7 +482,7 @@ class AudioMixer {
       const vc = spawnSync('ffmpeg', [
         '-nostdin', '-y', '-i', voicePath,
         '-af', voiceFilter,
-        '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-ac', '2',
+        '-c:a', 'aac', '-b:a', '320k', '-ar', '48000', '-ac', '2',
         voiceChainPath,
       ], { timeout: 120000, encoding: 'utf8' });
       if (vc.status !== 0) throw new Error(`Voice chain failed: ${(vc.stderr || '').slice(-300)}`);
@@ -515,7 +515,7 @@ class AudioMixer {
             '-nostdin', '-y', ...sfxInputs,
             '-filter_complex', sfxFilter,
             '-map', '[sfxout]',
-            '-c:a', 'aac', '-b:a', '128k', '-ar', '48000', '-ac', '2',
+            '-c:a', 'aac', '-b:a', '320k', '-ar', '48000', '-ac', '2',
             sfxMixPath,
           ], { encoding: 'utf8', timeout: 120000 });
           if (sfxR.status !== 0) throw new Error(`SFX combine failed: ${(sfxR.stderr || '').slice(-200)}`);
@@ -555,7 +555,7 @@ class AudioMixer {
         ...extraInputs,
         '-filter_complex', filterComplex,
         '-map', mapExpr,
-        '-ar', '48000', '-ac', '2', '-c:a', 'aac', '-b:a', '192k',
+        '-ar', '48000', '-ac', '2', '-c:a', 'aac', '-b:a', '320k',
         '-t', String(totalDur),
         preDuckPath,
       ], { timeout: 300000, encoding: 'utf8' });
@@ -652,7 +652,7 @@ class AudioMixer {
       '-nostdin', '-y',
       '-i', voicePath,
       '-af', voiceFilter,
-      '-ar', '48000', '-ac', '2', '-c:a', 'aac', '-b:a', '192k',
+      '-ar', '48000', '-ac', '2', '-c:a', 'aac', '-b:a', '320k',
       outputPath,
     ], { timeout: 60000, encoding: 'utf8' });
     if (result.status !== 0) throw new Error(`Voice chain normalise failed: ${(result.stderr || '').slice(-200)}`);
@@ -669,7 +669,7 @@ class AudioMixer {
       '-map', '0:v', '-map', '0:a',
       '-af', `loudnorm=I=${resolvedLufs}:TP=${resolvedTp}:LRA=11`,
       '-c:v', 'copy',
-      '-c:a', 'aac', '-b:a', '192k',
+      '-c:a', 'aac', '-b:a', '320k',
       '-movflags', '+faststart',
       outputPath,
     ], { timeout: 300000, encoding: 'utf8' });

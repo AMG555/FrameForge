@@ -137,6 +137,10 @@ async function runScript({
     targetScenes = 12;
   }
 
+  // Token budget: each scene needs ~180 output tokens. Add 1500 overhead for metadata.
+  // Cap at 32000 for very large productions; use a tighter budget for short-form.
+  const tokenBudget = Math.min(32000, Math.max(4000, targetScenes * 180 + 1500));
+
   const raw = await retryPol.executeStage('Script', async () => {
     const system = [
       `You are a ${effectivePersona} writing a ${format} script.`,
@@ -153,15 +157,15 @@ async function runScript({
       `STYLE: ${style}`,
       `LANGUAGE: ${language}`,
       '',
-      `Write exactly ${targetScenes} scenes (schema_version "2.0.0"). Fast cinematic visual pacing: 2-3.5 seconds per scene (8-16 spoken words). Scene visual cuts must change frequently. Never write long monolithic scenes. Each scene duration matches the spoken voiceover audio.`,
+      `Write exactly ${targetScenes} scenes (schema_version "2.0.0"). Cinematic visual pacing: 3-5 seconds per scene (12-22 spoken words). Scene visual cuts must change frequently. Never write short 1-2 sentence fragments — each narration must be a complete idea. Each scene duration matches the spoken voiceover audio.`,
       anchorWanted
         ? 'Include an on-screen host/anchor character in the scenes where appropriate.'
         : 'Do NOT include on-screen host or anchor characters unless asked. Set character to { character_id: "none", pose: "none", emotion: "none" }. Visuals must be dynamic cinematic b-roll, motion graphics, animated diagrams, comparisons, processes, and data visualizations.',
       'Each scene must have:',
       'scene_id (integer), schema_version "2.0.0",',
-      'narration (8-18 words in the specified language, spoken aloud),',
+      'narration (12-22 words in the specified language, spoken aloud — complete idea, natural sentence),',
       'caption (optional 2-4 uppercase words text overlay only if captions requested, otherwise empty string),',
-      'visual_description (vivid description of the visual motion graphics / b-roll / diagram / scene — used for code-driven animation),',
+      'visual_description (vivid cinematic description of WHAT IS ANIMATING: particles flowing, text flying in, charts rising, map arcs drawing, figures gesturing — be specific about motion, color, and composition. Never just name a subject — describe the animation),',
       'character { character_id ("none" or identifier), pose, emotion, position {x,y,scale} },',
       'focal_point {x,y,weight},',
       'overlay { type: "prop"|"effect"|"text"|"none" },',
@@ -176,7 +180,7 @@ async function runScript({
       `"scenes":[...${targetScenes} scenes...],"shorts":[{"short_id":1,"title":"...","scene_range":[1,5],"hook_scene":1}]}`,
     ].join('\n');
 
-    return llm.chat({ system, user, temperature: 1, maxTokens: 32000 });
+    return llm.chat({ system, user, temperature: 1, maxTokens: tokenBudget });
   });
 
   let script;

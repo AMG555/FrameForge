@@ -181,7 +181,7 @@ class VideoRenderer {
     manifest,
     renderWidth = 1920,
     renderHeight = 1080,
-    fps = 24,
+    fps = 30,
     startTime = 0,
     trimStart,
     endTime,
@@ -273,12 +273,12 @@ class VideoRenderer {
 
       ffmpegArgs.push(
         '-t', String(clampedDur),
-        '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '22',
+        '-c:v', 'libx264', '-preset', 'slow', '-crf', '17',
         '-profile:v', 'high', '-level', '4.1',
         '-color_range', 'tv', '-colorspace', 'bt709',
         '-color_primaries', 'bt709', '-color_trc', 'bt709',
-        '-x264-params', 'colorprim=bt709:transfer=bt709:colormatrix=bt709',
-        '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-ac', '2',
+        '-x264-params', 'colorprim=bt709:transfer=bt709:colormatrix=bt709:aq-mode=3:deblock=-1,-1',
+        '-c:a', 'aac', '-b:a', '320k', '-ar', '48000', '-ac', '2',
         '-movflags', '+faststart',
         '-pix_fmt', 'yuv420p',
         outputPath

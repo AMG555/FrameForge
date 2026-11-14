@@ -17,7 +17,9 @@
       "command": "node",
       "args": ["src/mcp-server/stdio.js"],
       "env": {
-        "PROVIDER_TTS":   "edge-tts"
+        "PROVIDER_TTS":          "elevenlabs",
+        "ELEVENLABS_API_KEY":    "${ELEVENLABS_API_KEY}",
+        "ELEVENLABS_VOICE_ID":   "Rachel"
       }
     },
 
@@ -26,8 +28,10 @@
       "command": "node",
       "args": ["src/mcp-server/server.js"],
       "env": {
-        "PROVIDER_TTS":   "edge-tts",
-        "MCP_PORT":       "3210"
+        "PROVIDER_TTS":          "elevenlabs",
+        "ELEVENLABS_API_KEY":    "${ELEVENLABS_API_KEY}",
+        "ELEVENLABS_VOICE_ID":   "Rachel",
+        "MCP_PORT":              "3210"
       }
     },
 

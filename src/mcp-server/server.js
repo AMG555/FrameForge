@@ -158,7 +158,7 @@ const TOOLS = {
 
   // ── Tool 4: TTS ──────────────────────────────────────────────────────────
   render_tts: {
-    description: 'Convert narration text to audio using the configured TTS provider. Speech rate is controlled via TTS_RATE env var (default: -5%).',
+    description: 'Convert narration text to audio using the configured TTS provider. Speech rate is controlled via TTS_RATE env var (default: -5%). If the caller has not specified a voice, call list_voices({ language }) first to show the user their options before synthesizing.',
     inputSchema: {
       type: 'object',
       required: ['productionId', 'sceneIndex', 'text'],
@@ -183,7 +183,9 @@ const TOOLS = {
       const stat = await fs.stat(outputPath);
       await telemetry.track({ productionId, stage: 'TTS', provider: process.env.PROVIDER_TTS || 'edge-tts', operation: 'tts_synthesis', units: text.length });
 
-      return { productionId, sceneIndex, audioPath: outputPath, sizeBytes: stat.size };
+      const result = { productionId, sceneIndex, audioPath: outputPath, sizeBytes: stat.size };
+      if (tts.lastWarning) result.warning = tts.lastWarning;
+      return result;
     },
   },
 
@@ -392,6 +394,10 @@ const TOOLS = {
         resolvedPid = `render_${crypto.randomBytes(4).toString('hex')}_${Date.now()}`;
       }
 
+      // Auto-detect: if every scene already has an audio_path, skip TTS automatically
+      const allScenesHaveAudio = resolvedScenes.length > 0 && resolvedScenes.every(s => s.audio_path);
+      const resolvedSkipTts = skipTts || allScenesHaveAudio;
+
       const renderWidth  = orientation === 'portrait' ? 1080 : 1920;
       const renderHeight = orientation === 'portrait' ? 1920 : 1080;
 
@@ -401,7 +407,7 @@ const TOOLS = {
         scenes:       resolvedScenes,
         parallelism:  4,
         skipImages,
-        skipTts,
+        skipTts: resolvedSkipTts,
         topic,
         style,
         theme,
@@ -556,6 +562,15 @@ Named presets (set EXTERNAL_PLATFORM_NAME to one of these and omit platformUrl):
   // The IDE agent writes the scenes array in its own context — no internal LLM needed.
   create_video_from_script: {
     description: `Agent-first video creation. YOU (the IDE agent) provide the complete scenes array — FrameForge renders it.
+
+VOICE SELECTION (required step before rendering):
+- When the user has NOT specified a voice, call list_voices({ language }) FIRST.
+- Show the returned markdown table in chat so the user can see their options.
+- Ask: "Which voice would you like? I can play short audio previews with preview_voice so you can hear them first."
+- If user wants to hear voices: call preview_voice({ voices: [...], language }) — returns audio files + base64 for immediate playback.
+- If user picks or says "just use the default": proceed with the recommended voice ID.
+- Never silently pick a voice without informing the user at least once.
+
 Features:
 - Code-driven animation and kinetic typography by default (broadcast quality, zero AI artifacts).
 - DYNAMIC PER-SCENE STYLES: Vary styles across scenes based on narrative function (never use a single flat style for an entire video):
@@ -592,10 +607,11 @@ Example scene:
         scenes:         { type: 'array',   description: 'Complete scenes array written by the agent. Each scene: { narration, caption, visual_description, style?, theme?, html?, code?, camera_hint?, music_mood?, image_path?, video_path?, audio_path?, voice? }' },
         title:          { type: 'string',  description: 'Video title' },
         orientation:    { type: 'string',  enum: ['landscape', 'portrait'], default: 'landscape', description: 'Output orientation. "landscape" = 1920×1080 (16:9, YouTube/desktop). "portrait" = 1080×1920 (9:16, TikTok/Reels/Shorts).' },
+        audio_path:     { type: 'string',  description: 'Master voiceover / narration audio file for entire video. Auto-slices per scene if timestamps/durations are given, or auto-fits scene durations, and skips TTS automatically.' },
         voice:          { type: 'string',  description: 'edge-tts voice ID for all scenes, e.g. "ml-IN-MidhunNeural" (Malayalam male), "en-US-BrianNeural" (English). Per-scene voice field overrides this. Full list: edge-tts --list-voices' },
         language:       { type: 'string',  description: 'BCP-47 language hint, e.g. "ml" (Malayalam), "hi" (Hindi), "ta" (Tamil), "te" (Telugu), "en" (English). Auto-selects a default voice for the language when voice is not set.' },
         skipTts:        { type: 'boolean', default: false, description: 'Set true if all scenes already have audio_path' },
-        parallelism:    { type: 'number',  default: 4, description: 'Concurrent TTS synthesis requests (default: 4 for fast multi-scene production).' },
+        parallelism:    { type: 'number',  default: 6, description: 'Concurrent TTS synthesis requests (default: 6 for fast multi-scene production).' },
         withMusic:      { type: 'boolean', default: true },
         musicVolume:    { type: 'number',  default: 0.07 },
         topic:          { type: 'string',  description: 'Overall topic/genre for visual aesthetic and background motion (e.g. "Kerala history", "crypto finance", "AI robotics")' },
@@ -606,13 +622,77 @@ Example scene:
         productionId:   { type: 'string',  description: 'Optional — reuse an existing productionId' },
       },
     },
-    handler: async ({ scenes, title = 'FrameForge Video', orientation = 'landscape', voice, language, skipTts = false, parallelism = 4, withMusic = true, musicVolume = 0.07, topic = '', style = '', theme = '', showCaptions = false, showAnchor = false, productionId }) => {
+    handler: async ({ scenes, audio_path, title = 'FrameForge Video', orientation = 'landscape', voice, language, skipTts = false, parallelism = 6, withMusic = true, musicVolume = 0.07, topic = '', style = '', theme = '', showCaptions = false, showAnchor = false, productionId }) => {
       const { runAssets } = require('../workflows/assets');
       const { runRender } = require('../workflows/render');
+      const syncFs = require('fs');
+      const pathMod = require('path');
+      const { spawnSync } = require('child_process');
 
       if (!Array.isArray(scenes) || scenes.length === 0) {
         throw new Error('scenes array is required and must not be empty. You (the IDE agent) write the scenes.');
       }
+
+      // If master audio_path is supplied at top level, auto-slice per scene if needed
+      if (audio_path) {
+        if (!syncFs.existsSync(audio_path)) {
+          throw new Error(`Master audio_path does not exist: "${audio_path}"`);
+        }
+        skipTts = true;
+        const pidTemp = productionId || `agent_${crypto.randomBytes(4).toString('hex')}_${Date.now()}`;
+        const slicesDir = pathMod.join(FILES_DIR, 'audio_slices', pidTemp);
+        syncFs.mkdirSync(slicesDir, { recursive: true });
+
+        const { VideoEditor } = require('../video-editor/editor');
+        const editor = new VideoEditor();
+        let masterDur = 0;
+        try {
+          masterDur = editor.probeMedia(audio_path).duration;
+        } catch (_) {}
+
+        let runningOffset = 0;
+        const perSceneDur = masterDur > 0 ? (masterDur / scenes.length) : 3.0;
+
+        for (let i = 0; i < scenes.length; i++) {
+          const s = scenes[i];
+          if (!s.audio_path) {
+            let startSec = s.start_time != null ? Number(s.start_time) : (s.startTime != null ? Number(s.startTime) : null);
+            let endSec = s.end_time != null ? Number(s.end_time) : (s.endTime != null ? Number(s.endTime) : null);
+            let durSec = s.duration != null ? Number(s.duration) : null;
+
+            if (startSec == null) startSec = runningOffset;
+            let sliceDur;
+            if (endSec != null && endSec > startSec) {
+              sliceDur = endSec - startSec;
+            } else if (durSec != null && durSec > 0) {
+              sliceDur = durSec;
+            } else {
+              sliceDur = perSceneDur;
+            }
+
+            const sliceFile = pathMod.join(slicesDir, `slice_${i}.m4a`);
+            spawnSync('ffmpeg', [
+              '-nostdin', '-y',
+              '-ss', String(startSec),
+              '-t', String(sliceDur),
+              '-i', audio_path,
+              '-c:a', 'aac', '-b:a', '192k',
+              sliceFile,
+            ], { encoding: 'utf8' });
+
+            if (syncFs.existsSync(sliceFile)) {
+              s.audio_path = sliceFile;
+              s.duration = sliceDur;
+            }
+            runningOffset = startSec + sliceDur;
+          }
+        }
+      }
+
+      // Auto-detect: if every scene already has an audio_path, skip TTS automatically
+      // so the user never has to remember to pass skipTts: true.
+      const allScenesHaveAudio = scenes.length > 0 && scenes.every(s => s.audio_path);
+      const resolvedSkipTts = skipTts || allScenesHaveAudio;
 
       // Auto-select voice from language hint when voice is not explicitly provided.
       // Maps BCP-47 language prefix → default edge-tts neural voice.
@@ -678,7 +758,7 @@ Example scene:
         productionId: pid,
         scenes: processedScenes,
         parallelism,
-        skipTts,
+        skipTts: resolvedSkipTts,
         voice: resolvedVoice,
         topic,
         style,
@@ -776,7 +856,252 @@ Example scene:
       const resolvedPlatform = platform || process.env.PROVIDER_TTS || 'edge-tts';
       await telemetry.track({ productionId, stage: 'TTS', provider: resolvedPlatform, operation: 'multi_voice_tts', units: text.length });
 
-      return { audioPath: resolvedOutput, sizeBytes: stat.size, platform: resolvedPlatform, voice };
+      const mvtResult = { audioPath: resolvedOutput, sizeBytes: stat.size, platform: resolvedPlatform, voice };
+      if (ttsInstance.lastWarning) mvtResult.warning = ttsInstance.lastWarning;
+      return mvtResult;
+    },
+  },
+
+  // ── Tool 12b: List available voices ──────────────────────────────────────
+  // Returns the voice catalog for a given language and active provider so the
+  // agent can present options to the user before synthesizing.
+  list_voices: {
+    description: `List available TTS voices for a language and provider. Call this BEFORE create_video_from_script, render_tts, or multi_voice_tts when the user has not specified a voice — show them the table, let them pick, then proceed.
+
+Returns each voice with: id (pass as the "voice" param), name, gender, style, provider, and whether it is available (key configured).
+
+Usage flow:
+  1. User says "make a Hindi video" or sends a request without specifying voice
+  2. Call list_voices({ language: "hi" }) → show the table in chat
+  3. Ask: "Which voice would you like? I can play a short audio preview with preview_voice if you'd like to hear them first. Or I'll use the recommended default."
+  4. User picks or asks for a preview → call preview_voice({ voices: ["hi-IN-MadhurNeural"], language: "hi" })
+  5. User confirms → pass voice id to create_video_from_script`,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        language: {
+          type: 'string',
+          description: 'BCP-47 language code (e.g. "en", "ml", "hi", "ta", "fr", "de"). Pass "all" to list every supported language.',
+        },
+        provider: {
+          type: 'string',
+          enum: ['edge-tts', 'elevenlabs', 'azure', 'openai', 'all'],
+          description: 'Filter to a specific provider. Omit or pass "all" to show voices from all providers.',
+        },
+      },
+    },
+    handler: async ({ language = 'en', provider = '' }) => {
+      const { getVoices, SUPPORTED_LANGUAGES } = require('../pipeline/voice-catalog');
+
+      // Determine which providers have keys configured
+      const activeProviders = ['edge-tts']; // always available
+      if (process.env.ELEVENLABS_API_KEY) activeProviders.push('elevenlabs');
+      if (process.env.AZURE_SPEECH_KEY || process.env.AZURE_TTS_KEY) activeProviders.push('azure');
+      if (process.env.OPENAI_API_KEY) activeProviders.push('openai');
+      if (process.env.VOXFORGE_URL) activeProviders.push('voxforge');
+
+      const filterProvider = provider === 'all' ? '' : provider;
+      const voices = getVoices(language === 'all' ? '' : language, filterProvider, activeProviders);
+
+      if (voices.length === 0) {
+        return {
+          voices: [],
+          message: `No voices found for language="${language}" provider="${provider || 'all'}". Supported languages: ${SUPPORTED_LANGUAGES.join(', ')}`,
+          activeProviders,
+        };
+      }
+
+      // Group by provider for cleaner presentation
+      const byProvider = {};
+      for (const v of voices) {
+        if (!byProvider[v.provider]) byProvider[v.provider] = [];
+        byProvider[v.provider].push(v);
+      }
+
+      // Build a markdown table the agent can paste directly into chat
+      const lines = [`**Available voices for language: ${language.toUpperCase()}**\n`];
+      for (const [prov, pvVoices] of Object.entries(byProvider)) {
+        const keyStatus = activeProviders.includes(prov) ? '✅ configured' : '⚠️ no key set';
+        lines.push(`### ${prov}  (${keyStatus})`);
+        lines.push('| # | Voice ID | Name | Gender | Style |');
+        lines.push('|---|---|---|---|---|');
+        pvVoices.forEach((v, i) => {
+          lines.push(`| ${i + 1} | \`${v.id}\` | ${v.name} | ${v.gender} | ${v.style} |`);
+        });
+        lines.push('');
+      }
+
+      // Auto-pick the recommended default (first available male on the active provider)
+      const activeProv = process.env.PROVIDER_TTS || 'edge-tts';
+      const recommended = voices.find(v => v.provider === activeProv && v.available)
+        || voices.find(v => v.available)
+        || voices[0];
+
+      lines.push(`**Recommended default:** \`${recommended.id}\` — ${recommended.name} (${recommended.gender}, ${recommended.style}, ${recommended.provider})`);
+      lines.push('');
+      lines.push('Pass the voice `id` as the `voice` parameter to `create_video_from_script`, `render_tts`, or `multi_voice_tts`.');
+
+      return {
+        voices,
+        byProvider,
+        recommended: recommended.id,
+        recommendedVoice: recommended,
+        activeProviders,
+        markdown: lines.join('\n'),
+        message: lines.join('\n'),
+      };
+    },
+  },
+
+  // ── Tool 12c: Preview voice (audio sample before committing to a voice) ──
+  // Synthesizes a short language-appropriate sample sentence for 1–4 voices
+  // and returns the audio as file path + base64 m4a so the IDE can play it inline.
+  preview_voice: {
+    description: `Synthesize a short audio sample (3–5 seconds) for one or more voices so the user can HEAR them before the full video renders. Returns audio file paths and base64-encoded m4a data for inline playback in the IDE.
+
+Call this when:
+- The user asks "can I hear the voice first?" or "play a sample"
+- You want to let the user compare 2–3 voices side-by-side before picking
+- After list_voices, before create_video_from_script
+
+The sample text is auto-selected for the language. You can pass custom_text to preview a specific phrase from the actual script.
+
+After preview: show the user which voice file to play, ask for confirmation, then pass the chosen voice id to create_video_from_script or render_tts.`,
+    inputSchema: {
+      type: 'object',
+      required: ['voices'],
+      properties: {
+        voices: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'List of voice IDs to preview (1–4). e.g. ["ml-IN-MidhunNeural", "ml-IN-SobhanaNeural"]',
+        },
+        language: {
+          type: 'string',
+          default: 'en',
+          description: 'BCP-47 language code for the sample sentence (e.g. "ml", "hi", "en"). Determines which sample text is spoken.',
+        },
+        provider: {
+          type: 'string',
+          enum: ['edge-tts', 'elevenlabs', 'azure', 'openai', 'auto'],
+          default: 'auto',
+          description: 'TTS provider to use. "auto" picks the best available for each voice.',
+        },
+        custom_text: {
+          type: 'string',
+          description: 'Optional custom text to speak instead of the default sample sentence. Keep under 20 words for a fast preview.',
+        },
+      },
+    },
+    handler: async ({ voices = [], language = 'en', provider = 'auto', custom_text }) => {
+      if (!Array.isArray(voices) || voices.length === 0) {
+        throw new Error('voices array is required. Pass 1–4 voice IDs from list_voices.');
+      }
+      if (voices.length > 4) {
+        throw new Error('Maximum 4 voices per preview call to keep it fast. Split into two calls if needed.');
+      }
+
+      const { SAMPLE_SENTENCES, VOICE_CATALOG, getVoices } = require('../pipeline/voice-catalog');
+      const { TTSProvider } = require('../pipeline/providers');
+      const pathMod = require('path');
+      const syncFs  = require('fs');
+
+      // Pick sample text
+      const lang = language.toLowerCase().slice(0, 2);
+      const sampleText = custom_text || SAMPLE_SENTENCES[lang] || SAMPLE_SENTENCES['en'];
+
+      // Output dir
+      const previewDir = pathMod.join(FILES_DIR, 'voice_previews');
+      await fs.mkdir(previewDir, { recursive: true });
+
+      // Look up each voice in the catalog to determine its provider
+      const allVoices = getVoices(lang, '', []);
+      const allVoicesFlat = Object.values(VOICE_CATALOG).flat();
+
+      const results = [];
+      for (const voiceId of voices) {
+        // Determine provider for this voice
+        let resolvedProvider = provider === 'auto' ? null : provider;
+        if (!resolvedProvider) {
+          const catalogEntry = allVoicesFlat.find(v => v.id === voiceId);
+          resolvedProvider = catalogEntry ? catalogEntry.provider : 'edge-tts';
+        }
+
+        const outFile = pathMod.join(
+          previewDir,
+          `preview_${voiceId.replace(/[^a-zA-Z0-9_-]/g, '_')}_${Date.now()}.m4a`
+        );
+
+        let success = false;
+        let errorMsg = null;
+        try {
+          const tts = new TTSProvider({ platform: resolvedProvider });
+          await tts.synthesize({ text: sampleText, voice: voiceId, outputPath: outFile, language });
+          success = true;
+        } catch (err) {
+          // Fallback: try edge-tts if the configured provider fails
+          if (resolvedProvider !== 'edge-tts') {
+            try {
+              const tts2 = new TTSProvider({ platform: 'edge-tts' });
+              await tts2.synthesize({ text: sampleText, voice: voiceId, outputPath: outFile, language });
+              resolvedProvider = 'edge-tts (fallback)';
+              success = true;
+            } catch (err2) {
+              errorMsg = err2.message;
+            }
+          } else {
+            errorMsg = err.message;
+          }
+        }
+
+        let audioBase64 = null;
+        let sizeBytes = 0;
+        if (success && syncFs.existsSync(outFile)) {
+          sizeBytes = syncFs.statSync(outFile).size;
+          if (sizeBytes > 0) {
+            audioBase64 = syncFs.readFileSync(outFile).toString('base64');
+          }
+        }
+
+        results.push({
+          voiceId,
+          provider: resolvedProvider,
+          audioPath: success ? outFile : null,
+          audioBase64,         // base64-encoded m4a — IDEs with audio support can play this inline
+          mimeType: 'audio/mp4',
+          sizeBytes,
+          sampleText,
+          success,
+          error: errorMsg,
+        });
+      }
+
+      const succeeded = results.filter(r => r.success);
+      const failed    = results.filter(r => !r.success);
+
+      const lines = [
+        `**Voice Preview — ${succeeded.length}/${voices.length} rendered**`,
+        `Language: ${language.toUpperCase()} | Sample: "${sampleText.slice(0, 60)}${sampleText.length > 60 ? '…' : ''}"`,
+        '',
+      ];
+      for (const r of succeeded) {
+        lines.push(`✅ **${r.voiceId}** (${r.provider}) → \`${r.audioPath}\``);
+      }
+      for (const r of failed) {
+        lines.push(`❌ **${r.voiceId}** — ${r.error}`);
+      }
+      lines.push('');
+      lines.push('Each result includes `audioBase64` (base64 m4a). To play: decode and save as .m4a, or use the audioPath directly.');
+      lines.push('Once you\'ve chosen, pass the voiceId to `create_video_from_script` or `render_tts`.');
+
+      return {
+        previews: results,
+        succeeded: succeeded.length,
+        failed: failed.length,
+        sampleText,
+        language,
+        message: lines.join('\n'),
+      };
     },
   },
 
@@ -1694,6 +2019,55 @@ Features:
       auto_fit = false,
       output_path = null,
     }) => {
+      const syncFs  = require('fs');
+      const pathMod = require('path');
+
+      // Validate every clip's video_path exists before handing off to FFmpeg.
+      for (let i = 0; i < clips.length; i++) {
+        const vp = clips[i].video_path || clips[i].videoPath || clips[i].path;
+        if (!vp) throw new Error(`Clip ${i}: video_path is required`);
+        if (!syncFs.existsSync(vp)) {
+          throw new Error(
+            `Clip ${i}: video file does not exist: "${vp}". ` +
+            `Provide an absolute path to a local video file (e.g. /home/user/clip.mp4 or C:\\Users\\user\\clip.mp4).`
+          );
+        }
+        // Per-clip audio_path validation
+        const cp = clips[i].audio_path || clips[i].audioPath;
+        if (cp && !syncFs.existsSync(cp)) {
+          throw new Error(
+            `Clip ${i}: audio_path does not exist: "${cp}". ` +
+            `Check the file path, or remove audio_path to use the clip's own audio track.`
+          );
+        }
+      }
+
+      // Validate master audio and music paths
+      if (audio_path && !syncFs.existsSync(audio_path)) {
+        throw new Error(
+          `audio_path does not exist: "${audio_path}". ` +
+          `Provide an absolute path to a local audio file (e.g. /home/user/voice.mp3), ` +
+          `or remove audio_path to keep the clips' original audio.`
+        );
+      }
+      if (music_path && !syncFs.existsSync(music_path)) {
+        throw new Error(
+          `music_path does not exist: "${music_path}". ` +
+          `Check the file path or remove music_path to skip background music.`
+        );
+      }
+
+      // Path traversal guard on output_path (must stay inside FILES_DIR if provided)
+      if (output_path) {
+        const absOut     = pathMod.resolve(output_path);
+        const absFilesDir = pathMod.resolve(FILES_DIR);
+        // Allow any absolute path that is either inside FILES_DIR or is an absolute user path
+        // — only block relative paths that resolve outside cwd (simple traversal patterns).
+        if (output_path.includes('..')) {
+          throw new Error(`output_path must not contain ".." path traversal sequences.`);
+        }
+      }
+
       const { VideoEditor } = require('../video-editor/editor');
       const editor = new VideoEditor({ filesDir: FILES_DIR });
       return editor.editAndAssemble({
@@ -1811,13 +2185,31 @@ Allows the agent in Claude Code, Cursor, or any IDE to inspect the visual output
         try { syncFs.unlinkSync(tempHtmlPath); } catch (_) {}
       }
 
+      // Embed each PNG as base64 so IDE agents (Claude Code, Cursor, Windsurf) can
+      // display the images inline in the chat without a separate read_file call.
+      const previewsWithData = captures.map(c => {
+        let dataUrl = null;
+        try {
+          const buf = syncFs.readFileSync(c.path);
+          dataUrl = `data:image/png;base64,${buf.toString('base64')}`;
+        } catch (_) {}
+        return { ...c, dataUrl };
+      });
+
       return {
-        previews: captures,
-        count: captures.length,
+        previews: previewsWithData,
+        count: previewsWithData.length,
         width,
         height,
         duration,
-        message: 'Preview stills captured. You can read the image files from disk to inspect the visual composition.'
+        // Human-readable summary the agent can paste into chat
+        message: [
+          `${previewsWithData.length} preview still(s) rendered at t=${previewsWithData.map(p => p.timestamp + 's').join(', ')}:`,
+          ...previewsWithData.map(p => `  • t=${p.timestamp}s → ${p.path}${p.dataUrl ? ' (embedded)' : ''}`),
+          '',
+          'Each preview.dataUrl is a base64 PNG you can display inline in the IDE chat.',
+          'If a frame looks wrong, fix the scene code/html and call preview_scene again before full render.',
+        ].join('\n'),
       };
     },
   },
@@ -2135,7 +2527,7 @@ Professional audio rules applied:
       planMd += `- L-cuts: current audio extends 0.3s into next clip's video\n\n`;
       planMd += `## 🚀 Execution & Approval\n\n`;
       planMd += `Review this plan, then execute with \`edit_video\` using the payload in \`edit.json\`.\n`;
-      planMd += `\nGenerated by FrameForge v2.7.13 — plan_video_edit with J/L-cut support (lemo-opuscar DIRECTOR.md)\n`;
+      planMd += `\nGenerated by FrameForge v2.7.14 — plan_video_edit with J/L-cut support (lemo-opuscar DIRECTOR.md)\n`;
 
       // 8. Build TREATMENT.md (lemo-opuscar DIRECTOR.md — 8-section format)
       let treatmentMd = '';
@@ -2176,7 +2568,7 @@ Professional audio rules applied:
         treatmentMd += `## 8. Director Notes\n\n`;
         treatmentMd += `_Add creative direction, mood references, or client notes here._\n\n`;
         treatmentMd += `---\n\n`;
-        treatmentMd += `*Generated by FrameForge v2.7.13 — lemo-opuscar DIRECTOR.md format*\n`;
+        treatmentMd += `*Generated by FrameForge v2.7.14 — lemo-opuscar DIRECTOR.md format*\n`;
       }
 
       // 9. Write outputs
@@ -2257,7 +2649,7 @@ Professional audio rules applied:
     handler: async () => {
       const syncFs = require('fs');
       const { MANIFEST_PATH, REPOSITORIES } = require('../skills/sync-upstream');
-      let manifest = { lastSync: null, repos: {}, version: '2.7.13', pendingUpdates: [] };
+      let manifest = { lastSync: null, repos: {}, version: '2.7.14', pendingUpdates: [] };
       if (syncFs.existsSync(MANIFEST_PATH)) {
         try { manifest = JSON.parse(syncFs.readFileSync(MANIFEST_PATH, 'utf8')); } catch (_) {}
       }
@@ -2304,7 +2696,7 @@ Professional audio rules applied:
       return {
         success: true,
         lastSync: manifest.lastSync,
-        manifestVersion: manifest.version || '2.7.13',
+        manifestVersion: manifest.version || '2.7.14',
         totalRepos: repos.length,
         syncedCount,
         pendingUpdates,
@@ -3548,7 +3940,7 @@ Get a style id from list_motion_styles first. Source: FrameForge Motion Library 
 
 const SERVER_INFO = {
   name:    'video-pipeline',
-  version: '2.7.13',
+  version: '2.7.14',
 };
 
 const CAPABILITIES = {

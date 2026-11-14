@@ -84,15 +84,40 @@ const hasCloudTts = Boolean(
   process.env.VOXFORGE_URL
 );
 
+// Detect npx vs cloned-repo path for actionable fix instructions
+const _isNpxDoctor = !!(
+  process.env.__FRAMEFORGE_NPX__ === '1' ||
+  path.resolve(process.argv[1] || '').includes('_npx') ||
+  path.resolve(process.argv[1] || '').includes(path.join('npm', 'cache'))
+);
+const _ttsFixHint = _isNpxDoctor
+  ? 'Run: npx frameforge-setup  — choose "ElevenLabs" and paste your API key. It saves to ~/.frameforge/config.json (used automatically by npx frameforge-mcp).'
+  : 'Run "pip install edge-tts"  OR  add ELEVENLABS_API_KEY=sk_... + PROVIDER_TTS=elevenlabs to your .env file.\n' +
+    '    ElevenLabs is free: 10 000 credits/month — https://elevenlabs.io';
+
+const ttsProvider = (process.env.PROVIDER_TTS || 'edge-tts').toLowerCase();
+
 if (edgeTts.status === 0) {
-  pass('Voice Engine', `edge-tts CLI available (${(edgeTts.stdout || '').trim()})`);
+  const detail = ttsProvider !== 'edge-tts'
+    ? `edge-tts CLI available, but PROVIDER_TTS=${ttsProvider} — using cloud TTS`
+    : `edge-tts CLI ready (${(edgeTts.stdout || '').trim()})`;
+  pass('Voice Engine', detail);
+  // Bonus: tell the user about ElevenLabs if they're on edge-tts and no key is set
+  if (ttsProvider === 'edge-tts' && !process.env.ELEVENLABS_API_KEY) {
+    console.log(`    ${COLORS.cyan}↳ Tip: ElevenLabs gives 10 000 free credits/month for much better voice quality.${COLORS.reset}`);
+    console.log(`    ${COLORS.cyan}   ${_isNpxDoctor ? 'Run: npx frameforge-setup' : 'Add ELEVENLABS_API_KEY to .env + set PROVIDER_TTS=elevenlabs'}${COLORS.reset}`);
+  }
 } else if (hasCloudTts) {
-  pass('Voice Engine', 'TTS provider (VoxForge or Cloud API) configured via environment');
+  pass('Voice Engine', `TTS provider configured: ${ttsProvider}`);
+  if (ttsProvider === 'elevenlabs') {
+    const keyPreview = process.env.ELEVENLABS_API_KEY ? process.env.ELEVENLABS_API_KEY.slice(0, 4) + '…' : '(key set)';
+    pass('  ElevenLabs key', `${keyPreview}  voice=${process.env.ELEVENLABS_VOICE_ID || 'Rachel (default)'}`);
+  }
 } else {
   warn(
     'Voice Engine',
-    'Neither edge-tts CLI nor configured TTS provider detected',
-    'Run "pip install edge-tts" for free offline voiceover, set VOXFORGE_URL (VoxForge), or set OPENAI_API_KEY / ELEVENLABS_API_KEY in .env'
+    'Neither edge-tts CLI nor a TTS API key detected',
+    _ttsFixHint
   );
 }
 

@@ -362,6 +362,7 @@ class TTSProvider {
   constructor(opts = {}) {
     this.name        = (opts.platform || process.env.PROVIDER_TTS || 'edge-tts').toLowerCase();
     this._overrides  = opts; // stash for _* methods that read env vars
+    this.lastWarning = null; // set when a provider falls back (e.g. ElevenLabs → edge-tts)
   }
 
   /**
@@ -381,8 +382,11 @@ class TTSProvider {
 
     const gender = (process.env.TTS_VOICE_GENDER || 'default').toLowerCase();
 
-    // Language detection for edge-tts — Unicode-range script detection + BCP-47 hint
-    if (this.name === 'edge-tts') {
+    // Language detection for edge-tts AND azure — both use the same Neural voice IDs
+    // (e.g. hi-IN-MadhurNeural works on both platforms).
+    // This ensures that when _fallbackTTS switches this.name to 'azure', the same
+    // language-aware voice is selected instead of falling back to en-US-GuyNeural.
+    if (this.name === 'edge-tts' || this.name === 'azure') {
       // Unicode script ranges (text content detection)
       if (text && /[\u0D00-\u0D7F]/.test(text)) {
         return gender === 'female' ? 'ml-IN-SobhanaNeural' : 'ml-IN-MidhunNeural';
@@ -470,14 +474,75 @@ class TTSProvider {
     const resolvedVoice = this.selectNarratorVoice(voice, text, language);
     switch (this.name) {
       case 'edge-tts':   return this._edgeTTS({ text, voice: resolvedVoice, outputPath });
-      case 'elevenlabs': return this._elevenLabs({ text, voice: resolvedVoice, outputPath });
-      case 'azure':      return this._azureTTS({ text, voice: resolvedVoice, outputPath });
+      case 'elevenlabs': return this._elevenLabs({ text, voice: resolvedVoice, outputPath, language });
+      case 'azure':      return this._azureTTS({ text, voice: resolvedVoice, outputPath, language });
       case 'openai':     return this._openaiTTS({ text, voice: resolvedVoice, outputPath });
       case 'voxforge':   return this._voxforgeTTS({ text, voice: resolvedVoice, outputPath });
       case 'custom':
       case 'webhook':    return this._customTTS({ text, voice: resolvedVoice, outputPath });
       default:           return this._edgeTTS({ text, voice: resolvedVoice, outputPath });
     }
+  }
+
+  /**
+   * Smart fallback TTS: tries available providers in priority order
+   * (azure → openai → voxforge → edge-tts) so the best configured voice
+   * is used instead of always dropping to edge-tts.
+   *
+   * Voice selection is re-run for each candidate provider so the language
+   * mapping (Unicode detection + BCP-47 hint) produces the correct voice ID
+   * for that provider's voice catalog.
+   *
+   * @param {{ text: string, outputPath: string, language?: string, fromProvider: string }} opts
+   * @returns {Promise<{ outputPath: string, usedProvider: string }>}
+   */
+  async _fallbackTTS({ text, outputPath, language = '', fromProvider }) {
+    // Ordered fallback chain — skip the provider that already failed.
+    // azure: best non-ElevenLabs multilingual (Neural voices, SSML, 140+ locales)
+    // openai: good English; limited language range but reliable
+    // voxforge: self-hosted; needs VOXFORGE_URL set
+    // edge-tts: always available offline, 400+ voices across all languages
+    const chain = [
+      {
+        name: 'azure',
+        available: () => !!(process.env.AZURE_SPEECH_KEY || process.env.AZURE_TTS_KEY),
+        call: (v) => this._azureTTS({ text, voice: v, outputPath, language }),
+      },
+      {
+        name: 'openai',
+        available: () => !!(this._overrides.apiKey || process.env.OPENAI_API_KEY),
+        call: (v) => this._openaiTTS({ text, voice: v, outputPath }),
+      },
+      {
+        name: 'voxforge',
+        available: () => !!(process.env.VOXFORGE_URL),
+        call: (v) => this._voxforgeTTS({ text, voice: v, outputPath }),
+      },
+      {
+        name: 'edge-tts',
+        available: () => true, // always available — no key needed
+        call: (v) => this._edgeTTS({ text, voice: v, outputPath }),
+      },
+    ].filter(p => p.name !== fromProvider);
+
+    for (const provider of chain) {
+      if (!provider.available()) continue;
+      try {
+        // Re-derive the correct voice for this provider + language combination.
+        // Temporarily swap this.name so selectNarratorVoice uses the right voice catalog.
+        const prevName = this.name;
+        this.name = provider.name;
+        const fbVoice = this.selectNarratorVoice(null, text, language);
+        this.name = prevName;
+
+        await provider.call(fbVoice);
+        return { outputPath, usedProvider: provider.name };
+      } catch (_) {
+        // try next provider in chain
+      }
+    }
+    // Should never reach here — edge-tts is always last and always available
+    throw new Error(`All TTS providers failed. Install edge-tts: pip install edge-tts`);
   }
 
   /**
@@ -590,21 +655,48 @@ class TTSProvider {
     }, { maxAttempts: 3, baseDelayMs: 3000, label: 'TTS(edge-tts)' });
   }
 
-  async _elevenLabs({ text, voice, outputPath }) {
+  async _elevenLabs({ text, voice, outputPath, language = '' }) {
     const apiKey   = this._overrides.apiKey || process.env.ELEVENLABS_API_KEY;
-    if (!apiKey) throw new Error('ELEVENLABS_API_KEY not set');
+    if (!apiKey) {
+      // No key set — fall back to best available provider for this language.
+      const isNpx = !!(
+        (process.env.__FRAMEFORGE_NPX__ === '1') ||
+        require('path').resolve(process.argv[1] || '').includes('_npx') ||
+        require('path').resolve(process.argv[1] || '').includes(require('path').join('npm', 'cache'))
+      );
+      const fixHint = isNpx
+        ? 'Run: npx frameforge-setup  — choose ElevenLabs and enter your API key. It will be saved to ~/.frameforge/config.json automatically.'
+        : 'Add ELEVENLABS_API_KEY=sk_... and PROVIDER_TTS=elevenlabs to your .env file (or run: npx frameforge-setup).';
+      const fb = await this._fallbackTTS({ text, outputPath, language, fromProvider: 'elevenlabs' });
+      this.lastWarning = `ELEVENLABS_API_KEY is not set — using ${fb.usedProvider} voice instead. ` +
+        `ElevenLabs gives 10 000 free credits/month at https://elevenlabs.io. ${fixHint}`;
+      process.stderr.write(`[TTSProvider] ${this.lastWarning}\n`);
+      return outputPath;
+    }
     const voiceId  = process.env.ELEVENLABS_VOICE_ID || voice || 'Rachel';
     const body     = { text, model_id: 'eleven_multilingual_v2', voice_settings: { stability: 0.5, similarity_boost: 0.75 } };
-    return withRetry(async () => {
-      const audio = await httpPost(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, body, {
-        'xi-api-key': apiKey, 'Accept': 'audio/mpeg', 'Content-Type': 'application/json',
-      });
-      await fs.writeFile(outputPath, Buffer.isBuffer(audio) ? audio : Buffer.from(audio, 'binary'));
+    try {
+      return await withRetry(async () => {
+        const audio = await httpPost(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, body, {
+          'xi-api-key': apiKey, 'Accept': 'audio/mpeg', 'Content-Type': 'application/json',
+        });
+        await fs.writeFile(outputPath, Buffer.isBuffer(audio) ? audio : Buffer.from(audio, 'binary'));
+        const stat = await fs.stat(outputPath);
+        if (stat.size < 500) throw new Error('ElevenLabs returned an empty audio file');
+        return outputPath;
+      }, { maxAttempts: 3, baseDelayMs: 5000, label: 'TTS(elevenlabs)' });
+    } catch (err) {
+      // Quota exhausted or network error — fall back to best available provider for this language.
+      const fb = await this._fallbackTTS({ text, outputPath, language, fromProvider: 'elevenlabs' });
+      this.lastWarning = `ElevenLabs TTS failed (${err.message}) — using ${fb.usedProvider} voice instead. ` +
+        `Check your ELEVENLABS_API_KEY and monthly quota at https://elevenlabs.io — ` +
+        `you have 10 000 free credits/month.`;
+      process.stderr.write(`[TTSProvider] ${this.lastWarning}\n`);
       return outputPath;
-    }, { maxAttempts: 3, baseDelayMs: 5000, label: 'TTS(elevenlabs)' });
+    }
   }
 
-  async _azureTTS({ text, voice, outputPath }) {
+  async _azureTTS({ text, voice, outputPath, language = '' }) {
     // Accept both AZURE_SPEECH_KEY (documented) and AZURE_TTS_KEY (legacy)
     const key    = this._overrides.apiKey || process.env.AZURE_SPEECH_KEY || process.env.AZURE_TTS_KEY;
     const region = process.env.AZURE_SPEECH_REGION || process.env.AZURE_TTS_REGION || 'eastus';
@@ -612,7 +704,12 @@ class TTSProvider {
     const resolvedVoice = voice || NARRATOR_VOICES.azure.default;
     // Natural rate via override or env TTS_RATE; default is no change (+0%)
     const rate = this._overrides.rate || process.env.TTS_RATE || '+0%';
-    const ssml = `<speak version="1.0" xml:lang="en-US"><voice name="${resolvedVoice}"><prosody rate="${rate}">${text}</prosody></voice></speak>`;
+    // Derive the xml:lang locale from the voice name (e.g. "hi-IN-MadhurNeural" → "hi-IN")
+    // so Azure speaks in the correct language and not en-US by default.
+    const xmlLang = resolvedVoice && resolvedVoice.includes('-')
+      ? resolvedVoice.split('-').slice(0, 2).join('-')
+      : (language ? language.slice(0, 5) : 'en-US');
+    const ssml = `<speak version="1.0" xml:lang="${xmlLang}"><voice name="${resolvedVoice}"><prosody rate="${rate}">${text}</prosody></voice></speak>`;
     return withRetry(async () => {
       const audio = await httpPost(
         `https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`,
