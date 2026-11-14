@@ -4,6 +4,34 @@ All notable changes to FrameForge are documented here.
 
 ---
 
+## [2.7.16] — 2026-11-14
+
+### Audio Quality — Broadcast-Grade Pipeline
+
+- **320k AAC everywhere**: All final audio outputs (voice chain, ducked mix, SFX mix, mux-into-video, loudnorm master, TTS fallback re-encode) upgraded from 192k → 320k AAC @ 48kHz stereo across `mixer.js`, `server.js` (mix_audio_pro tool), and `providers.js` (edge-tts path).
+- **Spectral noise reduction on all voice paths**: Added `afftdn=nf=-48:nr=10` (spectral denoiser) to `mixer.js` `_buildVoiceChainFilter`, `server.js` mix_audio_pro voice chain, and `providers.js` edge-tts normalisation filter. Removes room tone and hiss between words without affecting voice timbre.
+- **Mud cut on all voice paths**: Added `equalizer=f=300:width_type=o:width=1.2:g=-1.5` (−1.5 dB @ 300 Hz) to `server.js` mix_audio_pro voice chain — matches the existing mud cut already in `mixer.js` and `providers.js`. Clears the low-mid buildup that makes voices sound boxy.
+
+### Video Quality — Maximum Encode Settings
+
+- **`slow/CRF 17` on every encode path**: All video encode paths across `renderer.js`, `editor.js`, `extractor.js`, and `server.js` (karaoke subtitle burn) upgraded from `veryfast/CRF 22` or `fast/CRF 18` → `slow/CRF 17`. Produces significantly sharper detail, better motion handling, and visibly reduced blocking artefacts.
+- **`aq-mode=3:deblock=-1,-1` universally**: Full x264-params (`aq-mode=3:deblock=-1,-1:colorprim=bt709:transfer=bt709:colormatrix=bt709`) now applied on all encode paths in `renderer.js`, `editor.js`, `extractor.js`, and `server.js`. Adaptive quantisation mode 3 (JND-based) prevents over-quantising flat regions; `deblock=-1,-1` softens ringing without blurring edges.
+- **FPS default 30 everywhere**: `renderScene`, `_renderCodeAnimationScene`, and JSDoc comment all updated from 24 → 30 fps. All generated animations now render at 30 fps by default.
+
+### Generation Speed — Token & Parallelism Optimisation
+
+- **Dynamic LLM token budget for scripts**: `script.js` now computes `tokenBudget = min(32000, max(4000, scenes × 180 + 1500))` instead of a flat 32000 cap. A 10-scene video uses ~3300 tokens, cutting cost ~90% while still giving long videos the budget they need.
+- **Scene animator `maxTokens` halved**: `generateSceneCodeWithLLM` reduced from 4000 → 2000 tokens (scene HTML code rarely exceeds 1500 tokens in practice).
+- **TTS parallelism default 6**: `assets.js` and `create_video_from_script` MCP tool default parallelism raised from 4 → 6 concurrent TTS renders.
+- **Narration density**: Word count guidance tightened to 12–22 words/scene (was 8–18). Visual descriptions now explicitly demand animated motion language rather than static subjects.
+
+### Style Coverage — All 102 Motion Styles Resolved
+
+- **`MOTION_STYLE_AESTHETICS` expanded 74 → 102**: All 40 newer 3D styles added to `scene-animator.js` detectAesthetic — previously fell through to slow keyword guessing.
+- **`STYLE_AESTHETICS` expanded 24 → 117**: All 102 catalog style IDs plus common aliases now have explicit aesthetic hint strings in `generateSceneCodeWithLLM`. Previously 78 styles received vague generic fallbacks.
+
+---
+
 ## [2.7.11] — 2026-11-13
 
 ### Added

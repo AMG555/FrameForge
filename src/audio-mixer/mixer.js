@@ -301,6 +301,7 @@ class AudioMixer {
     }
     chain.push(
       'highpass=f=80',
+      'afftdn=nf=-48:nr=10',                             // spectral noise reduction (removes room tone / hiss between words)
       'equalizer=f=300:width_type=o:width=1.2:g=-1.5',   // mud / boxiness cut
       'equalizer=f=5000:width_type=o:width=2:g=2.0',     // presence boost
       'equalizer=f=12000:width_type=s:width=1:g=1.5',    // air shelf
@@ -614,7 +615,7 @@ class AudioMixer {
       '-map', '0:v',
       '-map', '[audio_out]',
       '-c:v', 'copy',
-      '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-ac', '2',
+      '-c:a', 'aac', '-b:a', '320k', '-ar', '48000', '-ac', '2',
       ...(videoDur > 0 ? ['-t', String(videoDur)] : []),
       '-movflags', '+faststart',
       outputPath,
@@ -744,7 +745,7 @@ class AudioMixer {
         const cr = spawnSync('ffmpeg', [
           '-nostdin', '-y', ...sfxInputs,
           '-filter_complex', sfxFilter, '-map', '[sfxout]',
-          '-c:a', 'aac', '-b:a', '128k', '-ar', '48000', '-ac', '2',
+          '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-ac', '2',
           sfxTrackPath,
         ], { encoding: 'utf8', timeout: 120000 });
         if (cr.status !== 0) throw new Error(`SFX combine failed: ${(cr.stderr || '').slice(-200)}`);
@@ -757,7 +758,7 @@ class AudioMixer {
         '-i', sfxTrackPath,
         '-filter_complex', '[0:a][1:a]amix=inputs=2:duration=first:normalize=0[out]',
         '-map', '[out]',
-        '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-ac', '2',
+        '-c:a', 'aac', '-b:a', '320k', '-ar', '48000', '-ac', '2',
         '-t', String(totalDur),
         outputPath,
       ], { timeout: 120000, encoding: 'utf8' });

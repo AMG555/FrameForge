@@ -147,7 +147,7 @@ class VideoRenderer {
    *   manifest?:          ArtifactManifest  // optional — enables idempotency
    *   renderWidth?:       number,   // default 1920
    *   renderHeight?:      number,   // default 1080
-   *   fps?:               number,   // default 24
+   *   fps?:               number,   // default 30
    *   startTime?:         number|string,
    *   trimStart?:         number|string,
    *   endTime?:           number|string,
@@ -370,7 +370,7 @@ class VideoRenderer {
       '-af', `apad=whole_dur=${clampedDur}`,
       '-t', String(clampedDur),
       '-map', '0:v:0', '-map', '1:a:0',
-      '-c:v', 'libx264', '-preset', 'fast', '-crf', '17',
+      '-c:v', 'libx264', '-preset', 'slow', '-crf', '17',
       '-profile:v', 'high', '-level', '4.1',
       '-color_range', 'tv', '-colorspace', 'bt709',
       '-color_primaries', 'bt709', '-color_trc', 'bt709',
@@ -412,7 +412,7 @@ class VideoRenderer {
     clampedDur,
     renderWidth,
     renderHeight,
-    fps = 24,
+    fps = 30,
     outputPath,
     manifest,
     musicMood,
@@ -523,7 +523,7 @@ class VideoRenderer {
         '-i', framesPattern,
         '-i', audioForEncode,
         '-map', '0:v:0', '-map', '1:a:0',
-        '-c:v', 'libx264', '-preset', 'fast', '-crf', '17',
+        '-c:v', 'libx264', '-preset', 'slow', '-crf', '17',
         '-profile:v', 'high', '-level', '4.1',
         '-color_range', 'tv', '-colorspace', 'bt709',
         '-color_primaries', 'bt709', '-color_trc', 'bt709',

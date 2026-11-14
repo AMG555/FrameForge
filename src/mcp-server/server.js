@@ -676,7 +676,7 @@ Example scene:
               '-ss', String(startSec),
               '-t', String(sliceDur),
               '-i', audio_path,
-              '-c:a', 'aac', '-b:a', '192k',
+              '-c:a', 'aac', '-b:a', '320k',
               sliceFile,
             ], { encoding: 'utf8' });
 
@@ -2949,7 +2949,7 @@ Outputs broadcast-ready 48kHz/192k AAC stereo.`,
         }
         runFfmpeg([
           '-i', inPath, '-af', filterStr,
-          '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-ac', '2',
+          '-c:a', 'aac', '-b:a', '320k', '-ar', '48000', '-ac', '2',
           outPath,
         ], `Two-pass loudnorm ${pathMod.basename(inPath)}`);
       }
@@ -2988,8 +2988,10 @@ Outputs broadcast-ready 48kHz/192k AAC stereo.`,
       }
       voiceFilterParts.push(
         'highpass=f=80',
-        'equalizer=f=5000:width_type=o:width=2:g=2.0',   // presence boost
-        'equalizer=f=12000:width_type=s:width=1:g=1.5',  // air shelf
+        'equalizer=f=300:width_type=o:width=1.2:g=-1.5',  // mud cut
+        'equalizer=f=5000:width_type=o:width=2:g=2.0',    // presence boost
+        'equalizer=f=12000:width_type=s:width=1:g=1.5',   // air shelf
+        'afftdn=nf=-48:nr=10',                             // spectral noise reduction
         'acompressor=ratio=3:threshold=-20dB:attack=5:release=50:makeup=2',
         `equalizer=f=${deEsserFreq}:width_type=h:width=${deEsserBW}:g=-3.0`, // de-esser
       );
@@ -3003,7 +3005,7 @@ Outputs broadcast-ready 48kHz/192k AAC stereo.`,
       runFfmpeg([
         '-i', voicePath,
         '-af', voiceFilterWithReverb,
-        '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-ac', '2',
+        '-c:a', 'aac', '-b:a', '320k', '-ar', '48000', '-ac', '2',
         voiceChainPath,
       ], 'Voice chain (noise gate + EQ + de-esser + compress + room)');
 
@@ -3059,7 +3061,7 @@ Outputs broadcast-ready 48kHz/192k AAC stereo.`,
             '-f', 'lavfi', '-i', `sine=f=${freq}:d=${sfxDur}`,
             '-filter_complex', `[1:a]volume=${cueVol * 0.35},adelay=${adelayMs}|${adelayMs}[sfx];[0:a][sfx]amix=inputs=2:duration=first[out]`,
             '-map', '[out]',
-            '-c:a', 'aac', '-b:a', '128k', '-ar', '48000', '-ac', '2',
+            '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-ac', '2',
             '-t', String(voiceDur),
             sfxPath,
           ], `SFX synthesis: ${sfxName} at t=${cueTime}s`);
@@ -3077,7 +3079,7 @@ Outputs broadcast-ready 48kHz/192k AAC stereo.`,
             ...sfxInputs,
             '-filter_complex', sfxFilter,
             '-map', '[sfxout]',
-            '-c:a', 'aac', '-b:a', '128k', '-ar', '48000', '-ac', '2',
+            '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-ac', '2',
             sfxMixPath,
           ], 'SFX combine');
         }
@@ -3124,7 +3126,7 @@ Outputs broadcast-ready 48kHz/192k AAC stereo.`,
           ...sfxInputPart,
           '-filter_complex', filterComplex,
           '-map', mapExpr,
-          '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-ac', '2',
+          '-c:a', 'aac', '-b:a', '320k', '-ar', '48000', '-ac', '2',
           duckedMixPath,
         ], 'Sidechain ducking + SFX mix');
         finalMixPath = duckedMixPath;
@@ -3135,7 +3137,7 @@ Outputs broadcast-ready 48kHz/192k AAC stereo.`,
           '-i', voiceChainPath, '-i', sfxMixPath,
           '-filter_complex', '[0:a][1:a]amix=inputs=2:duration=first:normalize=0[out]',
           '-map', '[out]',
-          '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-ac', '2',
+          '-c:a', 'aac', '-b:a', '320k', '-ar', '48000', '-ac', '2',
           sfxVoiceMix,
         ], 'Voice + SFX mix');
         finalMixPath = sfxVoiceMix;
@@ -3158,7 +3160,7 @@ Outputs broadcast-ready 48kHz/192k AAC stereo.`,
           '-i', videoPath, '-i', normPath,
           '-map', '0:v', '-map', '1:a',
           '-c:v', 'copy',
-          '-c:a', 'aac', '-b:a', '192k',
+          '-c:a', 'aac', '-b:a', '320k',
           ...(vd > 0 ? ['-t', String(vd)] : []),
           '-movflags', '+faststart',
           outputPath,
@@ -3168,7 +3170,7 @@ Outputs broadcast-ready 48kHz/192k AAC stereo.`,
         const copyRes = spawnSync('ffmpeg', ['-nostdin', '-y', '-i', normPath, '-c', 'copy', outputPath], { encoding: 'utf8', timeout: 30000 });
         if (copyRes.status !== 0) {
           // Fallback: re-encode
-          runFfmpeg(['-i', normPath, '-c:a', 'aac', '-b:a', '192k', outputPath], 'Copy audio output');
+          runFfmpeg(['-i', normPath, '-c:a', 'aac', '-b:a', '320k', outputPath], 'Copy audio output');
         }
       }
 
@@ -3741,8 +3743,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         '-nostdin', '-y',
         '-i', videoPath,
         '-vf', `ass='${escapedAss}'`,
-        '-c:v', 'libx264', '-preset', 'fast', '-crf', '18',
+        '-c:v', 'libx264', '-preset', 'slow', '-crf', '17',
         '-profile:v', 'high', '-pix_fmt', 'yuv420p',
+        '-x264-params', 'colorprim=bt709:transfer=bt709:colormatrix=bt709:aq-mode=3:deblock=-1\\,-1',
         '-c:a', 'copy',
         '-movflags', '+faststart',
         outputPath,

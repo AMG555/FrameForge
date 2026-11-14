@@ -32,7 +32,7 @@ export function buildFramesEncodeArgs({
     args.push(
       '-i', audioPath,
       '-c:a', 'aac',
-      '-b:a', '192k',
+      '-b:a', '320k',
       '-ar', '48000',
       '-ac', '2',
       '-map', '0:v:0',
@@ -54,7 +54,7 @@ export function buildFramesEncodeArgs({
     '-colorspace', 'bt709',
     '-color_primaries', 'bt709',
     '-color_trc', 'bt709',
-    '-x264-params', 'colorprim=bt709:transfer=bt709:colormatrix=bt709',
+    '-x264-params', 'colorprim=bt709:transfer=bt709:colormatrix=bt709:aq-mode=3:deblock=-1,-1',
     '-movflags', '+faststart',
     // Explicit duration prevents -shortest hang trap
     '-t', String(duration),
