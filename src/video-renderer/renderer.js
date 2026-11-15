@@ -300,6 +300,11 @@ class VideoRenderer {
     // Produces pure-function-of-t 24fps motion graphics (kinetic typography,
     // spring motion, animated particles, graphs, code typing, full multilingual Indic/Malayalam support).
     const chrome = findChromePath();
+    if (!chrome) {
+      console.warn(`[Renderer] ⚠️  Scene ${sceneIndex}: Chromium not found — falling back to static gradient (PPT-like). Run: npx playwright install chromium`);
+    } else if (process.env.FRAMEFORGE_NO_BROWSER === '1') {
+      console.warn(`[Renderer] ⚠️  Scene ${sceneIndex}: FRAMEFORGE_NO_BROWSER=1 is set — skipping Chromium animation. Remove this env var to get real animated output.`);
+    }
     if (chrome && process.env.FRAMEFORGE_NO_BROWSER !== '1') {
       try {
         return this._renderCodeAnimationScene({

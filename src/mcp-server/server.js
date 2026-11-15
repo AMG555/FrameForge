@@ -45,6 +45,7 @@ const { VideoRenderer } = require('../video-renderer/renderer');
 const { AudioMixer }    = require('../audio-mixer/mixer');
 const { QualityGate }   = require('../quality-gate/gate');
 const { runPublishing } = require('../workflows/publishing');
+const { detectAesthetic } = require('../video-renderer/scene-animator');
 
 const PORT        = parseInt(process.env.PORT || process.env.MCP_PORT || '3210', 10);
 const HOST        = process.env.HOST || process.env.MCP_HOST || '0.0.0.0';
@@ -720,33 +721,66 @@ Example scene:
       };
       const resolvedVoice = voice || (language ? LANGUAGE_VOICES[language.toLowerCase().slice(0, 2)] : null) || null;
 
-      const processedScenes = scenes.map((s, i) => ({
-        scene_id:           s.scene_id || i + 1,
-        schema_version:     '2.0.0',
-        narration:          s.narration          || '',
-        caption:            s.caption            || '',
-        visual_description: s.visual_description || '',
-        camera_hint:        s.camera_hint        || 'auto',
-        music_mood:         s.music_mood         || 'neutral',
-        image_path:         s.image_path         || null,
-        video_path:         s.video_path         || null,
-        audio_path:         s.audio_path         || null,
-        voice:              s.voice              || null,  // per-scene voice override
-        html:               s.html               || null,
-        code:               s.code || s.animation_code || null,
-        topic:              s.topic              || topic || '',
-        style:              s.style              || style || '',
-        theme:              s.theme              || theme || '',
-        language:           s.language           || language || '',
-        duration:           s.duration != null ? Number(s.duration) : null,
-        start_time:         s.start_time != null ? Number(s.start_time) : (s.startTime != null ? Number(s.startTime) : null),
-        end_time:           s.end_time != null ? Number(s.end_time) : (s.endTime != null ? Number(s.endTime) : null),
-        character:          s.character          || { character_id: 'none', pose: 'none', emotion: 'neutral', position: { x: 0.5, y: 0.8, scale: 1.0 } },
-        focal_point:        s.focal_point        || { x: 0.5, y: 0.35, weight: 0.8 },
-        overlay:            s.overlay            || { type: 'none' },
-        sound_effects:      s.sound_effects      || [],
-        metadata:           s.metadata           || { importance: 'medium', hook_potential: 0.5, standalone: false },
-      }));
+      // Strip scene-number / loading-counter patterns that agents sometimes write into captions
+      // e.g. "Scene 1:", "Chapter 2 -", "[3/10]", "1." at start — they must never appear in the video.
+      function cleanCaption(raw) {
+        if (!raw) return '';
+        return raw
+          .replace(/^\s*(?:scene|chapter|part|step|section)\s*\d+\s*[-:.|)]\s*/i, '')
+          .replace(/^\s*\[\d+\s*\/\s*\d+\]\s*/i, '')
+          .replace(/^\s*\d+\s*[-:.]\s+/, '')
+          .trim();
+      }
+
+      const processedScenes = scenes.map((s, i) => {
+        // Per-scene style: use explicit scene style first, then auto-detect from scene content,
+        // then fall back to global style. This ensures each scene gets the correct motion style
+        // (e.g. cinematic_documentary for history, cyber_tech for code, hype_sports for action)
+        // rather than every scene inheriting the same flat global style.
+        const sceneStyle = s.style || (() => {
+          if (style) return style; // global style was explicitly set by caller — respect it
+          // No style anywhere: auto-detect from this scene's own content signals
+          return detectAesthetic({
+            topic:             s.topic              || topic || '',
+            style:             '',
+            theme:             s.theme              || theme || '',
+            title,
+            narration:         s.narration          || '',
+            caption:           cleanCaption(s.caption),
+            visualDescription: s.visual_description || '',
+            language:          s.language           || language || '',
+            musicMood:         s.music_mood         || 'neutral',
+          });
+        })();
+
+        return {
+          scene_id:           s.scene_id || i + 1,
+          schema_version:     '2.0.0',
+          narration:          s.narration          || '',
+          caption:            cleanCaption(s.caption),
+          visual_description: s.visual_description || '',
+          camera_hint:        s.camera_hint        || 'auto',
+          music_mood:         s.music_mood         || 'neutral',
+          image_path:         s.image_path         || null,
+          video_path:         s.video_path         || null,
+          audio_path:         s.audio_path         || null,
+          voice:              s.voice              || null,  // per-scene voice override
+          html:               s.html               || null,
+          code:               s.code || s.animation_code || null,
+          topic:              s.topic              || topic || '',
+          style:              sceneStyle,
+          theme:              s.theme              || theme || '',
+          language:           s.language           || language || '',
+          duration:           s.duration != null ? Number(s.duration) : null,
+          start_time:         s.start_time != null ? Number(s.start_time) : (s.startTime != null ? Number(s.startTime) : null),
+          end_time:           s.end_time != null ? Number(s.end_time) : (s.endTime != null ? Number(s.endTime) : null),
+          character:          s.character          || { character_id: 'none', pose: 'none', emotion: 'neutral', position: { x: 0.5, y: 0.8, scale: 1.0 } },
+          focal_point:        s.focal_point        || { x: 0.5, y: 0.35, weight: 0.8 },
+          overlay:            s.overlay            || { type: 'none' },
+          sound_effects:      s.sound_effects      || [],
+          metadata:           s.metadata           || { importance: 'medium', hook_potential: 0.5, standalone: false },
+        };
+      });
 
       const pid = productionId || `agent_${crypto.randomBytes(4).toString('hex')}_${Date.now()}`;
 
