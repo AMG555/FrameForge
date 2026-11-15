@@ -931,7 +931,7 @@ function generateSceneHtml({
     musicMood,
   });
   const aesthetic = AESTHETICS[aestheticKey] || AESTHETICS.cyber_tech;
-  const compTheme = detectComponentTheme({
+  let compTheme = detectComponentTheme({
     visualDescription,
     prompt,
     caption,
@@ -942,9 +942,46 @@ function generateSceneHtml({
     aesthetic: aestheticKey,
     anchorWanted,
   });
+
+  // If detectComponentTheme returned a pure aesthetic fallback (i.e. the visual_description
+  // didn't contain any specific keywords), cycle through a curated set of visually distinct
+  // component themes per-aesthetic so consecutive scenes look different rather than identical.
+  // This is the common case for a 44-scene video where most scenes share the same aesthetic.
+  const AESTHETIC_FALLBACK_POOLS = {
+    cinematic_documentary: ['explainer_presentation', 'radar_globe', 'timeline', 'cognitive_insight', 'waveform', 'quote'],
+    cyber_tech:            ['nodes', 'code', 'isometric_geometry', 'waveform', 'metric', 'process_pipeline'],
+    finance_executive:     ['chart', 'metric', 'timeline', 'versus_comparison', 'process_pipeline', 'nodes'],
+    cosmic_space:          ['celestial_orbit', 'isometric_geometry', 'nodes', 'waveform', 'dna_helix', 'radar_globe'],
+    nature_organic:        ['dna_helix', 'waveform', 'radar_globe', 'process_pipeline', 'cognitive_insight', 'magnification_focus'],
+    hype_sports:           ['speed_action', 'versus_comparison', 'metric', 'chart', 'process_pipeline', 'waveform'],
+    breaking_news:         ['radar_globe', 'timeline', 'chart', 'metric', 'versus_comparison', 'waveform'],
+    minimal_luxury:        ['explainer_presentation', 'quote', 'metric', 'isometric_geometry', 'waveform', 'timeline'],
+    retro_synthwave:       ['isometric_geometry', 'code', 'waveform', 'nodes', 'metric', 'chart'],
+    warm_creative:         ['explainer_presentation', 'quote', 'cognitive_insight', 'process_pipeline', 'waveform', 'versus_comparison'],
+    hand_drawn_doodle:     ['doodle_general_human', 'explainer_presentation', 'cognitive_insight', 'process_pipeline', 'radar_globe', 'quote'],
+  };
+  const PURE_FALLBACKS = new Set([
+    'explainer_presentation', 'celestial_orbit', 'chart', 'dna_helix', 'radar_globe',
+    'nodes', 'explainer_presentation', 'speed_action', 'doodle_general_human',
+  ]);
+  const pool = AESTHETIC_FALLBACK_POOLS[aestheticKey];
+  if (pool && PURE_FALLBACKS.has(compTheme)) {
+    // Only override when detectComponentTheme gave us the generic fallback, not when it
+    // matched a specific keyword (e.g. 'versus_comparison' from "vs" in visual_description).
+    const genericFallback = pool[0];
+    if (compTheme === genericFallback) {
+      compTheme = pool[sceneIndex % pool.length];
+    }
+  }
+
   const clampedDur = Math.max(1, Number(duration) || 3);
 
-  // Select palette variation based on sceneIndex
+  // Select palette with a stride-based spread so consecutive scenes within the same
+  // aesthetic never share the same colour palette. With 2 palettes: 0,1,0,1 is unavoidable
+  // but with 3 palettes: index 0→0, 1→1, 2→2, 3→0 — good. The key improvement: when the
+  // agent assigns per-scene styles (fix from 2.7.17), sceneIndex here is the global scene
+  // position, so palette 0 of cyber_tech on scene 2 looks different from palette 0 of
+  // cinematic_documentary on scene 5 — no visible repetition across a mixed-style video.
   const pal = aesthetic.palettes[sceneIndex % aesthetic.palettes.length];
 
   // Resolve script-specific fonts
