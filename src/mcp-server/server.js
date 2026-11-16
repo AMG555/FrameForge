@@ -2906,20 +2906,20 @@ Requires yt-dlp: pip install yt-dlp   (or: winget install yt-dlp)`,
 
 FULL CHAIN (in order):
  1. Noise gate: agate -60dBFS threshold — removes breath/room tone between words (enable with noiseGate: true)
- 2. Pre-EQ: 80Hz HPF (remove proximity/rumble), 5kHz presence boost (+2dB), 12kHz air shelf (+1.5dB)
- 3. De-esser: 6.5kHz dynamic suppression (-3dB) — removes harshness from "s", "sh", "ch"
- 4. Voice compressor: 3:1 ratio, -20dBFS threshold, 5ms attack, 50ms release (broadcast standard)
+ 2. Pre-EQ: 80Hz HPF 2nd-order (remove proximity/rumble), 5kHz presence boost (+2dB), 12kHz air shelf (+1.5dB)
+ 3. Voice compressor: 3:1 ratio, -20dBFS threshold, 5ms attack, 50ms release (broadcast standard)
+ 4. Dynamic de-esser: speechnorm gain-riding pre-stage + 7.5kHz sibilant shelf (-2.5dB) — smooth, no lisp
  5. Room acoustics: 5 named profiles — studio_dry | broadcast | cinematic | concert_hall | intimate
     OR earshot forgeComputedRoom: "computed:sizeM:damp:earlyMs" (e.g. "computed:8:0.5:15" = 8m studio)
     (addReverb: true = cinematic profile; roomProfile overrides)
- 6. Sidechain ducking: music ducks -18dB when voice active (40ms perceptual lead)
- 7. Stereo widener: M/S extrastereo 1.4x on music layer only (voice stays mono-center)
+ 6. Sidechain ducking: music ducks when voice active (40ms perceptual lead)
+ 7. Stereo widener: M/S extrastereo 1.35x on music layer only (voice stays mono-center)
  8. SFX timeline mixer: 13 synthesis types with millisecond accuracy
     Types: whoosh | impact | pop | click | riser | chime | buzz | tick | swish | punch | sparkle | deep_boom | transition
  9. Master bus: two-pass EBU R128 loudnorm at target LUFS, true peak ≤-1 dBTP
     Platform presets: youtube (-14) | podcast (-16) | broadcast (-23) | netflix (-27) | instagram (-14)
 
-Outputs broadcast-ready 48kHz/192k AAC stereo.`,
+Outputs broadcast-ready 48kHz/320k AAC stereo.`,
     inputSchema: {
       type: 'object',
       required: ['voicePath', 'outputPath'],
@@ -3009,25 +3009,25 @@ Outputs broadcast-ready 48kHz/192k AAC stereo.`,
       const resolvedRoom = roomProfile ? (ROOM_PROFILES_LOCAL[roomProfile] || null) : (addReverb ? ROOM_PROFILES_LOCAL.cinematic : null);
 
       // ── Step 1: Professional voice chain ──────────────────────────────────
-      // [noise gate] → 80Hz HPF → presence +2dB@5kHz → air shelf +1.5dB@12kHz
-      // → 3:1 compressor → de-esser 6.5kHz → [room acoustics]
+      // [noise gate] → 80Hz HPF (2nd-order) → mud cut 300Hz → presence 5kHz
+      // → air shelf 12kHz → 3:1 compressor → speechnorm → sibilant shelf 7.5kHz
+      // → [room acoustics]
+      // No afftdn: TTS audio is already noise-free; afftdn adds artificial hiss
+      // and double-processes when the input went through _edgeTTS upsample.
       const voiceChainPath = pathMod.join(tmpDir, 'voice_chain.m4a');
-      const deEsserFreq = 6500;  // Hz — sibilant center
-      const deEsserBW   = 1500;  // Hz — bandwidth
 
       const voiceFilterParts = [];
-      // Noise gate: removes breath noise and room tone between words
       if (noiseGate) {
         voiceFilterParts.push('agate=threshold=0.0003:range=0.15:attack=5:release=200');
       }
       voiceFilterParts.push(
-        'highpass=f=80',
-        'equalizer=f=300:width_type=o:width=1.2:g=-1.5',  // mud cut
-        'equalizer=f=5000:width_type=o:width=2:g=2.0',    // presence boost
-        'equalizer=f=12000:width_type=s:width=1:g=1.5',   // air shelf
-        'afftdn=nf=-48:nr=10',                             // spectral noise reduction
+        'highpass=f=80:poles=2',                            // sub-rumble cut, 2nd-order Butterworth
+        'equalizer=f=300:width_type=o:width=1.2:g=-1.5',   // mud / boxiness cut
+        'equalizer=f=5000:width_type=o:width=2:g=2.0',     // presence boost
+        'equalizer=f=12000:width_type=s:width=1:g=1.5',    // air shelf
         'acompressor=ratio=3:threshold=-20dB:attack=5:release=50:makeup=2',
-        `equalizer=f=${deEsserFreq}:width_type=h:width=${deEsserBW}:g=-3.0`, // de-esser
+        'speechnorm=e=25:r=0.0005:l=1',                    // gain-riding de-esser pre-stage
+        'equalizer=f=7500:width_type=s:width=1:g=-2.5',    // sibilant shelf (smooth, not peak)
       );
       if (resolvedRoom) {
         voiceFilterParts.push(
@@ -3095,7 +3095,7 @@ Outputs broadcast-ready 48kHz/192k AAC stereo.`,
             '-f', 'lavfi', '-i', `sine=f=${freq}:d=${sfxDur}`,
             '-filter_complex', `[1:a]volume=${cueVol * 0.35},adelay=${adelayMs}|${adelayMs}[sfx];[0:a][sfx]amix=inputs=2:duration=first[out]`,
             '-map', '[out]',
-            '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-ac', '2',
+            '-c:a', 'aac', '-b:a', '320k', '-ar', '48000', '-ac', '2',
             '-t', String(voiceDur),
             sfxPath,
           ], `SFX synthesis: ${sfxName} at t=${cueTime}s`);
@@ -3113,7 +3113,7 @@ Outputs broadcast-ready 48kHz/192k AAC stereo.`,
             ...sfxInputs,
             '-filter_complex', sfxFilter,
             '-map', '[sfxout]',
-            '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-ac', '2',
+            '-c:a', 'aac', '-b:a', '320k', '-ar', '48000', '-ac', '2',
             sfxMixPath,
           ], 'SFX combine');
         }
@@ -3129,7 +3129,7 @@ Outputs broadcast-ready 48kHz/192k AAC stereo.`,
         const totalDur = parseFloat((vidDur.stdout || '0').trim()) || 60;
 
         const musicFilter = stereoWiden
-          ? `aformat=sample_rates=48000:channel_layouts=stereo,highpass=f=80,lowpass=f=16000,volume=${musicVolume},extrastereo=m=1.4`
+          ? `aformat=sample_rates=48000:channel_layouts=stereo,highpass=f=80,lowpass=f=16000,volume=${musicVolume},extrastereo=m=1.35`
           : `aformat=sample_rates=48000:channel_layouts=stereo,highpass=f=80,lowpass=f=16000,volume=${musicVolume}`;
 
         const duckedMixPath = pathMod.join(tmpDir, 'ducked_mix.m4a');
@@ -3142,14 +3142,14 @@ Outputs broadcast-ready 48kHz/192k AAC stereo.`,
         if (sfxMixPath) {
           filterComplex = [
             `[1:a]${musicFilter}[music_proc]`,
-            `[0:a][music_proc]sidechaincompress=threshold=0.003:ratio=20:attack=0.2:release=1:makeup=2[ducked]`,
+            `[0:a][music_proc]sidechaincompress=threshold=0.003:ratio=20:attack=0.15:release=0.8:makeup=1.5[ducked]`,
             `[ducked][2:a]amix=inputs=2:duration=first:normalize=0[mix_sfx]`,
           ].join(';');
           mapExpr = '[mix_sfx]';
         } else {
           filterComplex = [
             `[1:a]${musicFilter}[music_proc]`,
-            `[0:a][music_proc]sidechaincompress=threshold=0.003:ratio=20:attack=0.2:release=1:makeup=2[ducked]`,
+            `[0:a][music_proc]sidechaincompress=threshold=0.003:ratio=20:attack=0.15:release=0.8:makeup=1.5[ducked]`,
           ].join(';');
           mapExpr = '[ducked]';
         }

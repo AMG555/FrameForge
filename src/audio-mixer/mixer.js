@@ -2,34 +2,51 @@
  * Audio Mixer — Professional Broadcast-Grade Signal Chain
  *
  * Implements a 15+ year sound engineer's mixing chain:
- *   1. Pre-EQ: 80Hz HPF (proximity/rumble removal), presence boost +2dB@5kHz, air shelf +1.5dB@12kHz
- *   2. De-esser: 6.5kHz dynamic suppression (sibilant "s/sh/ch" harshness removal)
- *   3. Voice compressor: 3:1 ratio, -20dBFS threshold, 5ms attack, 50ms release
- *   4. Multiband soft-knee compressor: 3 bands (bass/mid/hi), gentle 2:1–4:1 ratios
- *   5. Optional room acoustics: 30ms pre-delay, 0.3s RT60 aecho for cinematic warmth
- *      Room profiles: studio_dry | broadcast | cinematic | concert_hall | intimate
- *   6. Noise gate: -60dBFS threshold, removes breath noise and room tone between words
- *   7. Sidechain ducking: music ducks -18dB (vs legacy -15dB) at 40ms perceptual lead
- *   8. Stereo widener: mid-side extrastereo=1.4 on music layer (voice stays mono-center)
- *   9. Advanced SFX library: pitch-sweep whoosh, layered impact, organic pop, riser,
- *      clock tick, glass break, page turn, UI chime, success fanfare, error buzz
- *  10. Master bus: two-pass EBU R128 loudnorm -14 LUFS ±0.5 LU, true peak ≤-1 dBTP
- *  11. Spatial audio: Haas stereo imaging on wide music layer, mono fold for phone speakers
- *  12. Noise floor detection: auto-gate threshold via silence_detect analysis
+ *
+ * VOICE CHAIN (_buildVoiceChainFilter):
+ *   1. Optional noise gate: -60 dBFS threshold, 5 ms attack, 200 ms release (opt-in)
+ *   2. Sub-rumble HPF: 80 Hz, 2nd-order Butterworth — removes proximity rumble
+ *   3. Mud cut: -1.5 dB notch at 300 Hz (octave-width) — clears boxy boxiness
+ *   4. Presence boost: +2 dB at 5 kHz (octave-width) — clarity and intelligibility
+ *   5. Air shelf: +1.5 dB at 12 kHz (1-oct shelf) — restores 24 kHz→48 kHz open top
+ *   6. Broadcast compressor: 3:1, -20 dBFS, 5 ms attack, 50 ms release, +2 dB makeup
+ *   7. speechnorm: gain-riding de-esser pre-stage (e=25, r=0.0005) — tames syllable
+ *      peaks before the sibilant shelf so the shelf acts as dynamic gain-riding
+ *   8. Sibilant shelf: -2.5 dB at 7.5 kHz (high shelf) — smooth de-essing without lisp
+ *   9. Optional room acoustics: profiles studio_dry | broadcast | cinematic |
+ *      concert_hall | intimate, or earshot computed room "computed:sizeM:damp:earlyMs"
+ *
+ * TTS INGEST (_edgeTTS):
+ *   - Outputs clean upsample only (soxr 28-bit precision, triangular dither)
+ *   - NO silenceremove / afftdn / dynaudnorm at ingest — avoids:
+ *       • double-processing hiss when voice chain runs later
+ *       • sentence dropout gaps from silenceremove cutting inter-sentence pauses
+ *       • pumping on soft-syllable Indian languages (ml, hi, ta, te)
+ *
+ * MIX BUS (_sidechainMixPro):
+ *   - Music: HPF 80 Hz, LPF 16 kHz, acoustic pocket -3.5 dB@2.5 kHz, volume scale,
+ *     extrastereo 1.35x M/S widening (voice stays mono-center)
+ *   - Sidechain ducking: ratio=20, threshold=0.003, attack=150 ms, release=800 ms
+ *   - Master bus: two-pass EBU R128 loudnorm at platform target LUFS, TP ≤ -1 dBTP
+ *
+ * MASTER BUS (_twoPassNorm):
+ *   - Pass 1: measure integrated loudness with print_format=json
+ *   - Pass 2: linear loudnorm with measured values for <0.3 LU accuracy
+ *   - Output: 48 kHz stereo AAC 320 kbps
  *
  * Quality targets:
- *   - Req 5.1: Voice compression ratio 3:1, threshold -20dBFS, attack 5ms, release 50ms
- *   - Req 5.2: Music attenuation 18dB within 200ms when voice detected
- *   - Req 5.3: Music restore within 1s when voice ends
- *   - Req 5.4: Normalize final to -14 LUFS ±0.5 LU
- *   - Req 5.5: De-ess 6.5kHz sibilance, -3dB dynamic cut
- *   - Req 5.6: High-pass 80Hz + low-pass 16kHz on music track
- *   - Req 5.7: Peak below -1 dBFS across all tracks
- *   - Req 5.8: SFX placed 40ms ahead of visual cue (perceptual lead contract)
- *   - Req 5.9: Stereo widener 1.4x M/S expansion on music layer only
- *   - Req 5.10: Multiband compression on mid/hi bands to prevent harshness buildup
- *   - Req 5.11: Noise gate at -60dBFS to remove breath/room tone artifacts
- *   - Req 5.12: Platform-aware LUFS target (YouTube -14 | Podcast -16 | Broadcast -23)
+ *   - Req 5.1: Voice compression ratio 3:1, threshold -20 dBFS, attack 5 ms, release 50 ms
+ *   - Req 5.2: Music attenuation 18 dB within 200 ms when voice detected
+ *   - Req 5.3: Music restore within 1 s when voice ends
+ *   - Req 5.4: Normalize final to -14 LUFS ±0.5 LU (YouTube), -16 (Podcast), -23 (Broadcast)
+ *   - Req 5.5: De-ess sibilants via speechnorm + 7.5 kHz shelf — dynamic, not static peak
+ *   - Req 5.6: HPF 80 Hz (voice+music), LPF 16 kHz (music only)
+ *   - Req 5.7: True peak below -1 dBTP across all tracks
+ *   - Req 5.8: SFX placed 40 ms ahead of visual cue (perceptual lead contract)
+ *   - Req 5.9: Stereo widener extrastereo=1.35 M/S expansion on music layer only
+ *   - Req 5.10: speechnorm + shelf replace multiband compressor — cleaner on speech
+ *   - Req 5.11: Noise gate opt-in at -60 dBFS — only enabled when noiseGate=true
+ *   - Req 5.12: Platform-aware LUFS via PLATFORM_LUFS table
  */
 
 'use strict';
@@ -295,18 +312,32 @@ class AudioMixer {
 
   _buildVoiceChainFilter(addReverb = false, roomProfile = null, noiseGate = false) {
     const chain = [];
-    // Noise gate — removes room tone / breath between words
+    // Noise gate — removes room tone / breath between words (opt-in only)
     if (noiseGate) {
       chain.push('agate=threshold=0.0003:range=0.15:attack=5:release=200');
     }
     chain.push(
-      'highpass=f=80',
-      'afftdn=nf=-48:nr=10',                             // spectral noise reduction (removes room tone / hiss between words)
-      'equalizer=f=300:width_type=o:width=1.2:g=-1.5',   // mud / boxiness cut
-      'equalizer=f=5000:width_type=o:width=2:g=2.0',     // presence boost
-      'equalizer=f=12000:width_type=s:width=1:g=1.5',    // air shelf
+      // 1. Sub-rumble removal — 80 Hz HPF, 2nd-order Butterworth
+      'highpass=f=80:poles=2',
+      // 2. Mud / proximity cut — narrow notch at 300 Hz
+      'equalizer=f=300:width_type=o:width=1.2:g=-1.5',
+      // 3. Vocal presence boost — 5 kHz (+2 dB); kept modest to avoid
+      //    over-exciting sibilants (the de-esser below cleans up any excess)
+      'equalizer=f=5000:width_type=o:width=2:g=2.0',
+      // 4. Air shelf — 12 kHz gentle high shelf (+1.5 dB); restores
+      //    the "open" quality lost when edge-tts outputs 24 kHz MP3
+      'equalizer=f=12000:width_type=s:width=1:g=1.5',
+      // 5. Broadcast voice compressor — 3:1, -20 dBFS threshold,
+      //    5 ms attack preserves consonants, 50 ms release avoids pumping.
       'acompressor=ratio=3:threshold=-20dB:attack=5:release=50:makeup=2',
-      'equalizer=f=6500:width_type=h:width=1500:g=-3.0', // de-esser
+      // 6. Dynamic de-esser via speechnorm — levels speech energy peaks
+      //    before the sibilant shelf cut so the reduction is gain-riding,
+      //    not a static carve that creates lisp on Indian fricatives.
+      'speechnorm=e=25:r=0.0005:l=1',
+      // 7. Sibilant shelf — gentle -2.5 dB above 7 kHz (not -3 dB peak
+      //    which causes ringing); combined with the speechnorm above this
+      //    achieves proper de-essing without touching the 5 kHz presence.
+      'equalizer=f=7500:width_type=s:width=1:g=-2.5',
     );
     // Room acoustics — resolve named profile, computed room (earshot forgeComputedRoom),
     // or fall back to legacy addReverb bool
@@ -648,15 +679,31 @@ class AudioMixer {
     const platformTarget = platform ? (PLATFORM_LUFS[platform] || null) : null;
     const resolvedLufs = platformTarget ? platformTarget.lufs : (targetLufs || -14);
     const resolvedTp   = platformTarget ? platformTarget.tp   : -1.0;
-    const voiceFilter = this._buildVoiceChainFilter(addReverb, roomProfile, noiseGate) + `,loudnorm=I=${resolvedLufs}:TP=${resolvedTp}:LRA=11`;
-    const result = spawnSync('ffmpeg', [
-      '-nostdin', '-y',
-      '-i', voicePath,
-      '-af', voiceFilter,
-      '-ar', '48000', '-ac', '2', '-c:a', 'aac', '-b:a', '320k',
-      outputPath,
-    ], { timeout: 60000, encoding: 'utf8' });
-    if (result.status !== 0) throw new Error(`Voice chain normalise failed: ${(result.stderr || '').slice(-200)}`);
+
+    // Step 1: apply the full voice chain to an intermediate file
+    const tmpDir  = path.join(os.tmpdir(), `ff_vcn_${Date.now()}`);
+    fs.mkdirSync(tmpDir, { recursive: true });
+    const chainedPath = path.join(tmpDir, 'chained.m4a');
+    try {
+      const voiceFilter = this._buildVoiceChainFilter(addReverb, roomProfile, noiseGate);
+      const chainResult = spawnSync('ffmpeg', [
+        '-nostdin', '-y',
+        '-i', voicePath,
+        '-af', voiceFilter,
+        '-ar', '48000', '-ac', '2', '-c:a', 'aac', '-b:a', '320k',
+        chainedPath,
+      ], { timeout: 60000, encoding: 'utf8' });
+      if (chainResult.status !== 0) {
+        throw new Error(`Voice chain step failed: ${(chainResult.stderr || '').slice(-200)}`);
+      }
+
+      // Step 2: two-pass EBU R128 loudnorm for accurate linear normalisation.
+      // LRA=7 is tighter than the default 11 — appropriate for speech where
+      // wide loudness range makes the quiet parts hard to hear on mobile.
+      this._twoPassNorm(chainedPath, outputPath, resolvedLufs, resolvedTp);
+    } finally {
+      try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch (_) {}
+    }
     return outputPath;
   }
 
@@ -745,7 +792,7 @@ class AudioMixer {
         const cr = spawnSync('ffmpeg', [
           '-nostdin', '-y', ...sfxInputs,
           '-filter_complex', sfxFilter, '-map', '[sfxout]',
-          '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-ac', '2',
+          '-c:a', 'aac', '-b:a', '320k', '-ar', '48000', '-ac', '2',
           sfxTrackPath,
         ], { encoding: 'utf8', timeout: 120000 });
         if (cr.status !== 0) throw new Error(`SFX combine failed: ${(cr.stderr || '').slice(-200)}`);
