@@ -4,6 +4,38 @@ All notable changes to FrameForge are documented here.
 
 ---
 
+## [2.7.19] — 2026-11-16
+
+### Audio — Studio Quality Fixes
+
+- **TTS ingest: clean upsample only** (`providers.js` `_edgeTTS`): Removed three filters that were incorrectly applied at TTS ingest time — `silenceremove` (cut inter-sentence pauses in Malayalam, creating ~0.9s dropout gaps), `afftdn` (spectral denoiser on already-clean TTS audio raised the noise floor, adding digital hiss), and `dynaudnorm` (caused pumping on soft-syllable Indian languages). Replacement: `aresample=resampler=soxr:precision=28:dither_method=triangular` — SoXR 28-bit resampling converts 24kHz edge-tts MP3 → 48kHz with studio-grade quality. All EQ/compression/de-essing/loudnorm now run once in the mixer chain with full headroom.
+- **Dynamic de-esser** (`mixer.js`, `server.js` mix_audio_pro): Replaced the static `-3dB` peak cut at 6.5kHz (which caused lisp on Indian fricatives) with a two-stage dynamic approach: `speechnorm=e=25:r=0.0005:l=1` rides syllable peaks first so the subsequent `-2.5dB` sibilant shelf at 7.5kHz acts as dynamic gain-riding attenuation rather than a static carve.
+- **Remove double `afftdn`** (`mixer.js` `_buildVoiceChainFilter`, `server.js` mix_audio_pro): `afftdn` was running in both TTS ingest and the voice chain — compounding artefacts. Removed from both.
+- **HPF upgraded to 2nd-order Butterworth** (`mixer.js`, `server.js`): `highpass=f=80` → `highpass=f=80:poles=2` (12 dB/oct roll-off vs 6 dB/oct). Better proximity rumble rejection without affecting the fundamental voice frequency range.
+- **`_normaliseVoiceWithChain` two-pass loudnorm** (`mixer.js`): Replaced single-pass loudnorm appended to the chain string with a proper two-step: (1) voice chain → intermediate file, (2) `_twoPassNorm` with measured values. Single-pass loudnorm without measured values can be off by ±1.5 LU; two-pass achieves <0.3 LU accuracy.
+- **320k AAC on SFX intermediates** (`mixer.js`, `server.js`): SFX combine intermediate files were encoded at 192k — fixed to 320k to prevent high-frequency transient softening on clicks, chimes, and ticks.
+- **Sidechain/widener sync** (`server.js` mix_audio_pro): `extrastereo=m=1.4` → `1.35` and `attack=0.2:release=1:makeup=2` → `attack=0.15:release=0.8:makeup=1.5` to match `mixer.js`. The inline server.js chain had drifted from the mixer class.
+- **Tool description corrected**: mix_audio_pro description updated from `192k AAC` → `320k AAC`, de-esser description updated to reflect new dynamic approach.
+
+### Video — Player UI Stripped from Output
+
+- **Canvas-only screenshot in harness fallback** (`harness/lib/capture.mjs`): When `canvas.toDataURL()` fails (e.g. WebGL canvases in motion-style HTML files), the fallback `page.screenshot()` was capturing the entire page including the `.bar` div with the scrubber, scene label, and time counter (e.g. `19.6s / 45.0s`). Fixed: use `page.$('#stage, canvas')` → `element.screenshot()` so only canvas pixels are captured. Full-page screenshot kept only as last resort when no canvas element exists.
+
+### Captions — Multilingual Font Loading, RTL, Pixel Word-Wrap, Strict Opt-In
+
+- **Google Fonts injected per scene** (`scene-animator.js`): Regional script scenes now inject `<link rel="preconnect">` + `<link rel="stylesheet">` for the correct Noto font family in the HTML `<head>`. Previously only system fonts were listed in the CSS stack, so the headless Playwright renderer showed tofu boxes for Malayalam/Devanagari/Tamil etc. Zero overhead on English/Latin scenes.
+- **Noto Serif preferred** over Sans for video: Upgraded `REGIONAL_FONTS` stacks to Noto Serif variants (Malayalam, Devanagari, Tamil, Telugu, Kannada, Bengali) as primary — Serif matches how these scripts appear in books, newspapers and broadcast.
+- **Added Kannada and Bengali** scripts — were silently falling through to `null`.
+- **`<html lang dir>`** carries correct BCP-47 lang tag and writing direction (`dir="rtl"` for Arabic/Urdu/Hebrew/Persian) — browser uses these for OpenType shaping, ligatures and conjunct rendering.
+- **`drawCinematicOverlay` uses script font**: Captions now use `SCRIPT_FONT` (e.g. `Noto Serif Malayalam`) not `FONT_BODY` (the aesthetic font like `Cinzel` or `Rajdhani` which have no Indic glyphs).
+- **`ctx.direction = SCRIPT_DIR`**: Arabic/Urdu captions now flow right-to-left.
+- **Pixel-width word-wrap**: Replaced char-count limit (`> 56 chars`) with `ctx.measureText()` pixel-width measurement. One Malayalam word can be 300px wide but only 10 Unicode chars — char-count over-wrapped badly.
+- **Devanagari danda sentence splitting**: Added `।` (U+0964) and `॥` (U+0965) to the sentence-boundary regex so Hindi/Malayalam sentence breaks are detected correctly.
+- **Stroke+fill outline rendering**: Replaced `shadowBlur = 12` glow with 3px black stroke + white fill. Glow smeared on Indic conjunct characters; crisp outline is legible on any background.
+- **`detectCaptionsRequested` stricter**: Added `\b` word boundaries — topics like `"English subtitle reform"` or `"captioning industry"` no longer accidentally trigger captions. Requires explicit verb+noun construction (`"show captions"`, `"add subs"`) or key=value flag (`"captions: true"`).
+
+---
+
 ## [2.7.16] — 2026-11-14
 
 ### Audio Quality — Broadcast-Grade Pipeline
