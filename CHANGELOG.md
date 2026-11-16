@@ -4,6 +4,14 @@ All notable changes to FrameForge are documented here.
 
 ---
 
+## [2.7.20] — 2026-11-16
+
+### Video — Player Bar / Timing Overlay Removed
+
+- **Hide preview player UI from all rendered frames** (`capture.mjs` `captureFrame`): Injected a one-time `<style>` tag that sets `display:none!important` on `.bar`, `.bar~*`, any `[class*="player"]` or `[class*="controls"]` element, `#scrub`, and `#time`. All 100+ motion-style HTML source files contain a preview player bar (scrubber, scene label, time counter e.g. `19.6s / 45.0s`) used for interactive preview. This bar was appearing in final rendered video frames whenever the full-page screenshot fallback was triggered. The fix is applied once per page at the top of `captureFrame`, before `window.__seek` runs, so it covers every render path: `jobs.mjs`, `sheets.mjs`, `harness.mjs`, `verify-quality.mjs`, `verify-purity.mjs`, and the `render_animation` MCP tool handler in `server.js`.
+
+---
+
 ## [2.7.19] — 2026-11-16
 
 ### Audio — Studio Quality Fixes
