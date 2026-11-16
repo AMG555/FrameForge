@@ -220,10 +220,19 @@ export async function captureFrame(page, t, { type = 'image/png', quality = 0.94
     return Buffer.from(dataUrl.slice(dataUrl.indexOf(',') + 1), 'base64');
   }
 
+  // Fall back to page.screenshot() — target the canvas element only so the
+  // surrounding player UI (scrubber, time display, control bar) is never captured.
   const screenshotType = type === 'image/jpeg' ? 'jpeg' : 'png';
   let lastErr;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
+      const canvasEl = await page.$('#stage, canvas');
+      if (canvasEl) {
+        return await canvasEl.screenshot({
+          type: screenshotType,
+          quality: screenshotType === 'jpeg' ? Math.round(quality * 100) : undefined,
+        });
+      }
       return await page.screenshot({
         type: screenshotType,
         quality: screenshotType === 'jpeg' ? Math.round(quality * 100) : undefined,
