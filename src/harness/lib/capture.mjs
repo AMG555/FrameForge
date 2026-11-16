@@ -200,6 +200,17 @@ export async function openPageWithVirtualClock(browserOrOpts, htmlPathArg, optsA
 }
 
 export async function captureFrame(page, t, { type = 'image/png', quality = 0.94, timeoutMs = 15000 } = {}) {
+  // Hide the preview player bar (.bar) on every frame capture so it never bleeds into the output.
+  // This is idempotent — repeated calls are a no-op once the style tag exists.
+  await page.evaluate(() => {
+    if (!document.getElementById('__ff_hide_bar')) {
+      const s = document.createElement('style');
+      s.id = '__ff_hide_bar';
+      s.textContent = '.bar,.bar~*,[class*="player"],[class*="controls"],[id*="scrub"],[id*="time"]{display:none!important}';
+      document.head.appendChild(s);
+    }
+  }).catch(() => {});
+
   // page.evaluate with an explicit timeout so a hung seek() never stalls the whole pipeline
   const dataUrl = await page.evaluate(async ({ time, mime, q }) => {
     await window.__seek(time);
