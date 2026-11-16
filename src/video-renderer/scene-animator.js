@@ -23,24 +23,83 @@ const fs   = require('fs');
 const path = require('path');
 
 // ── Multilingual Font Resolution by Script ─────────────────────────────────────
+// Font stacks: system fonts first (zero-latency on host), then Google Fonts fallbacks
+// (loaded in the HTML <head> for the headless Playwright renderer).
 const REGIONAL_FONTS = {
-  malayalam: `'Nirmala UI', 'Noto Sans Malayalam', 'Malayalam Sangam MN', 'Kartika', 'Meera', 'Manjari'`,
-  devanagari: `'Nirmala UI', 'Noto Sans Devanagari', 'Mangal', 'Aparajita'`,
-  tamil: `'Nirmala UI', 'Noto Sans Tamil', 'Latha', 'Vijaya'`,
-  telugu: `'Nirmala UI', 'Noto Sans Telugu', 'Gautami', 'Vani'`,
-  arabic: `'Segoe UI', 'Amiri', 'Noto Sans Arabic', 'Traditional Arabic'`,
-  cjk: `'Yu Gothic', 'Meiryo', 'Hiragino Sans', 'Microsoft YaHei', 'Malgun Gothic', 'Noto Sans CJK'`,
+  // Malayalam — Noto Serif Malayalam is preferred over Sans for video; looks more
+  // authoritative and matches how Malayalam is printed in books/newspapers.
+  malayalam:  `'Noto Serif Malayalam', 'Noto Sans Malayalam', 'Nirmala UI', 'Malayalam Sangam MN', 'Meera'`,
+  // Devanagari (Hindi, Marathi, Nepali) — Noto Serif Devanagari preferred.
+  devanagari: `'Noto Serif Devanagari', 'Noto Sans Devanagari', 'Nirmala UI', 'Mangal'`,
+  // Tamil
+  tamil:      `'Noto Serif Tamil', 'Noto Sans Tamil', 'Nirmala UI', 'Latha'`,
+  // Telugu
+  telugu:     `'Noto Serif Telugu', 'Noto Sans Telugu', 'Nirmala UI', 'Gautami'`,
+  // Kannada
+  kannada:    `'Noto Serif Kannada', 'Noto Sans Kannada', 'Nirmala UI', 'Tunga'`,
+  // Bengali
+  bengali:    `'Noto Serif Bengali', 'Noto Sans Bengali', 'Nirmala UI', 'Vrinda'`,
+  // Arabic / Urdu — Amiri is a classic Naskh serif; correct for video body text.
+  arabic:     `'Amiri', 'Noto Naskh Arabic', 'Noto Sans Arabic', 'Segoe UI', 'Traditional Arabic'`,
+  // CJK
+  cjk:        `'Noto Serif CJK SC', 'Noto Sans CJK SC', 'Yu Gothic', 'Meiryo', 'Microsoft YaHei'`,
 };
 
+// Google Fonts import URLs keyed by REGIONAL_FONTS key.
+// Using display=block so text is never invisible while font loads.
+const REGIONAL_FONT_URLS = {
+  malayalam:  'https://fonts.googleapis.com/css2?family=Noto+Serif+Malayalam:wght@400;700&family=Noto+Sans+Malayalam:wght@400;700&display=block',
+  devanagari: 'https://fonts.googleapis.com/css2?family=Noto+Serif+Devanagari:wght@400;700&family=Noto+Sans+Devanagari:wght@400;700&display=block',
+  tamil:      'https://fonts.googleapis.com/css2?family=Noto+Serif+Tamil:wght@400;700&family=Noto+Sans+Tamil:wght@400;700&display=block',
+  telugu:     'https://fonts.googleapis.com/css2?family=Noto+Serif+Telugu:wght@400;700&family=Noto+Sans+Telugu:wght@400;700&display=block',
+  kannada:    'https://fonts.googleapis.com/css2?family=Noto+Serif+Kannada:wght@400;700&family=Noto+Sans+Kannada:wght@400;700&display=block',
+  bengali:    'https://fonts.googleapis.com/css2?family=Noto+Serif+Bengali:wght@400;700&family=Noto+Sans+Bengali:wght@400;700&display=block',
+  arabic:     'https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Noto+Naskh+Arabic:wght@400;700&display=block',
+  cjk:        'https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&display=block',
+};
+
+/**
+ * Returns the script-appropriate CSS font family stack for a language/text,
+ * or null for Latin/undetected.
+ */
 function getScriptFontStack(text = '', language = '') {
   const lang = (language || '').toLowerCase().slice(0, 2);
   if (lang === 'ml' || /[\u0D00-\u0D7F]/.test(text)) return REGIONAL_FONTS.malayalam;
   if (lang === 'hi' || lang === 'mr' || lang === 'ne' || /[\u0900-\u097F]/.test(text)) return REGIONAL_FONTS.devanagari;
   if (lang === 'ta' || /[\u0B80-\u0BFF]/.test(text)) return REGIONAL_FONTS.tamil;
   if (lang === 'te' || /[\u0C00-\u0C7F]/.test(text)) return REGIONAL_FONTS.telugu;
+  if (lang === 'kn' || /[\u0C80-\u0CFF]/.test(text)) return REGIONAL_FONTS.kannada;
+  if (lang === 'bn' || /[\u0980-\u09FF]/.test(text)) return REGIONAL_FONTS.bengali;
   if (lang === 'ar' || lang === 'ur' || /[\u0600-\u06FF]/.test(text)) return REGIONAL_FONTS.arabic;
   if (lang === 'ja' || lang === 'zh' || lang === 'ko' || /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff]/.test(text)) return REGIONAL_FONTS.cjk;
   return null;
+}
+
+/**
+ * Returns the REGIONAL_FONT_URLS key matching getScriptFontStack, or null.
+ * Used to inject a <link> in the HTML <head>.
+ */
+function getScriptFontKey(text = '', language = '') {
+  const lang = (language || '').toLowerCase().slice(0, 2);
+  if (lang === 'ml' || /[\u0D00-\u0D7F]/.test(text)) return 'malayalam';
+  if (lang === 'hi' || lang === 'mr' || lang === 'ne' || /[\u0900-\u097F]/.test(text)) return 'devanagari';
+  if (lang === 'ta' || /[\u0B80-\u0BFF]/.test(text)) return 'tamil';
+  if (lang === 'te' || /[\u0C00-\u0C7F]/.test(text)) return 'telugu';
+  if (lang === 'kn' || /[\u0C80-\u0CFF]/.test(text)) return 'kannada';
+  if (lang === 'bn' || /[\u0980-\u09FF]/.test(text)) return 'bengali';
+  if (lang === 'ar' || lang === 'ur' || /[\u0600-\u06FF]/.test(text)) return 'arabic';
+  if (lang === 'ja' || lang === 'zh' || lang === 'ko' || /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff]/.test(text)) return 'cjk';
+  return null;
+}
+
+/**
+ * Returns 'rtl' for Arabic/Urdu/Hebrew scripts, 'ltr' otherwise.
+ */
+function getScriptDir(text = '', language = '') {
+  const lang = (language || '').toLowerCase().slice(0, 2);
+  if (lang === 'ar' || lang === 'ur' || lang === 'he' || lang === 'fa' ||
+      /[\u0600-\u06FF\u0590-\u05FF]/.test(text)) return 'rtl';
+  return 'ltr';
 }
 
 // ── Aesthetic Definitions ──────────────────────────────────────────────────────
@@ -880,7 +939,11 @@ window.renderAt = async (t, mime = 'image/jpeg', q = 0.92) => {
 /** Returns true ONLY if caller explicitly asks for on-screen captions or subtitles in prompt. */
 function detectCaptionsRequested(text = '') {
   if (!text || typeof text !== 'string') return false;
-  return /(?:with|show|display|include|enable|add)\s+(?:captions?|subtitles?|sub-titles?|subs?)|(?:captions?|subtitles?)\s*[:=]\s*(?:true|yes|1|on|always)/i.test(text);
+  // Require an explicit action verb before "captions" / "subtitles" (e.g. "show captions",
+  // "add subtitles", "with subs") OR a key=value flag ("captions: true").
+  // A bare word like "subtitle" in a topic (e.g. "English subtitle reform") must NOT
+  // trigger captions — it needs a clear imperative construction.
+  return /\b(?:show|display|include|enable|add|with|turn on)\s+(?:captions?|subtitles?|sub-titles?|subs?)\b|\b(?:captions?|subtitles?)\s*[:=]\s*(?:true|yes|1|on|always)\b/i.test(text);
 }
 
 // ── HTML Scene Code Generator ──────────────────────────────────────────────────
@@ -984,10 +1047,21 @@ function generateSceneHtml({
   // cinematic_documentary on scene 5 — no visible repetition across a mixed-style video.
   const pal = aesthetic.palettes[sceneIndex % aesthetic.palettes.length];
 
-  // Resolve script-specific fonts
-  const scriptFont = getScriptFontStack(`${caption} ${narration}`, language);
-  const fontDisplay = aesthetic.fontFamily(scriptFont);
-  const fontBody = scriptFont ? `${scriptFont}, -apple-system, sans-serif` : `'Segoe UI', -apple-system, sans-serif`;
+  // Resolve script-specific fonts and writing direction
+  const scriptFont    = getScriptFontStack(`${caption} ${narration}`, language);
+  const scriptFontKey = getScriptFontKey(`${caption} ${narration}`, language);
+  const scriptDir     = getScriptDir(`${caption} ${narration}`, language);
+  const fontDisplay   = aesthetic.fontFamily(scriptFont);
+  const fontBody      = scriptFont ? `${scriptFont}, -apple-system, sans-serif` : `'Segoe UI', -apple-system, sans-serif`;
+
+  // Google Fonts preconnect + stylesheet link (injected only when a regional
+  // script is detected so Latin scenes carry zero extra <link> overhead)
+  const regionalFontLink = scriptFontKey
+    ? `<link rel="preconnect" href="https://fonts.googleapis.com">\n  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n  <link rel="stylesheet" href="${REGIONAL_FONT_URLS[scriptFontKey]}">`
+    : '';
+
+  // BCP-47 lang tag for the <html> element — improves browser font shaping
+  const htmlLang = language ? language.toLowerCase().slice(0, 5) : 'en';
 
   // Convert imagePath to data URI if available
   let imageDataUri = '';
@@ -1001,10 +1075,11 @@ function generateSceneHtml({
   }
 
   return `<!doctype html>
-<html lang="en">
+<html lang="${htmlLang}" dir="${scriptDir}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  ${regionalFontLink}
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
@@ -1071,6 +1146,9 @@ function spring(t, delay = 0, tension = ${aesthetic.springTension}, friction = $
 
 const SHOW_CAPTIONS = ${JSON.stringify(captionsWanted)};
 const SHOW_ANCHOR = ${JSON.stringify(anchorWanted)};
+const LANGUAGE = ${JSON.stringify(language || '')};
+const SCRIPT_DIR = ${JSON.stringify(scriptDir)};
+const SCRIPT_FONT = ${JSON.stringify(scriptFont || '')};
 const AESTHETIC = ${JSON.stringify(aestheticKey)};
 const BG_TYPE = ${JSON.stringify(aesthetic.backgroundType)};
 const COMP_THEME = ${JSON.stringify(compTheme)};
@@ -4847,17 +4925,20 @@ function drawMainScene(t) {
 function drawCinematicOverlay(t) {
   ctx.save();
 
-  // Subtitles / Spoken Narration - ONLY rendered when explicitly asked in prompt or options
+  // Subtitles — rendered ONLY when SHOW_CAPTIONS is true (user explicitly requested).
+  // Never auto-enabled from topic or prompt text.
   if (SHOW_CAPTIONS && NARRATION && NARRATION.trim().length > 0) {
-    // Split narration into natural spoken sentence chunks
-    const sentences = NARRATION.split(/[.!?;|]+/).map(s => s.trim()).filter(Boolean);
+    // Split on sentence-boundary punctuation that works across all scripts.
+    // Malayalam / Devanagari use ।  (U+0964 Devanagari Danda) and ॥ (U+0965).
+    // We keep all these plus the common ASCII set.
+    const sentences = NARRATION.split(/[.!?;|।॥]+/).map(s => s.trim()).filter(Boolean);
 
     const count = Math.max(1, sentences.length);
     const sentDur = window.DURATION / count;
     const currIdx = Math.min(count - 1, Math.floor(t / sentDur));
     const activeText = sentences[currIdx] || NARRATION;
 
-    // Sentence local spring transition (smooth entrance per sentence)
+    // Sentence spring entrance
     const localT = t - currIdx * sentDur;
     const sentSpring = spring(localT, 0.04, 210, 16);
     const sentAlpha = Math.min(1, Math.max(0, sentSpring));
@@ -4865,51 +4946,70 @@ function drawCinematicOverlay(t) {
 
     ctx.save();
     ctx.globalAlpha = sentAlpha;
-    ctx.font = '500 32px ' + FONT_BODY;
-    ctx.textAlign = 'center';
 
-    // Word wrap if sentence is long (> 58 chars)
-    const maxChars = 56;
-    const words = activeText.split(' ');
+    // Use the script-specific font so regional text renders with the correct
+    // typeface (e.g. Noto Serif Malayalam) instead of the aesthetic's display
+    // font (e.g. Cinzel or Rajdhani), which has no Indic/Arabic glyphs.
+    const captionFont = SCRIPT_FONT
+      ? SCRIPT_FONT + ', -apple-system, sans-serif'
+      : FONT_BODY;
+    const fontSize = 34;  // slightly larger for video legibility
+    ctx.font = '600 ' + fontSize + 'px ' + captionFont;
+
+    // RTL: Arabic, Urdu, Hebrew — set canvas direction so text flows right-to-left
+    ctx.direction = SCRIPT_DIR;
+    ctx.textAlign  = 'center';  // centre-aligned works for both LTR and RTL
+
+    // Word-wrap using actual pixel width measurement (not char count), so it
+    // works correctly for Indic scripts where one "word" can be much wider than
+    // its Unicode char count suggests.
+    const maxLineWidth = W * 0.82;  // 82% of canvas width, leaving safe margins
+    const words = activeText.split(/\s+/);
     const lines = [];
     let currentLine = '';
-    for (let w = 0; w < words.length; w++) {
-      const testLine = currentLine ? currentLine + ' ' + words[w] : words[w];
-      if (testLine.length > maxChars && currentLine.length > 0) {
+    for (const word of words) {
+      const testLine = currentLine ? currentLine + ' ' + word : word;
+      if (ctx.measureText(testLine).width > maxLineWidth && currentLine.length > 0) {
         lines.push(currentLine);
-        currentLine = words[w];
+        currentLine = word;
       } else {
         currentLine = testLine;
       }
     }
     if (currentLine) lines.push(currentLine);
 
+    const lineH = fontSize + 14;  // leading: 1.4× font size
     const subBaseY = H * 0.90 + sentSlideY;
-    const lineSpacing = 44;
-    const startY = subBaseY - ((lines.length - 1) * lineSpacing) / 2;
+    const startY = subBaseY - ((lines.length - 1) * lineH) / 2;
 
     for (let l = 0; l < lines.length; l++) {
-      const ly = startY + l * lineSpacing;
-      // Soft translucent background backing for broadcast legibility
+      const ly = startY + l * lineH;
+      // Broadcast pill backing — slightly taller for ascenders/descenders in
+      // Malayalam/Devanagari which extend further than Latin glyphs.
       const textMetrics = ctx.measureText(lines[l]);
-      const pillW = textMetrics.width + 40;
-      ctx.fillStyle = 'rgba(6, 9, 14, 0.72)';
+      const pillW = textMetrics.width + 48;
+      const pillH = lineH + 10;
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+      ctx.shadowColor = 'transparent';
+      ctx.shadowBlur  = 0;
       ctx.beginPath();
-      ctx.roundRect((W - pillW) / 2, ly - 28, pillW, 38, 8);
+      ctx.roundRect((W - pillW) / 2, ly - lineH * 0.78, pillW, pillH, 8);
       ctx.fill();
 
-      // Subtitle text with subtle glow
+      // Caption text — white with a 1 px dark outline for legibility on
+      // any background (the outline replaces the blurry shadowBlur glow which
+      // looked smeared on Indic conjunct characters).
+      ctx.lineWidth   = 3;
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.9)';
+      ctx.lineJoin    = 'round';
+      ctx.strokeText(lines[l], W / 2, ly);
       ctx.fillStyle = '#ffffff';
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
-      ctx.shadowBlur = 12;
       ctx.fillText(lines[l], W / 2, ly);
     }
     ctx.restore();
   }
 
   ctx.restore();
-
-
 }
 
 // ── Master Seek Hook ───────────────────────────────────────────────────────────
@@ -5137,6 +5237,9 @@ module.exports = {
   detectCaptionsRequested,
   detectAnchorRequested,
   getScriptFontStack,
+  getScriptFontKey,
+  getScriptDir,
   AESTHETICS,
   REGIONAL_FONTS,
+  REGIONAL_FONT_URLS,
 };
