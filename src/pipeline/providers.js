@@ -635,12 +635,18 @@ class TTSProvider {
           proc.on('close', code => code === 0 ? resolve() : reject(new Error(`edge-tts exited ${code}: ${stderr}`)));
           proc.on('error', reject);
         });
-        // Normalise audio via FFmpeg — professional sound engineer voice chain:
-        // Highpass 80Hz (sub rumble cut) -> Mud notch 300Hz -> Vocal presence 4.5kHz -> Smooth broadcast leveling
+        // Upsample & convert only — no processing here.
+        // All EQ, compression, de-essing, and loudnorm run in the mixer chain
+        // (_buildVoiceChainFilter + _twoPassNorm) so they are applied exactly
+        // once, with full headroom, on the final 48 kHz stereo bus.
+        // Applying afftdn / dynaudnorm / silenceremove at this stage would:
+        //   • double-process artefacts when the mixer chain runs later
+        //   • introduce pumping on soft-syllable Indian languages (ml, hi, ta)
+        //   • create dropout gaps from silenceremove cutting inter-sentence pauses
         await new Promise((resolve, reject) => {
           const proc = spawn('ffmpeg', ['-nostdin', '-y', '-threads', '2',
             '-i', rawPath,
-            '-af', 'silenceremove=stop_periods=-1:stop_duration=0.3:stop_threshold=-40dB,highpass=f=80,equalizer=f=300:t=q:w=1.2:g=-1.5,equalizer=f=4500:t=q:w=1.5:g=1.5,afftdn=nf=-48:nr=10,volume=1.0,dynaudnorm=f=150:g=5:p=0.95',
+            '-af', 'aresample=resampler=soxr:precision=28:dither_method=triangular',
             '-ar', '48000', '-ac', '2', '-c:a', 'aac', '-b:a', '320k', outputPath], { timeout: 30000 });
           let stderr = '';
           proc.stderr?.on('data', d => { stderr += d; });
