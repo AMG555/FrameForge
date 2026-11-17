@@ -1,6 +1,6 @@
-# Motion Graphics Style Library (102 Styles)
+# Motion Graphics Style Library (104 Styles)
 
-Complete catalog of 102 procedural motion-graphics styles in the FrameForge Motion Library.
+Complete catalog of 104 procedural motion-graphics styles in the FrameForge Motion Library.
 Each style is a full canvas animation with sound, synthesized SFX, and deterministic time-based motion.
 
 > 💡 **Visitor Pro-Tip: 100% Free Code-Based Video Generation on [Arena.ai](https://arena.ai) (Even on Mobile!)**
@@ -1424,5 +1424,29 @@ Each style is a full canvas animation with sound, synthesized SFX, and determini
 - **Demo:** The metamorphosis of the monarch butterfly
 - **Prompt file:** `prompts/metamorphosis-specimen.md`
 - **Reference code:** `sources/metamorphosis-specimen.html`
+
+</details>
+
+<details>
+<summary><b>#103 Cinematic Anime</b> (cinematic-anime)</summary>
+
+- **Look:** Classic Japanese hand-drawn feature animation in the tradition of legendary Tokyo studios: tapered ink lines with variable weights, cel shading with designed shadow shapes, painted watercolor/gouache skies and foliage, organic paper tooth, atmospheric distance haze, and living weather.
+- **How it explains:** Every scene feels like a genuine film moment with emotional resonance. Characters animate on twos (12 fps key poses) while camera drifts smoothly on ones. Rich visual composition with foreground framing, secondary wind physics, and subtle character acting.
+- **Fonts:** Noto Serif JP, Fraunces
+- **Demo:** The Straw Hat on the fence carried by the summer breeze
+- **Prompt file:** prompts/cinematic-anime.md
+- **Reference code:** sources/cinematic-anime.html
+
+</details>
+
+<details>
+<summary><b>#104 Storybook 3D</b> (storybook-3d)</summary>
+
+- **Look:** A whimsical 3D toy-like storybook explainer: bright daylight sky gradient (#7fb6e8 to #cfe6f2 to warm cream #f6e7c8), fresh grass greens and warm sand, rounded toy character anatomy with mitten hands and dot eyes, cel shading with 3 light bands, thin dark outlines (#2a2230), and warm upper-left sun with soft shadows.
+- **How it explains:** Explains concepts or narrative journeys through tactile, grounded 3D toy models. Works for both stories and step-by-step explainers: machines, biology, physics, architecture, or character tales. Springy arrival settles, drifting cameras, and tactile sound design.
+- **Fonts:** Fraunces SemiBold
+- **Demo:** The Meadow Explorer & The Rolling Ball
+- **Prompt file:** prompts/storybook-3d.md
+- **Reference code:** sources/storybook-3d.html
 
 </details>

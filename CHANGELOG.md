@@ -4,6 +4,26 @@ All notable changes to FrameForge are documented here.
 
 ---
 
+## [2.7.21] — 2026-11-17
+
+### Motion Graphics & Animation Engines — Cinematic Anime & 3D Storybook (104 Styles)
+
+- **Cinematic Anime Animation Engine (`cinematic`)**:
+  - Full procedural 2D canvas animation pipeline inspired by classic Japanese hand-drawn feature films.
+  - Features tapered ink contour lines, watercolor/gouache sky washes, cumulus cloud dabs, paper texture, and procedural sound synthesis.
+  - Cross-platform scaffolding via `new_cinematic.mjs` and Windows batch fallbacks (`py.cmd`).
+  - Integrated into the procedural motion graphics catalog as Style #103 (`cinematic-anime`).
+- **3D Storybook & Explainer Animation Engine (`animation`)**:
+  - Procedural Three.js 3D world with deterministic render loop (`t`), cel-shading (3-band step function), toy character rigs with mitten hands, and rounded geometric primitives.
+  - Fraunces serif typography with organic entry springs and tactile procedural sound synthesis (`audiolib.py`).
+  - Cross-platform scaffolding via `new_animation.mjs` and Windows batch fallbacks (`py.cmd`).
+  - Integrated into the procedural motion graphics catalog as Style #104 (`storybook-3d`).
+- **Catalog & Documentation Expanded to 104 Styles**:
+  - Updated `catalog.json`, `LIBRARY.md`, `README.md`, `AGENTS.md`, and `GEMINI.md` to reflect 104 styles across 11 visual families.
+  - Standalone HTML sources and ready-to-copy Claude/agent prompt templates in `plugins/motion-styles/`.
+
+---
+
 ## [2.7.20] — 2026-11-16
 
 ### Video — Player Bar / Timing Overlay Removed

@@ -3808,9 +3808,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
   // ── Tool 33: List Motion Graphics Styles ────────────────────────────────────────
   // Returns all 62 styles from FrameForge Motion Library, optionally filtered by family.
   list_motion_styles: {
-    description: `List all 62 motion-graphics styles from the Motion Graphics Style Library (FrameForge Motion Library/\#library). Each style is a full canvas animation with sound, drawn in code by Claude — zero AI images, zero API keys.
+    description: `List all 104 motion-graphics styles from the Motion Graphics Style Library (FrameForge Motion Library/\#library). Each style is a full canvas animation with sound, drawn in code by Claude — zero AI images, zero API keys.
 
-Families: Kinetic Type (3) · Hand-Drawn (3) · Screen and UI (1) · Data (6) · Talking Head (1) · Illustrated (7) · 3D (14) · Retro (2) · Shorts Format (10) · Edit Overlay (10) · Character Story (5).
+Families: Kinetic Type (3) · Hand-Drawn (5) · Screen and UI (3) · Data (6) · Talking Head (1) · Illustrated (8) · 3D (50) · Retro (2) · Shorts Format (10) · Edit Overlay (11) · Character Story (5).
 
 Use list_motion_styles to discover which style fits the content, then call get_motion_style_prompt to get the full Claude prompt for that style.`,
     inputSchema: {
@@ -3818,7 +3818,7 @@ Use list_motion_styles to discover which style fits the content, then call get_m
       properties: {
         family: {
           type: 'string',
-          description: 'Filter by family (case-insensitive). One of: Kinetic Type, Hand-Drawn, Screen and UI, Data, Talking Head, Illustrated, 3D, Retro, Shorts Format, Edit Overlay, Character Story. Omit to return all 62.',
+          description: 'Filter by family (case-insensitive). One of: Kinetic Type, Hand-Drawn, Screen and UI, Data, Talking Head, Illustrated, 3D, Retro, Shorts Format, Edit Overlay, Character Story. Omit to return all 104.',
         },
         search: {
           type: 'string',

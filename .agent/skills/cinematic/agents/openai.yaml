@@ -1,0 +1,4 @@
+interface:
+  display_name: "Cinematic"
+  short_description: "Hand-drawn animated film moments in the style of classic Japanese feature animation, HTML + MP4 with sound"
+  default_prompt: "Use $cinematic to make a 30-second scene: a girl waits alone at a country bus stop in the rain until a strange visitor sits beside her."

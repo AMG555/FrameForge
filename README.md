@@ -13,7 +13,7 @@
 [![Tests](https://img.shields.io/badge/tests-670%20passing-brightgreen.svg?style=flat-square)](docs/collaboration.md)
 [![Structural Gates](https://img.shields.io/badge/validation-113%20passed-success.svg?style=flat-square)](docs/collaboration.md)
 
-[Quickstart](#quickstart) • [100% Free Path (Arena.ai)](#free-arena) • [Two Superpowers](#superpowers) • [102 Motion Styles](#styles) • [Faceless Shorts](#shorts) • [Remote / Cloud Server](#remote-server) • [34 MCP Tools](#tools) • [Collaboration Guide](docs/collaboration.md)
+[Quickstart](#quickstart) • [100% Free Path (Arena.ai)](#free-arena) • [Two Superpowers](#superpowers) • [104 Motion Styles](#styles) • [Faceless Shorts](#shorts) • [Remote / Cloud Server](#remote-server) • [34 MCP Tools](#tools) • [Collaboration Guide](docs/collaboration.md)
 
 </div>
 
@@ -51,7 +51,7 @@ Your agent configures MCP and verifies everything on its own.
 * **To Create:** *"Make a 45-second vertical reel explaining how GPS triangulation works with bold kinetic captions and sound effects."*
 * **To Edit:** *"Edit my recording raw.mp4: cut all silences and retakes, add kinetic subtitle cards, and export the final video."*
 
-> 💡 **Style Tip:** You can specify any of our [102 Motion Styles](plugins/motion-styles/LIBRARY.md) directly in your prompt (e.g. *"in `creator-motion` style"*, *"in `aurora-glass` style"*, or *"in `paper-collage-film` style"*). If you don't name a style, your agent will automatically pick the best-fitting styles for each scene in your topic!
+> 💡 **Style Tip:** You can specify any of our [104 Motion Styles](plugins/motion-styles/LIBRARY.md) directly in your prompt (e.g. *"in `creator-motion` style"*, *"in `aurora-glass` style"*, or *"in `paper-collage-film` style"*). If you don't name a style, your agent will automatically pick the best-fitting styles for each scene in your topic!
 
 ---
 
@@ -67,13 +67,13 @@ You do **NOT** need expensive AI subscriptions or cloud GPU rentals to build stu
 ```
  ┌───────────────────────────┐      ┌─────────────────────────────┐      ┌─────────────────────────────┐
  │   1. Pick Motion Style    │ ───► │ 2. Generate on arena.ai     │ ───► │    3. Render Free with npm  │
- │   102 Procedural Styles   │      │ Free web agent (or mobile)  │      │    npx @amg555/frameforge   │
+ │   104 Procedural Styles   │      │ Free web agent (or mobile)  │      │    npx @amg555/frameforge   │
  │   Ready-to-copy prompt    │      │ Pure standalone HTML5 code  │      │    1080p MP4 master ($0)    │
  └───────────────────────────┘      └─────────────────────────────┘      └─────────────────────────────┘
 ```
 
 #### The 4-Step $0 Workflow:
-1. **Choose a Style:** Pick any look from our [102 Procedural Motion Styles](plugins/motion-styles/LIBRARY.md) (e.g. `creator-motion`, `aurora-glass`, `paper-collage-film`, `archival-explainer`, `data-story`, `clean-tech`, `assembly-3d`).
+1. **Choose a Style:** Pick any look from our [104 Procedural Motion Styles](plugins/motion-styles/LIBRARY.md) (e.g. `creator-motion`, `aurora-glass`, `paper-collage-film`, `archival-explainer`, `data-story`, `clean-tech`, `assembly-3d`).
 2. **Grab the Prompt:** Open the style's prompt in [`plugins/motion-styles/prompts/`](plugins/motion-styles/prompts/) (e.g. [`creator-motion.md`](plugins/motion-styles/prompts/creator-motion.md)) and copy the prompt template.
 3. **Generate Code with Free Agent (Desktop or Mobile Phone):** Open **[arena.ai](https://arena.ai)** in your browser (on PC or phone), select the free agent option, and paste the prompt + your topic (e.g. *"Explain how GPS triangulation works"*). The agent writes the complete HTML5 canvas / Three.js animation code. (You can also use any other free agent, or cheap low-cost agents if you have budget).
 4. **Render Free with Our Single npm Package:** Save as `animation.html` and render into a crisp 1080p broadcast MP4 with one command (runs locally, on VPS, or in Android Termux):
@@ -106,7 +106,7 @@ You do **NOT** need expensive AI subscriptions or cloud GPU rentals to build stu
                 ▼                                             ▼
      SUPERPOWER 1: CREATION                        SUPERPOWER 2: EDITING
   • Ideas/Scripts → Final MP4                   • Raw Footage → Polished Cut
-  • 102 Procedural Motion Styles                • Auto-cut speech pauses & silences
+  • 104 Procedural Motion Styles                • Auto-cut speech pauses & silences
   • Dynamic Per-Scene Multi-Styles              • Remove false starts & mistake retakes
   • 6 Viral Faceless Shorts Engines             • Kinetic captions, B-roll, color grading
   • Playwright time-based canvas (pure t)       • Export to DaVinci Resolve / Premiere
@@ -133,9 +133,9 @@ You do **NOT** need expensive AI subscriptions or cloud GPU rentals to build stu
 ---
 
 <a id="styles"></a>
-## 🎨 102 Procedural Motion-Graphics Styles
+## 🎨 104 Procedural Motion-Graphics Styles
 
-FrameForge bundles **102 code-drawn motion-graphics styles** covering every content genre. Every style runs entirely in code on HTML5 Canvas / Three.js r128 with synthesized Web Audio sound kits — zero AI image generation, zero diffusion artifacts.
+FrameForge bundles **104 code-drawn motion-graphics styles** covering every content genre. Every style runs entirely in code on HTML5 Canvas / Three.js r128 with synthesized Web Audio sound kits — zero AI image generation, zero diffusion artifacts.
 
 Full catalog and ready-to-copy prompts in [`plugins/motion-styles/LIBRARY.md`](plugins/motion-styles/LIBRARY.md).
 
@@ -153,7 +153,7 @@ Full catalog and ready-to-copy prompts in [`plugins/motion-styles/LIBRARY.md`](p
 | **Edit Overlays** | 11 | `punch-captions`, `karaoke-subs`, `callout-kit`, `lower-thirds`, `archival-explainer` | Archival documentary, blue highlighter boxes, subtitle pops |
 | **Character Stories** | 5 | `shadow-puppets`, `visual-novel`, `rubber-hose-reel` | Vector character animation, lore, folklore |
 
-### Newly Added Procedural Styles (#97 to #102):
+### Newly Added Procedural Styles (#97 to #104):
 * **#97 Paper Collage Film (`paper-collage-film`):** Torn paper stop-motion collage on twos (tactile stop-motion physical collage grammar), fibrous white borders, paper iris zoom, kaleidoscope split, and paper foley sound design.
 * **#98 Aurora Glass (`aurora-glass`):** Premium dark `#0A0E14` creator canvas, cyan aurora bloom, floating frosted glassmorphism cards, glowing Plus Jakarta Sans typography, Space Mono data pills, and focus-stack parallax.
 * **#99 Archival Explainer (`archival-explainer`):** Warm newsprint `#efe9dc`, thick sticker cutouts, signature blue marker highlight box (`#37BDF8`), Fraunces serif, and stepped stop-motion on twos.
@@ -200,7 +200,7 @@ FrameForge registers **34 tools** compliant with the Model Context Protocol (MCP
 |---|---|---|
 | **Video Creation (7)** | `create_video_from_script`, `assemble_video`, `render_from_scenes`, `edit_scenes`, `ingest_media`, `publish_video`, `generate_scene_image` | Full video assembly, scenes manifest, caption burning, scene graphics export |
 | **Autonomous Editing (5)** | `edit_video`, `plan_video_edit`, `export_to_editor`, `detect_viral_clips`, `karaoke_subtitles` | Silence & retake cutting, viral hook scoring, kinetic subs, NLE export (DaVinci/Premiere) |
-| **Motion Styles (2)** | `list_motion_styles`, `get_motion_style_prompt` | Catalog browse & prompt generation across 102 procedural styles |
+| **Motion Styles (2)** | `list_motion_styles`, `get_motion_style_prompt` | Catalog browse & prompt generation across 104 procedural styles |
 | **Faceless Shorts (2)** | `list_short_styles`, `create_short` | 6 vertical formats (3D anatomy, true crime noir, stick figure, paper atlas) |
 | **Code Animation (6)** | `scaffold_animation_project`, `validate_storyboard`, `generate_scene_code`, `preview_scene`, `render_animation`, `verify_scene_quality` | Playwright canvas rendering, 12fps organic boil, closed-loop visual QA |
 | **Audio Mastering (3)** | `mix_audio_pro`, `render_tts`, `multi_voice_tts` | EBU R128 (−14 LUFS) broadcast mastering, ducking, 13-type SFX kit |

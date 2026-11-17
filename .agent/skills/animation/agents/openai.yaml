@@ -1,0 +1,4 @@
+interface:
+  display_name: "Animation"
+  short_description: "Animated stories and explainers, HTML + MP4 with sound"
+  default_prompt: "Use $animation to make an animated short about a puppy who learns to swim."

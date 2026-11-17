@@ -1,0 +1,12 @@
+{
+  "name": "cinematic-project",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "audio": "node -e \"const { spawnSync } = require('child_process'); process.exit(spawnSync(process.platform === 'win32' ? 'python' : 'python3', ['audio/audio.py', 'build/audio.wav'], { stdio: 'inherit' }).status ?? 0);\"",
+    "build": "node build.mjs",
+    "stills": "node render.mjs --stills",
+    "render": "node render.mjs"
+  },
+  "dependencies": {}
+}

@@ -6,7 +6,7 @@ This project is configured with full agent skills, multi-engine video rendering,
 
 ## ⚠️ ZERO AI IMAGES RULE (CODE-DRIVEN FIRST)
 - **NEVER generate AI images from the beginning.**
-- **Always default to FrameForge's code-driven animation tools**: 62 procedural motion styles (`list_motion_styles`, `get_motion_style_prompt`), 6 viral faceless shorts engines, Playwright canvas rendering, and kinetic typography.
+- **Always default to FrameForge's code-driven animation tools**: 104 procedural motion styles (`list_motion_styles`, `get_motion_style_prompt`), 6 viral faceless shorts engines, Playwright canvas rendering, and kinetic typography.
 - **DO NOT call AI image generation or generate diffusion pictures** unless the user explicitly prompts: "generate AI images" or "use AI image generation".
 
 ---
@@ -20,7 +20,8 @@ This project is configured with full agent skills, multi-engine video rendering,
   - **Comparisons / Dilemma**: `versus-split` or `versus_comparison`
   - **Processes / Step-by-Step**: `process_pipeline` or `tactics-board`
   - **Deep Dive / Mechanism**: `deep-dive`, `mechanism_physics`, or `magnification_focus`
-  - **Story / History / Context**: `chalk-talk`, `doc-cinema`, or `cinematic_documentary`
+  - **Story / History / Context**: `chalk-talk`, `doc-cinema`, `cinematic-anime`, or `cinematic_documentary`
+  - **Explainer / Whimsical Tale**: `storybook-3d`, `clean-tech`, or `minimal_luxury`
   - **Climax / Outro**: `creator-motion`, `minimal_luxury`, or `cosmic_space`
 - Even if the user doesn't specify a style name, the agent MUST automatically assign the best matching motion style to each scene.
 
@@ -28,10 +29,10 @@ This project is configured with full agent skills, multi-engine video rendering,
 
 ## Active Skills in this Workspace
 
-### 1. `motion-styles` — 62 Motion-Graphics Styles
+### 1. `motion-styles` — 104 Motion-Graphics Styles
 - **Source:** Scraped directly from [FrameForge Motion Library](FrameForge Motion Library).
 - **Location:** `.agent/skills/motion-styles/` and `plugins/motion-styles/`
-- **Catalog:** `plugins/motion-styles/catalog.json` (all 62 styles with sheet rules, sound design rules, size rules, and prompt metadata).
+- **Catalog:** `plugins/motion-styles/catalog.json` (all 104 styles with sheet rules, sound design rules, size rules, and prompt metadata).
 - **Reference Code:** `plugins/motion-styles/sources/<styleId>.html` (complete standalone working HTML files with canvas animation, Three.js shaders, math helpers, and synthesized Web Audio SFX).
 - **Ready-to-Copy Prompts:** `plugins/motion-styles/prompts/<styleId>.md` (standard direct prompts + voiceover/storyboard prompts).
 - **Catalog Index:** `plugins/motion-styles/LIBRARY.md`
@@ -39,19 +40,29 @@ This project is configured with full agent skills, multi-engine video rendering,
   - `list_motion_styles`: Browse by family (Kinetic Type, Hand-Drawn, Screen and UI, Data, Talking Head, Illustrated, 3D, Retro, Shorts Format, Edit Overlay, Character Story).
   - `get_motion_style_prompt`: Fetch the full prompt for any style, with optional topic, voiceover timing mode (`mode: "vo"`), storyboard-first (`storyboard: true`), and embedded source code (`includeSource: true`).
 
-### 2. `ai-video-editor` — Talking Head Video Editor
+### 2. `cinematic` — Classic Japanese Feature Animation
+- **Location:** `.agent/skills/cinematic/` and `plugins/cinematic/`
+- **Engine:** Pure 2D canvas procedural inking & watercolor painting engine with parallel Chromium/Playwright + FFmpeg rendering and Python audiolib sound synthesis.
+- **Aesthetic:** Tapered sepia-black ink lines, watercolor/gouache sky dabs, cumulus clouds, cel shading with designed shadow shapes, paper tooth texture, and living secondary wind physics.
+
+### 3. `animation` — 3D Storybook & Explainer Animation Engine
+- **Location:** `.agent/skills/animation/` and `plugins/animation/`
+- **Engine:** Three.js procedural toy world with deterministic time parameter `t`, toon cel shader (3 light bands), mitten-hand character rigs, Fraunces serif typography, and tactile procedural sound synthesis.
+- **Workflow:** Solicits 4 intake parameters (Length, Topic, Style, Plan together vs straight to work), builds self-contained WebGL/HTML player, renders frame-accurate MP4 at -16 LUFS, and generates contact sheets for visual QA.
+
+### 4. `ai-video-editor` — Talking Head Video Editor
 - **Location:** `.agent/skills/ai-video-editor/` and `plugins/ai-video-editor/`
 - **Engine:** Whisper (faster-whisper) + FFmpeg + Chromium canvas compositor.
 - **Workflow:** Cuts silences, removes retakes/mistakes, applies motion graphics in 7 styles (Warm Canvas, Creator Motion Graphics, Clean Tech, Software Walkthrough, Data Story, Chalk Talk, Pop Info), normalizes loudness, renders final MP4.
 
-### 3. `faceless-shorts` — Viral Vertical Video Engine
+### 5. `faceless-shorts` — Viral Vertical Video Engine
 - **Location:** `.agent/skills/faceless-shorts/` and `plugins/faceless-shorts/`
 - **Engine:** Kokoro local AI voice + Whisper word-level timing + 3D/2D procedural canvas + FFmpeg.
 - **Styles:** Deep Dive 3D (), Night File 3D (true crime/mystery), Inside Out (2D x-ray), Stick Story (survival steps), Paper Atlas (historical cut paper), Tall Tale 3D (cartoon 3D storytime).
 
-### 4. `video-pipeline` & `html-renderer` — FrameForge Native Engines
+### 6. `video-pipeline` & `html-renderer` — FrameForge Native Engines
 - **Location:** `.agent/skills/video-pipeline/` and `.agent/skills/html-renderer/`
-- **Capabilities:** 34 MCP tools covering end-to-end video synthesis, TTS, audio mastering (`mix_audio_pro`), scene quality verification, and Playwright code animation.
+- **Capabilities:** 37 MCP tools covering end-to-end video synthesis, TTS, audio mastering (`mix_audio_pro`), scene quality verification, and Playwright code animation.
 
 ### 5. `gstack` Suite — Automated QA, Review, & Engineering
 - **Location:** `.agent/skills/gstack-*/`
