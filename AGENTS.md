@@ -37,15 +37,21 @@ This workspace equips agents with complete video production, procedural motion g
    - `ai-video-editor`: Full talking-head editor with mistake cutting, local Whisper, and 7 canvas motion-graphics styles.
    - `html-renderer`: FrameForge time-based canvas engine with 12fps organic boil, camera springs, and audio ducking.
 
-2. **Quality & Engineering Automation (gstack):**
+2. **Livestream & Broadcast Clipping:**
+   - `stream-clipping`: Full autonomous clipping pipeline for livestreams, debates, podcasts, news feeds, and VODs (`clip_stream`, `discover_streams`).
+   - `vod-capture`: Targeted VOD section download without full video muxing, or local OBS Replay Buffer triggers (`capture_vod`, `obs_command`).
+   - `clip-cut`: Reframe 16:9 to 9:16 (blur backdrop for chyrons, face-tracked crop, vertical stack) or 16:9 landscape with HarfBuzz libass subtitles and titlecards (`cut_and_reframe_clip`).
+   - `clip-validate`: Automated multi-point QA gate asserting duration, streams, resolution, and audio volume (`validate_clip`).
+
+3. **Quality & Engineering Automation (gstack):**
    - Use `gstack-review` and `gstack-qa` to verify code integrity and render pipelines.
    - Use `gstack-design-review` to inspect visual motion graphics, contrast, layout, and mobile safe zones.
    - Use `gstack-investigate` for systematic root-cause debugging of any pipeline failures.
 
-3. **Reverse Engineering & Extraction (rea):**
+4. **Reverse Engineering & Extraction (rea):**
    - Use `reverse-engineer-anything` and the `rea` MCP server to analyze external WebGL shaders, Three.js bundles, audio synthesis chains, and canvas effects to port them into FrameForge.
 
-4. **FrameForge Core MCP Pipeline:**
-   - 37 tools available via stdio (`src/mcp-server/stdio.js`) and HTTP (`src/mcp-server/server.js`).
+5. **FrameForge Core MCP Pipeline:**
+   - 43 tools available via stdio (`src/mcp-server/stdio.js`) and HTTP (`src/mcp-server/server.js`).
    - Use `list_motion_styles` and `get_motion_style_prompt` for instant access to any of the 104 Motion graphics style prompts and codebases.
 

@@ -704,4 +704,53 @@ describe('Upstream sync and media tools (check_upstream_updates, transcribe_medi
     assert.ok(TOOLS.mix_audio_pro.inputSchema.properties.targetLufs);
     assert.ok(TOOLS.mix_audio_pro.inputSchema.properties.duckLevel);
   });
+
+  describe('Livestream & Broadcast Clipping Tools in TOOLS', () => {
+    it('clip_stream is registered in TOOLS with valid schema', () => {
+      assert.ok(TOOLS.clip_stream, 'clip_stream missing from TOOLS');
+      assert.deepEqual(TOOLS.clip_stream.inputSchema.required, ['url']);
+      assert.ok(TOOLS.clip_stream.inputSchema.properties.topic);
+      assert.ok(TOOLS.clip_stream.inputSchema.properties.layout);
+    });
+
+    it('capture_vod is registered in TOOLS with valid schema', () => {
+      assert.ok(TOOLS.capture_vod, 'capture_vod missing from TOOLS');
+      assert.deepEqual(TOOLS.capture_vod.inputSchema.required, ['url', 'outputPath']);
+      assert.ok(TOOLS.capture_vod.inputSchema.properties.start);
+      assert.ok(TOOLS.capture_vod.inputSchema.properties.end);
+    });
+
+    it('score_stream_highlights is registered in TOOLS with valid schema', () => {
+      assert.ok(TOOLS.score_stream_highlights, 'score_stream_highlights missing from TOOLS');
+      assert.deepEqual(TOOLS.score_stream_highlights.inputSchema.required, ['chatFile']);
+      assert.ok(TOOLS.score_stream_highlights.inputSchema.properties.bucketSec);
+    });
+
+    it('cut_and_reframe_clip is registered in TOOLS with valid schema', () => {
+      assert.ok(TOOLS.cut_and_reframe_clip, 'cut_and_reframe_clip missing from TOOLS');
+      assert.deepEqual(TOOLS.cut_and_reframe_clip.inputSchema.required, ['sourcePath', 'outputPath']);
+      assert.ok(TOOLS.cut_and_reframe_clip.inputSchema.properties.layout);
+      assert.ok(TOOLS.cut_and_reframe_clip.inputSchema.properties.targetAspect);
+    });
+
+    it('validate_clip is registered in TOOLS with valid schema', () => {
+      assert.ok(TOOLS.validate_clip, 'validate_clip missing from TOOLS');
+      assert.deepEqual(TOOLS.validate_clip.inputSchema.required, ['clipPath']);
+      assert.ok(TOOLS.validate_clip.inputSchema.properties.minDuration);
+      assert.ok(TOOLS.validate_clip.inputSchema.properties.maxDuration);
+    });
+
+    it('discover_streams is registered in TOOLS with valid schema', () => {
+      assert.ok(TOOLS.discover_streams, 'discover_streams missing from TOOLS');
+      assert.ok(TOOLS.discover_streams.inputSchema.properties.topic);
+      assert.ok(TOOLS.discover_streams.inputSchema.properties.count);
+    });
+
+    it('obs_command is registered in TOOLS with valid schema', () => {
+      assert.ok(TOOLS.obs_command, 'obs_command missing from TOOLS');
+      assert.deepEqual(TOOLS.obs_command.inputSchema.required, ['action']);
+      assert.ok(TOOLS.obs_command.inputSchema.properties.host);
+      assert.ok(TOOLS.obs_command.inputSchema.properties.port);
+    });
+  });
 });

@@ -4,6 +4,32 @@ All notable changes to FrameForge are documented here.
 
 ---
 
+## [2.7.22] — 2026-11-20
+
+### Livestream & Broadcast Clipping Engine — `stream-clipping` (43 MCP Tools)
+
+- **Autonomous Live Stream & Broadcast Clipping Engine (`stream-clipping`)**:
+  - Full pipeline turning long livestreams, news broadcasts, political debates, podcasts, and gaming streams into ready-to-post clips.
+  - Dual-orientation support: 9:16 portrait for Shorts/Reels/TikTok and 16:9 widescreen for in-depth 2–10 minute news reports and debate segments.
+  - Audio-first extraction via yt-dlp (`-f ba/b`) for ultra-fast and lightweight processing.
+  - Video slice downloads only for selected moment timestamps (`--download-sections`), saving dozens of gigabytes of bandwidth.
+- **Signal Analysis & Spike Detection**:
+  - Rolling audio energy spike detection (`astats`/`ebur128`) to catch shouting, laughter, breaking news alerts, and crowd gasps.
+  - Standalone Chat Velocity Scorer (`chat_velocity.py`) tracking live chat messages per second and reaction bursts (3x baseline) with keyword/emoji clustering (`LMAO`, `POG`, `W`, `💀`, `🔥`).
+- **Layouts & Typography**:
+  - `blur`: Uncropped 16:9 broadcast feed centered over darkened/blurred 9:16 background, preserving 100% of broadcaster chyron, ticker, and corner clock.
+  - `crop`: Dynamic face/speaker tracking for solo anchors, guests, and field reporting.
+  - `stack`: Dual-split for facecam and gameplay.
+  - `landscape`: Full 1920×1080 widescreen for complete 2–10 minute news packages.
+  - Word-by-word synchronized subtitles rendered via libass with HarfBuzz complex script shaping (Devanagari, Malayalam, Tamil, Telugu, Arabic, and Romanized transliteration).
+- **OBS Studio WebSocket Controller (`obs_replay.py`)**:
+  - WebSocket v5 client for OBS Studio (`ws://localhost:4455`) triggering `SaveReplayBuffer`, polling output directories, and retrieving saved instant replay clips.
+- **Modular Skills & MCP Tools**:
+  - Added modular skills: `vod-capture`, `clip-cut`, `clip-validate`, and router `stream-clipping`.
+  - Added 7 new MCP tools: `clip_stream`, `capture_vod`, `score_stream_highlights`, `cut_and_reframe_clip`, `validate_clip`, `discover_streams`, `obs_command`. Total 43 MCP tools.
+
+---
+
 ## [2.7.21] — 2026-11-17
 
 ### Motion Graphics & Animation Engines — Cinematic Anime & 3D Storybook (104 Styles)

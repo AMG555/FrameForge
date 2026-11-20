@@ -77,6 +77,12 @@ This project is configured with full agent skills, multi-engine video rendering,
 - **MCP Server:** `rea`
 - **Capabilities:** Reverse-engineer WebGL shaders, Three.js bundles, compiled media binaries, canvas render routines, and third-party motion graphics pipelines.
 
+### 7. `stream-clipping` — Livestream & Broadcast Clipping Engine
+- **Location:** `.agent/skills/stream-clipping/` and `plugins/stream-clipping/`
+- **Capabilities:** Autonomous clipping for YouTube/Twitch/Kick livestreams, debates, podcasts, and broadcast news.
+- **Sub-skills:** `vod-capture` (sliced download / OBS replay buffer), `clip-cut` (reframe to 9:16 or 16:9, libass subtitles, titlecards), `clip-validate` (strict QA gate).
+- **Tools:** `clip_stream`, `capture_vod`, `score_stream_highlights`, `cut_and_reframe_clip`, `validate_clip`, `discover_streams`, `obs_command`.
+
 ---
 
 ## Quick Reference Commands

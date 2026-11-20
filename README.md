@@ -13,7 +13,7 @@
 [![Tests](https://img.shields.io/badge/tests-670%20passing-brightgreen.svg?style=flat-square)](docs/collaboration.md)
 [![Structural Gates](https://img.shields.io/badge/validation-113%20passed-success.svg?style=flat-square)](docs/collaboration.md)
 
-[Quickstart](#quickstart) • [100% Free Path (Arena.ai)](#free-arena) • [Two Superpowers](#superpowers) • [104 Motion Styles](#styles) • [Faceless Shorts](#shorts) • [Remote / Cloud Server](#remote-server) • [34 MCP Tools](#tools) • [Collaboration Guide](docs/collaboration.md)
+[Quickstart](#quickstart) • [100% Free Path (Arena.ai)](#free-arena) • [Three Superpowers](#superpowers) • [104 Motion Styles](#styles) • [Faceless Shorts](#shorts) • [Remote / Cloud Server](#remote-server) • [43 MCP Tools](#tools) • [Collaboration Guide](docs/collaboration.md)
 
 </div>
 
@@ -22,10 +22,11 @@
 <a id="what-is-frameforge"></a>
 ## 💡 What is FrameForge?
 
-**FrameForge** is an open-source local video engine and **Model Context Protocol (MCP)** server that equips **any AI agent** with two complete superpowers:
+**FrameForge** is an open-source local video engine and **Model Context Protocol (MCP)** server that equips **any AI agent** with three complete superpowers:
 
 1. **Autonomous Video Creation:** Generates full 1080p landscape videos and 9:16 vertical shorts from a single prompt or script.
 2. **Autonomous Video Editing:** Ingests raw video/audio footage, automatically cuts silences, removes bad takes/mistakes, injects kinetic captions & B-roll, and exports polished videos or NLE timelines.
+3. **Live Stream & Broadcast Clipping:** Ingests multi-hour livestreams and broadcast feeds (news channels, debates, podcasts, gaming), detects audio volume and live chat surges, reframes to 9:16 portrait (preserving chyrons) or 16:9 widescreen, burns word-accurate subtitles across Indian & world scripts, and validates before publishing.
 
 **100% Free & Local:** Runs on your machine or cloud server with free offline neural voices and deterministic code-drawn graphics. Zero cloud render costs, zero GPU subscriptions, zero AI hallucinations. FrameForge defaults strictly to code-driven procedural animation — zero AI images generated unless explicitly requested.
 
@@ -94,7 +95,7 @@ You do **NOT** need expensive AI subscriptions or cloud GPU rentals to build stu
 ---
 
 <a id="superpowers"></a>
-## 🎬 Two Agent Superpowers: Creation & Editing
+## 🎬 Three Agent Superpowers: Creation, Editing & Stream Clipping
 
 ```
                                   Your AI Agent
@@ -102,17 +103,17 @@ You do **NOT** need expensive AI subscriptions or cloud GPU rentals to build stu
                                        │
                       npx -y @amg555/frameforge-mcp
                                        │
-                ┌──────────────────────┴──────────────────────┐
-                ▼                                             ▼
-     SUPERPOWER 1: CREATION                        SUPERPOWER 2: EDITING
-  • Ideas/Scripts → Final MP4                   • Raw Footage → Polished Cut
-  • 104 Procedural Motion Styles                • Auto-cut speech pauses & silences
-  • Dynamic Per-Scene Multi-Styles              • Remove false starts & mistake retakes
-  • 6 Viral Faceless Shorts Engines             • Kinetic captions, B-roll, color grading
-  • Playwright time-based canvas (pure t)       • Export to DaVinci Resolve / Premiere
-  • Free offline voices (edge-tts)              • Non-blocking async frame disk writes
-                │                                             │
-                └──────────────────────┬──────────────────────┘
+         ┌─────────────────────────────┼─────────────────────────────┐
+         ▼                             ▼                             ▼
+SUPERPOWER 1: CREATION       SUPERPOWER 2: EDITING       SUPERPOWER 3: STREAM CLIPPING
+• Ideas/Scripts → Final MP4  • Raw Footage → Polished Cut• Long Streams/VODs → Polished Clips
+• 104 Motion Styles          • Auto-cut pauses/silences  • Audio energy & chat spike detection
+• Dynamic Per-Scene Styles   • Remove false starts       • 9:16 Blur chyron-safe / Crop / Stack
+• 6 Faceless Shorts Engines  • Kinetic captions & B-roll • HarfBuzz Indic & World libass subs
+• Pure-t Canvas Animation    • Export DaVinci/Premiere   • OBS ReplayBuffer & sliced downloads
+• Free voices (edge-tts)     • Non-blocking async writes • 8s to 10 min flexible story arc
+         │                             │                             │
+         └─────────────────────────────┼─────────────────────────────┘
                                        ▼
                      Broadcast Master MP4 (EBU R128 −14 LUFS)
 ```
@@ -129,6 +130,14 @@ You do **NOT** need expensive AI subscriptions or cloud GPU rentals to build stu
 * **Automated Motion Overlays:** Injects motion graphics cards, lower thirds, callouts, and browser mockups on top of raw footage.
 * **J-Cuts / L-Cuts & Audio Mixing:** Automatically overlaps audio transitions for cinematic flow, normalizes to EBU R128 (−14 LUFS), and ducks background beds under spoken words.
 * **Export to Professional Editors (`export_to_editor`):** Generates timeline files for **DaVinci Resolve** (FCPXML/EDL), **Premiere Pro**, **After Effects**, **Remotion**, or **CapCut**.
+
+### Superpower 3: Live Stream & Broadcast Clipping
+* **Audio-First Ingestion (`clip_stream`, `capture_vod`):** Downloads stream audio first for fast and lightweight scanning, then downloads high-res video slices ONLY for the chosen 30-180 second moments, saving dozens of gigabytes of bandwidth.
+* **Spike Detection (`score_stream_highlights`):** Detects rolling volume surges (debate clashes, breaking news declarations, cheering, laughter) and live chat message velocity bursts (3x baseline) with reaction keyword clustering (`LMAO`, `POG`, `W`, `🔥`).
+* **Chyron-Safe Framing (`cut_and_reframe_clip`):** Fits 16:9 news feeds cleanly over a darkened, blurred 9:16 backdrop to preserve 100% of broadcaster lower thirds, tickers, and corner clocks without awkward cropping. Also supports face-tracking crop, vertical stack, and 16:9 widescreen for in-depth 2–10 minute news reports.
+* **Complex Script Subtitles:** Renders word-by-word synchronized subtitles via libass + HarfBuzz shaping, fully preserving Indian scripts (Devanagari, Malayalam, Tamil, Telugu, Bengali) and Romanized transliteration.
+* **OBS Replay Integration (`obs_command`):** Triggers `SaveReplayBuffer` over OBS WebSocket v5 to capture live desktop/stream highlights on demand.
+* **Strict Quality Gate (`validate_clip`):** Asserts stream duration, audio loudness (mean > -35 dB), video dimensions, and checks test frames for black flashes.
 
 ---
 
@@ -192,14 +201,15 @@ Any cloud agent or IDE across your network can connect via standard MCP HTTP/SSE
 ---
 
 <a id="tools"></a>
-## 🛠️ 34 MCP Tools Reference
+## 🛠️ 43 MCP Tools Reference
 
-FrameForge registers **34 tools** compliant with the Model Context Protocol (MCP 2024-11-05 spec):
+FrameForge registers **43 tools** compliant with the Model Context Protocol (MCP 2024-11-05 spec):
 
-| Category | Tools (All 34 Listed) | Capabilities |
+| Category | Tools (All 43 Listed) | Capabilities |
 |---|---|---|
 | **Video Creation (7)** | `create_video_from_script`, `assemble_video`, `render_from_scenes`, `edit_scenes`, `ingest_media`, `publish_video`, `generate_scene_image` | Full video assembly, scenes manifest, caption burning, scene graphics export |
 | **Autonomous Editing (5)** | `edit_video`, `plan_video_edit`, `export_to_editor`, `detect_viral_clips`, `karaoke_subtitles` | Silence & retake cutting, viral hook scoring, kinetic subs, NLE export (DaVinci/Premiere) |
+| **Livestream & Clipping (7)** | `clip_stream`, `capture_vod`, `score_stream_highlights`, `cut_and_reframe_clip`, `validate_clip`, `discover_streams`, `obs_command` | Audio-first VOD slicing, volume & chat spike detection, chyron-safe blur/stack framing, libass captions, OBS replay |
 | **Motion Styles (2)** | `list_motion_styles`, `get_motion_style_prompt` | Catalog browse & prompt generation across 104 procedural styles |
 | **Faceless Shorts (2)** | `list_short_styles`, `create_short` | 6 vertical formats (3D anatomy, true crime noir, stick figure, paper atlas) |
 | **Code Animation (6)** | `scaffold_animation_project`, `validate_storyboard`, `generate_scene_code`, `preview_scene`, `render_animation`, `verify_scene_quality` | Playwright canvas rendering, 12fps organic boil, closed-loop visual QA |

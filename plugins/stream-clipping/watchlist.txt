@@ -1,0 +1,9 @@
+# Channels and feeds to check when you run `find`. One per line:
+#   youtube:@<handle>       e.g. youtube:@NewsChannelLive
+#   twitch:<login>          e.g. twitch:streamer
+#   kick:<name>             needs --cookies <browser>
+# Add a topic filter after | to only check that feed for that topic:
+#   youtube:@GlobalNews | debate
+#   youtube:@TechTalk | podcast
+#   twitch:broadcaster | tournament
+# Lines starting with # are ignored. Only recent broadcasts whose title matches the topic are processed.

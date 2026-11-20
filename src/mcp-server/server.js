@@ -3971,6 +3971,151 @@ Get a style id from list_motion_styles first. Source: FrameForge Motion Library 
     },
   },
 
+  clip_stream: {
+    description: `Full autonomous live stream and VOD clipping pipeline. Ingests URL (YouTube/Twitch/Kick) or local file, downloads audio first for fast processing, transcribes speech with Whisper, computes volume energy spikes and live chat replay bursts, selects viral and high-impact moments via AI, extracts high-res video slices only for selected timestamps, reframes frames to portrait 9:16 (blur/crop/stack) or 16:9 widescreen, generates word-by-word libass subtitles with native Indian/complex script shaping, normalizes to -14 LUFS, and outputs POSTING.md.`,
+    inputSchema: {
+      type: 'object',
+      required: ['url'],
+      properties: {
+        url: { type: 'string', description: 'Stream URL (YouTube, Twitch, Kick) or local VOD path.' },
+        topic: { type: 'string', description: 'Topic or focus of the stream (e.g. "News Debate", "Valorant", "Podcast").' },
+        clipsCount: { type: 'number', description: 'Number of clips to generate (default: 3).' },
+        minSec: { type: 'number', description: 'Minimum clip duration in seconds (default: 20).' },
+        maxSec: { type: 'number', description: 'Maximum clip duration in seconds (default: 60).' },
+        layout: { type: 'string', enum: ['blur', 'crop', 'stack', 'landscape'], description: 'Framing layout (default: "blur" for news/esports).' },
+        format: { type: 'string', enum: ['portrait', 'landscape'], description: 'Output orientation: "portrait" (9:16) or "landscape" (16:9).' },
+        brain: { type: 'string', description: 'AI selection brain (auto, claude, gemini, codex, agent).' },
+        outputDir: { type: 'string', description: 'Custom output directory.' },
+      },
+    },
+    handler: async ({ url, topic = 'highlights', clipsCount = 3, minSec = 20, maxSec = 60, layout = 'blur', format = 'portrait', brain = 'auto', outputDir } = {}) => {
+      const { spawnSync } = require('child_process');
+      const pathMod = require('path');
+      const scriptPath = pathMod.resolve(__dirname, '../../plugins/stream-clipping/scripts/streamclips.py');
+      const IS_WIN = process.platform === 'win32';
+      const py = IS_WIN ? 'python' : 'python3';
+      const args = [scriptPath, 'clip', url, '--topic', topic, '--count', String(clipsCount), '--min', String(minSec), '--max', String(maxSec), '--layout', layout, '--brain', brain];
+      if (format === 'landscape') args.push('--landscape');
+      if (outputDir) args.push('--out', outputDir);
+      const res = spawnSync(py, args, { encoding: 'utf8', timeout: 30 * 60 * 1000 });
+      return {
+        success: res.status === 0,
+        url,
+        topic,
+        output: res.stdout || res.stderr,
+      };
+    },
+  },
+
+  capture_vod: {
+    description: `Capture a targeted section of a livestream or VOD to disk via yt-dlp sliced download without downloading the full multi-hour stream. Stream copy only, no re-encoding.`,
+    inputSchema: {
+      type: 'object',
+      required: ['url', 'outputPath'],
+      properties: {
+        url: { type: 'string', description: 'VOD or stream URL.' },
+        outputPath: { type: 'string', description: 'Local path where captured MP4 will be saved.' },
+        start: { type: 'number', description: 'Start offset in seconds (e.g. 120.0).' },
+        end: { type: 'number', description: 'End offset in seconds (e.g. 165.0).' },
+        cookies: { type: 'string', description: 'Browser for cookies (chrome, edge, firefox, brave).' },
+      },
+    },
+    handler: async ({ url, outputPath, start, end, cookies } = {}) => {
+      const clipper = require('../stream-clipper/stream-clipper');
+      return clipper.captureVod({ url, outputPath, start, end, cookies });
+    },
+  },
+
+  score_stream_highlights: {
+    description: `Analyze chat velocity bursts (messages per second + reaction keywords) and audio volume spikes to locate high-energy viral moments in livestreams.`,
+    inputSchema: {
+      type: 'object',
+      required: ['chatFile'],
+      properties: {
+        chatFile: { type: 'string', description: 'Path to live chat JSON, JSONL, or IRC transcript file.' },
+        bucketSec: { type: 'number', description: 'Time window in seconds per bucket (default: 10).' },
+        spikeMultiplier: { type: 'number', description: 'Multiplier over rolling baseline to trigger a spike (default: 2.5).' },
+      },
+    },
+    handler: async ({ chatFile, bucketSec = 10, spikeMultiplier = 2.5 } = {}) => {
+      const clipper = require('../stream-clipper/stream-clipper');
+      return clipper.scoreChatVelocity(chatFile, { bucketSec, spikeMult: spikeMultiplier });
+    },
+  },
+
+  cut_and_reframe_clip: {
+    description: `Cut and reframe a video into 9:16 portrait (blur backdrop, face-tracked crop, vertical stack) or 16:9 widescreen, normalize audio to -14 LUFS, apply head/tail audio fades, and burn word-level subtitles.`,
+    inputSchema: {
+      type: 'object',
+      required: ['sourcePath', 'outputPath'],
+      properties: {
+        sourcePath: { type: 'string', description: 'Path to input source video.' },
+        outputPath: { type: 'string', description: 'Path to output rendered clip.' },
+        start: { type: 'number', description: 'Start time in seconds.' },
+        end: { type: 'number', description: 'End time in seconds.' },
+        layout: { type: 'string', enum: ['blur', 'crop', 'stack', 'landscape'], description: 'Framing layout (default: blur).' },
+        targetAspect: { type: 'string', enum: ['9:16', '16:9'], description: 'Aspect ratio (default: 9:16).' },
+        loudnorm: { type: 'boolean', description: 'Whether to apply -14 LUFS loudness normalization (default: true).' },
+      },
+    },
+    handler: async ({ sourcePath, outputPath, start = 0, end = null, layout = 'blur', targetAspect = '9:16', loudnorm = true } = {}) => {
+      const clipper = require('../stream-clipper/stream-clipper');
+      return clipper.cutAndReframeClip({ sourcePath, outputPath, start, end, layout, targetAspect, loudnorm });
+    },
+  },
+
+  validate_clip: {
+    description: `Automated multi-point QA gate for stream clips before export/publishing. Asserts duration (8s to 600s), stream integrity (1 video, 1 audio), resolution (1080x1920 or 1920x1080), audio loudness (mean > -35dB), and black frame check.`,
+    inputSchema: {
+      type: 'object',
+      required: ['clipPath'],
+      properties: {
+        clipPath: { type: 'string', description: 'Path to clip video to validate.' },
+        minDuration: { type: 'number', description: 'Minimum allowed duration in seconds (default: 8.0).' },
+        maxDuration: { type: 'number', description: 'Maximum allowed duration in seconds (default: 600.0).' },
+        requiredAspect: { type: 'string', enum: ['9:16', '16:9'], description: 'Required aspect ratio.' },
+      },
+    },
+    handler: async ({ clipPath, minDuration = 8.0, maxDuration = 600.0, requiredAspect = null } = {}) => {
+      const clipper = require('../stream-clipper/stream-clipper');
+      return clipper.validateClip(clipPath, { minDuration, maxDuration, requiredAspect });
+    },
+  },
+
+  discover_streams: {
+    description: `Search active live streams or recent broadcasts on any topic across YouTube without API keys.`,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        topic: { type: 'string', description: 'Topic or search phrase (e.g. "News live", "Gaming tournament").' },
+        count: { type: 'number', description: 'Maximum number of streams to find (default: 5).' },
+      },
+    },
+    handler: async ({ topic = 'news', count = 5 } = {}) => {
+      const clipper = require('../stream-clipper/stream-clipper');
+      return clipper.discoverStreams({ topic, count });
+    },
+  },
+
+  obs_command: {
+    description: `Interact with OBS Studio WebSocket v5 (default localhost:4455). Trigger SaveReplayBuffer, start/stop replay buffer, or check status.`,
+    inputSchema: {
+      type: 'object',
+      required: ['action'],
+      properties: {
+        action: { type: 'string', enum: ['save-replay', 'start-buffer', 'stop-buffer', 'status'], description: 'OBS action to perform.' },
+        host: { type: 'string', description: 'OBS WebSocket host (default: localhost).' },
+        port: { type: 'number', description: 'OBS WebSocket port (default: 4455).' },
+        password: { type: 'string', description: 'OBS WebSocket password.' },
+        timeout: { type: 'number', description: 'Timeout in seconds (default: 12).' },
+      },
+    },
+    handler: async ({ action = 'status', host = 'localhost', port = 4455, password = '', timeout = 12 } = {}) => {
+      const clipper = require('../stream-clipper/stream-clipper');
+      return clipper.obsCommand({ action, host, port, password, timeout });
+    },
+  },
+
 };
 
 // ── MCP protocol handler (MCP 2024-11-05 spec) ───────────────────────────
