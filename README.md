@@ -82,7 +82,7 @@ You do **NOT** need expensive AI subscriptions or cloud GPU rentals to build stu
    npx -y @amg555/frameforge-mcp frameforge-harness all --html ./animation.html --out final.mp4
    ```
 
-> 📌 **Note on AI Model Tiers:** Free models on arena.ai and open platforms generate high-quality, creative code-driven animations at zero cost. For mathematically complex multi-layer 3D architectures, frontier models (Claude 3.7 / Opus / GPT-4.5) provide the highest single-pass layout precision.
+> 📌 **Note on AI Model Tiers:** Free models on arena.ai and open platforms generate high-quality, creative code-driven animations at zero cost. For mathematically complex multi-layer 3D architectures, frontier models (Claude / Opus / GPT) provide the highest single-pass layout precision.
 
 #### Why Code-Based Video Beats Traditional AI Video:
 * **Zero Cost ($0):** No subscriptions, no cloud rendering credits, no credit card required.
