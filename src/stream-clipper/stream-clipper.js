@@ -176,8 +176,10 @@ function cutAndReframeClip({
   layout = 'blur', // blur | crop | stack | landscape
   targetAspect = '9:16', // 9:16 | 16:9
   title = null,
-  subtitles = null, // array of { start, end, text } or path to ASS file
+  subtitles = null, // array of { start, end, text } or path to ASS/SRT file
   loudnorm = true,
+  crf = 18,
+  preset = 'slow',
 } = {}) {
   if (!fs.existsSync(sourcePath)) {
     throw new Error(`Source video not found: ${sourcePath}`);
@@ -213,6 +215,21 @@ function cutAndReframeClip({
     filterComplex = '[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=25:5,eq=brightness=-0.15[bg];[0:v]scale=1080:608:force_original_aspect_ratio=decrease[fg];[bg][fg]overlay=(W-w)/2:336[v]';
   }
 
+  // Kinetic title overlay with HarfBuzz shaping if title is passed
+  if (title && typeof title === 'string') {
+    const { buildCaptionFilter } = require('../video-editor/editor');
+    const titleFilter = buildCaptionFilter(title);
+    if (titleFilter) {
+      filterComplex += `,${titleFilter}`;
+    }
+  }
+
+  // Burn subtitle file if path is passed
+  if (subtitles && typeof subtitles === 'string' && fs.existsSync(subtitles)) {
+    const safeSubPath = subtitles.replace(/\\/g, '/').replace(/:/g, '\\:');
+    filterComplex += `,subtitles='${safeSubPath}'`;
+  }
+
   // Audio filter: loudnorm -14 LUFS + smooth 0.3s head/tail fades
   const fadeOutStart = Math.max(0, clipDur - 0.3).toFixed(2);
   let audioFilter = 'afade=t=in:ss=0:d=0.3,afade=t=out:st=' + fadeOutStart + ':d=0.3';
@@ -231,8 +248,9 @@ function cutAndReframeClip({
     '-map', '0:a?',
     '-af', audioFilter,
     '-c:v', 'libx264',
-    '-preset', 'fast',
-    '-crf', '19',
+    '-preset', preset || 'slow',
+    '-crf', String(crf || 18),
+    '-pix_fmt', 'yuv420p',
     '-c:a', 'aac',
     '-b:a', '192k',
     outputPath,

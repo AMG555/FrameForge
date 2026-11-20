@@ -4,6 +4,20 @@ All notable changes to FrameForge are documented here.
 
 ---
 
+## [2.7.25] — 2026-11-20
+
+### Broadcast-Grade Clip Quality Tuning & HarfBuzz Kinetic Titles
+
+- **CRF 18 Visual Master Quality & Universal `yuv420p`**:
+  - `cutAndReframeClip` upgraded to default CRF 18 visually lossless compression and `preset: slow` motion estimation.
+  - Added explicit `-pix_fmt yuv420p` ensuring 100% video compatibility without black frames on Apple QuickTime, iOS Safari, Android, and mobile players.
+  - Added support for burning ASS/SRT subtitle files directly onto reframed clips.
+  - Added kinetic title overlays with HarfBuzz complex script text shaping for multilingual video titles.
+- **MCP Tool Parameters**:
+  - `cut_and_reframe_clip` MCP tool updated to expose `title`, `subtitles`, `crf`, and `preset` parameters for fine-grained render quality control.
+
+---
+
 ## [2.7.24] — 2026-11-20
 
 ### Lightweight On-Demand Clipping Provisioning & Zero Initial Bloat

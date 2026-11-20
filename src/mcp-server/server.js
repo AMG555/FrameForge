@@ -4055,12 +4055,16 @@ Get a style id from list_motion_styles first. Source: FrameForge Motion Library 
         end: { type: 'number', description: 'End time in seconds.' },
         layout: { type: 'string', enum: ['blur', 'crop', 'stack', 'landscape'], description: 'Framing layout (default: blur).' },
         targetAspect: { type: 'string', enum: ['9:16', '16:9'], description: 'Aspect ratio (default: 9:16).' },
+        title: { type: 'string', description: 'Optional kinetic title overlay with HarfBuzz complex script shaping.' },
+        subtitles: { type: 'string', description: 'Optional path to ASS or SRT subtitle file to burn.' },
         loudnorm: { type: 'boolean', description: 'Whether to apply -14 LUFS loudness normalization (default: true).' },
+        crf: { type: 'number', default: 18, description: 'FFmpeg CRF quality (17-20 for broadcast master, default: 18).' },
+        preset: { type: 'string', enum: ['slow', 'medium', 'fast'], description: 'FFmpeg encoding preset (default: slow).' },
       },
     },
-    handler: async ({ sourcePath, outputPath, start = 0, end = null, layout = 'blur', targetAspect = '9:16', loudnorm = true } = {}) => {
+    handler: async ({ sourcePath, outputPath, start = 0, end = null, layout = 'blur', targetAspect = '9:16', title = null, subtitles = null, loudnorm = true, crf = 18, preset = 'slow' } = {}) => {
       const clipper = require('../stream-clipper/stream-clipper');
-      return clipper.cutAndReframeClip({ sourcePath, outputPath, start, end, layout, targetAspect, loudnorm });
+      return clipper.cutAndReframeClip({ sourcePath, outputPath, start, end, layout, targetAspect, title, subtitles, loudnorm, crf, preset });
     },
   },
 

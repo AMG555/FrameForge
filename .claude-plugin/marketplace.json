@@ -2,7 +2,7 @@
   "name": "frameforge",
   "displayName": "FrameForge — AI Video Production",
   "description": "Full AI video creation, livestream clipping & autonomous editing engine. Produce short-form reels (1080×1920), YouTube videos (1920×1080), or code-driven animated explainers — directly from your IDE. Playwright + FFmpeg renders every frame. 43 MCP tools. Whisper, yt-dlp stream & VOD clipping, broadcast audio, 104 procedural motion styles, 6 viral faceless shorts engines.",
-  "version": "2.7.24",
+  "version": "2.7.25",
   "homepage": "https://github.com/AMG555/FrameForge",
   "plugins": [
     {
