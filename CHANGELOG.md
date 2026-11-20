@@ -4,6 +4,22 @@ All notable changes to FrameForge are documented here.
 
 ---
 
+## [2.7.24] — 2026-11-20
+
+### Lightweight On-Demand Clipping Provisioning & Zero Initial Bloat
+
+- **Zero Storage Bloat Default Installation**:
+  - Initial setup (`setup-deps.sh`, `autoInstallAll()`, `install.sh`) now defaults exclusively to core editing and video generation dependencies (`ffmpeg`, `edge-tts`, `faster-whisper`, `playwright chromium`).
+  - Stream clipping tools (`yt-dlp`, `streamlink`, `obs-websocket-py`, and private `~/.streamclips` Python environment) are deferred from initial installation to eliminate setup lag and prevent unwanted disk storage consumption (~1.5 GB saved).
+- **On-Demand Auto-Download on First Use**:
+  - `src/stream-clipper/stream-clipper.js` dynamically checks for required clipping tools (`captureVod`, `discoverStreams`) and auto-provisions them on-demand only when a user explicitly requests live stream clipping or invokes a clipping MCP tool.
+  - Added `ensureClippingTools({ verbose, fullEnv })` in `src/utils/tool-installer.js`.
+- **Dedicated Pre-Provisioning CLI Flags**:
+  - Added `./setup-deps.sh --clipping` and `npm run setup:clipping` for users who explicitly want to pre-install stream clipping dependencies in advance.
+  - Updated `src/cli/doctor.js` to report clipping tools as deferred rather than throwing warnings when running standard editing and video generation workflows.
+
+---
+
 ## [2.7.22] — 2026-11-20
 
 ### Livestream & Broadcast Clipping Engine — `stream-clipping` (43 MCP Tools)

@@ -192,16 +192,70 @@ function ensurePlaywrightChromium() {
 }
 
 /**
- * Auto-install all recommended dependencies at once
+ * Ensure stream clipping tools are installed on-demand.
+ * Triggered only when the user requests stream clipping, preventing initial storage and bandwidth bloat.
+ *
+ * @param {Object} [opts]
+ * @param {boolean} [opts.verbose=true]
+ * @param {boolean} [opts.fullEnv=false]  Whether to provision the private ~/.streamclips environment
+ * @returns {boolean}
  */
-function autoInstallAll() {
-  console.log('\n=== FrameForge Tool Provisioner ===\n');
+function ensureClippingTools(opts = {}) {
+  const verbose = opts.verbose !== false;
+  const fullEnv = Boolean(opts.fullEnv);
+
+  if (verbose) {
+    console.log('[ToolInstaller] 🎬 Stream clipping requested: provisioning clipping tools on-demand...');
+  }
+
+  const ytdlpOk = ensureYtDlp();
+
+  let fullOk = true;
+  if (fullEnv) {
+    const setupEnvPath = path.resolve(__dirname, '../../plugins/stream-clipping/scripts/setup_env.py');
+    if (fs.existsSync(setupEnvPath)) {
+      if (verbose) {
+        console.log('[ToolInstaller] 📦 Setting up private stream clipping Python environment (~/.streamclips)...');
+      }
+      const pyCmd = process.platform === 'win32'
+        ? (isCommandAvailable('python') ? 'python' : 'py')
+        : (isCommandAvailable('python3') ? 'python3' : 'python');
+      const res = spawnSync(pyCmd, [setupEnvPath], { stdio: 'inherit' });
+      fullOk = res.status === 0;
+    }
+  }
+
+  return ytdlpOk && fullOk;
+}
+
+/**
+ * Auto-install recommended dependencies.
+ * Default profile installs core editing and video generation tools only (ffmpeg, edge-tts, whisper, chromium).
+ * Stream clipping dependencies (yt-dlp, stream tools) are deferred to on-demand execution.
+ *
+ * @param {Object} [options]
+ * @param {'core'|'clipping'|'all'} [options.profile='core']
+ * @param {boolean} [options.withClipping=false]
+ */
+function autoInstallAll(options = {}) {
+  const profile = options.profile || (options.withClipping ? 'all' : 'core');
+  console.log('\n=== FrameForge Tool Provisioner ===');
+  console.log(`Profile: ${profile === 'all' ? 'All Tools (Editing + VidGen + Stream Clipping)' : 'Core (Editing + Video Generation)'}\n`);
+
   const ffmpegOk = ensureFfmpeg();
   const ttsOk    = ensureEdgeTts();
-  const ytdlpOk  = ensureYtDlp();
+  const whisperOk = ensureWhisper();
   const crOk     = ensurePlaywrightChromium();
-  console.log(`\nResults: ffmpeg: ${ffmpegOk ? '✔' : '✖'}, edge-tts: ${ttsOk ? '✔' : '✖'}, yt-dlp: ${ytdlpOk ? '✔' : '✖'}, chromium: ${crOk ? '✔' : '✖'}\n`);
-  return { ffmpegOk, ttsOk, ytdlpOk, crOk };
+
+  let ytdlpOk = null;
+  if (profile === 'all' || profile === 'clipping' || options.withClipping) {
+    ytdlpOk = ensureClippingTools({ verbose: true });
+  } else {
+    console.log('[ToolInstaller] ℹ️ Stream clipping tools deferred (auto-downloads on demand when stream clipping is requested).');
+  }
+
+  console.log(`\nResults: ffmpeg: ${ffmpegOk ? '✔' : '✖'}, edge-tts: ${ttsOk ? '✔' : '✖'}, whisper: ${whisperOk ? '✔' : '✖'}, chromium: ${crOk ? '✔' : '✖'}${ytdlpOk !== null ? `, clipping(yt-dlp): ${ytdlpOk ? '✔' : '✖'}` : ''}\n`);
+  return { ffmpegOk, ttsOk, whisperOk, crOk, ...(ytdlpOk !== null ? { ytdlpOk } : {}) };
 }
 
 module.exports = {
@@ -211,5 +265,6 @@ module.exports = {
   ensureYtDlp,
   ensureWhisper,
   ensurePlaywrightChromium,
+  ensureClippingTools,
   autoInstallAll,
 };

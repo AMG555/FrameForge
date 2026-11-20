@@ -1,6 +1,13 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const { isCommandAvailable, ensureFfmpeg, ensureEdgeTts, ensureYtDlp } = require('./tool-installer');
+const {
+  isCommandAvailable,
+  ensureFfmpeg,
+  ensureEdgeTts,
+  ensureYtDlp,
+  ensureClippingTools,
+  autoInstallAll,
+} = require('./tool-installer');
 
 describe('tool-installer', () => {
   it('isCommandAvailable returns boolean', () => {
@@ -25,5 +32,14 @@ describe('tool-installer', () => {
   it('ensureYtDlp returns true when yt-dlp is available', () => {
     const res = ensureYtDlp();
     assert.equal(typeof res, 'boolean');
+  });
+
+  it('ensureClippingTools returns boolean on demand', () => {
+    const res = ensureClippingTools({ verbose: false });
+    assert.equal(typeof res, 'boolean');
+  });
+
+  it('autoInstallAll exports valid provisioner function', () => {
+    assert.equal(typeof autoInstallAll, 'function');
   });
 });

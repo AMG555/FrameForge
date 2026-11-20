@@ -187,7 +187,14 @@ if (subCmd === 'setup') {
 // 7. Dispatch to auto-installer
 if (subCmd === 'install' || subCmd === 'install-tools') {
   const { autoInstallAll } = require('../utils/tool-installer');
-  autoInstallAll();
+  const withClipping = process.argv.includes('--clipping') || process.argv.includes('--all');
+  autoInstallAll({ withClipping });
+  process.exit(0);
+}
+
+if (subCmd === 'install-clipping') {
+  const { ensureClippingTools } = require('../utils/tool-installer');
+  ensureClippingTools({ verbose: true, fullEnv: true });
   process.exit(0);
 }
 

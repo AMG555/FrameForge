@@ -10,6 +10,7 @@ const { spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const { isCommandAvailable, ensureClippingTools } = require('../utils/tool-installer');
 
 const IS_WIN = process.platform === 'win32';
 const PYTHON_CMD = IS_WIN ? (which('python') || which('py') || 'python') : (which('python3') || 'python3');
@@ -55,6 +56,15 @@ function captureVod({ url, start, end, outputPath, cookies = null, format = 'mp4
   const outDir = path.dirname(outputPath);
   if (!fs.existsSync(outDir)) {
     fs.mkdirSync(outDir, { recursive: true });
+  }
+
+  // On-demand tool provisioning: ensure yt-dlp is available when stream capture is called
+  if (!isCommandAvailable('yt-dlp')) {
+    console.log('[StreamClipper] 📥 Stream clipping requested: installing yt-dlp on demand...');
+    ensureClippingTools({ verbose: true });
+    if (!isCommandAvailable('yt-dlp')) {
+      throw new Error('yt-dlp is required for stream/VOD clipping. Automatic installation failed. Run: pip install yt-dlp');
+    }
   }
 
   const args = ['--no-playlist', '--no-warnings'];
@@ -335,6 +345,10 @@ function validateClip(clipPath, {
  * Discover recent or live streams for a given topic.
  */
 function discoverStreams({ topic, count = 5, platform = 'youtube' } = {}) {
+  if (!isCommandAvailable('yt-dlp')) {
+    ensureClippingTools({ verbose: true });
+  }
+
   const scriptPath = path.resolve(__dirname, '../../plugins/stream-clipping/scripts/streamclips.py');
   if (!fs.existsSync(scriptPath)) {
     throw new Error(`streamclips.py not found at ${scriptPath}`);

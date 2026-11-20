@@ -8,7 +8,8 @@
 #   3. Playwright Chromium browser for code-driven canvas video rendering
 #
 # Usage:
-#   ./setup-deps.sh             # Full auto-detect and install
+#   ./setup-deps.sh             # Core install: Editing & Video Generation (lightweight)
+#   ./setup-deps.sh --clipping  # Also install Stream Clipping tools (yt-dlp, streamlink)
 #   ./setup-deps.sh --check     # Only inspect and report current environment
 # ==============================================================================
 
@@ -39,11 +40,16 @@ fail() {
 }
 
 CHECK_ONLY=false
-if [[ "${1:-}" == "--check" ]]; then
-  CHECK_ONLY=true
-fi
+WITH_CLIPPING=false
 
-say "${C_BOLD}Checking FrameForge dependencies...${C_RESET}"
+for arg in "${@:-}"; do
+  case "$arg" in
+    --check) CHECK_ONLY=true ;;
+    --clipping|--with-clipping|--all) WITH_CLIPPING=true ;;
+  esac
+done
+
+say "${C_BOLD}Checking FrameForge dependencies (Profile: $([ "$WITH_CLIPPING" = true ] && echo 'Full incl. Stream Clipping' || echo 'Core Editing & Video Generation'))...${C_RESET}"
 
 OS="$(uname -s 2>/dev/null || echo 'Unknown')"
 IS_LINUX=false
@@ -122,15 +128,23 @@ else
 fi
 
 # ------------------------------------------------------------------------------
-# 3. Python Packages (edge-tts, faster-whisper, and PyAV pinned to 15.1.0)
+# 3. Python Packages (Core Editing & Video Generation; Optional: Stream Clipping)
 # ------------------------------------------------------------------------------
 say "Checking Python packages (edge-tts, faster-whisper, av==15.1.0)..."
 
 AV_CHECK="import av; major = int(av.__version__.split('.')[0]); assert major <= 15, f'PyAV {av.__version__} is incompatible with faster-whisper (requires av <= 15.1.0)'"
-PY_PACKAGES="edge-tts yt-dlp faster-whisper av==15.1.0 numpy scipy pillow playwright kokoro-onnx"
+PY_PACKAGES="edge-tts faster-whisper av==15.1.0 numpy scipy pillow playwright kokoro-onnx"
+
+if [ "$WITH_CLIPPING" = true ]; then
+  say "Clipping profile enabled: adding yt-dlp, streamlink, obs-websocket-py..."
+  PY_PACKAGES="$PY_PACKAGES yt-dlp streamlink obs-websocket-py"
+fi
 
 NEEDS_PIP=false
 if ! "$PY" -c "import edge_tts, faster_whisper, av; $AV_CHECK" >/dev/null 2>&1; then
+  NEEDS_PIP=true
+fi
+if [ "$WITH_CLIPPING" = true ] && ! "$PY" -c "import yt_dlp" >/dev/null 2>&1; then
   NEEDS_PIP=true
 fi
 
@@ -145,7 +159,7 @@ if [ "$NEEDS_PIP" = true ]; then
     if "$PY" -m pip install --help 2>&1 | grep -q -- '--break-system-packages'; then
       PIP_FLAGS="--break-system-packages"
     fi
-    "$PY" -m pip install --quiet $PIP_FLAGS edge-tts yt-dlp "faster-whisper>=1.1.0" "av==15.1.0" numpy scipy pillow playwright kokoro-onnx
+    "$PY" -m pip install --quiet $PIP_FLAGS $PY_PACKAGES
   fi
 fi
 
@@ -165,6 +179,12 @@ if "$PY" -c "import faster_whisper" >/dev/null 2>&1; then
   ok "faster-whisper local transcription engine ready"
 fi
 
+if [ "$WITH_CLIPPING" = true ]; then
+  if "$PY" -c "import yt_dlp" >/dev/null 2>&1; then
+    ok "yt-dlp stream & VOD capture tool ready"
+  fi
+fi
+
 # ------------------------------------------------------------------------------
 # 4. Playwright Chromium Browser
 # ------------------------------------------------------------------------------
@@ -179,6 +199,13 @@ fi
 # Summary
 # ------------------------------------------------------------------------------
 echo
-say "${C_GREEN}${C_BOLD}All core FrameForge dependencies configured successfully!${C_RESET}"
+say "${C_GREEN}${C_BOLD}FrameForge core dependencies configured successfully!${C_RESET}"
+if [ "$WITH_CLIPPING" = false ]; then
+  echo "  [Stream Clipping] Tools deferred to avoid storage bloat: yt-dlp & stream tools will"
+  echo "                    auto-download on demand when stream clipping is requested."
+  echo "                    (To pre-install all clipping tools now: ./setup-deps.sh --clipping)"
+else
+  echo "  [Stream Clipping] All live stream clipping tools installed and ready."
+fi
 echo "You can now run: npx @amg555/frameforge-mcp frameforge-doctor"
 

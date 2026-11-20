@@ -132,6 +132,7 @@ SUPERPOWER 1: CREATION       SUPERPOWER 2: EDITING       SUPERPOWER 3: STREAM CL
 * **Export to Professional Editors (`export_to_editor`):** Generates timeline files for **DaVinci Resolve** (FCPXML/EDL), **Premiere Pro**, **After Effects**, **Remotion**, or **CapCut**.
 
 ### Superpower 3: Live Stream & Broadcast Clipping
+* **On-Demand Lightweight Provisioning:** Heavy clipping tools (`yt-dlp`, `streamlink`) are deferred from default installation and download automatically on demand only when stream clipping is requested, avoiding storage bloat and install delays.
 * **Audio-First Ingestion (`clip_stream`, `capture_vod`):** Downloads stream audio first for fast and lightweight scanning, then downloads high-res video slices ONLY for the chosen 30-180 second moments, saving dozens of gigabytes of bandwidth.
 * **Spike Detection (`score_stream_highlights`):** Detects rolling volume surges (debate clashes, breaking news declarations, cheering, laughter) and live chat message velocity bursts (3x baseline) with reaction keyword clustering (`LMAO`, `POG`, `W`, `🔥`).
 * **Chyron-Safe Framing (`cut_and_reframe_clip`):** Fits 16:9 news feeds cleanly over a darkened, blurred 9:16 backdrop to preserve 100% of broadcaster lower thirds, tickers, and corner clocks without awkward cropping. Also supports face-tracking crop, vertical stack, and 16:9 widescreen for in-depth 2–10 minute news reports.

@@ -151,14 +151,13 @@ if (hasPlaywright && hasChromium) {
     '    (Path 1 via create_video_from_script does not need Playwright)');
 }
 
-// 6. Media Downloader (yt-dlp)
+// 6. Media Downloader (yt-dlp) — optional for core editing/vidgen, downloaded on-demand for stream clipping
 const { detectYtDlp } = require('../utils/media-downloader');
 if (detectYtDlp()) {
   const ytdlpVer = spawnSync('yt-dlp', ['--version'], { encoding: 'utf8', timeout: 3000, shell: process.platform === 'win32' });
-  pass('Media Downloader (yt-dlp)', `available (${(ytdlpVer.stdout || '').trim()})`);
+  pass('Stream Clipper / Downloader (yt-dlp)', `available (${(ytdlpVer.stdout || '').trim()})`);
 } else {
-  warn('Media Downloader (yt-dlp)', 'yt-dlp not found in PATH (optional for downloading web clips/audio)',
-    'Run "pip install yt-dlp" or download binary from https://github.com/yt-dlp/yt-dlp');
+  pass('Stream Clipper / Downloader (yt-dlp)', 'deferred (auto-downloads on demand when stream clipping is requested)');
 }
 
 // 7. Speech Transcription (Whisper)
