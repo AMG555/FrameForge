@@ -1,8 +1,8 @@
 {
   "name": "frameforge",
   "displayName": "FrameForge — AI Video Production",
-  "description": "Full AI video production engine. Produce short-form reels (1080×1920), YouTube videos (1920×1080), or code-driven animated explainers — directly from your IDE. Playwright + FFmpeg renders every frame. 34 MCP tools. Whisper, yt-dlp, broadcast audio, 24 film styles, ClaudeAnimationBase, onetake 39-move library, HyperFrames motion craft. 62 Motion Graphics Styles.",
-  "version": "2.7.11",
+  "description": "Full AI video production engine. Produce short-form reels (1080×1920), YouTube videos (1920×1080), or code-driven animated explainers — directly from your IDE. Playwright + FFmpeg renders every frame. 37 MCP tools. Whisper, yt-dlp, broadcast audio, 104 procedural motion styles, 6 viral faceless shorts engines.",
+  "version": "2.7.21",
   "homepage": "https://github.com/AMG555/FrameForge",
   "plugins": [
     {
@@ -12,7 +12,7 @@
         {
           "name": "video-pipeline",
           "displayName": "FrameForge Video Pipeline",
-          "description": "End-to-end video production: research → script → TTS → images → render → publish. Three paths: (1) IDE writes scenes (most common, no API key), (2) code-driven Playwright animation, (3) auto-research pipeline. 34 MCP tools. Includes Whisper transcription, yt-dlp ingestion, broadcast-grade audio, upstream skills sync. 62 Motion Graphics Styles via list_motion_styles + get_motion_style_prompt.",
+          "description": "End-to-end video production: research → script → TTS → images → render → publish. Three paths: (1) IDE writes scenes (most common, no API key), (2) code-driven Playwright animation, (3) auto-research pipeline. 37 MCP tools. Includes Whisper transcription, yt-dlp ingestion, broadcast-grade audio, upstream skills sync. 104 Motion Graphics Styles via list_motion_styles + get_motion_style_prompt.",
           "triggerPhrases": [
             "make a video about",
             "produce a reel on",
@@ -50,9 +50,9 @@
     }
   ],
   "mcpServer": {
-    "command": "npx",
-    "args": ["--yes", "--package=@amg555/frameforge-mcp", "frameforge-mcp"],
-    "description": "Runs the FrameForge MCP server via npx (no install needed). Requires ffmpeg and edge-tts on PATH."
+    "command": "node",
+    "args": ["src/mcp-server/stdio.js"],
+    "description": "Runs FrameForge MCP server directly from workspace via stdio. Requires ffmpeg and edge-tts on PATH."
   },
   "requirements": {
     "node": ">=18.0.0",
