@@ -4,6 +4,22 @@ All notable changes to FrameForge are documented here.
 
 ---
 
+## [2.7.26] — 2026-11-21
+
+### 5-Layer Analytic Style Selection Engine (RST, Prosody, Markov Adjacency & Tournament)
+
+- **Peak Analytic Style Selector (`src/video-renderer/style-selector.js`)**:
+  - **Layer 1: Discourse Parsing (RST)**: Parses clause functions (`hook`, `evidence_metric`, `contrast_dilemma`, `mechanism_process`, `analogy_story`, `climax_resolution`) and computes quantitative Cognitive Load Index ($0.0 - 1.0$) based on syntactic complexity and technical term density.
+  - **Layer 2: Prosody & Waveform Coupling**: Analyzes speech tempo (WPM), speech dynamics, and energy envelope (`staccato_fast`, `moderate_explanatory`, `measured_slow`) to lock visual pace to vocal cadence.
+  - **Layer 3: Style Adjacency Transition Graph**: Markov compatibility matrix across all 104 motion styles. Penalizes consecutive duplicate styles to enforce dynamic variety while boosting complementary narrative transitions (e.g. Kinetic Hook -> Data Story -> 3D Mechanism).
+  - **Layer 4: 3-Perspective Scoring Tournament**: Evaluates candidate styles against three weighted perspectives: Narrative Director (35%), Information Architect (35%), and Retention Optimizer (30%).
+  - **Layer 5: Closed-Loop Contrast & Safe-Zone QC**: Enforces WCAG AA text contrast ratio ($\ge 4.5:1$) and validates safe-zone viewports (portrait 9:16 vs landscape 16:9) with automatic fallback to runner-up candidate upon failure.
+- **MCP Tool Integration**:
+  - Registered `analyze_and_assign_scene_styles` tool (44 tools total in `src/mcp-server/server.js`) allowing agents and users to preview, score, and optimize multi-scene style assignments before rendering.
+  - Upgraded `create_video_from_script` and `src/workflows/script.js` to automatically route scenes through the 5-layer Analytic Style Selector.
+
+---
+
 ## [2.7.25] — 2026-11-20
 
 ### Broadcast-Grade Clip Quality Tuning & HarfBuzz Kinetic Titles

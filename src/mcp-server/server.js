@@ -721,6 +721,8 @@ Example scene:
       };
       const resolvedVoice = voice || (language ? LANGUAGE_VOICES[language.toLowerCase().slice(0, 2)] : null) || null;
 
+      const { assignOptimalStylesToScenes } = require('../video-renderer/style-selector');
+
       // Strip scene-number / loading-counter patterns that agents sometimes write into captions
       // e.g. "Scene 1:", "Chapter 2 -", "[3/10]", "1." at start — they must never appear in the video.
       function cleanCaption(raw) {
@@ -732,26 +734,21 @@ Example scene:
           .trim();
       }
 
-      const processedScenes = scenes.map((s, i) => {
-        // Per-scene style: use explicit scene style first, then auto-detect from scene content,
-        // then fall back to global style. This ensures each scene gets the correct motion style
-        // (e.g. cinematic_documentary for history, cyber_tech for code, hype_sports for action)
-        // rather than every scene inheriting the same flat global style.
-        const sceneStyle = s.style || (() => {
-          if (style) return style; // global style was explicitly set by caller — respect it
-          // No style anywhere: auto-detect from this scene's own content signals
-          return detectAesthetic({
-            topic:             s.topic              || topic || '',
-            style:             '',
-            theme:             s.theme              || theme || '',
-            title,
-            narration:         s.narration          || '',
-            caption:           cleanCaption(s.caption),
-            visualDescription: s.visual_description || '',
-            language:          s.language           || language || '',
-            musicMood:         s.music_mood         || 'neutral',
-          });
-        })();
+      const preppedScenes = scenes.map((s, i) => ({
+        ...s,
+        caption: cleanCaption(s.caption),
+      }));
+
+      // 5-layer Analytic Style Selector: Discourse Parsing (RST), Prosody Coupling,
+      // Markov Adjacency Transition Graph, and 3-Perspective Tournament Scoring
+      const styledScenes = assignOptimalStylesToScenes(preppedScenes, {
+        orientation,
+        topic,
+        globalStyle: style,
+      });
+
+      const processedScenes = styledScenes.map((s, i) => {
+        const sceneStyle = s.style || style || 'clean-tech';
 
         return {
           scene_id:           s.scene_id || i + 1,
@@ -4117,6 +4114,41 @@ Get a style id from list_motion_styles first. Source: FrameForge Motion Library 
     handler: async ({ action = 'status', host = 'localhost', port = 4455, password = '', timeout = 12 } = {}) => {
       const clipper = require('../stream-clipper/stream-clipper');
       return clipper.obsCommand({ action, host, port, password, timeout });
+    },
+  },
+
+  // ── Tool 44: Analyze and Assign Scene Styles ──────────────────────────────
+  analyze_and_assign_scene_styles: {
+    description: `Analytically evaluate and assign optimal motion styles to an array of video scenes using the 5-layer decision engine (Discourse Parsing RST, Cognitive Load Analysis, Prosody Coupling, Markov Adjacency Transition Graph, and 3-Perspective Tournament Scoring).
+
+Returns each scene with its assigned style, discourse role, cognitive load index, WPM, and tournament score breakdown.`,
+    inputSchema: {
+      type: 'object',
+      required: ['scenes'],
+      properties: {
+        scenes:      { type: 'array',  description: 'Array of scenes: [{ narration, visual_description?, caption?, style? }]' },
+        orientation: { type: 'string', enum: ['landscape', 'portrait'], default: 'landscape', description: 'Output orientation (affects safe-zone scoring).' },
+        topic:       { type: 'string', description: 'Overall video topic.' },
+      },
+    },
+    handler: ({ scenes, orientation = 'landscape', topic = '' } = {}) => {
+      const { assignOptimalStylesToScenes } = require('../video-renderer/style-selector');
+      if (!Array.isArray(scenes) || scenes.length === 0) {
+        throw new Error('scenes array is required and must not be empty.');
+      }
+      const optimized = assignOptimalStylesToScenes(scenes, { orientation, topic });
+      return {
+        sceneCount: optimized.length,
+        orientation,
+        topic,
+        scenes: optimized.map(s => ({
+          scene_id: s.scene_id,
+          narration: s.narration,
+          style: s.style,
+          analytics: s._style_analytics,
+        })),
+        uniqueStyles: [...new Set(optimized.map(s => s.style))],
+      };
     },
   },
 

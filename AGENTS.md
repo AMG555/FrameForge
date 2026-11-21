@@ -52,6 +52,6 @@ This workspace equips agents with complete video production, procedural motion g
    - Use `reverse-engineer-anything` and the `rea` MCP server to analyze external WebGL shaders, Three.js bundles, audio synthesis chains, and canvas effects to port them into FrameForge.
 
 5. **FrameForge Core MCP Pipeline:**
-   - 43 tools available via stdio (`src/mcp-server/stdio.js`) and HTTP (`src/mcp-server/server.js`).
+   - 44 tools available via stdio (`src/mcp-server/stdio.js`) and HTTP (`src/mcp-server/server.js`).
    - Use `list_motion_styles` and `get_motion_style_prompt` for instant access to any of the 104 Motion graphics style prompts and codebases.
 

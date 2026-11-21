@@ -13,7 +13,7 @@
 [![Tests](https://img.shields.io/badge/tests-670%20passing-brightgreen.svg?style=flat-square)](docs/collaboration.md)
 [![Structural Gates](https://img.shields.io/badge/validation-113%20passed-success.svg?style=flat-square)](docs/collaboration.md)
 
-[Quickstart](#quickstart) • [100% Free Path (Arena.ai)](#free-arena) • [Three Superpowers](#superpowers) • [104 Motion Styles](#styles) • [Faceless Shorts](#shorts) • [Remote / Cloud Server](#remote-server) • [43 MCP Tools](#tools) • [Collaboration Guide](docs/collaboration.md)
+[Quickstart](#quickstart) • [100% Free Path (Arena.ai)](#free-arena) • [Three Superpowers](#superpowers) • [104 Motion Styles](#styles) • [Faceless Shorts](#shorts) • [Remote / Cloud Server](#remote-server) • [44 MCP Tools](#tools) • [Collaboration Guide](docs/collaboration.md)
 
 </div>
 
@@ -202,16 +202,16 @@ Any cloud agent or IDE across your network can connect via standard MCP HTTP/SSE
 ---
 
 <a id="tools"></a>
-## 🛠️ 43 MCP Tools Reference
+## 🛠️ 44 MCP Tools Reference
 
-FrameForge registers **43 tools** compliant with the Model Context Protocol (MCP 2024-11-05 spec):
+FrameForge registers **44 tools** compliant with the Model Context Protocol (MCP 2024-11-05 spec):
 
-| Category | Tools (All 43 Listed) | Capabilities |
+| Category | Tools (All 44 Listed) | Capabilities |
 |---|---|---|
 | **Video Creation (7)** | `create_video_from_script`, `assemble_video`, `render_from_scenes`, `edit_scenes`, `ingest_media`, `publish_video`, `generate_scene_image` | Full video assembly, scenes manifest, caption burning, scene graphics export |
 | **Autonomous Editing (5)** | `edit_video`, `plan_video_edit`, `export_to_editor`, `detect_viral_clips`, `karaoke_subtitles` | Silence & retake cutting, viral hook scoring, kinetic subs, NLE export (DaVinci/Premiere) |
 | **Livestream & Clipping (7)** | `clip_stream`, `capture_vod`, `score_stream_highlights`, `cut_and_reframe_clip`, `validate_clip`, `discover_streams`, `obs_command` | Audio-first VOD slicing, volume & chat spike detection, chyron-safe blur/stack framing, libass captions, OBS replay |
-| **Motion Styles (2)** | `list_motion_styles`, `get_motion_style_prompt` | Catalog browse & prompt generation across 104 procedural styles |
+| **Motion Styles (3)** | `list_motion_styles`, `get_motion_style_prompt`, `analyze_and_assign_scene_styles` | 5-layer analytic style selector (RST, prosody, Markov transition graph), catalog browse across 104 procedural styles |
 | **Faceless Shorts (2)** | `list_short_styles`, `create_short` | 6 vertical formats (3D anatomy, true crime noir, stick figure, paper atlas) |
 | **Code Animation (6)** | `scaffold_animation_project`, `validate_storyboard`, `generate_scene_code`, `preview_scene`, `render_animation`, `verify_scene_quality` | Playwright canvas rendering, 12fps organic boil, closed-loop visual QA |
 | **Audio Mastering (3)** | `mix_audio_pro`, `render_tts`, `multi_voice_tts` | EBU R128 (−14 LUFS) broadcast mastering, ducking, 13-type SFX kit |

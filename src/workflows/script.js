@@ -16,6 +16,7 @@ const { StateMachine } = require('../pipeline/state-machine');
 const { RetryPolicy }  = require('../pipeline/retry-policy');
 const { Telemetry }    = require('../pipeline/telemetry');
 const { detectAnchorRequested } = require('../video-renderer/scene-animator');
+const { assignOptimalStylesToScenes } = require('../video-renderer/style-selector');
 
 const os = require('os');
 const FILES_DIR = process.env.N8N_FILES_DIR || require('path').join(os.homedir(), '.frameforge-files');
@@ -192,7 +193,12 @@ async function runScript({
 
   // No scene count ceiling — callers supply targetDuration / sceneCount and the
   // pipeline renders however many scenes the script produces.
-  const scenes = script.scenes.map((s, i) => normaliseScene(s, i));
+  const rawScenes = script.scenes.map((s, i) => normaliseScene(s, i));
+  const scenes = assignOptimalStylesToScenes(rawScenes, {
+    orientation: isShortForm ? 'portrait' : 'landscape',
+    topic,
+    globalStyle: style,
+  });
 
   const totalWords = scenes.reduce((n, s) => n + (s.narration || '').split(/\s+/).filter(Boolean).length, 0);
   if (totalWords < 50) throw new Error(`Script too short: ${totalWords} words`);

@@ -752,5 +752,23 @@ describe('Upstream sync and media tools (check_upstream_updates, transcribe_medi
       assert.ok(TOOLS.obs_command.inputSchema.properties.host);
       assert.ok(TOOLS.obs_command.inputSchema.properties.port);
     });
+
+    it('analyze_and_assign_scene_styles is registered and assigns multi-style sequence', async () => {
+      assert.ok(TOOLS.analyze_and_assign_scene_styles, 'analyze_and_assign_scene_styles missing from TOOLS');
+      assert.deepEqual(TOOLS.analyze_and_assign_scene_styles.inputSchema.required, ['scenes']);
+      const res = await TOOLS.analyze_and_assign_scene_styles.handler({
+        scenes: [
+          { narration: 'Why do so many modern businesses collapse in year one?' },
+          { narration: 'Studies show 78% of them run out of runway before product market fit.' },
+          { narration: 'Take traditional retail versus agile cloud SaaS platforms.' },
+          { narration: 'Here is the step by step breakdown of the survival engine.' },
+          { narration: 'Remember to audit your unit economics today.' },
+        ],
+        topic: 'Business Survival',
+      });
+      assert.equal(res.sceneCount, 5);
+      assert.ok(res.uniqueStyles.length >= 3, 'Must produce at least 3 distinct styles across scenes');
+      assert.ok(res.scenes[0].analytics.discourseRole, 'hook');
+    });
   });
 });
