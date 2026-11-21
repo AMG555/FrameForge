@@ -4,6 +4,19 @@ All notable changes to FrameForge are documented here.
 
 ---
 
+## [2.7.30] — 2026-11-21
+
+### Engine Sync & Zero-UI-Chrome Enforcement
+
+- **Comprehensive UI Chrome & Watermark Stripping**:
+  - Zero tolerance across Canvas and DOM pipelines for scene numbers (`01 / 26`), loading arcs/spinners, corner metadata (`SATELLITE: NASA / BOUNDARY: DATAMEET`), and bottom scrubbers.
+  - Active runtime interceptors in Playwright capture harness and `sanitizeSceneHtml`.
+- **Geospatial 3D Map Explainer Engine**:
+  - Dynamic style resolution for `explain.the.planet`, `satellite-map`, `earth-flyover` $\to$ `map-explainer-3d`.
+  - Full-bleed bathymetric ocean, 3D relief terrain, curved shipping lanes with photon streams, and 3D anchored location pins.
+
+---
+
 ## [2.7.29] — 2026-11-21
 
 ### Geospatial 3D Map Explainer Engine & Script Header Parsing
