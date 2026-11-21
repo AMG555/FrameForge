@@ -174,7 +174,7 @@ const FAMILY_GROUPS = {
   'Kinetic Type':     ['creator-motion', 'clean-tech', 'swiss-grid'],
   'Hand-Drawn':       ['chalk-talk', 'marker-board', 'blueprint', 'paper-collage-film', 'pencil-sketch'],
   'Data':             ['data-story', 'timeline-rail', 'isotype', 'math-canvas', 'market-tape', 'data-city'],
-  '3D':               ['clay-diorama', 'bio-glow', 'cosmic-scale', 'exploded-view', 'assembly-3d', 'tiny-diorama'],
+  '3D':               ['clay-diorama', 'bio-glow', 'cosmic-scale', 'exploded-view', 'assembly-3d', 'tiny-diorama', 'map-explainer-3d', 'product-commercial-3d', 'arch-viz-isometric', 'fluid-particle-cinema'],
   'Screen and UI':    ['software-walkthrough', 'aurora-glass', 'product-launch-ui', 'floating-screens'],
   'Shorts Format':    ['punch-captions', 'karaoke-subs', 'headline-backdrop', 'quiz-countdown', 'top-5-countdown'],
   'Illustrated':      ['pop-info', 'paper-craft', 'zine-collage', 'metamorphosis-specimen', 'storybook-3d'],
@@ -231,7 +231,7 @@ const ROLE_AFFINITIES = {
     weights: { kinetic: 1.0, punch: 0.9, depth: 0.6 },
   },
   claim: {
-    preferred: ['clean-tech', 'swiss-grid', 'product-launch-ui', 'minimal-luxury', 'monument-type'],
+    preferred: ['clean-tech', 'swiss-grid', 'product-launch-ui', 'minimal-luxury', 'monument-type', 'product-commercial-3d'],
     weights: { clarity: 1.0, typography: 0.9, balance: 0.8 },
   },
   evidence_metric: {
@@ -243,15 +243,15 @@ const ROLE_AFFINITIES = {
     weights: { split: 1.0, comparison: 0.9, tension: 0.8 },
   },
   mechanism_process: {
-    preferred: ['assembly-3d', 'clean-tech', 'blueprint', 'circuit-city', 'deep-layers', 'tactics-board'],
+    preferred: ['assembly-3d', 'clean-tech', 'blueprint', 'circuit-city', 'deep-layers', 'tactics-board', 'map-explainer-3d', 'arch-viz-isometric', 'fluid-particle-cinema'],
     weights: { diagram: 1.0, steps: 0.9, clarity: 0.9 },
   },
   analogy_story: {
-    preferred: ['chalk-talk', 'paper-collage-film', 'doc-cinema', 'archival-explainer', 'cinematic-anime', 'storybook-3d'],
+    preferred: ['chalk-talk', 'paper-collage-film', 'doc-cinema', 'archival-explainer', 'cinematic-anime', 'storybook-3d', 'map-explainer-3d', 'fluid-particle-cinema'],
     weights: { organic: 1.0, warmth: 0.9, storytelling: 0.9 },
   },
   climax_resolution: {
-    preferred: ['creator-motion', 'spotlight-stage', 'minimal-luxury', 'hero-icon', 'monument-type'],
+    preferred: ['creator-motion', 'spotlight-stage', 'minimal-luxury', 'hero-icon', 'monument-type', 'product-commercial-3d'],
     weights: { resolution: 1.0, impact: 0.9, anchor: 0.8 },
   },
 };
@@ -272,6 +272,22 @@ function scoreStyleCandidate(styleId, context) {
   if (affinity.preferred.includes(styleId)) director += 35;
   if (prosody.energyScore > 0.7 && /creator-motion|punch-captions|hype-sports/.test(styleId)) director += 15;
   if (prosody.energyScore < 0.4 && /chalk-talk|minimal-luxury|doc-cinema/.test(styleId)) director += 15;
+
+  // Domain topic affinity
+  const topicText = (context.topic || '').toLowerCase();
+  if (/(?:map|geopolitic|territor|strait|canal|border|nation|ocean|sea|trade route)/.test(topicText) && styleId === 'map-explainer-3d') {
+    director += 25;
+  }
+  if (/(?:product|hardware|gadget|titanium|device|spec|transducer|audio|acoustic)/.test(topicText) && styleId === 'product-commercial-3d') {
+    director += 25;
+  }
+  if (/(?:architect|building|floorplan|room|facade|concrete|wood|timber|solar|thermal)/.test(topicText) && styleId === 'arch-viz-isometric') {
+    director += 25;
+  }
+  if (/(?:quantum|particle|fluid|wave|physics|atom|molecule|synapse|neural)/.test(topicText) && styleId === 'fluid-particle-cinema') {
+    director += 25;
+  }
+
   director = Math.min(100, Math.max(0, director));
 
   // Perspective 2: Information Architect (Spatial clarity, cognitive load matching)
@@ -407,6 +423,7 @@ function selectOptimalSceneStyle({
     'versus-split', 'assembly-3d', 'aurora-glass', 'archival-explainer',
     'metamorphosis-specimen', 'product-launch-ui', 'deep-layers', 'punch-captions',
     'headline-backdrop', 'timeline-rail', 'doc-cinema', 'storybook-3d',
+    'map-explainer-3d', 'product-commercial-3d', 'arch-viz-isometric', 'fluid-particle-cinema',
   ];
 
   const ranked = pool

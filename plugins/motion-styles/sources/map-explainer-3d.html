@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>3D Map Explainer — FrameForge Motion Library</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #07090e; font-family: -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; }
+    #container { position: relative; width: 100%; height: 100%; max-width: 1920px; max-height: 1080px; aspect-ratio: 16/9; }
+    canvas { width: 100%; height: 100%; display: block; }
+    .label { position: absolute; pointer-events: none; transform: translate(-50%, -100%); transition: opacity 0.2s; }
+    .badge { background: rgba(13, 17, 23, 0.85); backdrop-filter: blur(8px); border: 1px solid rgba(56, 189, 248, 0.4); border-radius: 6px; padding: 6px 12px; color: #fff; font-family: "Space Grotesk", sans-serif; font-weight: 700; font-size: 14px; letter-spacing: 0.05em; text-transform: uppercase; box-shadow: 0 8px 24px rgba(0,0,0,0.6); }
+    .badge em { display: block; font-size: 10px; font-weight: 500; color: #38bdf8; text-transform: none; font-style: normal; font-family: "JetBrains Mono", monospace; }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+<div id="container">
+  <canvas id="stage" width="1920" height="1080"></canvas>
+  <div id="pin-1" class="label"><div class="badge">STRAIT OF HORMUZ<em>21% Global Petroleum Flow</em></div></div>
+  <div id="pin-2" class="label"><div class="badge">BAB-EL-MANDEB<em>Strategic Red Sea Gateway</em></div></div>
+</div>
+
+<script>
+window.DURATION = 30;
+const W = 1920, H = 1080;
+const canvas = document.getElementById('stage');
+
+// Three.js Setup with ACES Filmic Tone Mapping & Soft Shadows
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
+renderer.setSize(W, H, false);
+renderer.setPixelRatio(1);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.15;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#07090e');
+scene.fog = new THREE.FogExp2('#07090e', 0.018);
+
+const camera = new THREE.PerspectiveCamera(40, W / H, 0.1, 200);
+
+// Lighting Rig
+const sun = new THREE.DirectionalLight('#fff4dd', 2.2);
+sun.position.set(20, 30, 15);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.bias = -0.0005;
+scene.add(sun);
+
+const hemi = new THREE.HemisphereLight('#5b7c99', '#0d1117', 0.85);
+scene.add(hemi);
+
+const rim = new THREE.DirectionalLight('#38bdf8', 1.1);
+rim.position.set(-25, 10, -20);
+scene.add(rim);
+
+// Procedural 3D Terrain with Hypsometric Height Coloring
+const terrainGeo = new THREE.PlaneGeometry(60, 60, 128, 128);
+terrainGeo.rotateX(-Math.PI / 2);
+const pos = terrainGeo.attributes.position;
+const colors = [];
+for (let i = 0; i < pos.count; i++) {
+  const x = pos.getX(i), z = pos.getZ(i);
+  // Procedural height formula
+  let y = Math.sin(x * 0.18) * Math.cos(z * 0.18) * 2.5 + Math.sin(x * 0.4 + 1.2) * Math.cos(z * 0.4) * 1.2;
+  const dist = Math.sqrt(x*x + z*z);
+  if (dist > 18) y -= (dist - 18) * 0.35; // slope down to ocean
+  pos.setY(i, y);
+
+  // Hypsometric tinting: sea -> coast -> mountain -> snow
+  if (y <= 0) colors.push(0.05, 0.12, 0.28);
+  else if (y < 0.6) colors.push(0.85, 0.80, 0.62);
+  else if (y < 2.0) colors.push(0.24, 0.42, 0.22);
+  else if (y < 3.2) colors.push(0.48, 0.44, 0.40);
+  else colors.push(0.95, 0.96, 0.98);
+}
+terrainGeo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+terrainGeo.computeVertexNormals();
+
+const terrainMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0.05 });
+const terrainMesh = new THREE.Mesh(terrainGeo, terrainMat);
+terrainMesh.receiveShadow = true;
+terrainMesh.castShadow = true;
+scene.add(terrainMesh);
+
+// Procedural Ocean Water Plane
+const oceanGeo = new THREE.PlaneGeometry(80, 80, 64, 64);
+oceanGeo.rotateX(-Math.PI / 2);
+const oceanMat = new THREE.MeshStandardMaterial({
+  color: '#082548',
+  roughness: 0.15,
+  metalness: 0.1,
+  transparent: true,
+  opacity: 0.88,
+});
+const oceanMesh = new THREE.Mesh(oceanGeo, oceanMat);
+oceanMesh.position.y = 0.1;
+scene.add(oceanMesh);
+
+// 3D Curved Trade Route Arc
+const p1 = new THREE.Vector3(-8, 0.8, -4);
+const p2 = new THREE.Vector3(7, 0.5, 6);
+const mid = new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5);
+mid.y += 5.5;
+const arcCurve = new THREE.QuadraticBezierCurve3(p1, mid, p2);
+const arcGeo = new THREE.TubeGeometry(arcCurve, 64, 0.06, 8, false);
+const arcMat = new THREE.MeshBasicMaterial({ color: '#38bdf8', transparent: true, opacity: 0.65 });
+const arcMesh = new THREE.Mesh(arcGeo, arcMat);
+scene.add(arcMesh);
+
+// Traveling Photon Pulse
+const photonGeo = new THREE.SphereGeometry(0.25, 16, 16);
+const photonMat = new THREE.MeshBasicMaterial({ color: '#ffffff' });
+const photon = new THREE.Mesh(photonGeo, photonMat);
+scene.add(photon);
+
+// Camera Spline Flyover Path
+const cameraSpline = new THREE.CatmullRomCurve3([
+  new THREE.Vector3(0, 16, 26),
+  new THREE.Vector3(10, 8, 14),
+  new THREE.Vector3(-6, 4.5, 8),
+  new THREE.Vector3(2, 3.2, -4),
+]);
+
+function project3(pos3) {
+  const p = pos3.clone().project(camera);
+  return {
+    x: (p.x * 0.5 + 0.5) * W,
+    y: (-(p.y * 0.5) + 0.5) * H,
+    visible: p.z < 1.0,
+  };
+}
+
+const pin1El = document.getElementById('pin-1');
+const pin2El = document.getElementById('pin-2');
+
+function render(t) {
+  const u = (t / window.DURATION) % 1;
+
+  // Camera Flyover
+  const camPos = cameraSpline.getPointAt(u);
+  camera.position.copy(camPos);
+  const lookAtTarget = cameraSpline.getPointAt(Math.min(1, u + 0.06));
+  camera.lookAt(lookAtTarget);
+
+  // Traveling photon along trade arc
+  const arcU = (t * 0.35) % 1;
+  photon.position.copy(arcCurve.getPointAt(arcU));
+
+  // Subtle ocean wave motion
+  oceanMesh.position.y = 0.1 + Math.sin(t * 1.5) * 0.06;
+
+  renderer.render(scene, camera);
+
+  // Update Projected 2D Label Pins
+  const s1 = project3(p1);
+  if (s1.visible) {
+    pin1El.style.left = s1.x + 'px';
+    pin1El.style.top = s1.y + 'px';
+    pin1El.style.opacity = '1';
+  } else {
+    pin1El.style.opacity = '0';
+  }
+
+  const s2 = project3(p2);
+  if (s2.visible) {
+    pin2El.style.left = s2.x + 'px';
+    pin2El.style.top = s2.y + 'px';
+    pin2El.style.opacity = '1';
+  } else {
+    pin2El.style.opacity = '0';
+  }
+}
+
+window.seek = function(t) { render(t); };
+
+let start = null;
+function loop(now) {
+  if (!start) start = now;
+  const t = ((now - start) / 1000) % window.DURATION;
+  render(t);
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

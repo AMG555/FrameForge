@@ -6,7 +6,7 @@ This project is configured with full agent skills, multi-engine video rendering,
 
 ## ⚠️ ZERO AI IMAGES RULE (CODE-DRIVEN FIRST)
 - **NEVER generate AI images from the beginning.**
-- **Always default to FrameForge's code-driven animation tools**: 104 procedural motion styles (`list_motion_styles`, `get_motion_style_prompt`), 6 viral faceless shorts engines, Playwright canvas rendering, and kinetic typography.
+- **Always default to FrameForge's code-driven animation tools**: 108 procedural motion styles (`list_motion_styles`, `get_motion_style_prompt`), 6 viral faceless shorts engines, Playwright canvas rendering, and kinetic typography.
 - **DO NOT call AI image generation or generate diffusion pictures** unless the user explicitly prompts: "generate AI images" or "use AI image generation".
 
 ---
@@ -29,10 +29,10 @@ This project is configured with full agent skills, multi-engine video rendering,
 
 ## Active Skills in this Workspace
 
-### 1. `motion-styles` — 104 Motion-Graphics Styles
+### 1. `motion-styles` — 108 Motion-Graphics Styles
 - **Source:** Scraped directly from [FrameForge Motion Library](FrameForge Motion Library).
 - **Location:** `.agent/skills/motion-styles/` and `plugins/motion-styles/`
-- **Catalog:** `plugins/motion-styles/catalog.json` (all 104 styles with sheet rules, sound design rules, size rules, and prompt metadata).
+- **Catalog:** `plugins/motion-styles/catalog.json` (all 108 styles with sheet rules, sound design rules, size rules, and prompt metadata).
 - **Reference Code:** `plugins/motion-styles/sources/<styleId>.html` (complete standalone working HTML files with canvas animation, Three.js shaders, math helpers, and synthesized Web Audio SFX).
 - **Ready-to-Copy Prompts:** `plugins/motion-styles/prompts/<styleId>.md` (standard direct prompts + voiceover/storyboard prompts).
 - **Catalog Index:** `plugins/motion-styles/LIBRARY.md`

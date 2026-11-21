@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>3D Studio Product Commercial — FrameForge Motion Library</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #060709; font-family: -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; }
+    #container { position: relative; width: 100%; height: 100%; max-width: 1920px; max-height: 1080px; aspect-ratio: 16/9; }
+    canvas { width: 100%; height: 100%; display: block; }
+    .specs { position: absolute; bottom: 80px; left: 100px; color: #fff; pointer-events: none; font-family: "Inter Tight", sans-serif; }
+    .specs h2 { font-size: 56px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 8px; }
+    .specs p { font-size: 20px; font-family: "JetBrains Mono", monospace; color: #38bdf8; letter-spacing: 0.05em; }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+<div id="container">
+  <canvas id="stage" width="1920" height="1080"></canvas>
+  <div class="specs">
+    <h2>ACOUSTIC TITANIUM</h2>
+    <p>CUSTOM 40MM TRANSDUCER · 0.01% THD</p>
+  </div>
+</div>
+
+<script>
+window.DURATION = 30;
+const W = 1920, H = 1080;
+const canvas = document.getElementById('stage');
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
+renderer.setSize(W, H, false);
+renderer.setPixelRatio(1);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.25;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#060709');
+
+const camera = new THREE.PerspectiveCamera(35, W / H, 0.1, 100);
+camera.position.set(0, 3, 14);
+camera.lookAt(0, 0, 0);
+
+// Softbox Studio Lighting
+const softbox1 = new THREE.DirectionalLight('#ffffff', 2.8);
+softbox1.position.set(8, 12, 10);
+softbox1.castShadow = true;
+softbox1.shadow.mapSize.set(2048, 2048);
+softbox1.shadow.bias = -0.0005;
+scene.add(softbox1);
+
+const softbox2 = new THREE.DirectionalLight('#38bdf8', 1.4);
+softbox2.position.set(-10, 6, -6);
+scene.add(softbox2);
+
+const hemi = new THREE.HemisphereLight('#334155', '#020617', 0.6);
+scene.add(hemi);
+
+// Studio Contact Ground Plane
+const floorGeo = new THREE.PlaneGeometry(60, 60);
+const floorMat = new THREE.ShadowMaterial({ opacity: 0.5 });
+const floor = new THREE.Mesh(floorGeo, floorMat);
+floor.rotation.x = -Math.PI / 2;
+floor.position.y = -2.2;
+floor.receiveShadow = true;
+scene.add(floor);
+
+// Product Group (Hero Acoustic Chamber)
+const product = new THREE.Group();
+scene.add(product);
+
+// Outer Ring (Anodized Titanium)
+const ringGeo = new THREE.TorusGeometry(2.2, 0.35, 32, 64);
+const metalMat = new THREE.MeshStandardMaterial({ color: '#1e293b', roughness: 0.22, metalness: 0.88 });
+const outerRing = new THREE.Mesh(ringGeo, metalMat);
+outerRing.castShadow = true;
+product.add(outerRing);
+
+// Internal Transducer Core (Exploded displacement)
+const coreGeo = new THREE.CylinderGeometry(1.4, 1.4, 0.6, 48);
+const coreMat = new THREE.MeshStandardMaterial({ color: '#0284c7', roughness: 0.3, metalness: 0.7 });
+const core = new THREE.Mesh(coreGeo, coreMat);
+core.rotation.x = Math.PI / 2;
+core.castShadow = true;
+product.add(core);
+
+// Frosted Glass Lens
+const lensGeo = new THREE.SphereGeometry(1.6, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.35);
+const glassMat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.1, metalness: 0.1, transparent: true, opacity: 0.35 });
+const lens = new THREE.Mesh(lensGeo, glassMat);
+lens.position.z = 0.5;
+product.add(lens);
+
+function render(t) {
+  // Smooth continuous turntable rotation
+  product.rotation.y = t * 0.45;
+  product.rotation.x = Math.sin(t * 0.3) * 0.15;
+
+  // Exploded view animation breathing cycle
+  const explode = (Math.sin(t * 0.8) + 1) * 0.5;
+  core.position.z = explode * 1.4;
+  lens.position.z = 0.5 + explode * 2.2;
+
+  // Gentle camera push-in
+  camera.position.z = 14 - Math.sin(t * 0.2) * 2;
+
+  renderer.render(scene, camera);
+}
+
+window.seek = function(t) { render(t); };
+
+let start = null;
+function loop(now) {
+  if (!start) start = now;
+  const t = ((now - start) / 1000) % window.DURATION;
+  render(t);
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

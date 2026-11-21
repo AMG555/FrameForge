@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>3D Fluid & Macro Particle Cinema — FrameForge Motion Library</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #040508; font-family: -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; }
+    #container { position: relative; width: 100%; height: 100%; max-width: 1920px; max-height: 1080px; aspect-ratio: 16/9; }
+    canvas { width: 100%; height: 100%; display: block; }
+    .hero { position: absolute; top: 80px; left: 100px; color: #fff; pointer-events: none; font-family: "Instrument Serif", Georgia, serif; }
+    .hero h1 { font-size: 64px; font-style: italic; font-weight: 400; letter-spacing: -0.01em; margin-bottom: 6px; }
+    .hero p { font-size: 18px; font-family: "JetBrains Mono", monospace; color: #06b6d4; letter-spacing: 0.08em; text-transform: uppercase; }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+<div id="container">
+  <canvas id="stage" width="1920" height="1080"></canvas>
+  <div class="hero">
+    <h1>Quantum Field Topology</h1>
+    <p>50,000 PARTICLES · STOCHASTIC CURL NOISE SIMULATION</p>
+  </div>
+</div>
+
+<script>
+window.DURATION = 30;
+const W = 1920, H = 1080;
+const canvas = document.getElementById('stage');
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
+renderer.setSize(W, H, false);
+renderer.setPixelRatio(1);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.35;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#040508');
+
+const camera = new THREE.PerspectiveCamera(45, W / H, 0.1, 100);
+camera.position.set(0, 0, 18);
+
+// 50,000 GPU Particles Simulation
+const PARTICLE_COUNT = 50000;
+const geometry = new THREE.BufferGeometry();
+const positions = new Float32Array(PARTICLE_COUNT * 3);
+const initialPos = new Float32Array(PARTICLE_COUNT * 3);
+const colors = new Float32Array(PARTICLE_COUNT * 3);
+
+for (let i = 0; i < PARTICLE_COUNT; i++) {
+  // Sphere distribution
+  const u = Math.random();
+  const v = Math.random();
+  const theta = u * 2.0 * Math.PI;
+  const phi = Math.acos(2.0 * v - 1.0);
+  const r = Math.cbrt(Math.random()) * 6.5;
+
+  const sinPhi = Math.sin(phi);
+  const x0 = r * sinPhi * Math.cos(theta);
+  const y0 = r * sinPhi * Math.sin(theta);
+  const z0 = r * Math.cos(phi);
+
+  const idx = i * 3;
+  positions[idx] = initialPos[idx] = x0;
+  positions[idx + 1] = initialPos[idx + 1] = y0;
+  positions[idx + 2] = initialPos[idx + 2] = z0;
+
+  // Bioluminescent color gradient
+  const dist = r / 6.5;
+  if (dist < 0.3) {
+    colors[idx] = 0.02; colors[idx + 1] = 0.71; colors[idx + 2] = 0.83; // cyan
+  } else if (dist < 0.7) {
+    colors[idx] = 0.45; colors[idx + 1] = 0.22; colors[idx + 2] = 0.88; // violet
+  } else {
+    colors[idx] = 0.96; colors[idx + 1] = 0.62; colors[idx + 2] = 0.04; // gold
+  }
+}
+
+geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+const material = new THREE.PointsMaterial({
+  size: 0.08,
+  vertexColors: true,
+  transparent: true,
+  opacity: 0.75,
+  blending: THREE.AdditiveBlending,
+  depthWrite: false,
+});
+
+const particleSystem = new THREE.Points(geometry, material);
+scene.add(particleSystem);
+
+function render(t) {
+  const posArr = geometry.attributes.position.array;
+  const timeScale = t * 0.5;
+
+  for (let i = 0; i < PARTICLE_COUNT; i++) {
+    const idx = i * 3;
+    const ox = initialPos[idx];
+    const oy = initialPos[idx + 1];
+    const oz = initialPos[idx + 2];
+
+    // Curl noise harmonic simulation
+    const angle = timeScale + oz * 0.25;
+    const cosA = Math.cos(angle);
+    const sinA = Math.sin(angle);
+
+    posArr[idx] = ox * cosA - oy * sinA + Math.sin(timeScale * 2.0 + oy) * 0.6;
+    posArr[idx + 1] = ox * sinA + oy * cosA + Math.cos(timeScale * 1.5 + ox) * 0.6;
+    posArr[idx + 2] = oz + Math.sin(timeScale * 1.8 + ox) * 0.4;
+  }
+  geometry.attributes.position.needsUpdate = true;
+
+  // Slow orbital rotation
+  particleSystem.rotation.y = t * 0.12;
+  particleSystem.rotation.x = Math.sin(t * 0.08) * 0.2;
+
+  renderer.render(scene, camera);
+}
+
+window.seek = function(t) { render(t); };
+
+let start = null;
+function loop(now) {
+  if (!start) start = now;
+  const t = ((now - start) / 1000) % window.DURATION;
+  render(t);
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

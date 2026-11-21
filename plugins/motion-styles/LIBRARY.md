@@ -1,6 +1,6 @@
-# Motion Graphics Style Library (104 Styles)
+# Motion Graphics Style Library (108 Styles)
 
-Complete catalog of 104 procedural motion-graphics styles in the FrameForge Motion Library.
+Complete catalog of 108 procedural motion-graphics styles in the FrameForge Motion Library.
 Each style is a full canvas animation with sound, synthesized SFX, and deterministic time-based motion.
 
 > 💡 **Visitor Pro-Tip: 100% Free Code-Based Video Generation on [Arena.ai](https://arena.ai) (Even on Mobile!)**
@@ -1448,5 +1448,53 @@ Each style is a full canvas animation with sound, synthesized SFX, and determini
 - **Demo:** The Meadow Explorer & The Rolling Ball
 - **Prompt file:** prompts/storybook-3d.md
 - **Reference code:** sources/storybook-3d.html
+
+</details>
+
+<details>
+<summary><b>#105 3D Map Explainer</b> (map-explainer-3d)</summary>
+
+- **Look:** Vox and Johnny Harris style 3D geospatial explainer: Three.js displaced terrain elevation, procedural ocean shader with Gerstner waves and shoreline foam, glowing vector boundary ribbons, 3D curved flight/trade arcs with traveling photon pulses, floating glass city pins projected to screen coordinates, and low-altitude cinematic flyovers under ACES Filmic studio sunlight.
+- **How it explains:** Complex geopolitical, historical, economic, or territorial conflicts explained through terrain: the camera swoops down through mountain passes, rivers glint under dynamic sunlight, disputed borders pulse with neon outline ribbons, glowing arcs track trade routes and troop movements, and floating statistical pins lock in place over strategic straits.
+- **Fonts:** Space Grotesk, JetBrains Mono
+- **Demo:** The Geopolitics of Global Chokepoints & Trade Corridors
+- **Prompt file:** prompts/map-explainer-3d.md
+- **Reference code:** sources/map-explainer-3d.html
+
+</details>
+
+<details>
+<summary><b>#106 3D Studio Product Commercial</b> (product-commercial-3d)</summary>
+
+- **Look:** Apple-grade luxury hardware commercial: Three.js physically based materials (anodized titanium, frosted clearcoat glass, brushed metallic edges), 3-point softbox studio lighting, contact ambient occlusion shadows on floor plane, macro rack-focus depth of field, and exploded internal mechanical assembly.
+- **How it explains:** Showcases physical products, industrial engineering, or high-end gadgets: the hero device slowly rotates in a dark studio void, sweeping rim lights highlight precision CNC chamfers, glass lenses reveal internal sensor arrays in exploded slow-motion, and ultra-crisp typographic specs animate alongside precision callout lines.
+- **Fonts:** Inter Tight, JetBrains Mono
+- **Demo:** Precision Engineered Audio & Acoustic Chamber Architecture
+- **Prompt file:** prompts/product-commercial-3d.md
+- **Reference code:** sources/product-commercial-3d.html
+
+</details>
+
+<details>
+<summary><b>#107 3D Architectural Cutaway</b> (arch-viz-isometric)</summary>
+
+- **Look:** Architectural Digest and engineering cross-section explainer: clean isometric perspective, cutaway walls revealing multi-story interior layouts, warm oak flooring and matte architectural concrete, transparent glass partitions, dynamic sun study lighting (morning to golden hour shadow drift), and animated dimension callouts.
+- **How it explains:** Explains architectural space, infrastructure, sustainable building systems, or urban planning: slabs and structural columns assemble upward from the ground plane, walls slide into position, daylight sweeps through interior rooms casting moving sunbeam shadows, and callout arrows highlight airflow, thermal zones, and floor area metrics.
+- **Fonts:** Space Grotesk, Inter
+- **Demo:** Sustainable Net-Zero Biophilic Residence & Thermal Envelope
+- **Prompt file:** prompts/arch-viz-isometric.md
+- **Reference code:** sources/arch-viz-isometric.html
+
+</details>
+
+<details>
+<summary><b>#108 3D Fluid & Macro Particle Cinema</b> (fluid-particle-cinema)</summary>
+
+- **Look:** High-end scientific and macro nature physics simulation: 50,000 GPU particles guided by 3D curl-noise velocity fields, iridescent refractive fluid droplets, volumetric atmospheric light shafts, and microscopic cell depth-of-field.
+- **How it explains:** Explains invisible forces, quantum mechanics, neural networks, cellular biology, thermodynamics, or abstract data energy: particles coalesce from chaos into coherent structures, flow along magnetic field lines, burst into luminous shockwaves on key narrative moments, and reform into intricate biological or physical topologies.
+- **Fonts:** Instrument Serif, JetBrains Mono
+- **Demo:** Neural Synaptic Transmission & Quantum Particle Entanglement
+- **Prompt file:** prompts/fluid-particle-cinema.md
+- **Reference code:** sources/fluid-particle-cinema.html
 
 </details>

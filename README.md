@@ -13,7 +13,7 @@
 [![Tests](https://img.shields.io/badge/tests-670%20passing-brightgreen.svg?style=flat-square)](docs/collaboration.md)
 [![Structural Gates](https://img.shields.io/badge/validation-113%20passed-success.svg?style=flat-square)](docs/collaboration.md)
 
-[Quickstart](#quickstart) • [100% Free Path (Arena.ai)](#free-arena) • [Three Superpowers](#superpowers) • [104 Motion Styles](#styles) • [Faceless Shorts](#shorts) • [Remote / Cloud Server](#remote-server) • [44 MCP Tools](#tools) • [Collaboration Guide](docs/collaboration.md)
+[Quickstart](#quickstart) • [100% Free Path (Arena.ai)](#free-arena) • [Three Superpowers](#superpowers) • [108 Motion Styles](#styles) • [Faceless Shorts](#shorts) • [Remote / Cloud Server](#remote-server) • [44 MCP Tools](#tools) • [Collaboration Guide](docs/collaboration.md)
 
 </div>
 
@@ -52,7 +52,7 @@ Your agent configures MCP and verifies everything on its own.
 * **To Create:** *"Make a 45-second vertical reel explaining how GPS triangulation works with bold kinetic captions and sound effects."*
 * **To Edit:** *"Edit my recording raw.mp4: cut all silences and retakes, add kinetic subtitle cards, and export the final video."*
 
-> 💡 **Style Tip:** You can specify any of our [104 Motion Styles](plugins/motion-styles/LIBRARY.md) directly in your prompt (e.g. *"in `creator-motion` style"*, *"in `aurora-glass` style"*, or *"in `paper-collage-film` style"*). If you don't name a style, your agent will automatically pick the best-fitting styles for each scene in your topic!
+> 💡 **Style Tip:** You can specify any of our [108 Motion Styles](plugins/motion-styles/LIBRARY.md) directly in your prompt (e.g. *"in `creator-motion` style"*, *"in `map-explainer-3d` style"*, or *"in `product-commercial-3d` style"*). If you don't name a style, your agent will automatically pick the best-fitting styles for each scene in your topic!
 
 ---
 
@@ -68,13 +68,13 @@ You do **NOT** need expensive AI subscriptions or cloud GPU rentals to build stu
 ```
  ┌───────────────────────────┐      ┌─────────────────────────────┐      ┌─────────────────────────────┐
  │   1. Pick Motion Style    │ ───► │ 2. Generate on arena.ai     │ ───► │    3. Render Free with npm  │
- │   104 Procedural Styles   │      │ Free web agent (or mobile)  │      │    npx @amg555/frameforge   │
+ │   108 Procedural Styles   │      │ Free web agent (or mobile)  │      │    npx @amg555/frameforge   │
  │   Ready-to-copy prompt    │      │ Pure standalone HTML5 code  │      │    1080p MP4 master ($0)    │
  └───────────────────────────┘      └─────────────────────────────┘      └─────────────────────────────┘
 ```
 
 #### The 4-Step $0 Workflow:
-1. **Choose a Style:** Pick any look from our [104 Procedural Motion Styles](plugins/motion-styles/LIBRARY.md) (e.g. `creator-motion`, `aurora-glass`, `paper-collage-film`, `archival-explainer`, `data-story`, `clean-tech`, `assembly-3d`).
+1. **Choose a Style:** Pick any look from our [108 Procedural Motion Styles](plugins/motion-styles/LIBRARY.md) (e.g. `creator-motion`, `map-explainer-3d`, `product-commercial-3d`, `arch-viz-isometric`, `fluid-particle-cinema`, `assembly-3d`).
 2. **Grab the Prompt:** Open the style's prompt in [`plugins/motion-styles/prompts/`](plugins/motion-styles/prompts/) (e.g. [`creator-motion.md`](plugins/motion-styles/prompts/creator-motion.md)) and copy the prompt template.
 3. **Generate Code with Free Agent (Desktop or Mobile Phone):** Open **[arena.ai](https://arena.ai)** in your browser (on PC or phone), select the free agent option, and paste the prompt + your topic (e.g. *"Explain how GPS triangulation works"*). The agent writes the complete HTML5 canvas / Three.js animation code. (You can also use any other free agent, or cheap low-cost agents if you have budget).
 4. **Render Free with Our Single npm Package:** Save as `animation.html` and render into a crisp 1080p broadcast MP4 with one command (runs locally, on VPS, or in Android Termux):
@@ -107,7 +107,7 @@ You do **NOT** need expensive AI subscriptions or cloud GPU rentals to build stu
          ▼                             ▼                             ▼
 SUPERPOWER 1: CREATION       SUPERPOWER 2: EDITING       SUPERPOWER 3: STREAM CLIPPING
 • Ideas/Scripts → Final MP4  • Raw Footage → Polished Cut• Long Streams/VODs → Polished Clips
-• 104 Motion Styles          • Auto-cut pauses/silences  • Audio energy & chat spike detection
+• 108 Motion Styles          • Auto-cut pauses/silences  • Audio energy & chat spike detection
 • Dynamic Per-Scene Styles   • Remove false starts       • 9:16 Blur chyron-safe / Crop / Stack
 • 6 Faceless Shorts Engines  • Kinetic captions & B-roll • HarfBuzz Indic & World libass subs
 • Pure-t Canvas Animation    • Export DaVinci/Premiere   • OBS ReplayBuffer & sliced downloads
@@ -143,9 +143,9 @@ SUPERPOWER 1: CREATION       SUPERPOWER 2: EDITING       SUPERPOWER 3: STREAM CL
 ---
 
 <a id="styles"></a>
-## 🎨 104 Procedural Motion-Graphics Styles
+## 🎨 108 Procedural Motion-Graphics Styles
 
-FrameForge bundles **104 code-drawn motion-graphics styles** covering every content genre. Every style runs entirely in code on HTML5 Canvas / Three.js r128 with synthesized Web Audio sound kits — zero AI image generation, zero diffusion artifacts.
+FrameForge bundles **108 code-drawn motion-graphics styles** covering every content genre. Every style runs entirely in code on HTML5 Canvas / Three.js r128 with synthesized Web Audio sound kits — zero AI image generation, zero diffusion artifacts.
 
 Full catalog and ready-to-copy prompts in [`plugins/motion-styles/LIBRARY.md`](plugins/motion-styles/LIBRARY.md).
 
@@ -157,19 +157,23 @@ Full catalog and ready-to-copy prompts in [`plugins/motion-styles/LIBRARY.md`](p
 | **Data & Explainer** | 6 | `data-story`, `timeline-rail`, `isotype`, `math-canvas` | Charts, market statistics, financial trends |
 | **Talking Head** | 1 | `warm-canvas` | Editorial PiP cards over creator webcam footage |
 | **Illustrated** | 7 | `pop-info`, `paper-craft`, `zine-collage`, `comic-panels` | Infographics, book summaries, narrative stories |
-| **3D & Spatial** | 49 | `clay-diorama`, `bio-glow`, `cosmic-scale`, `exploded-view`, `assembly-3d` | Procedural Three.js 3D models, exploded assembly guides, science |
+| **3D & Spatial** | 53 | `clay-diorama`, `bio-glow`, `map-explainer-3d`, `product-commercial-3d`, `arch-viz-isometric`, `fluid-particle-cinema`, `assembly-3d` | Procedural Three.js 3D terrain, studio hardware commercials, architectural cutaways, particle physics |
 | **Retro & Tech** | 2 | `pixel-quest`, `terminal` | 8-bit gaming, developer logs, cyber consoles |
 | **Shorts Formats** | 10 | `quiz-countdown`, `top-5-countdown`, `tier-list`, `versus-split` | Viral TikTok, Instagram Reels, YouTube Shorts |
 | **Edit Overlays** | 11 | `punch-captions`, `karaoke-subs`, `callout-kit`, `lower-thirds`, `archival-explainer` | Archival documentary, blue highlighter boxes, subtitle pops |
 | **Character Stories** | 5 | `shadow-puppets`, `visual-novel`, `rubber-hose-reel` | Vector character animation, lore, folklore |
 
-### Newly Added Procedural Styles (#97 to #104):
-* **#97 Paper Collage Film (`paper-collage-film`):** Torn paper stop-motion collage on twos (tactile stop-motion physical collage grammar), fibrous white borders, paper iris zoom, kaleidoscope split, and paper foley sound design.
-* **#98 Aurora Glass (`aurora-glass`):** Premium dark `#0A0E14` creator canvas, cyan aurora bloom, floating frosted glassmorphism cards, glowing Plus Jakarta Sans typography, Space Mono data pills, and focus-stack parallax.
-* **#99 Archival Explainer (`archival-explainer`):** Warm newsprint `#efe9dc`, thick sticker cutouts, signature blue marker highlight box (`#37BDF8`), Fraunces serif, and stepped stop-motion on twos.
-* **#100 Product Launch UI (`product-launch-ui`):** Modern SaaS product launch, mobile lockscreen notifications, interactive chat bubbles, mascot squash-and-stretch eye acting, and 3D spinning gold coins.
-* **#101 3D Assembly Guide (`assembly-3d`):** Step-by-step Three.js exploded assembly manual, parts gliding into interlocking slots, rotating threaded screws, snap clicks, and dimension badges.
-* **#102 Metamorphosis Specimen (`metamorphosis-specimen`):** Dual navy blueprint microscopy alternating with warm colored-pencil biological drawings, circular loupe calipers, and synthesized marimba score.
+### Newly Added Procedural Styles (#97 to #108):
+* **#97 Paper Collage Film (`paper-collage-film`):** Torn paper stop-motion collage on twos, fibrous white borders, paper iris zoom, and paper foley.
+* **#98 Aurora Glass (`aurora-glass`):** Premium dark creator canvas, cyan aurora bloom, floating frosted glassmorphism cards, and Plus Jakarta Sans typography.
+* **#99 Archival Explainer (`archival-explainer`):** Warm newsprint, thick sticker cutouts, signature blue marker highlight box (`#37BDF8`), and stepped stop-motion.
+* **#100 Product Launch UI (`product-launch-ui`):** Modern SaaS product launch, mobile lockscreen notifications, and 3D spinning gold coins.
+* **#101 3D Assembly Guide (`assembly-3d`):** Step-by-step Three.js exploded assembly manual, parts gliding into interlocking slots, and rotating threaded screws.
+* **#102 Metamorphosis Specimen (`metamorphosis-specimen`):** Dual navy blueprint microscopy alternating with warm colored-pencil biological drawings and circular loupe calipers.
+* **#105 3D Map Explainer (`map-explainer-3d`):** Vox/Johnny Harris geospatial explainer with Three.js terrain elevation, procedural ocean water shader with Gerstner waves, glowing border ribbons, curved 3D trade arcs, and projected city cards.
+* **#106 3D Studio Product Commercial (`product-commercial-3d`):** Apple-grade luxury hardware commercial with PBR metallic/glass materials, 3-point softbox studio lighting, soft contact shadows, and exploded slow-motion assembly.
+* **#107 3D Architectural Cutaway (`arch-viz-isometric`):** Architectural Digest isometric building cutaway with interior timber/concrete materials, dynamic sun study shadows, and dimensional callouts.
+* **#108 3D Fluid & Macro Particle Cinema (`fluid-particle-cinema`):** High-end physics simulation with 50,000 GPU curl-noise particles, volumetric lighting, and macro depth-of-field.
 
 ---
 
@@ -211,7 +215,7 @@ FrameForge registers **44 tools** compliant with the Model Context Protocol (MCP
 | **Video Creation (7)** | `create_video_from_script`, `assemble_video`, `render_from_scenes`, `edit_scenes`, `ingest_media`, `publish_video`, `generate_scene_image` | Full video assembly, scenes manifest, caption burning, scene graphics export |
 | **Autonomous Editing (5)** | `edit_video`, `plan_video_edit`, `export_to_editor`, `detect_viral_clips`, `karaoke_subtitles` | Silence & retake cutting, viral hook scoring, kinetic subs, NLE export (DaVinci/Premiere) |
 | **Livestream & Clipping (7)** | `clip_stream`, `capture_vod`, `score_stream_highlights`, `cut_and_reframe_clip`, `validate_clip`, `discover_streams`, `obs_command` | Audio-first VOD slicing, volume & chat spike detection, chyron-safe blur/stack framing, libass captions, OBS replay |
-| **Motion Styles (3)** | `list_motion_styles`, `get_motion_style_prompt`, `analyze_and_assign_scene_styles` | 5-layer analytic style selector (RST, prosody, Markov transition graph), catalog browse across 104 procedural styles |
+| **Motion Styles (3)** | `list_motion_styles`, `get_motion_style_prompt`, `analyze_and_assign_scene_styles` | 5-layer analytic style selector (RST, prosody, Markov transition graph), catalog browse across 108 procedural styles |
 | **Faceless Shorts (2)** | `list_short_styles`, `create_short` | 6 vertical formats (3D anatomy, true crime noir, stick figure, paper atlas) |
 | **Code Animation (6)** | `scaffold_animation_project`, `validate_storyboard`, `generate_scene_code`, `preview_scene`, `render_animation`, `verify_scene_quality` | Playwright canvas rendering, 12fps organic boil, closed-loop visual QA |
 | **Audio Mastering (3)** | `mix_audio_pro`, `render_tts`, `multi_voice_tts` | EBU R128 (−14 LUFS) broadcast mastering, ducking, 13-type SFX kit |

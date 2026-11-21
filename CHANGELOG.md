@@ -4,6 +4,24 @@ All notable changes to FrameForge are documented here.
 
 ---
 
+## [2.7.27] — 2026-11-21
+
+### Photorealistic 3D Procedural Motion Graphics (#105 to #108) & Realistic Shader Engine
+
+- **Four New Photorealistic 3D Motion Styles (Catalog expanded to 108 styles)**:
+  - **#105 3D Map Explainer (`map-explainer-3d`)**: Vox/Johnny Harris geospatial explainer. Procedural Three.js elevation terrain, custom Gerstner wave ocean vertex/fragment shader, glowing border ribbons, dynamic 3D Bezier trade flight arcs with photon pulses, and `vector.project(camera)` screen-projected HTML/canvas callout pins.
+  - **#106 3D Studio Product Commercial (`product-commercial-3d`)**: Apple/luxury industrial commercial. PBR metallic/anodized finishes, frosted glass transmission, 3-point softbox studio lighting with `THREE.PCFSoftShadowMap`, contact shadow plane, and exploded slow-motion assembly turntable.
+  - **#107 3D Architectural Cutaway (`arch-viz-isometric`)**: Architectural Digest isometric sectional cutaway. Realistic timber, polished concrete, glass facades, dynamic sun study directional shadow sweep, and room dimension badges.
+  - **#108 3D Fluid & Macro Particle Cinema (`fluid-particle-cinema`)**: High-end GPU physics simulation. 50,000 particle curl-noise turbulence, volumetric lighting beams, macro depth-of-field, and additive glow blending.
+- **Three.js Photorealistic Shaders Architectural Guide**:
+  - Added comprehensive technical reference at `plugins/video-pipeline/skills/html-renderer/references/threejs-realistic-shaders.md` documenting ACES Filmic tone mapping, PCF soft shadows, multi-octave simplex elevation, Gerstner water displacement, screen-projected badges, and CatmullRom spline flyovers.
+- **Engine & Selector Pipeline Integration**:
+  - `src/video-renderer/style-selector.js`: Integrated styles #105-#108 into 3D family, tournament scoring matrix, narrative role affinities (`map-explainer-3d` for story/history, `product-commercial-3d` for concept/climax, `arch-viz-isometric` for mechanism/process, `fluid-particle-cinema` for hook/deep-dive), and domain keyword detectors.
+  - `src/video-renderer/scene-animator.js`: Added aesthetic and component theme mappings (`map_geospatial_3d`, `product_studio_commercial_3d`, `arch_viz_isometric_3d`, `fluid_particle_physics_3d`).
+  - `src/mcp-server/server.js`: Updated `list_motion_styles` tool definition to reflect 108 procedural styles (54 in 3D category).
+
+---
+
 ## [2.7.26] — 2026-11-21
 
 ### 5-Layer Analytic Style Selection Engine (RST, Prosody, Markov Adjacency & Tournament)

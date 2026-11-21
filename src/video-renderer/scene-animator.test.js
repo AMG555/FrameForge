@@ -353,5 +353,25 @@ describe('scene-animator extended procedural motion styles (#97 to #102)', () =>
     const html = generateSceneHtml({ style: 'metamorphosis-specimen', caption: 'Monarch Specimen' });
     assert.ok(html.includes('COMP_THEME = "specimen_blueprint_microscopy"'));
   });
+
+  it('maps map-explainer-3d to cinematic_documentary and map_geospatial_3d theme', () => {
+    assert.equal(detectAesthetic({ style: 'map-explainer-3d' }), 'cinematic_documentary');
+    assert.equal(detectComponentTheme({ style: 'map-explainer-3d' }), 'map_geospatial_3d');
+  });
+
+  it('maps product-commercial-3d to minimal_luxury and product_studio_commercial_3d theme', () => {
+    assert.equal(detectAesthetic({ style: 'product-commercial-3d' }), 'minimal_luxury');
+    assert.equal(detectComponentTheme({ style: 'product-commercial-3d' }), 'product_studio_commercial_3d');
+  });
+
+  it('maps arch-viz-isometric to minimal_luxury and arch_viz_isometric_3d theme', () => {
+    assert.equal(detectAesthetic({ style: 'arch-viz-isometric' }), 'minimal_luxury');
+    assert.equal(detectComponentTheme({ style: 'arch-viz-isometric' }), 'arch_viz_isometric_3d');
+  });
+
+  it('maps fluid-particle-cinema to cosmic_space and fluid_particle_physics_3d theme', () => {
+    assert.equal(detectAesthetic({ style: 'fluid-particle-cinema' }), 'cosmic_space');
+    assert.equal(detectComponentTheme({ style: 'fluid-particle-cinema' }), 'fluid_particle_physics_3d');
+  });
 });
 

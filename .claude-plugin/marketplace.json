@@ -1,8 +1,8 @@
 {
   "name": "frameforge",
   "displayName": "FrameForge — AI Video Production",
-  "description": "Full AI video creation, livestream clipping & autonomous editing engine. Produce short-form reels (1080×1920), YouTube videos (1920×1080), or code-driven animated explainers — directly from your IDE. Playwright + FFmpeg renders every frame. 44 MCP tools. Whisper, yt-dlp stream & VOD clipping, broadcast audio, 104 procedural motion styles, 6 viral faceless shorts engines.",
-  "version": "2.7.26",
+  "description": "Full AI video creation, livestream clipping & autonomous editing engine. Produce short-form reels (1080×1920), YouTube videos (1920×1080), or code-driven animated explainers — directly from your IDE. Playwright + FFmpeg renders every frame. 44 MCP tools. Whisper, yt-dlp stream & VOD clipping, broadcast audio, 108 procedural motion styles, 6 viral faceless shorts engines.",
+  "version": "2.7.27",
   "homepage": "https://github.com/AMG555/FrameForge",
   "plugins": [
     {
@@ -12,7 +12,7 @@
         {
           "name": "video-pipeline",
           "displayName": "FrameForge Video Pipeline",
-          "description": "End-to-end video production: research → script → TTS → images → render → publish. Three paths: (1) IDE writes scenes (most common, no API key), (2) code-driven Playwright animation, (3) auto-research pipeline. 37 MCP tools. Includes Whisper transcription, yt-dlp ingestion, broadcast-grade audio, upstream skills sync. 104 Motion Graphics Styles via list_motion_styles + get_motion_style_prompt.",
+          "description": "End-to-end video production: research → script → TTS → images → render → publish. Three paths: (1) IDE writes scenes (most common, no API key), (2) code-driven Playwright animation, (3) auto-research pipeline. 37 MCP tools. Includes Whisper transcription, yt-dlp ingestion, broadcast-grade audio, upstream skills sync. 108 Motion Graphics Styles via list_motion_styles + get_motion_style_prompt.",
           "triggerPhrases": [
             "make a video about",
             "produce a reel on",

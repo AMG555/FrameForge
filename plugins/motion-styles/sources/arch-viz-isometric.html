@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>3D Architectural Cutaway — FrameForge Motion Library</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #eef2f6; font-family: -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; }
+    #container { position: relative; width: 100%; height: 100%; max-width: 1920px; max-height: 1080px; aspect-ratio: 16/9; }
+    canvas { width: 100%; height: 100%; display: block; }
+    .hud { position: absolute; top: 60px; left: 80px; color: #1e293b; pointer-events: none; font-family: "Space Grotesk", sans-serif; }
+    .hud h1 { font-size: 42px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 4px; }
+    .hud p { font-size: 16px; font-family: "JetBrains Mono", monospace; color: #64748b; }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+<div id="container">
+  <canvas id="stage" width="1920" height="1080"></canvas>
+  <div class="hud">
+    <h1>THERMAL ENVELOPE</h1>
+    <p>ZONE A-04 · 320 M² BIOPHILIC LIVING RESIDENCE</p>
+  </div>
+</div>
+
+<script>
+window.DURATION = 30;
+const W = 1920, H = 1080;
+const canvas = document.getElementById('stage');
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
+renderer.setSize(W, H, false);
+renderer.setPixelRatio(1);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#eef2f6');
+
+// Isometric Camera setup
+const aspect = W / H;
+const d = 14;
+const camera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 1, 1000);
+camera.position.set(20, 20, 20);
+camera.lookAt(0, 0, 0);
+
+// Sun Study Dynamic Light
+const sun = new THREE.DirectionalLight('#fff8e7', 2.0);
+sun.position.set(15, 25, 10);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.bias = -0.0005;
+scene.add(sun);
+
+const hemi = new THREE.HemisphereLight('#f1f5f9', '#94a3b8', 0.9);
+scene.add(hemi);
+
+// Ground Plane
+const groundGeo = new THREE.PlaneGeometry(60, 60);
+const groundMat = new THREE.ShadowMaterial({ opacity: 0.25 });
+const ground = new THREE.Mesh(groundGeo, groundMat);
+ground.rotation.x = -Math.PI / 2;
+ground.position.y = -2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// Building Group
+const building = new THREE.Group();
+scene.add(building);
+
+// Floor Slab (Matte Concrete)
+const slabGeo = new THREE.BoxGeometry(14, 0.6, 12);
+const slabMat = new THREE.MeshStandardMaterial({ color: '#cbd5e1', roughness: 0.9 });
+const slab = new THREE.Mesh(slabGeo, slabMat);
+slab.position.y = -1.7;
+slab.receiveShadow = true;
+building.add(slab);
+
+// Timber Floor Accent
+const woodGeo = new THREE.BoxGeometry(13.6, 0.1, 11.6);
+const woodMat = new THREE.MeshStandardMaterial({ color: '#c89666', roughness: 0.6 });
+const wood = new THREE.Mesh(woodGeo, woodMat);
+wood.position.y = -1.35;
+wood.receiveShadow = true;
+building.add(wood);
+
+// Cutaway Back Wall
+const wallGeo = new THREE.BoxGeometry(14, 6, 0.5);
+const wallMat = new THREE.MeshStandardMaterial({ color: '#f8fafc', roughness: 0.85 });
+const wall = new THREE.Mesh(wallGeo, wallMat);
+wall.position.set(0, 1.6, -5.8);
+wall.castShadow = true;
+wall.receiveShadow = true;
+building.add(wall);
+
+// Glass Facade Cutaway
+const glassGeo = new THREE.BoxGeometry(0.2, 5.8, 11.6);
+const glassMat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.1, transparent: true, opacity: 0.25 });
+const glass = new THREE.Mesh(glassGeo, glassMat);
+glass.position.set(-6.8, 1.5, 0);
+building.add(glass);
+
+// Structural Columns
+for (let x of [-4, 0, 4]) {
+  const colGeo = new THREE.CylinderGeometry(0.3, 0.3, 6, 16);
+  const colMat = new THREE.MeshStandardMaterial({ color: '#1e293b', roughness: 0.3, metalness: 0.8 });
+  const col = new THREE.Mesh(colGeo, colMat);
+  col.position.set(x, 1.6, 5);
+  col.castShadow = true;
+  building.add(col);
+}
+
+function render(t) {
+  // Sun-study daylight arc movement
+  const angle = t * 0.2;
+  sun.position.x = Math.cos(angle) * 20;
+  sun.position.z = Math.sin(angle) * 20;
+
+  // Gentle building rotation
+  building.rotation.y = Math.sin(t * 0.1) * 0.1;
+
+  renderer.render(scene, camera);
+}
+
+window.seek = function(t) { render(t); };
+
+let start = null;
+function loop(now) {
+  if (!start) start = now;
+  const t = ((now - start) / 1000) % window.DURATION;
+  render(t);
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

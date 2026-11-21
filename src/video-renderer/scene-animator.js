@@ -379,6 +379,11 @@ function detectAesthetic({
     'rubber-hose-reel':      'hand_drawn_doodle',
     'woodcut-tale':          'cinematic_documentary',
     'neon-line':             'retro_synthwave',
+    // ── Photorealistic 3D Cinema (#105 to #108) ──────────────────────────────
+    'map-explainer-3d':      'cinematic_documentary',
+    'product-commercial-3d': 'minimal_luxury',
+    'arch-viz-isometric':    'minimal_luxury',
+    'fluid-particle-cinema': 'cosmic_space',
     // ── Legacy / Extra ──────────────────────────────────────────────────────
     'stick-story':           'hand_drawn_doodle',
     'deep-dive':             'cosmic_space',
@@ -516,6 +521,18 @@ function detectComponentTheme({
   }
   if (style === 'metamorphosis-specimen' || /(?:^|[^w])(metamorphosis|monarch butterfly|specimen blueprint|microscopy loupe|life cycle)(?:[^w]|$)/i.test(text)) {
     return 'specimen_blueprint_microscopy';
+  }
+  if (style === 'map-explainer-3d' || /(?:^|[^\w])(map explainer|3d map|topographic|terrain elevation|strait of hormuz|bab-el-mandeb|geopolitical map)(?:[^\w]|$)/i.test(text)) {
+    return 'map_geospatial_3d';
+  }
+  if (style === 'product-commercial-3d' || /(?:^|[^\w])(product commercial|studio hardware|acoustic titanium|pbr metal|turntable product)(?:[^\w]|$)/i.test(text)) {
+    return 'product_studio_commercial_3d';
+  }
+  if (style === 'arch-viz-isometric' || /(?:^|[^\w])(arch viz|architectural cutaway|isometric building|thermal envelope|floorplan 3d)(?:[^\w]|$)/i.test(text)) {
+    return 'arch_viz_isometric_3d';
+  }
+  if (style === 'fluid-particle-cinema' || /(?:^|[^\w])(fluid particle|quantum field topology|curl noise simulation|macro particle)(?:[^\w]|$)/i.test(text)) {
+    return 'fluid_particle_physics_3d';
   }
 
   // If anchor is NOT requested, suppress all humanoid doodle anchor characters
