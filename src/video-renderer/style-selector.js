@@ -182,6 +182,19 @@ const FAMILY_GROUPS = {
   'Comparison Split': ['versus-split', 'tier-list', 'myth-or-fact', 'stack-split'],
 };
 
+const STYLE_ALIASES = {
+  'explain.the.planet': 'map-explainer-3d',
+  'explain-the-planet': 'map-explainer-3d',
+  'satellite-map': 'map-explainer-3d',
+  '3d-map': 'map-explainer-3d',
+  'earth-flyover': 'map-explainer-3d',
+  'vox': 'map-explainer-3d',
+  'johnny-harris': 'map-explainer-3d',
+  'johnny harris': 'map-explainer-3d',
+  'geospatial': 'map-explainer-3d',
+  'topographic': 'map-explainer-3d',
+};
+
 /**
  * Returns transition compatibility bonus or penalty between two styles.
  *
@@ -269,29 +282,43 @@ function scoreStyleCandidate(styleId, context) {
 
   // Perspective 1: Narrative Director (Pacing, tone, story arc)
   let director = 50;
+  let architect = 50;
+  let retention = 50;
   if (affinity.preferred.includes(styleId)) director += 35;
   if (prosody.energyScore > 0.7 && /creator-motion|punch-captions|hype-sports/.test(styleId)) director += 15;
   if (prosody.energyScore < 0.4 && /chalk-talk|minimal-luxury|doc-cinema/.test(styleId)) director += 15;
 
   // Domain topic affinity
   const topicText = (context.topic || '').toLowerCase();
-  if (/(?:map|geopolitic|territor|strait|canal|border|nation|ocean|sea|trade route)/.test(topicText) && styleId === 'map-explainer-3d') {
+  const descText = (context.visualDescription || '').toLowerCase();
+  const capText = (context.caption || '').toLowerCase();
+  const globalStyle = (context.globalStyle || context.referenceStyle || '').toLowerCase();
+  const resolvedGlobal = STYLE_ALIASES[globalStyle] || globalStyle;
+  const fullText = `${topicText} ${descText} ${capText}`;
+
+  if (styleId === 'map-explainer-3d') {
+    if (/(?:map|geopolitic|territor|strait|canal|border|nation|ocean|sea|trade route|shipping|port|transshipment|coast|coastline|harbor|globe|satellite|elevation|terrain|route|depth)/.test(fullText)) {
+      director += 35;
+    }
+    if (resolvedGlobal === 'map-explainer-3d') {
+      director += 40;
+      architect += 30;
+      retention += 15;
+    }
+  }
+  if (/(?:product|hardware|gadget|titanium|device|spec|transducer|audio|acoustic)/.test(fullText) && styleId === 'product-commercial-3d') {
     director += 25;
   }
-  if (/(?:product|hardware|gadget|titanium|device|spec|transducer|audio|acoustic)/.test(topicText) && styleId === 'product-commercial-3d') {
+  if (/(?:architect|building|floorplan|room|facade|concrete|wood|timber|solar|thermal)/.test(fullText) && styleId === 'arch-viz-isometric') {
     director += 25;
   }
-  if (/(?:architect|building|floorplan|room|facade|concrete|wood|timber|solar|thermal)/.test(topicText) && styleId === 'arch-viz-isometric') {
-    director += 25;
-  }
-  if (/(?:quantum|particle|fluid|wave|physics|atom|molecule|synapse|neural)/.test(topicText) && styleId === 'fluid-particle-cinema') {
+  if (/(?:quantum|particle|fluid|wave|physics|atom|molecule|synapse|neural)/.test(fullText) && styleId === 'fluid-particle-cinema') {
     director += 25;
   }
 
   director = Math.min(100, Math.max(0, director));
 
   // Perspective 2: Information Architect (Spatial clarity, cognitive load matching)
-  let architect = 50;
   if (cognitiveLoad > 0.65) {
     // High cognitive load: reward clean, structured, low-visual-noise styles
     if (/clean-tech|swiss-grid|blueprint|assembly-3d|data-story/.test(styleId)) architect += 35;
@@ -303,8 +330,10 @@ function scoreStyleCandidate(styleId, context) {
   architect = Math.min(100, Math.max(0, architect));
 
   // Perspective 3: Retention Optimizer (Scroll-stopping power, pattern interruption)
-  let retention = 50;
   if (discourseRole === 'hook' && /creator-motion|punch-captions|headline-backdrop/.test(styleId)) retention += 40;
+  if (discourseRole === 'hook' && /(?:map|globe|ocean|earth|shipping|cargo|satellite)/.test(fullText) && styleId === 'map-explainer-3d') {
+    retention += 45;
+  }
   if (orientation === 'portrait' && /punch-captions|swiss-grid|top-5-countdown|blueprint/.test(styleId)) retention += 20;
   if (orientation === 'portrait' && /market-tape|isotype/.test(styleId)) retention -= 15; // horizontal-heavy
   retention = Math.min(100, Math.max(0, retention));
@@ -384,11 +413,12 @@ function selectOptimalSceneStyle({
   duration = 0,
 } = {}) {
   // If scene explicitly specifies an existing style, respect it
-  const explicit = scene.style || scene.motion_style;
-  if (explicit && typeof explicit === 'string' && explicit.trim()) {
-    const trimmed = explicit.trim();
+  const rawExplicit = scene.style || scene.motion_style;
+  if (rawExplicit && typeof rawExplicit === 'string' && rawExplicit.trim()) {
+    const trimmed = rawExplicit.trim();
+    const resolvedExplicit = STYLE_ALIASES[trimmed.toLowerCase()] || trimmed;
     return {
-      selectedStyle: trimmed,
+      selectedStyle: resolvedExplicit,
       runnerUp: 'clean-tech',
       discourseRole: 'explicit',
       cognitiveLoad: 0.5,
@@ -415,7 +445,10 @@ function selectOptimalSceneStyle({
     prosody,
     orientation,
     prevStyle: previousStyle,
-    topic,
+    topic: topic || scene.topic || '',
+    visualDescription: scene.visual_description || scene.visualDescription || scene.prompt || '',
+    caption: scene.caption || scene.title || '',
+    globalStyle: globalStyle || '',
   };
 
   const pool = [

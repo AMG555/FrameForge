@@ -140,15 +140,38 @@ function parseMarkdownScript(content) {
   if (!content || typeof content !== 'string') return { title: '', scenes: [] };
 
   function parseTime(str) {
-    const parts = str.split(':').map(Number);
+    if (!str) return 0;
+    const parts = str.trim().split(':').map(Number);
     if (parts.length === 2) return parts[0] * 60 + parts[1];
     if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
     return parseFloat(str) || 0;
   }
 
+  const STYLE_ALIAS_MAP = {
+    'explain.the.planet': 'map-explainer-3d',
+    'explain-the-planet': 'map-explainer-3d',
+    'satellite-map': 'map-explainer-3d',
+    'earth-flyover': 'map-explainer-3d',
+    '3d-map': 'map-explainer-3d',
+    'vox': 'map-explainer-3d',
+    'johnny harris': 'map-explainer-3d',
+    'johnny-harris': 'map-explainer-3d',
+    'geospatial': 'map-explainer-3d',
+  };
+
   let title = '';
-  const titleMatch = content.match(/^#\s+([^\n]+)/m) || content.match(/\*\*([^*]+)\*\*\s*\n\s*\*\*\d+-Minute/i);
-  if (titleMatch) title = titleMatch[1].replace(/^[#\s]+/, '').trim();
+  const titleMatch = content.match(/^#\s+([^\n]+)/m)
+    || content.match(/===\s*(?:VIDEO\s*BRIEF|BRIEF)\s*:\s*([^=\n]+)\s*===/i)
+    || content.match(/\*\*([^*]+)\*\*\s*\n\s*\*\*\d+-Minute/i);
+  if (titleMatch) title = titleMatch[1].replace(/^[#\s]+/, '').replace(/\s*\([^)]*\)\s*$/, '').replace(/^["'\s]+|["'\s]+$/g, '').trim();
+
+  // Extract reference style from brief header if present
+  let referenceStyle = '';
+  const refStyleMatch = content.match(/(?:reference\s*style|visual\s*style|style)\s*:\s*([^\n;]+)/i);
+  if (refStyleMatch) {
+    const rawStyle = refStyleMatch[1].split(/\.\s+/)[0].trim().toLowerCase();
+    referenceStyle = STYLE_ALIAS_MAP[rawStyle] || rawStyle;
+  }
 
   // Split into scene blocks by ## SCENE XX or ### SCENE XX
   const sceneBlocks = content.split(/(?=^#{2,3}\s+SCENE\s+\d+)/mi);
@@ -192,10 +215,47 @@ function parseMarkdownScript(content) {
       caption: sceneTitle ? sceneTitle.toUpperCase().slice(0, 40) : '',
       camera_hint: 'auto',
       music_mood: 'neutral',
+      style: referenceStyle || undefined,
     });
   }
 
-  return { title, scenes };
+  // Fallback: If no ## SCENE XX blocks found, parse tabular / pipe-delimited format
+  // Example: 01 | 0-3 | **75%** OF INDIA'S SHIP-TO-SHIP CARGO | narration | visual
+  if (scenes.length === 0) {
+    const lines = content.split('\n');
+    for (const line of lines) {
+      const rowMatch = line.match(/^\s*(\d{1,3})\s*\|\s*(\d+(?::\d+)?(?:\.\d+)?\s*[-–—]\s*\d+(?::\d+)?(?:\.\d+)?)\s*\|\s*([^|]+)\|\s*([^|]+)\|\s*([^|\n]+)/);
+      if (!rowMatch) continue;
+      const sceneId = parseInt(rowMatch[1], 10);
+      const timeRange = rowMatch[2].split(/[-–—]/);
+      const startTime = parseTime(timeRange[0]);
+      const endTime = parseTime(timeRange[1]);
+      const duration = Math.max(1, endTime - startTime);
+      const rawHeadline = rowMatch[3].trim();
+      const cleanHeadline = rawHeadline.replace(/\*\*/g, '').trim();
+      const narration = rowMatch[4].trim();
+      const visualDescription = rowMatch[5].trim();
+
+      scenes.push({
+        scene_id: sceneId,
+        title: cleanHeadline,
+        duration,
+        start_time: startTime,
+        end_time: endTime,
+        visual_description: visualDescription,
+        prompt: visualDescription,
+        narration,
+        caption: cleanHeadline ? cleanHeadline.toUpperCase().slice(0, 40) : '',
+        camera_hint: 'auto',
+        music_mood: 'neutral',
+        style: referenceStyle || undefined,
+      });
+    }
+  }
+
+  const result = { title, scenes };
+  if (referenceStyle) result.referenceStyle = referenceStyle;
+  return result;
 }
 
 // ── Manifest normalizer ───────────────────────────────────────────────────────

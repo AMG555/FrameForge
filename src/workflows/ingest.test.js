@@ -61,6 +61,32 @@ Split screen comparison of humans.
     assert.deepEqual(parseMarkdownScript(''), { title: '', scenes: [] });
     assert.deepEqual(parseMarkdownScript(null), { title: '', scenes: [] });
   });
+
+  it('parses video brief header metadata and tabular scene rows with reference style', () => {
+    const brief = `
+=== VIDEO BRIEF: "Vizhinjam" (Malayalam explainer reel) ===
+
+FORMAT
+- 9:16 vertical, 30fps
+- Reference style: explain.the.planet. Dark satellite-map base with slow camera moves
+
+SCENES (time | headline on screen | Malayalam narration | visual)
+
+01 | 0-3   | **75%** OF INDIA'S CARGO | ഇന്ത്യയുടെ ചരക്ക് മാറ്റുന്നതിൽ | Globe spins to Indian Ocean
+02 | 3-6   | HANDLED **ABROAD** | വിദേശത്തായിരുന്നു | Arrows leave coast
+`;
+    const res = parseMarkdownScript(brief);
+    assert.equal(res.title, 'Vizhinjam');
+    assert.equal(res.referenceStyle, 'map-explainer-3d');
+    assert.equal(res.scenes.length, 2);
+    assert.equal(res.scenes[0].scene_id, 1);
+    assert.equal(res.scenes[0].title, "75% OF INDIA'S CARGO");
+    assert.equal(res.scenes[0].duration, 3);
+    assert.equal(res.scenes[0].style, 'map-explainer-3d');
+    assert.equal(res.scenes[1].scene_id, 2);
+    assert.equal(res.scenes[1].title, 'HANDLED ABROAD');
+    assert.equal(res.scenes[1].duration, 3);
+  });
 });
 
 describe('normaliseIngestScene duration and camera', () => {

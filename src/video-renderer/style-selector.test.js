@@ -171,5 +171,22 @@ describe('Analytic Style Selector — 5-Layer Intelligence', () => {
       assert.equal(assigned[0].style, 'custom-explicit-style');
       assert.ok(assigned[1].style !== 'custom-explicit-style');
     });
+
+    it('resolves explain.the.planet alias and selects map-explainer-3d for geospatial scripts', () => {
+      const scene = {
+        caption: "75% OF INDIA'S CARGO",
+        visual_description: 'Globe spins to the Indian Ocean, shipping lane glows',
+        narration: 'ഇന്ത്യയുടെ ചരക്ക് മാറ്റുന്നതിൽ വിദേശത്തായിരുന്നു',
+      };
+      const optimal = selectOptimalSceneStyle({
+        scene,
+        sceneIndex: 0,
+        totalScenes: 10,
+        topic: 'Vizhinjam',
+        globalStyle: 'explain.the.planet',
+        orientation: 'portrait',
+      });
+      assert.equal(optimal.selectedStyle, 'map-explainer-3d');
+    });
   });
 });

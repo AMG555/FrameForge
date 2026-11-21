@@ -374,6 +374,21 @@ describe('scene-animator extended procedural motion styles (#97 to #102)', () =>
     assert.equal(detectAesthetic({ style: 'fluid-particle-cinema' }), 'cosmic_space');
     assert.equal(detectComponentTheme({ style: 'fluid-particle-cinema' }), 'fluid_particle_physics_3d');
   });
+
+  it('renders map_geospatial_3d with 3D ocean, shipping highway, and anchored location pins', () => {
+    assert.equal(detectAesthetic({ style: 'explain.the.planet' }), 'cinematic_documentary');
+    assert.equal(detectComponentTheme({ style: 'explain.the.planet', visualDescription: 'Globe spins to Indian Ocean' }), 'map_geospatial_3d');
+    const html = generateSceneHtml({
+      style: 'map-explainer-3d',
+      caption: '75% OF INDIA CARGO',
+      topic: 'Vizhinjam',
+      visualDescription: 'Globe spins to Indian Ocean, shipping lanes glow',
+    });
+    assert.ok(html.includes('COMP_THEME = "map_geospatial_3d"'));
+    assert.ok(html.includes('VIZHINJAM'));
+    assert.ok(html.includes('COLOMBO'));
+    assert.ok(html.includes('Animated Photon Pulses'));
+  });
 });
 
 describe('scene-animator sanitizeSceneHtml & zero player chrome', () => {

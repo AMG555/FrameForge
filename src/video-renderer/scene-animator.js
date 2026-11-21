@@ -381,6 +381,10 @@ function detectAesthetic({
     'neon-line':             'retro_synthwave',
     // ── Photorealistic 3D Cinema (#105 to #108) ──────────────────────────────
     'map-explainer-3d':      'cinematic_documentary',
+    'explain.the.planet':    'cinematic_documentary',
+    'explain-the-planet':    'cinematic_documentary',
+    'satellite-map':         'cinematic_documentary',
+    'earth-flyover':         'cinematic_documentary',
     'product-commercial-3d': 'minimal_luxury',
     'arch-viz-isometric':    'minimal_luxury',
     'fluid-particle-cinema': 'cosmic_space',
@@ -522,7 +526,9 @@ function detectComponentTheme({
   if (style === 'metamorphosis-specimen' || /(?:^|[^w])(metamorphosis|monarch butterfly|specimen blueprint|microscopy loupe|life cycle)(?:[^w]|$)/i.test(text)) {
     return 'specimen_blueprint_microscopy';
   }
-  if (style === 'map-explainer-3d' || /(?:^|[^\w])(map explainer|3d map|topographic|terrain elevation|strait of hormuz|bab-el-mandeb|geopolitical map)(?:[^\w]|$)/i.test(text)) {
+  if (style === 'map-explainer-3d' || /explain[.-]the[.-]planet|satellite[.-]map|3d[.-]map|earth[.-]flyover/i.test(style) ||
+      /(?:^|[^\w])(map explainer|3d map|topographic|terrain elevation|strait of hormuz|bab-el-mandeb|geopolitical map|satellite map|explain\.the\.planet|globe spins|shipping route|shipping lane|coastline|transshipment|ocean map|sea depth|natural depth|indian ocean|bay of bengal|arabian sea|jebel ali|colombo|vizhinjam|sabarimala|erumeli|pamba)(?:[^\w]|$)/i.test(text) ||
+      /ഭൂപടം|തുറമുഖം|തീരം|കടൽ|കപ്പൽച്ചാൽ|വിഴിഞ്ഞം|സമുദ്രം/.test(text)) {
     return 'map_geospatial_3d';
   }
   if (style === 'product-commercial-3d' || /(?:^|[^\w])(product commercial|studio hardware|acoustic titanium|pbr metal|turntable product)(?:[^\w]|$)/i.test(text)) {
@@ -4858,6 +4864,249 @@ function drawMainScene(t) {
     ctx.fillStyle = '#94a3b8';
     ctx.font = 'italic 20px Caveat, cursive, sans-serif';
     ctx.fillText((NARRATION || 'Morphological transformation observed').slice(0, 48), 0, loupeR + 78);
+    ctx.restore();
+
+  } else if (COMP_THEME === 'map_geospatial_3d') {
+    // 105: 3D Map Explainer (Vox / explain.the.planet / Johnny Harris)
+    // Full-bleed 3D Geospatial Satellite & Topographic Canvas Engine
+    const flyProgress = clamp(t / Math.max(1, DURATION), 0, 1);
+    const easeFly = easeInOut(flyProgress);
+    const pinSpring = spring(t, 0.25, 180, 14);
+    const badgeSpring = spring(t, 0.45, 170, 13);
+
+    // Dynamic 3D Camera coordinates
+    const camPanX = Math.sin(t * 0.22) * (W * 0.04);
+    const camPanY = (t * 12) % (H * 0.1);
+    const camZoom = 1.0 + easeFly * 0.18;
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(camZoom, camZoom);
+    ctx.translate(-cx + camPanX, -cy + camPanY);
+
+    // 1. Fullscreen Dark Bathymetric Satellite Ocean Base
+    const oceanGrad = ctx.createRadialGradient(cx, cy, 50, cx, cy, Math.max(W, H) * 0.9);
+    oceanGrad.addColorStop(0, '#0a192f');
+    oceanGrad.addColorStop(0.5, '#071322');
+    oceanGrad.addColorStop(1, '#040911');
+    ctx.fillStyle = oceanGrad;
+    ctx.fillRect(-W * 0.2, -H * 0.2, W * 1.4, H * 1.4);
+
+    // 2. Coordinate Graticule (Latitude & Longitude Curved Grid)
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.12)';
+    ctx.lineWidth = 1.2;
+    ctx.setLineDash([6, 8]);
+    const gridOffset = (t * 8) % 120;
+    for (let gx = -W * 0.2; gx < W * 1.2; gx += 120) {
+      ctx.beginPath();
+      ctx.moveTo(gx + gridOffset, -H * 0.2);
+      ctx.quadraticCurveTo(gx + gridOffset + 40, cy, gx + gridOffset, H * 1.2);
+      ctx.stroke();
+    }
+    for (let gy = -H * 0.2; gy < H * 1.2; gy += 120) {
+      ctx.beginPath();
+      ctx.moveTo(-W * 0.2, gy);
+      ctx.quadraticCurveTo(cx, gy + 30, W * 1.2, gy);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+
+    // 3. Topographic Satellite Landmass & Coastal Elevation Mesh
+    ctx.save();
+    // Coastal bathymetry shallow water glow
+    ctx.shadowColor = 'rgba(14, 165, 233, 0.35)';
+    ctx.shadowBlur = 40;
+    ctx.fillStyle = '#0f314d';
+    ctx.beginPath();
+    ctx.ellipse(cx + 80, cy + 20, W * 0.36, H * 0.42, -0.15, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Landmass contour with hypsometric elevation tinting
+    ctx.shadowBlur = 0;
+    const landGrad = ctx.createLinearGradient(cx - 100, cy - H * 0.3, cx + 200, cy + H * 0.3);
+    landGrad.addColorStop(0, '#1c2826');
+    landGrad.addColorStop(0.4, '#283618');
+    landGrad.addColorStop(0.8, '#3d405b');
+    landGrad.addColorStop(1, '#1b263b');
+    ctx.fillStyle = landGrad;
+    ctx.beginPath();
+    // Organic coastal silhouette
+    ctx.moveTo(cx + 40, cy - H * 0.38);
+    ctx.bezierCurveTo(cx + 120, cy - H * 0.2, cx + 180, cy - H * 0.05, cx + 140, cy + H * 0.12);
+    ctx.bezierCurveTo(cx + 90, cy + H * 0.28, cx - 10, cy + H * 0.38, cx - 40, cy + H * 0.36);
+    ctx.bezierCurveTo(cx - 60, cy + H * 0.24, cx - 20, cy + H * 0.08, cx, cy - H * 0.08);
+    ctx.bezierCurveTo(cx + 20, cy - H * 0.24, cx + 10, cy - H * 0.34, cx + 40, cy - H * 0.38);
+    ctx.closePath();
+    ctx.fill();
+
+    // Glowing shoreline rim
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 2.5;
+    ctx.shadowColor = 'rgba(56, 189, 248, 0.8)';
+    ctx.shadowBlur = 14;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Mountain Ridge Highlights (Western Ghats elevation relief)
+    ctx.strokeStyle = 'rgba(234, 179, 8, 0.35)';
+    ctx.lineWidth = 2;
+    for (let r = 0; r < 5; r++) {
+      ctx.beginPath();
+      const ry = cy - H * 0.2 + r * 60;
+      ctx.moveTo(cx + 60, ry);
+      ctx.quadraticCurveTo(cx + 85 + Math.sin(t + r) * 6, ry + 25, cx + 55, ry + 50);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // 4. Glowing 3D Shipping / Trade Routes with Animated Photon Pulses
+    const p1x = cx - W * 0.38, p1y = cy + H * 0.26;
+    const p2x = cx - 40,       p2y = cy + H * 0.36;
+    const p3x = cx + W * 0.36, p3y = cy + H * 0.28;
+
+    // Main East-West Shipping Highway
+    ctx.save();
+    ctx.strokeStyle = 'rgba(245, 158, 11, 0.85)';
+    ctx.lineWidth = 3.5;
+    ctx.shadowColor = 'rgba(245, 158, 11, 0.7)';
+    ctx.shadowBlur = 18;
+    ctx.beginPath();
+    ctx.moveTo(p1x, p1y);
+    ctx.quadraticCurveTo(cx, cy + H * 0.44, p3x, p3y);
+    ctx.stroke();
+
+    // Branching Route to Colombo
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.65)';
+    ctx.lineWidth = 2.2;
+    ctx.setLineDash([8, 6]);
+    ctx.beginPath();
+    ctx.moveTo(p2x, p2y);
+    ctx.quadraticCurveTo(cx + 60, cy + H * 0.46, cx + 120, cy + H * 0.42);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.shadowBlur = 0;
+
+    // Animated Photon Pulses
+    const numPhotons = 4;
+    for (let i = 0; i < numPhotons; i++) {
+      const prog = (t * 0.28 + i / numPhotons) % 1.0;
+      const qx = (1 - prog) * (1 - prog) * p1x + 2 * (1 - prog) * prog * cx + prog * prog * p3x;
+      const qy = (1 - prog) * (1 - prog) * p1y + 2 * (1 - prog) * prog * (cy + H * 0.44) + prog * prog * p3y;
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = '#38bdf8';
+      ctx.shadowBlur = 16;
+      ctx.beginPath();
+      ctx.arc(qx, qy, 6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // 5. Anchored 3D Location Pins with Vertical Stems & Pulsing Target Rings
+    const pins = [
+      { name: 'VIZHINJAM', x: p2x, y: p2y, sub: '18-20+ M NATURAL DEPTH', isTarget: true },
+      { name: 'COLOMBO', x: cx + 120, y: cy + H * 0.42, sub: 'FEEDER HUB', isTarget: false },
+      { name: 'JNPT MUMBAI', x: cx + 10, y: cy - H * 0.12, sub: '14 M DRAFT', isTarget: false },
+    ];
+
+    pins.forEach((pin, idx) => {
+      const pinS = Math.min(1, Math.max(0, spring(t, 0.15 + idx * 0.12, 180, 14)));
+      ctx.save();
+      ctx.translate(pin.x, pin.y);
+
+      // Pulsing Base Target Waves
+      const pulsePhase = (t * 2.2 + idx) % 1.0;
+      ctx.strokeStyle = pin.isTarget ? ('rgba(245, 158, 11, ' + (1 - pulsePhase) + ')') : ('rgba(56, 189, 248, ' + (0.8 - pulsePhase * 0.8) + ')');
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, 12 + pulsePhase * 36, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Base Ground Dot
+      ctx.fillStyle = pin.isTarget ? '#f59e0b' : '#38bdf8';
+      ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI * 2); ctx.fill();
+
+      // Vertical Pin Stem
+      const stemH = 64 * pinS;
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(0, -stemH);
+      ctx.stroke();
+
+      // Floating Pinned Badge
+      if (pinS > 0.1) {
+        ctx.translate(0, -stemH);
+        ctx.scale(pinS, pinS);
+
+        const badgeText = pin.name;
+        ctx.font = 'bold 18px ' + FONT_DISPLAY;
+        const bW = Math.max(140, ctx.measureText(badgeText).width + 36);
+        const bH = 46;
+
+        ctx.fillStyle = 'rgba(7, 15, 28, 0.9)';
+        ctx.strokeStyle = pin.isTarget ? '#f59e0b' : 'rgba(56, 189, 248, 0.6)';
+        ctx.lineWidth = pin.isTarget ? 2 : 1.2;
+        ctx.shadowColor = 'rgba(0,0,0,0.7)';
+        ctx.shadowBlur = 18;
+        ctx.beginPath();
+        ctx.roundRect(-bW / 2, -bH, bW, bH, 8);
+        ctx.fill();
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.fillText(badgeText, 0, -bH + 20);
+
+        ctx.fillStyle = pin.isTarget ? '#f59e0b' : '#38bdf8';
+        ctx.font = 'bold 11px monospace';
+        ctx.fillText(pin.sub, 0, -bH + 36);
+      }
+      ctx.restore();
+    });
+
+    // 6. Floating Stat Card / Comparison Meter (when relevant)
+    if (/(?:75%|14\s*m|18-20|depth|draft|distance|10\s*nautical)/i.test(CAPTION + ' ' + TOPIC + ' ' + NARRATION)) {
+      const cardS = Math.min(1, Math.max(0, badgeSpring));
+      ctx.save();
+      ctx.translate(cx, cy + H * 0.14);
+      ctx.scale(cardS, cardS);
+
+      const cW = Math.min(W * 0.82, 540);
+      const cH = 80;
+      ctx.fillStyle = 'rgba(10, 22, 40, 0.92)';
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
+      ctx.lineWidth = 1.8;
+      ctx.shadowColor = 'rgba(0,0,0,0.6)';
+      ctx.shadowBlur = 24;
+      ctx.beginPath();
+      ctx.roundRect(-cW / 2, 0, cW, cH, 16);
+      ctx.fill(); ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // Progress bar or metric inside card
+      const fillRatio = Math.min(1, (t - 0.2) * 1.5);
+      const barW = cW - 48;
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+      ctx.beginPath(); ctx.roundRect(-barW / 2, 42, barW, 14, 7); ctx.fill();
+
+      ctx.fillStyle = '#f59e0b';
+      ctx.beginPath(); ctx.roundRect(-barW / 2, 42, Math.max(14, barW * Math.max(0, fillRatio) * 0.75), 14, 7); ctx.fill();
+
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = 'bold 14px monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText((TOPIC || 'TRANS-SHIPMENT').toUpperCase().slice(0, 26), -barW / 2, 28);
+
+      ctx.fillStyle = '#f59e0b';
+      ctx.font = 'bold 20px ' + FONT_DISPLAY;
+      ctx.textAlign = 'right';
+      ctx.fillText((CAPTION || '75% ABROAD').toUpperCase().slice(0, 18), barW / 2, 28);
+
+      ctx.restore();
+    }
+
     ctx.restore();
 
   } else {

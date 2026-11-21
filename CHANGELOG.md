@@ -4,6 +4,28 @@ All notable changes to FrameForge are documented here.
 
 ---
 
+## [2.7.29] — 2026-11-21
+
+### Geospatial 3D Map Explainer Engine & Script Header Parsing
+
+- **Script Ingest Header & Table Parser (`src/workflows/ingest.js`)**:
+  - Added video brief header parser extracting `title`, `referenceStyle`, and `format`.
+  - Added pipe-delimited table scene row parser (`01 | 0-3 | HEADLINE | NARRATION | VISUAL`).
+  - Added alias normalization: `explain.the.planet`, `satellite-map`, `earth-flyover`, `vox`, `johnny-harris` $\to$ `map-explainer-3d`.
+- **5-Layer Analytic Style Selector (`src/video-renderer/style-selector.js`)**:
+  - Wired `STYLE_ALIASES` so `explain.the.planet` and variants resolve automatically to `map-explainer-3d`.
+  - Upgraded topic & visual description inspection: boosts `map-explainer-3d` across geospatial, port, ocean, route, and coast contexts.
+  - Added decisive hook bonus (+45) when geospatial / earth flyover visual cues are present.
+- **Full-Bleed 3D Geospatial Map Canvas Engine (`src/video-renderer/scene-animator.js`)**:
+  - Implemented `map_geospatial_3d` component theme in `generateSceneHtml`.
+  - Full-bleed bathymetric dark ocean, curved latitude/longitude graticule grid, detailed coastal relief with hypsometric elevation tinting, and Western Ghats mountain ridges.
+  - Animated 3D camera flyover with dynamic scale and panning.
+  - Glowing 3D Bezier shipping highway and feeder routes with moving photon pulse particles.
+  - 3D anchored location pins (`VIZHINJAM`, `COLOMBO`, `JNPT MUMBAI`) with vertical stems, glowing target rings, and pinned callout badges.
+  - Floating dark-glass stat card and comparison gauge.
+
+---
+
 ## [2.7.28] — 2026-11-21
 
 ### Zero Scene Numbers, Zero Loading Spinners & Zero UI Chrome
