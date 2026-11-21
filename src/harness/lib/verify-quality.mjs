@@ -1,7 +1,7 @@
 /**
  * verify-quality.mjs — Closed-Loop Visual QA & Frame Scoring Gate
  *
- * Implements the reference Opus 5.5 / Reanimate closed-loop verification contract:
+ * Implements the closed-loop visual verification contract:
  *   1. Samples keyframes at key timestamps across the timeline.
  *   2. Evaluates each frame against 4 quality metrics (content presence, luminance,
  *      corner confinement, and motion delta).

@@ -31,7 +31,8 @@ Skip the storyboard and build the full animation now. Afterwards, list any facts
 
 WHAT TO BUILD
 One self-contained HTML file (an artifact if you can), built on the reference file:
-- Keep the page player (play/pause, scrub, time, sound toggle, loop) and core motion helpers unchanged.
+- ZERO UI CHROME: NEVER render on-screen player chrome, scrub bars, timeline progress lines, scene numbers (e.g. "01 / 26"), loading spinners, buffering rings, or corner metadata/source footers. Render pure broadcast video visuals only.
+- Core motion helpers: Keep window.seek(t), window.DURATION, and deterministic rendering exposed so the video renders frame by frame via headless Chrome and FFmpeg.
 - Replace the demo story: TL, CUTS, app screens, notification badges, mascot cues, status chips, and sound triggers. Keep and reuse the style's core mechanics: phone frame mockup, push notification cascade, mascot squash-and-stretch eye acting, 3D rotating coin spin, typing indicator bubbles.
 - Aim for 15 to 45 seconds unless my content needs more, and set the duration in window.DURATION.
 - Keep window.seek(t), window.DURATION, and deterministic rendering exposed so the video renders frame by frame via headless Chrome and FFmpeg.

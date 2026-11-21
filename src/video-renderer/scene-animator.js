@@ -850,6 +850,91 @@ function detectComponentTheme({
   return 'explainer_presentation';
 }
 
+// ── Scene HTML Purifier (Zero Scene Numbers & Zero Player Chrome) ─────────────
+/**
+ * Sanitize scene HTML to guarantee zero player chrome, zero scene numbers, and zero status watermarks.
+ * Removes web player controls, timeline scrubbers, and injects runtime Canvas & DOM purifiers.
+ */
+function sanitizeSceneHtml(html = '') {
+  if (!html || typeof html !== 'string') return '';
+  let cleaned = html;
+
+  // 1. Strip player scrubbers, time counters, and HUD elements from DOM
+  cleaned = cleaned.replace(/<input\b[^>]*\b(?:id|class)=["'][^"']*(?:scrub|timeline)[^"']*["'][^>]*>/gi, '');
+  cleaned = cleaned.replace(/<span\b[^>]*\b(?:id|class)=["'][^"']*(?:time|timer|counter)[^"']*["'][^>]*>[\s\S]*?<\/span>/gi, '');
+  cleaned = cleaned.replace(/<div\b[^>]*\b(?:id|class)=["'][^"']*(?:hud-counter|scene-num|scene-counter|loading|spinner|buffer|corner-metadata|watermark)[^"']*["'][^>]*>[\s\S]*?<\/div>/gi, '');
+
+  // 2. Inject runtime Purifier script into document head or body
+  const purifierScript = `
+<script data-frameforge-purifier="true">
+/* FRAMEFORGE ZERO SCENE NUMBERS / PLAYER HUD PURIFIER */
+(function () {
+  if (window.__frameforge_purifier_installed) return;
+  window.__frameforge_purifier_installed = true;
+  try {
+    const s = document.createElement('style');
+    s.textContent = \`
+      #scrub, .scrub, input[type="range"], #time, .time, .timeline, .timeline-bar, .progress-bar,
+      .hud-counter, .scene-num, .scene-number, .scene-counter, .chapter-num,
+      [class*="scene-num"], [class*="scene-count"], [id*="scene-num"],
+      .loading, .spinner, .buffer, .buffering, [class*="spinner"], [class*="loading-overlay"], [id*="loading"],
+      .watermark, .footer-source {
+        display: none !important; opacity: 0 !important; visibility: hidden !important; pointer-events: none !important;
+      }
+    \`;
+    (document.head || document.documentElement).appendChild(s);
+
+    if (typeof CanvasRenderingContext2D !== 'undefined') {
+      const _origFillText = CanvasRenderingContext2D.prototype.fillText;
+      const _origStrokeText = CanvasRenderingContext2D.prototype.strokeText;
+      const _origFillRect = CanvasRenderingContext2D.prototype.fillRect;
+
+      function isBannedText(text, x, y, ctx) {
+        if (typeof text !== 'string') return false;
+        const str = text.trim();
+        if (!str) return false;
+        if (/^(?:scene|slide|chapter|part|step)?\\s*\\[?\\s*\\d{1,2}\\s*(?:\\/|\\s+of\\s+)\\s*\\d{1,2}\\s*\\]?$/i.test(str)) return true;
+        if (/^(?:scene|slide|chapter|part|step)\\s*\\d+[:.\\s-]*$/i.test(str)) return true;
+        if (/^(?:loading|buffering|status\\s*:|rendering|video loading|buffer)\\b/i.test(str)) return true;
+        const h = (ctx && ctx.canvas) ? ctx.canvas.height : 1080;
+        if (y < 120 || y > h - 120) {
+          if (/(?:satellite|boundary|datameet|official\\s+.*claim|\\bexplainer$|nasa\\s*\\/)/i.test(str)) return true;
+          if (/^\\d{1,2}:\\d{2}(?::\\d{2})?\\s*\\/\\s*\\d{1,2}:\\d{2}/.test(str)) return true;
+        }
+        return false;
+      }
+
+      CanvasRenderingContext2D.prototype.fillText = function(t, x, y, m) {
+        if (isBannedText(t, x, y, this)) return;
+        return _origFillText.apply(this, arguments);
+      };
+      CanvasRenderingContext2D.prototype.strokeText = function(t, x, y, m) {
+        if (isBannedText(t, x, y, this)) return;
+        return _origStrokeText.apply(this, arguments);
+      };
+      CanvasRenderingContext2D.prototype.fillRect = function(x, y, w, h) {
+        const cHeight = (this.canvas && this.canvas.height) ? this.canvas.height : 1080;
+        if (y >= cHeight - 24 && h <= 10 && w > 50) return;
+        return _origFillRect.apply(this, arguments);
+      };
+    }
+  } catch (_) {}
+})();
+</script>`;
+
+  if (!cleaned.includes('data-frameforge-purifier="true"')) {
+    if (cleaned.includes('<head>')) {
+      cleaned = cleaned.replace('<head>', `<head>\n  ${purifierScript}`);
+    } else if (cleaned.includes('<body>')) {
+      cleaned = cleaned.replace('<body>', `<body>\n  ${purifierScript}`);
+    } else {
+      cleaned = purifierScript + '\n' + cleaned;
+    }
+  }
+
+  return cleaned;
+}
+
 // ── Harness HTML Wrapper for User / Agent Code ────────────────────────────────
 /**
  * Wrap agent-provided Canvas drawing code into a pure-function-of-t harness page.
@@ -869,7 +954,7 @@ function wrapCodeInHarnessHtml({
   const fontDisplay = aesthetic.fontFamily(scriptFont);
   const fontBody = scriptFont ? `${scriptFont}, -apple-system, sans-serif` : `'Segoe UI', -apple-system, sans-serif`;
 
-  return `<!doctype html>
+  const rawHtml = `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -950,6 +1035,8 @@ window.renderAt = async (t, mime = 'image/jpeg', q = 0.92) => {
 </script>
 </body>
 </html>`;
+
+  return sanitizeSceneHtml(rawHtml);
 }
 
 // ── Captions Requested Detector ───────────────────────────────────────────────
@@ -1091,7 +1178,7 @@ function generateSceneHtml({
     } catch (_) {}
   }
 
-  return `<!doctype html>
+  const rawHtml = `<!doctype html>
 <html lang="${htmlLang}" dir="${scriptDir}">
 <head>
   <meta charset="utf-8">
@@ -5042,6 +5129,8 @@ window.renderAt = async (t, mime = 'image/jpeg', q = 0.92) => {
 </script>
 </body>
 </html>`;
+
+  return sanitizeSceneHtml(rawHtml);
 }
 
 // ── LLM Creative Code Generator ──────────────────────────────────────────────
@@ -5219,7 +5308,12 @@ RULES:
 3. Fill the canvas with rich visual geometry matching the STYLE aesthetic below.
 4. NEVER use Math.random(), setTimeout, setInterval, Date.now(), performance.now(). All motion must be a pure function of t.
 5. Output ONLY raw executable JavaScript for the body of window.seek = async (t) => { ... }.
-6. NO markdown, NO explanations. Start directly with JavaScript.`;
+6. NO markdown, NO explanations. Start directly with JavaScript.
+
+CRITICAL NEGATIVE CONSTRAINTS (VIOLATIONS RUIN THE VIDEO):
+7. ABSOLUTELY FORBIDDEN: NEVER draw scene numbers, slide numbers, or progress counters anywhere on canvas (e.g. NO "01 / 26", NO "1/10", NO "Scene 1", NO "Chapter 2", NO "01/04").
+8. ABSOLUTELY FORBIDDEN: NEVER draw video player status, loading spinners, buffering arcs, timeline scrub bars, playback progress lines, or duration timers at the top, bottom, or center. This is a broadcast video, NOT a video player UI.
+9. ABSOLUTELY FORBIDDEN: NEVER draw top headers or bottom footer metadata watermarks (e.g. NO corner topic titles, NO "MALAYALAM EXPLAINER", NO "SATELLITE: NASA / BOUNDARY: DATAMEET", NO citation stamps, NO fake UI chrome). Clean, broadcast-grade graphics only.`;
 
     const user = `TOPIC: ${topic || 'Visual Explainer'}
 STYLE: ${resolvedStyle} — ${aestheticHint}
@@ -5248,6 +5342,7 @@ Write the canvas drawing code for time t. Match the ${resolvedStyle} aesthetic p
 module.exports = {
   generateSceneHtml,
   wrapCodeInHarnessHtml,
+  sanitizeSceneHtml,
   generateSceneCodeWithLLM,
   detectAesthetic,
   detectComponentTheme,

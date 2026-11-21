@@ -46,7 +46,7 @@ function getOptimalFfmpegThreads() {
 
 const { buildCameraFilter, selectCameraHint } = require('../animation/animation-system');
 const { AudioMixer }                          = require('../audio-mixer/mixer');
-const { generateSceneHtml, wrapCodeInHarnessHtml, detectAesthetic, AESTHETICS } = require('./scene-animator');
+const { generateSceneHtml, wrapCodeInHarnessHtml, sanitizeSceneHtml, detectAesthetic, AESTHETICS } = require('./scene-animator');
 const { findChromePath }                      = require('../harness/lib/browser.mjs');
 
 // ── Cross-platform Indic / Malayalam font resolver ────────────────────────────
@@ -468,6 +468,7 @@ class VideoRenderer {
 
     const animHtmlPath = path.join(this.vdir, `scene_${sceneIndex}_anim.html`);
     const framesDir    = path.join(this.vdir, `scene_${sceneIndex}_frames`);
+    htmlContent = sanitizeSceneHtml(htmlContent);
     fs.writeFileSync(animHtmlPath, htmlContent, 'utf8');
     fs.mkdirSync(framesDir, { recursive: true });
 

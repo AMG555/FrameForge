@@ -1,6 +1,6 @@
 {
   "name": "@amg555/frameforge-mcp",
-  "version": "2.7.27",
+  "version": "2.7.28",
   "description": "FrameForge — Universal AI video creation, livestream clipping & autonomous editing engine for any AI agent, CLI, or IDE. npx @amg555/frameforge-mcp. FFmpeg + TTS on your machine. 44 MCP tools. Whisper transcription, yt-dlp stream & VOD clipping, broadcast-grade audio, 108 procedural motion styles, 6 viral faceless shorts engines, autonomous video editor with retake/silence cutting, J/L-cuts, timeline export to DaVinci/Premiere.",
   "publishConfig": {
     "access": "public"

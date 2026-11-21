@@ -31,7 +31,8 @@ Skip the storyboard and build the full animation now.
 
 WHAT TO BUILD
 One self-contained HTML file (an artifact if you can), built on the reference file:
-- Keep the page player and core motion helpers unchanged.
+- ZERO UI CHROME: NEVER render on-screen player chrome, scrub bars, timeline progress lines, scene numbers (e.g. "01 / 26"), loading spinners, buffering rings, or corner metadata/source footers. Render pure broadcast video visuals only.
+- Core motion helpers: Keep window.seek(t), window.DURATION, and deterministic rendering exposed so the video renders frame by frame via headless Chrome and FFmpeg.
 - Replace the product model, exploded components, specification callouts, and camera turntable sequence for my topic.
 - Keep and reuse the style's core mechanics: Three.js ACES Filmic tone mapping, PCFSoftShadowMap, MeshStandardMaterial & MeshPhysicalMaterial with micro-roughness, soft shadow contact plane, rack-focus transitions, and precision measurement lines.
 - Aim for 15 to 45 seconds unless my content needs more, and set the duration in window.DURATION.

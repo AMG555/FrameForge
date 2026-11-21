@@ -162,6 +162,7 @@ async function runScript({
       anchorWanted
         ? 'Include an on-screen host/anchor character in the scenes where appropriate.'
         : 'Do NOT include on-screen host or anchor characters unless asked. Set character to { character_id: "none", pose: "none", emotion: "none" }. Visuals must be dynamic cinematic b-roll, motion graphics, animated diagrams, comparisons, processes, and data visualizations.',
+      'ZERO UI CHROME: NEVER include scene numbers, slide indicators, loading bars, scrub bars, or footer metadata stamps in captions or visual descriptions. All visuals must be pure cinematic motion graphics without TV/player chrome.',
       'Each scene must have:',
       'scene_id (integer), schema_version "2.0.0",',
       'narration (12-22 words in the specified language, spoken aloud — complete idea, natural sentence),',

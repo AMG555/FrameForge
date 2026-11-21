@@ -31,7 +31,8 @@ Skip the storyboard and build the full animation now. Afterwards, list any facts
 
 WHAT TO BUILD
 One self-contained HTML file (an artifact if you can), built on the reference file:
-- Keep the page player (play/pause, scrub, time, sound toggle, loop) and core motion helpers unchanged.
+- ZERO UI CHROME: NEVER render on-screen player chrome, scrub bars, timeline progress lines, scene numbers (e.g. "01 / 26"), loading spinners, buffering rings, or corner metadata/source footers. Render pure broadcast video visuals only.
+- Core motion helpers: Keep window.seek(t), window.DURATION, and deterministic rendering exposed so the video renders frame by frame via headless Chrome and FFmpeg.
 - Replace the demo story: TL, CUTS, evidence cards, highlighter boxes, document scans, map routes, and sound cues. Keep and reuse the style's core mechanics: newsprint paper texture, stepped stop-motion on twos, sticker cutout borders, marker highlight sweep, Caveat margin notes.
 - Aim for 15 to 45 seconds unless my content needs more, and set the duration in window.DURATION.
 - Keep window.seek(t), window.DURATION, and deterministic rendering exposed so the video renders frame by frame via headless Chrome and FFmpeg.

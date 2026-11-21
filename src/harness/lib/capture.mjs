@@ -165,6 +165,87 @@ export const VIRTUAL_CLOCK_INJECTION = `
       _delayHandles.clear();
     }
   };
+
+  // ── Auto-Purify Video Canvas & DOM (Zero Scene Numbers & Zero Player Chrome) ──
+  try {
+    const styleEl = document.createElement('style');
+    styleEl.setAttribute('data-frameforge-purifier', 'true');
+    styleEl.textContent = \`
+      #scrub, .scrub, input[type="range"], #time, .time, .timeline, .timeline-bar, .progress-bar,
+      .hud-counter, .scene-num, .scene-number, .scene-counter, .chapter-num,
+      [class*="scene-num"], [class*="scene-count"], [id*="scene-num"],
+      .loading, .spinner, .buffer, .buffering, [class*="spinner"], [class*="loading-overlay"], [id*="loading"],
+      .watermark, .footer-source {
+        display: none !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+      }
+    \`;
+    if (document.head) document.head.appendChild(styleEl);
+    else document.addEventListener('DOMContentLoaded', () => document.head && document.head.appendChild(styleEl));
+
+    const purgeDomNodes = () => {
+      try {
+        const elements = document.querySelectorAll('div, span, p, h1, h2, h3, h4, header, footer');
+        for (const el of elements) {
+          if (el.tagName === 'CANVAS' || el.tagName === 'SCRIPT' || el.tagName === 'STYLE') continue;
+          if (el.children.length > 2) continue;
+          const txt = (el.textContent || '').trim();
+          if (/^(?:scene|slide|chapter|part|step)?\\s*\\[?\\s*\\d{1,2}\\s*(?:\\/|\\s+of\\s+)\\s*\\d{1,2}\\s*\\]?$/i.test(txt) ||
+              /^(?:loading|buffering|video loading)\\b/i.test(txt) ||
+              /(?:satellite\\s*:|boundary\\s*:|datameet|official\\s+indian\\s+claim|\\bexplainer$)/i.test(txt)) {
+            el.style.setProperty('display', 'none', 'important');
+          }
+        }
+      } catch (_) {}
+    };
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', purgeDomNodes);
+    } else {
+      purgeDomNodes();
+    }
+
+    if (typeof CanvasRenderingContext2D !== 'undefined') {
+      const _origFillText = CanvasRenderingContext2D.prototype.fillText;
+      const _origStrokeText = CanvasRenderingContext2D.prototype.strokeText;
+      const _origFillRect = CanvasRenderingContext2D.prototype.fillRect;
+
+      function isBannedText(text, x, y, ctx) {
+        if (typeof text !== 'string') return false;
+        const s = text.trim();
+        if (!s) return false;
+
+        if (/^(?:scene|slide|chapter|part|step)?\\s*\\[?\\s*\\d{1,2}\\s*(?:\\/|\\s+of\\s+)\\s*\\d{1,2}\\s*\\]?$/i.test(s)) return true;
+        if (/^(?:scene|slide|chapter|part|step)\\s*\\d+[:.\\s-]*$/i.test(s)) return true;
+        if (/^(?:loading|buffering|status\\s*:|rendering|video loading|buffer)\\b/i.test(s)) return true;
+
+        const h = (ctx && ctx.canvas) ? ctx.canvas.height : 1080;
+        const isCorner = (y < 120 || y > h - 120);
+        if (isCorner) {
+          if (/(?:satellite|boundary|datameet|official\\s+.*claim|\\bexplainer$|nasa\\s*\\/)/i.test(s)) return true;
+          if (/^\\d{1,2}:\\d{2}(?::\\d{2})?\\s*\\/\\s*\\d{1,2}:\\d{2}/.test(s)) return true;
+        }
+        return false;
+      }
+
+      CanvasRenderingContext2D.prototype.fillText = function (text, x, y, maxWidth) {
+        if (isBannedText(text, x, y, this)) return;
+        return _origFillText.apply(this, arguments);
+      };
+
+      CanvasRenderingContext2D.prototype.strokeText = function (text, x, y, maxWidth) {
+        if (isBannedText(text, x, y, this)) return;
+        return _origStrokeText.apply(this, arguments);
+      };
+
+      CanvasRenderingContext2D.prototype.fillRect = function (x, y, w, h) {
+        const cHeight = (this.canvas && this.canvas.height) ? this.canvas.height : 1080;
+        if (y >= cHeight - 24 && h <= 10 && w > 50) return;
+        return _origFillRect.apply(this, arguments);
+      };
+    }
+  } catch (_) {}
 })();
 `;
 

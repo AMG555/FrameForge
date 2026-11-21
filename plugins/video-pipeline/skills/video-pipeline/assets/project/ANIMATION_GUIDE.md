@@ -86,6 +86,13 @@ that convey plot-critical information (character names, place names, dates, emot
 narrative exposition). These helpers exist for UI/diagram/explainer content only,
 not for storytelling that belongs in the direction.
 
+### Gate 5 — Zero Scene Numbers & Zero Player Chrome
+
+- **NEVER write scene counters, slide numbers, or progress badges** (e.g. `01 / 26`, `Scene 1`, `[01/26]`).
+- **NEVER write video player controls, timeline scrubbers, progress bars, or buffering spinners.**
+- **NEVER write corner metadata watermarks or source footers** (e.g. `MALAYALAM EXPLAINER`, `SATELLITE: NASA / BOUNDARY: DATAMEET`).
+- Render clean broadcast visuals only.
+
 ---
 
 ## Six Determinism Rules

@@ -83,6 +83,14 @@ sticks on all later frames.
 
 ---
 
+## 🚫 Zero Scene Numbers & Zero Player Chrome Rule
+
+- **NEVER render scene numbers, slide numbers, or progress counters anywhere** (e.g. NO "01 / 26", NO "1/10", NO "Scene 1", NO "Chapter 2", NO "01/04").
+- **NEVER render video player status, loading spinners, buffering arcs, timeline scrub bars, playback progress lines, or duration timers** at the top, bottom, or center. This is a broadcast video, NOT a video player UI.
+- **NEVER render top headers or bottom footer metadata watermarks** (e.g. NO corner topic titles, NO "MALAYALAM EXPLAINER", NO "SATELLITE: NASA / BOUNDARY: DATAMEET", NO citation stamps, NO fake UI chrome). Clean, broadcast-grade graphics only.
+
+---
+
 ## Workflow (integrates with FrameForge pipeline)
 
 ### Step 1: Run FrameForge dry-run to get script JSON

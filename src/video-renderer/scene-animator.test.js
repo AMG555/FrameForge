@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const {
   generateSceneHtml,
   wrapCodeInHarnessHtml,
+  sanitizeSceneHtml,
   detectAesthetic,
   detectComponentTheme,
   detectCaptionsRequested,
@@ -372,6 +373,58 @@ describe('scene-animator extended procedural motion styles (#97 to #102)', () =>
   it('maps fluid-particle-cinema to cosmic_space and fluid_particle_physics_3d theme', () => {
     assert.equal(detectAesthetic({ style: 'fluid-particle-cinema' }), 'cosmic_space');
     assert.equal(detectComponentTheme({ style: 'fluid-particle-cinema' }), 'fluid_particle_physics_3d');
+  });
+});
+
+describe('scene-animator sanitizeSceneHtml & zero player chrome', () => {
+  it('strips player scrub inputs, time indicators, and scene number elements', () => {
+    const dirtyHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head><title>Dirty Scene</title></head>
+      <body>
+        <div id="player">
+          <input type="range" id="scrub" min="0" max="100">
+          <span id="time">00:04</span>
+          <div class="hud-counter">01 / 26</div>
+          <div class="scene-number">Scene 1</div>
+          <div class="loading-spinner">Loading...</div>
+          <div class="corner-metadata">SATELLITE: NASA / BOUNDARY: DATAMEET</div>
+        </div>
+        <canvas id="c"></canvas>
+      </body>
+      </html>
+    `;
+    const cleanHtml = sanitizeSceneHtml(dirtyHtml);
+    assert.ok(!cleanHtml.includes('id="scrub"'));
+    assert.ok(!cleanHtml.includes('id="time"'));
+    assert.ok(!cleanHtml.includes('01 / 26'));
+    assert.ok(!cleanHtml.includes('class="hud-counter"'));
+    assert.ok(!cleanHtml.includes('class="scene-number"'));
+    assert.ok(!cleanHtml.includes('class="loading-spinner"'));
+    assert.ok(!cleanHtml.includes('class="corner-metadata"'));
+    assert.ok(cleanHtml.includes('CanvasRenderingContext2D.prototype'));
+    assert.ok(cleanHtml.includes('ZERO SCENE NUMBERS / PLAYER HUD PURIFIER'));
+  });
+
+  it('wrapCodeInHarnessHtml includes zero-chrome canvas purifier', () => {
+    const wrapped = wrapCodeInHarnessHtml('ctx.fillStyle = "#fff"; ctx.fillText("Hello", 50, 50);', {
+      duration: 3,
+      aesthetic: 'clean-tech'
+    });
+    assert.ok(wrapped.includes('ZERO SCENE NUMBERS / PLAYER HUD PURIFIER'));
+    assert.ok(!wrapped.includes('<input type="range" id="scrub">'));
+  });
+
+  it('generateSceneHtml produces clean canvas with zero player controls', () => {
+    const html = generateSceneHtml({
+      style: 'clean-tech',
+      caption: 'Clean Title without Scene Numbers'
+    });
+    assert.ok(html.includes('ZERO SCENE NUMBERS / PLAYER HUD PURIFIER'));
+    assert.ok(!html.includes('id="scrub"'));
+    assert.ok(!html.includes('id="time"'));
+    assert.ok(!html.includes('class="hud-counter"'));
   });
 });
 

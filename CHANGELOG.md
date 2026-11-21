@@ -4,6 +4,23 @@ All notable changes to FrameForge are documented here.
 
 ---
 
+## [2.7.28] — 2026-11-21
+
+### Zero Scene Numbers, Zero Loading Spinners & Zero UI Chrome
+
+- **Zero-Chrome Defense-in-Depth Pipeline**:
+  - **Runtime Canvas 2D & DOM Purifier (`src/harness/lib/capture.mjs`, `src/video-renderer/scene-animator.js`)**:
+    - Injected global DOM purifier hiding all scrubbers (`#scrub`, `.scrub`, `input[type="range"]`), time indicators (`#time`, `.time`, `.timeline`), scene counters (`.hud-counter`, `.scene-num`, `.scene-number`), loading overlays (`.loading`, `.spinner`, `.buffer`), and footer watermarks (`.watermark`, `.footer-source`).
+    - Monkey-patched `CanvasRenderingContext2D.prototype.fillText`, `strokeText`, and `fillRect` to filter out scene numbers (`01 / 26`, `Scene 1`), player status (`LOADING VIDEO`, `BUFFERING`), corner metadata (`SATELLITE`, `DATAMEET`, `EXPLAINER`), and bottom scrub lines ($y \ge H - 24$, $h \le 10$).
+  - **Static HTML Sanitization (`src/video-renderer/scene-animator.js`, `src/video-renderer/renderer.js`)**:
+    - Added `sanitizeSceneHtml(html)` to strip player inputs and inject purifier script into every generated or agent-supplied HTML before writing `scene_${sceneIndex}_anim.html` and rendering with Playwright.
+  - **Prompt Template Cleansing (`plugins/motion-styles/prompts/*.md`)**:
+    - Stripped web player references across all 108 motion style prompt templates, replacing them with strict `ZERO UI CHROME` constraints.
+  - **Agent Governance & Quality Gates (`AGENTS.md`, `GEMINI.md`, `ANIMATION_GUIDE.md`, `SKILL.md`)**:
+    - Established strict top-level rules forbidding on-screen scene numbers, loading arcs, scrub lines, and footer watermarks.
+
+---
+
 ## [2.7.27] — 2026-11-21
 
 ### Photorealistic 3D Procedural Motion Graphics (#105 to #108) & Realistic Shader Engine
